@@ -1,3 +1,22 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "school-logo",
+      "description": "Modern School Logo",
+      "imageUrl": "https://picsum.photos/seed/school-logo/200/200",
+      "imageHint": "education logo"
+    },
+    {
+      "id": "hero-dashboard",
+      "description": "Educational analytics dashboard view",
+      "imageUrl": "https://picsum.photos/seed/edu-dashboard/1200/800",
+      "imageHint": "education technology"
+    },
+    {
+      "id": "onboarding-step",
+      "description": "Welcome onboarding step graphic",
+      "imageUrl": "https://picsum.photos/seed/welcome/600/400",
+      "imageHint": "welcome school"
+    }
+  ]
 }
