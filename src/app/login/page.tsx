@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -11,6 +11,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth"
 import { useAuth } from "@/firebase"
+import { firebaseConfig } from "@/firebase/config"
 import { toast } from "@/hooks/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
@@ -22,17 +23,20 @@ export default function LoginPage() {
   const router = useRouter()
   const auth = useAuth()
 
+  useEffect(() => {
+    if (firebaseConfig.apiKey === "REPLACEME") {
+      setConfigError(true)
+    }
+  }, [])
+
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!auth) return
+    if (!auth || configError) return
     setLoading(true)
     try {
       await signInWithEmailAndPassword(auth, email, password)
       router.push("/dashboard")
     } catch (error: any) {
-      if (error.code === 'auth/api-key-not-valid' || error.message.includes('API key')) {
-        setConfigError(true)
-      }
       toast({
         variant: "destructive",
         title: "Login Failed",
@@ -44,7 +48,7 @@ export default function LoginPage() {
   }
 
   const handleGoogleLogin = async () => {
-    if (!auth) return
+    if (!auth || configError) return
     setLoading(true)
     try {
       const provider = new GoogleAuthProvider()
@@ -81,9 +85,9 @@ export default function LoginPage() {
           {configError && (
             <Alert variant="destructive" className="mb-4">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Configuration Required</AlertTitle>
+              <AlertTitle>Action Required</AlertTitle>
               <AlertDescription>
-                Firebase is not yet configured. Please link your Firebase project in the Studio settings to enable authentication.
+                Firebase is not configured. Please link your Firebase project in the Studio settings.
               </AlertDescription>
             </Alert>
           )}
@@ -110,7 +114,7 @@ export default function LoginPage() {
                 required
               />
             </div>
-            <Button className="w-full" type="submit" disabled={loading}>
+            <Button className="w-full" type="submit" disabled={loading || configError}>
               {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sign In"}
             </Button>
           </form>
@@ -124,20 +128,20 @@ export default function LoginPage() {
             </div>
           </div>
           
-          <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={loading}>
+          <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={loading || configError}>
             Google Workspace
           </Button>
 
           <div className="p-4 bg-muted/50 rounded-lg text-xs space-y-1 border border-border">
             <p className="font-bold text-primary">Demo Credentials (2026):</p>
-            <p>Admin Email: <span className="font-mono">admin@demo.com</span></p>
-            <p>Password: <span className="font-mono">demo1234</span></p>
+            <p>Email: <span className="font-mono">admin@demo.com</span></p>
+            <p>Pass: <span className="font-mono">demo1234</span></p>
           </div>
         </CardContent>
       </Card>
       
       <p className="mt-8 text-center text-sm text-muted-foreground">
-        Don't have an account? <Link href="/contact" className="text-primary hover:underline">Contact sales</Link>
+        Need assistance? Contact <Link href="/contact" className="text-primary hover:underline">asareg365@gmail.com</Link>
       </p>
     </div>
   )

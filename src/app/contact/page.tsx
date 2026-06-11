@@ -21,7 +21,7 @@ export default function ContactPage() {
       setLoading(false)
       toast({
         title: "Message Sent",
-        description: "Your inquiry has been directed to our administrators (asareg365@gmail.com & frankyeb@gmail.com).",
+        description: "Our admins (asareg365@gmail.com & frankyeb@gmail.com) will assist you soon.",
       })
       const form = e.target as HTMLFormElement
       form.reset()
@@ -48,7 +48,7 @@ export default function ContactPage() {
             <div className="space-y-4">
               <h1 className="text-5xl font-headline font-bold text-primary tracking-tight">Let's connect.</h1>
               <p className="text-xl text-muted-foreground leading-relaxed">
-                Whether you're looking for a demo, a partnership, or just have a question about Yebfa Enterprise, our team in Ahafo is ready to support you.
+                Whether you're looking for a demo or assistance, our team in Ahafo is ready to support you.
               </p>
             </div>
 
@@ -71,10 +71,7 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <p className="text-sm font-bold">Call Us</p>
-                  <div className="flex flex-col gap-1">
-                    <p className="text-muted-foreground text-sm">0248472474</p>
-                    <p className="text-muted-foreground text-sm">0275034377</p>
-                  </div>
+                  <p className="text-muted-foreground text-sm">0248472474 / 0275034377</p>
                 </div>
               </div>
               <div className="flex items-start gap-4">
@@ -92,7 +89,7 @@ export default function ContactPage() {
           <Card className="border-none shadow-2xl overflow-hidden">
             <CardHeader className="bg-primary text-primary-foreground">
               <CardTitle>Send a Message</CardTitle>
-              <CardDescription className="text-primary-foreground/70">Fill out the form below and we'll get back to you shortly.</CardDescription>
+              <CardDescription className="text-primary-foreground/70">Our administrators will respond shortly.</CardDescription>
             </CardHeader>
             <CardContent className="p-8">
               <form onSubmit={handleSubmit} className="space-y-6">
@@ -111,12 +108,8 @@ export default function ContactPage() {
                   <Input id="email" type="email" placeholder="email@address.com" required />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="subject">Subject</Label>
-                  <Input id="subject" placeholder="How can we help?" required />
-                </div>
-                <div className="space-y-2">
                   <Label htmlFor="message">Message</Label>
-                  <Textarea id="message" placeholder="Type your message here..." className="min-h-[120px]" required />
+                  <Textarea id="message" placeholder="How can we assist you?" className="min-h-[120px]" required />
                 </div>
                 <Button className="w-full h-12 gap-2" type="submit" disabled={loading}>
                   {loading ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
