@@ -4,7 +4,7 @@
 import Link from "next/link"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { School, ArrowLeft, Target, Award, ShieldCheck, Play, Loader2, Sparkles } from "lucide-react"
+import { School, ArrowLeft, Target, Award, ShieldCheck, Play, Loader2, Sparkles, Video } from "lucide-react"
 import { generateDemoVideo } from "@/ai/flows/generate-demo-video"
 import { toast } from "@/hooks/use-toast"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -15,18 +15,20 @@ export default function AboutPage() {
 
   const handleWatchDemo = async () => {
     setGenerating(true)
+    setVideoUrl(null)
     try {
       const result = await generateDemoVideo()
       setVideoUrl(result.videoUrl)
       toast({
-        title: "AI Demo Ready",
-        description: "The cinematic walkthrough has been generated for you.",
+        title: "AI Demo Synthesized",
+        description: "Your custom cinematic walkthrough is ready.",
       })
     } catch (error: any) {
+      console.error("Video Generation Error:", error)
       toast({
         variant: "destructive",
-        title: "Generation Failed",
-        description: error.message || "Could not generate AI video at this time.",
+        title: "Synthesis Failed",
+        description: error.message || "Could not generate AI video. Please check your AI configuration.",
       })
     } finally {
       setGenerating(false)
@@ -81,12 +83,20 @@ export default function AboutPage() {
                   ) : (
                     <div className="text-center space-y-6 p-12">
                       <div className="size-20 rounded-full bg-white/5 flex items-center justify-center mx-auto">
-                        <Play className="size-8 text-white/20" />
+                        {generating ? (
+                          <Loader2 className="size-10 text-accent animate-spin" />
+                        ) : (
+                          <Video className="size-10 text-white/20" />
+                        )}
                       </div>
                       <div className="max-w-md mx-auto">
-                        <h3 className="text-white font-bold text-xl">Ready to Visualize 2026?</h3>
+                        <h3 className="text-white font-bold text-xl">
+                          {generating ? "Synthesizing AI Vision..." : "Ready to Visualize 2026?"}
+                        </h3>
                         <p className="text-zinc-500 text-sm mt-2">
-                          Our AI will now generate a unique cinematic walkthrough of the Yebfa Ecosystem interface.
+                          {generating 
+                            ? "Please wait while our AI models generate a cinematic 4K walkthrough of the Yebfa Ecosystem. This usually takes 45-90 seconds." 
+                            : "Our AI will generate a unique cinematic walkthrough of the Yebfa Ecosystem interface specifically for you."}
                         </p>
                       </div>
                       <Button 
@@ -97,7 +107,7 @@ export default function AboutPage() {
                         {generating ? (
                           <>
                             <Loader2 className="mr-2 size-4 animate-spin" />
-                            Synthesizing Video (30-60s)...
+                            Processing frames...
                           </>
                         ) : (
                           "Generate Custom Demo"
@@ -118,16 +128,17 @@ export default function AboutPage() {
             </div>
             <h3 className="text-xl font-bold font-headline">Our Mission</h3>
             <p className="text-muted-foreground text-sm leading-relaxed">
-              To empower school administrators with AI-driven insights that drive student success and financial sustainability.
+              To empower school administrators with AI-driven insights that drive student success and financial sustainability across the Ahafo region and beyond.
             </p>
           </div>
+          <div className="size-12 rounded-lg bg-primary/5 flex items-center justify-center hidden"></div> {/* Spacer hack for alignment */}
           <div className="space-y-4">
             <div className="size-12 rounded-lg bg-primary/5 flex items-center justify-center">
               <ShieldCheck className="size-6 text-primary" />
             </div>
             <h3 className="text-xl font-bold font-headline">Security First</h3>
             <p className="text-muted-foreground text-sm leading-relaxed">
-              Absolute data isolation and multi-tenant partitioning to ensure every school's records remain private and protected.
+              Absolute data isolation and multi-tenant partitioning to ensure every school's records remain private and protected under international standards.
             </p>
           </div>
           <div className="space-y-4">
@@ -141,14 +152,14 @@ export default function AboutPage() {
           </div>
         </section>
 
-        <section className="p-12 rounded-3xl bg-primary text-primary-foreground space-y-8">
+        <section className="p-12 rounded-3xl bg-primary text-primary-foreground space-y-8 shadow-2xl">
           <div className="max-w-2xl">
             <h2 className="text-3xl font-headline font-bold mb-4">Our Presence in 2026</h2>
             <p className="text-primary-foreground/80 leading-relaxed">
-              Today, Yebfa powers over 150 institutions across Ghana, handling thousands of student records and providing strategic financial forecasts that have saved schools an average of 15% in operational costs.
+              Headquartered in Goaso, Ahafo Region, Yebfa powers over 150 institutions across Ghana. Our strategic financial forecasts have helped schools save an average of 15% in operational costs while improving student outcomes.
             </p>
           </div>
-          <Button variant="secondary" size="lg" asChild>
+          <Button variant="secondary" size="lg" asChild className="bg-white text-primary hover:bg-white/90">
             <Link href="/contact">Join the Ecosystem</Link>
           </Button>
         </section>
