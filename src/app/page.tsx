@@ -1,3 +1,4 @@
+
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { School, ArrowRight, ShieldCheck, Zap, Globe, Users, TrendingUp } from "lucide-react"
@@ -13,9 +14,9 @@ export default function LandingPage() {
           <span className="text-2xl font-headline font-bold tracking-tight text-primary">Yebfa</span>
         </Link>
         <nav className="hidden md:flex items-center gap-8">
-          <Link href="#features" className="text-sm font-medium hover:text-accent transition-colors">Features</Link>
-          <Link href="#pricing" className="text-sm font-medium hover:text-accent transition-colors">Pricing</Link>
-          <Link href="#about" className="text-sm font-medium hover:text-accent transition-colors">About</Link>
+          <Link href="/features" className="text-sm font-medium hover:text-accent transition-colors">Features</Link>
+          <Link href="/pricing" className="text-sm font-medium hover:text-accent transition-colors">Pricing</Link>
+          <Link href="/about" className="text-sm font-medium hover:text-accent transition-colors">About</Link>
         </nav>
         <div className="flex items-center gap-4">
           <Button variant="ghost" asChild>
@@ -47,14 +48,13 @@ export default function LandingPage() {
                     Launch Dashboard <ArrowRight className="ml-2 size-5" />
                   </Link>
                 </Button>
-                <Button size="lg" variant="outline" className="h-14 px-8 text-lg font-medium">
-                  Watch Demo Video
+                <Button size="lg" variant="outline" className="h-14 px-8 text-lg font-medium" asChild>
+                  <Link href="/demo">Watch Demo Video</Link>
                 </Button>
               </div>
             </div>
           </div>
           
-          {/* Decorative gradients */}
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full pointer-events-none -z-10 opacity-30">
             <div className="absolute top-[-10%] left-[-10%] size-[500px] bg-accent/20 blur-[120px] rounded-full" />
             <div className="absolute bottom-[-10%] right-[-10%] size-[500px] bg-primary/10 blur-[120px] rounded-full" />
@@ -102,11 +102,11 @@ export default function LandingPage() {
             </div>
             <span className="text-xl font-headline font-bold text-primary">Yebfa</span>
           </div>
-          <p className="text-sm text-muted-foreground">© 2024 Yebfa Enterprise. All rights reserved.</p>
+          <p className="text-sm text-muted-foreground">© 2026 Yebfa Enterprise. All rights reserved.</p>
           <div className="flex gap-6">
-            <Link href="#" className="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline transition-colors">Privacy</Link>
-            <Link href="#" className="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline transition-colors">Terms</Link>
-            <Link href="#" className="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline transition-colors">Contact</Link>
+            <Link href="/privacy" className="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline transition-colors">Privacy</Link>
+            <Link href="/terms" className="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline transition-colors">Terms</Link>
+            <Link href="/contact" className="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline transition-colors">Contact</Link>
           </div>
         </div>
       </footer>

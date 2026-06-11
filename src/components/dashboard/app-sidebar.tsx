@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -96,6 +97,27 @@ const data = {
 export function AppSidebar() {
   const pathname = usePathname()
   const { state } = useSidebar()
+  const [isMounted, setIsMounted] = React.useState(false)
+
+  // Fix for hydration error with Collapsible and dynamic IDs
+  React.useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
+  if (!isMounted) {
+    return (
+      <Sidebar collapsible="icon" className="border-r border-border/40">
+        <SidebarHeader className="h-16 flex items-center px-6">
+          <div className="flex items-center gap-3">
+            <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <School className="size-5" />
+            </div>
+          </div>
+        </SidebarHeader>
+        <SidebarContent />
+      </Sidebar>
+    )
+  }
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border/40">

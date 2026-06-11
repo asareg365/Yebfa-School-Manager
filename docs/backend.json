@@ -1,0 +1,39 @@
+
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Information about users and their roles within the system.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["super_admin", "owner", "staff", "student"] },
+        "institutionId": { "type": "string", "description": "Reference to the school/institution this user belongs to." }
+      },
+      "required": ["email", "role"]
+    },
+    "Institution": {
+      "title": "Institution",
+      "description": "Educational institution details.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "ownerEmail": { "type": "string" }
+      },
+      "required": ["name", "ownerEmail"]
+    }
+  },
+  "auth": {
+    "providers": ["google.com", "password"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles and permissions."
+    },
+    "/institutions/{institutionId}": {
+      "schema": "Institution",
+      "description": "Details for each school instance."
+    }
+  }
+}
