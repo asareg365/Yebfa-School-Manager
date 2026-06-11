@@ -1,4 +1,3 @@
-
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { School, ArrowRight, ShieldCheck, Zap, Users, TrendingUp } from "lucide-react"
@@ -14,7 +13,7 @@ export default function LandingPage() {
           <span className="text-2xl font-headline font-bold tracking-tight text-primary">Yebfa</span>
         </Link>
         <nav className="hidden md:flex items-center gap-8">
-          <Link href="/features" className="text-sm font-medium hover:text-accent transition-colors">Features</Link>
+          <Link href="#features" className="text-sm font-medium hover:text-accent transition-colors">Features</Link>
           <Link href="/pricing" className="text-sm font-medium hover:text-accent transition-colors">Pricing</Link>
           <Link href="/about" className="text-sm font-medium hover:text-accent transition-colors">About</Link>
         </nav>

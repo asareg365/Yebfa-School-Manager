@@ -1,4 +1,3 @@
-
 {
   "entities": {
     "User": {
@@ -31,7 +30,7 @@
   "firestore": {
     "/users/{userId}": {
       "schema": "User",
-      "description": "User profiles and permissions. Super admins: asareg365@gmail.com, frankyeb@gmail.com. Owner: admin@demo.com."
+      "description": "User profiles. Super Admins: asareg365@gmail.com, frankyeb@gmail.com. Owners: admin@demo.com."
     },
     "/institutions/{institutionId}": {
       "schema": "Institution",
