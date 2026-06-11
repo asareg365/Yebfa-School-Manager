@@ -21,7 +21,7 @@ export default function ContactPage() {
       setLoading(false)
       toast({
         title: "Message Sent",
-        description: "Our sales team will reach out to you within 24 hours.",
+        description: "Our administrative team will reach out to you within 24 hours.",
       })
       const form = e.target as HTMLFormElement
       form.reset()
@@ -48,36 +48,42 @@ export default function ContactPage() {
             <div className="space-y-4">
               <h1 className="text-5xl font-headline font-bold text-primary tracking-tight">Let's connect.</h1>
               <p className="text-xl text-muted-foreground leading-relaxed">
-                Whether you're looking for a demo, a partnership, or just have a question about Yebfa Enterprise, we're here to help.
+                Whether you're looking for a demo, a partnership, or just have a question about Yebfa Enterprise, our team in Ahafo is ready to support you.
               </p>
             </div>
 
             <div className="space-y-6">
-              <div className="flex items-center gap-4">
-                <div className="size-12 rounded-xl bg-primary/5 flex items-center justify-center text-primary">
+              <div className="flex items-start gap-4">
+                <div className="size-12 rounded-xl bg-primary/5 flex items-center justify-center text-primary shrink-0">
                   <Mail className="size-6" />
                 </div>
                 <div>
                   <p className="text-sm font-bold">Email Us</p>
-                  <p className="text-muted-foreground">hello@yebfa.io</p>
+                  <div className="flex flex-col gap-1">
+                    <p className="text-muted-foreground text-sm">asareg365@gmail.com</p>
+                    <p className="text-muted-foreground text-sm">frankyeb@gmail.com</p>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-4">
-                <div className="size-12 rounded-xl bg-primary/5 flex items-center justify-center text-primary">
+              <div className="flex items-start gap-4">
+                <div className="size-12 rounded-xl bg-primary/5 flex items-center justify-center text-primary shrink-0">
                   <Phone className="size-6" />
                 </div>
                 <div>
                   <p className="text-sm font-bold">Call Us</p>
-                  <p className="text-muted-foreground">+233 (0) 50 123 4567</p>
+                  <div className="flex flex-col gap-1">
+                    <p className="text-muted-foreground text-sm">0248472474</p>
+                    <p className="text-muted-foreground text-sm">0275034377</p>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-4">
-                <div className="size-12 rounded-xl bg-primary/5 flex items-center justify-center text-primary">
+              <div className="flex items-start gap-4">
+                <div className="size-12 rounded-xl bg-primary/5 flex items-center justify-center text-primary shrink-0">
                   <MapPin className="size-6" />
                 </div>
                 <div>
                   <p className="text-sm font-bold">Headquarters</p>
-                  <p className="text-muted-foreground">Airport Residential, Accra, Ghana</p>
+                  <p className="text-muted-foreground">Goaso - Ahafo Region, Ghana</p>
                 </div>
               </div>
             </div>
@@ -93,24 +99,24 @@ export default function ContactPage() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">First Name</Label>
-                    <Input id="firstName" placeholder="John" required />
+                    <Input id="firstName" placeholder="First Name" required />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="lastName">Last Name</Label>
-                    <Input id="lastName" placeholder="Doe" required />
+                    <Input id="lastName" placeholder="Last Name" required />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Work Email</Label>
-                  <Input id="email" type="email" placeholder="john@school.edu.gh" required />
+                  <Label htmlFor="email">Email Address</Label>
+                  <Input id="email" type="email" placeholder="email@address.com" required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="subject">Subject</Label>
-                  <Input id="subject" placeholder="Request for Premium Demo" required />
+                  <Input id="subject" placeholder="How can we help?" required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="message">Message</Label>
-                  <Textarea id="message" placeholder="How can we help your institution?" className="min-h-[120px]" required />
+                  <Textarea id="message" placeholder="Type your message here..." className="min-h-[120px]" required />
                 </div>
                 <Button className="w-full h-12 gap-2" type="submit" disabled={loading}>
                   {loading ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
