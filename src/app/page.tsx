@@ -3,7 +3,7 @@
 
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { School, ArrowRight, ShieldCheck, Zap, Users, TrendingUp } from "lucide-react"
+import { School, ArrowRight, Zap, Play } from "lucide-react"
 import { useUser } from "@/firebase"
 
 export default function LandingPage() {
@@ -28,12 +28,20 @@ export default function LandingPage() {
           )}
         </nav>
         <div className="flex items-center gap-4">
-          <Button variant="ghost" asChild>
-            <Link href="/login">Sign In</Link>
-          </Button>
-          <Button className="bg-primary hover:bg-primary/90" asChild>
-            <Link href="/login">Access Demo</Link>
-          </Button>
+          {user ? (
+            <Button className="bg-primary hover:bg-primary/90" asChild>
+              <Link href="/dashboard">Dashboard</Link>
+            </Button>
+          ) : (
+            <>
+              <Button variant="ghost" asChild>
+                <Link href="/login">Sign In</Link>
+              </Button>
+              <Button className="bg-primary hover:bg-primary/90" asChild>
+                <Link href="/login">Get Started</Link>
+              </Button>
+            </>
+          )}
         </div>
       </header>
 
@@ -52,12 +60,12 @@ export default function LandingPage() {
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 animate-in fade-in slide-in-from-bottom-12 duration-1000">
               <Button size="lg" className="h-14 px-8 text-lg font-medium bg-primary hover:bg-primary/90" asChild>
-                <Link href="/dashboard">
-                  Launch Dashboard <ArrowRight className="ml-2 size-5" />
+                <Link href={user ? "/dashboard" : "/login"}>
+                  {user ? "Enter Dashboard" : "Launch Demo"} <ArrowRight className="ml-2 size-5" />
                 </Link>
               </Button>
-              <Button size="lg" variant="outline" className="h-14 px-8 text-lg font-medium" asChild>
-                <Link href="/about">Watch Demo Video</Link>
+              <Button size="lg" variant="outline" className="h-14 px-8 text-lg font-medium gap-2" asChild>
+                <Link href="/about"><Play className="size-4" /> Watch Vision Demo</Link>
               </Button>
             </div>
           </div>

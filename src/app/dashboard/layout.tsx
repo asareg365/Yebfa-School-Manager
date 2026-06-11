@@ -1,15 +1,44 @@
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/dashboard/app-sidebar"
-import { Separator } from "@/components/ui/separator"
-import { Bell, Search } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useUser } from "@/firebase";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/dashboard/app-sidebar";
+import { Separator } from "@/components/ui/separator";
+import { Bell, Search, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const { user, loading } = useUser();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
+
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <p className="font-headline font-bold text-lg animate-pulse">Establishing Secure Session...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If not loading and no user, we are redirecting, so show nothing
+  if (!user) return null;
+
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -34,7 +63,7 @@ export default function DashboardLayout({
             </Button>
             <div className="hidden sm:flex flex-col text-right">
               <span className="text-sm font-semibold">Greenwood Academy</span>
-              <span className="text-xs text-muted-foreground">Term 2, 2024</span>
+              <span className="text-xs text-muted-foreground">Term 2, 2026</span>
             </div>
           </div>
         </header>
@@ -43,5 +72,5 @@ export default function DashboardLayout({
         </main>
       </SidebarInset>
     </SidebarProvider>
-  )
+  );
 }
