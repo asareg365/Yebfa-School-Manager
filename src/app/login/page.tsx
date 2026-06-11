@@ -6,17 +6,19 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { School, Loader2 } from "lucide-react"
+import { School, Loader2, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth"
 import { useAuth } from "@/firebase"
 import { toast } from "@/hooks/use-toast"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
+  const [configError, setConfigError] = useState(false)
   const router = useRouter()
   const auth = useAuth()
 
@@ -28,10 +30,13 @@ export default function LoginPage() {
       await signInWithEmailAndPassword(auth, email, password)
       router.push("/dashboard")
     } catch (error: any) {
+      if (error.code === 'auth/api-key-not-valid' || error.message.includes('API key')) {
+        setConfigError(true)
+      }
       toast({
         variant: "destructive",
         title: "Login Failed",
-        description: error.message || "Invalid credentials. Try admin@demo.com / demo1234",
+        description: error.message || "Invalid credentials.",
       })
     } finally {
       setLoading(false)
@@ -73,6 +78,16 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {configError && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Configuration Required</AlertTitle>
+              <AlertDescription>
+                Firebase is not yet configured. Please link your Firebase project in the Studio settings to enable authentication.
+              </AlertDescription>
+            </Alert>
+          )}
+
           <form onSubmit={handleEmailLogin} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -114,15 +129,15 @@ export default function LoginPage() {
           </Button>
 
           <div className="p-4 bg-muted/50 rounded-lg text-xs space-y-1 border border-border">
-            <p className="font-bold">Demo Access:</p>
-            <p>Email: <span className="font-mono">admin@demo.com</span></p>
+            <p className="font-bold text-primary">Demo Credentials (2026):</p>
+            <p>Admin Email: <span className="font-mono">admin@demo.com</span></p>
             <p>Password: <span className="font-mono">demo1234</span></p>
           </div>
         </CardContent>
       </Card>
       
       <p className="mt-8 text-center text-sm text-muted-foreground">
-        Don't have an account? <Link href="/about" className="text-primary hover:underline">Contact sales</Link>
+        Don't have an account? <Link href="/contact" className="text-primary hover:underline">Contact sales</Link>
       </p>
     </div>
   )

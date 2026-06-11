@@ -84,13 +84,13 @@ const navigation = [
 export function AppSidebar() {
   const pathname = usePathname()
   const { state } = useSidebar()
-  const [isMounted, setIsMounted] = React.useState(false)
+  const [mounted, setMounted] = React.useState(false)
   const { user } = useUser()
   const auth = useAuth()
   const router = useRouter()
 
   React.useEffect(() => {
-    setIsMounted(true)
+    setMounted(true)
   }, [])
 
   const handleLogout = async () => {
@@ -101,6 +101,8 @@ export function AppSidebar() {
   }
 
   const isSuperAdmin = user?.email === 'asareg365@gmail.com' || user?.email === 'frankyeb@gmail.com'
+
+  if (!mounted) return null
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border/40">
@@ -118,65 +120,61 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
       <SidebarContent>
-        {isMounted && (
-          <>
-            <SidebarGroup>
-              <SidebarGroupLabel className="px-4 py-2">General</SidebarGroupLabel>
-              <SidebarMenu>
-                {navigation.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    {item.items ? (
-                      <Collapsible asChild className="group/collapsible">
-                        <div className="flex flex-col">
-                          <CollapsibleTrigger asChild>
-                            <SidebarMenuButton tooltip={item.title}>
-                              {item.icon && <item.icon />}
-                              <span>{item.title}</span>
-                              <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                            </SidebarMenuButton>
-                          </CollapsibleTrigger>
-                          <CollapsibleContent>
-                            <SidebarMenuSub>
-                              {item.items.map((subItem) => (
-                                <SidebarMenuSubItem key={subItem.title}>
-                                  <SidebarMenuSubButton asChild isActive={pathname === subItem.url}>
-                                    <Link href={subItem.url}>{subItem.title}</Link>
-                                  </SidebarMenuSubButton>
-                                </SidebarMenuSubItem>
-                              ))}
-                            </SidebarMenuSub>
-                          </CollapsibleContent>
-                        </div>
-                      </Collapsible>
-                    ) : (
-                      <SidebarMenuButton asChild isActive={pathname === item.url} tooltip={item.title}>
-                        <Link href={item.url}>
+        <SidebarGroup>
+          <SidebarGroupLabel className="px-4 py-2">General</SidebarGroupLabel>
+          <SidebarMenu>
+            {navigation.map((item) => (
+              <SidebarMenuItem key={item.title}>
+                {item.items ? (
+                  <Collapsible asChild className="group/collapsible">
+                    <div className="flex flex-col">
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton tooltip={item.title}>
                           {item.icon && <item.icon />}
                           <span>{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    )}
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroup>
+                          <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          {item.items.map((subItem) => (
+                            <SidebarMenuSubItem key={subItem.title}>
+                              <SidebarMenuSubButton asChild isActive={pathname === subItem.url}>
+                                <Link href={subItem.url}>{subItem.title}</Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </div>
+                  </Collapsible>
+                ) : (
+                  <SidebarMenuButton asChild isActive={pathname === item.url} tooltip={item.title}>
+                    <Link href={item.url}>
+                      {item.icon && <item.icon />}
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                )}
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroup>
 
-            {isSuperAdmin && (
-              <SidebarGroup>
-                <SidebarGroupLabel className="px-4 py-2">System</SidebarGroupLabel>
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={pathname === "/admin"} tooltip="Global Hub" className="text-accent font-bold">
-                      <Link href="/admin">
-                        <ShieldCheck className="text-accent" />
-                        <span>Admin Hub</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-              </SidebarGroup>
-            )}
-          </>
+        {isSuperAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="px-4 py-2">System</SidebarGroupLabel>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname === "/admin"} tooltip="Global Hub" className="text-accent font-bold">
+                  <Link href="/admin">
+                    <ShieldCheck className="text-accent" />
+                    <span>Admin Hub</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroup>
         )}
       </SidebarContent>
       <SidebarFooter className="border-t border-border/40 p-4">
