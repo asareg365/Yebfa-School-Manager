@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A financial forecasting AI agent for Yebfa School Manager.
@@ -112,8 +113,10 @@ const prompt = ai.definePrompt({
   name: 'generateFinancialForecastPrompt',
   input: {schema: GenerateFinancialForecastInputSchema},
   output: {schema: GenerateFinancialForecastOutputSchema},
-  prompt: `You are an expert financial analyst specializing in educational institutions.
+  prompt: `You are an expert financial analyst specializing in educational institutions in Ghana.
 Your task is to analyze the provided historical revenue and expense data for Yebfa School Manager and provide a detailed financial forecast and actionable budgeting recommendations for the {{{forecastPeriod}}}.
+
+All amounts are in Ghana Cedis (GH₵).
 
 Here is the historical revenue data:
 {{#if revenueHistory}}

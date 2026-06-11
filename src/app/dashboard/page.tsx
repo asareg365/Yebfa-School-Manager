@@ -2,7 +2,7 @@
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, GraduationCap, DollarSign, Clock } from "lucide-react"
+import { Users, GraduationCap, Wallet, Clock } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import { useUser } from "@/firebase"
 
@@ -22,7 +22,7 @@ export default function Dashboard() {
         {[
           { title: "Total Students", value: "--", icon: GraduationCap, label: "Syncing..." },
           { title: "Average Attendance", value: "--%", icon: Clock, label: "Syncing..." },
-          { title: "Fee Collection", value: "$--", icon: DollarSign, label: "Syncing..." },
+          { title: "Fee Collection", value: "GH₵--", icon: Wallet, label: "Syncing..." },
           { title: "Staff Members", value: "--", icon: Users, label: "Syncing..." }
         ].map((stat) => (
           <Card key={stat.title} className="overflow-hidden border-none shadow-md bg-white">

@@ -75,7 +75,7 @@ export default function ForecastPage() {
               <TrendingUp className="size-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold font-headline">${forecast.revenueProjection.projectedTotal.toLocaleString()}</div>
+              <div className="text-3xl font-bold font-headline">GH₵{forecast.revenueProjection.projectedTotal.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground mt-1">Total for {forecast.revenueProjection.period}</p>
             </CardContent>
           </Card>
@@ -86,7 +86,7 @@ export default function ForecastPage() {
               <Wallet className="size-4 text-accent" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold font-headline text-accent">${forecast.expenseProjection.projectedTotal.toLocaleString()}</div>
+              <div className="text-3xl font-bold font-headline text-accent">GH₵{forecast.expenseProjection.projectedTotal.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground mt-1">Total for {forecast.expenseProjection.period}</p>
             </CardContent>
           </Card>
@@ -98,7 +98,7 @@ export default function ForecastPage() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold font-headline">
-                ${(forecast.revenueProjection.projectedTotal - forecast.expenseProjection.projectedTotal).toLocaleString()}
+                GH₵{(forecast.revenueProjection.projectedTotal - forecast.expenseProjection.projectedTotal).toLocaleString()}
               </div>
               <p className="text-xs text-muted-foreground mt-1">Projected Surplus/Deficit</p>
             </CardContent>
