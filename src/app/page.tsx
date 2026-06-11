@@ -1,7 +1,7 @@
 
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { School, ArrowRight, ShieldCheck, Zap, Globe, Users, TrendingUp } from "lucide-react"
+import { School, ArrowRight, ShieldCheck, Zap, Users, TrendingUp } from "lucide-react"
 
 export default function LandingPage() {
   return (
@@ -23,7 +23,7 @@ export default function LandingPage() {
             <Link href="/login">Sign In</Link>
           </Button>
           <Button className="bg-primary hover:bg-primary/90" asChild>
-            <Link href="/dashboard">Access Demo</Link>
+            <Link href="/login">Access Demo</Link>
           </Button>
         </div>
       </header>
@@ -49,7 +49,7 @@ export default function LandingPage() {
                   </Link>
                 </Button>
                 <Button size="lg" variant="outline" className="h-14 px-8 text-lg font-medium" asChild>
-                  <Link href="/demo">Watch Demo Video</Link>
+                  <Link href="/about">Watch Demo Video</Link>
                 </Button>
               </div>
             </div>
@@ -104,9 +104,9 @@ export default function LandingPage() {
           </div>
           <p className="text-sm text-muted-foreground">© 2026 Yebfa Enterprise. All rights reserved.</p>
           <div className="flex gap-6">
-            <Link href="/privacy" className="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline transition-colors">Privacy</Link>
-            <Link href="/terms" className="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline transition-colors">Terms</Link>
-            <Link href="/contact" className="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline transition-colors">Contact</Link>
+            <Link href="/about" className="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline transition-colors">Privacy</Link>
+            <Link href="/about" className="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline transition-colors">Terms</Link>
+            <Link href="/about" className="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline transition-colors">Contact</Link>
           </div>
         </div>
       </footer>

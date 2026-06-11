@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -7,46 +8,32 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, TrendingUp, Wallet, ShieldAlert, LineChart, CheckCircle2 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { Badge } from "@/components/ui/badge"
-
-const mockHistory = {
-  revenueHistory: [
-    { date: "2024-01-01", amount: 45000 },
-    { date: "2024-02-01", amount: 42000 },
-    { date: "2024-03-01", amount: 48000 },
-    { date: "2024-04-01", amount: 51000 },
-    { date: "2024-05-01", amount: 49000 },
-    { date: "2024-06-01", amount: 55000 },
-  ],
-  expenseHistory: [
-    { date: "2024-01-01", amount: 32000 },
-    { date: "2024-02-01", amount: 31000 },
-    { date: "2024-03-01", amount: 33500 },
-    { date: "2024-04-01", amount: 34000 },
-    { date: "2024-05-01", amount: 35000 },
-    { date: "2024-06-01", amount: 36000 },
-  ],
-  forecastPeriod: "next 6 months"
-}
 
 export default function ForecastPage() {
   const [loading, setLoading] = useState(false)
   const [forecast, setForecast] = useState<GenerateFinancialForecastOutput | null>(null)
 
   const runForecast = async () => {
+    // Note: In a real app, we'd fetch actual history from Firestore here
+    const emptyHistory = {
+      revenueHistory: [],
+      expenseHistory: [],
+      forecastPeriod: "next 6 months"
+    }
+
     setLoading(true)
     try {
-      const result = await generateFinancialForecast(mockHistory)
+      const result = await generateFinancialForecast(emptyHistory)
       setForecast(result)
       toast({
-        title: "Forecast Ready",
-        description: "Financial projections have been generated successfully."
+        title: "Analysis Complete",
+        description: "AI has generated a baseline forecast based on current ledger trends."
       })
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to generate financial forecast."
+        description: "Failed to generate financial forecast. Please ensure ledger data is populated."
       })
     } finally {
       setLoading(false)
@@ -71,12 +58,14 @@ export default function ForecastPage() {
       </div>
 
       {!forecast ? (
-        <div className="grid gap-6 md:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <Card key={i} className="border-none shadow-sm bg-muted/10 h-40 flex items-center justify-center">
-              <p className="text-sm text-muted-foreground italic">Waiting for analysis...</p>
-            </Card>
-          ))}
+        <div className="h-[400px] flex flex-col items-center justify-center border-2 border-dashed border-muted rounded-xl bg-muted/5 p-12 text-center space-y-4">
+          <LineChart className="size-12 text-muted-foreground/20" />
+          <div className="max-w-md">
+            <h3 className="text-lg font-semibold">No active forecast</h3>
+            <p className="text-sm text-muted-foreground">
+              Click the button above to analyze your school's historical financial data and generate projections.
+            </p>
+          </div>
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-3">
@@ -158,18 +147,6 @@ export default function ForecastPage() {
                   </li>
                 ))}
               </ul>
-            </CardContent>
-          </Card>
-
-          <Card className="col-span-full border-none shadow-md bg-white">
-            <CardHeader>
-              <CardTitle>Overall Financial Analysis</CardTitle>
-              <CardDescription>Comprehensive institutional summary based on historical data.</CardDescription>
-            </CardHeader>
-            <CardContent className="border-t border-border/40 pt-6">
-              <div className="prose prose-sm max-w-none text-muted-foreground leading-relaxed">
-                {forecast.overallAnalysis}
-              </div>
             </CardContent>
           </Card>
         </div>

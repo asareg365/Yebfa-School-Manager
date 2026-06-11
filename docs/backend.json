@@ -8,7 +8,8 @@
       "properties": {
         "email": { "type": "string", "format": "email" },
         "role": { "type": "string", "enum": ["super_admin", "owner", "staff", "student"] },
-        "institutionId": { "type": "string", "description": "Reference to the school/institution this user belongs to." }
+        "institutionId": { "type": "string", "description": "Reference to the school/institution this user belongs to." },
+        "displayName": { "type": "string" }
       },
       "required": ["email", "role"]
     },
@@ -18,7 +19,8 @@
       "type": "object",
       "properties": {
         "name": { "type": "string" },
-        "ownerEmail": { "type": "string" }
+        "ownerEmail": { "type": "string" },
+        "subscriptionPlan": { "type": "string", "enum": ["basic", "premium", "enterprise"] }
       },
       "required": ["name", "ownerEmail"]
     }
@@ -29,7 +31,7 @@
   "firestore": {
     "/users/{userId}": {
       "schema": "User",
-      "description": "User profiles and permissions."
+      "description": "User profiles and permissions. Super admins: asareg365@gmail.com, frankyeb@gmail.com. Owner: admin@demo.com."
     },
     "/institutions/{institutionId}": {
       "schema": "Institution",

@@ -6,19 +6,14 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   BookOpen,
-  Calendar,
-  CheckCircle,
   ChevronRight,
-  CreditCard,
   LayoutDashboard,
   LogOut,
   Settings,
-  Users,
+  CheckCircle,
   Wallet,
   FileText,
-  TrendingUp,
-  School,
-  GraduationCap
+  School
 } from "lucide-react"
 
 import {
@@ -34,75 +29,75 @@ import {
   SidebarMenuSubItem,
   SidebarGroup,
   SidebarGroupLabel,
-  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { useUser, useAuth } from "@/firebase"
+import { signOut } from "firebase/auth"
+import { useRouter } from "next/navigation"
 
-const data = {
-  user: {
-    name: "Dr. Adebayo",
-    email: "admin@yebfaschools.edu",
-    avatar: "https://picsum.photos/seed/admin/40/40",
+const navigation = [
+  {
+    title: "Overview",
+    url: "/dashboard",
+    icon: LayoutDashboard,
   },
-  navMain: [
-    {
-      title: "Overview",
-      url: "/dashboard",
-      icon: LayoutDashboard,
-      isActive: true,
-    },
-    {
-      title: "Academic Ledger",
-      url: "#",
-      icon: BookOpen,
-      items: [
-        { title: "Student Directory", url: "/dashboard/students" },
-        { title: "Staff Roster", url: "/dashboard/staff" },
-        { title: "Curriculum Planning", url: "/dashboard/academic" },
-      ],
-    },
-    {
-      title: "Daily Operations",
-      url: "#",
-      icon: CheckCircle,
-      items: [
-        { title: "Attendance Insights", url: "/dashboard/attendance" },
-        { title: "Daily Logs", url: "/dashboard/logs" },
-      ],
-    },
-    {
-      title: "Financial Hub",
-      url: "#",
-      icon: Wallet,
-      items: [
-        { title: "Fee Management", url: "/dashboard/finance/fees" },
-        { title: "Payroll Processor", url: "/dashboard/finance/payroll" },
-        { title: "Expense Tracker", url: "/dashboard/finance/expenses" },
-        { title: "AI Forecasts", url: "/dashboard/finance/forecast" },
-      ],
-    },
-    {
-      title: "AI Narratives",
-      url: "/dashboard/reports",
-      icon: FileText,
-    },
-  ],
-  secondary: [
-    { title: "School Settings", url: "/dashboard/settings", icon: Settings },
-  ],
-}
+  {
+    title: "Academic Ledger",
+    url: "#",
+    icon: BookOpen,
+    items: [
+      { title: "Student Directory", url: "/dashboard/students" },
+      { title: "Staff Roster", url: "/dashboard/staff" },
+      { title: "Curriculum Planning", url: "/dashboard/academic" },
+    ],
+  },
+  {
+    title: "Daily Operations",
+    url: "#",
+    icon: CheckCircle,
+    items: [
+      { title: "Attendance Insights", url: "/dashboard/attendance" },
+      { title: "Daily Logs", url: "/dashboard/logs" },
+    ],
+  },
+  {
+    title: "Financial Hub",
+    url: "#",
+    icon: Wallet,
+    items: [
+      { title: "Fee Management", url: "/dashboard/finance/fees" },
+      { title: "Payroll Processor", url: "/dashboard/finance/payroll" },
+      { title: "Expense Tracker", url: "/dashboard/finance/expenses" },
+      { title: "AI Forecasts", url: "/dashboard/finance/forecast" },
+    ],
+  },
+  {
+    title: "AI Narratives",
+    url: "/dashboard/reports",
+    icon: FileText,
+  },
+]
 
 export function AppSidebar() {
   const pathname = usePathname()
   const { state } = useSidebar()
   const [isMounted, setIsMounted] = React.useState(false)
+  const { user } = useUser()
+  const auth = useAuth()
+  const router = useRouter()
 
-  // Fix for hydration error with Collapsible and dynamic IDs
   React.useEffect(() => {
     setIsMounted(true)
   }, [])
+
+  const handleLogout = async () => {
+    if (auth) {
+      await signOut(auth)
+      router.push("/login")
+    }
+  }
 
   if (!isMounted) {
     return (
@@ -138,10 +133,10 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel className="px-4 py-2">General</SidebarGroupLabel>
           <SidebarMenu>
-            {data.navMain.map((item) => (
+            {navigation.map((item) => (
               <SidebarMenuItem key={item.title}>
                 {item.items ? (
-                  <Collapsible asChild defaultOpen={item.isActive} className="group/collapsible">
+                  <Collapsible asChild className="group/collapsible">
                     <div className="flex flex-col">
                       <CollapsibleTrigger asChild>
                         <SidebarMenuButton tooltip={item.title}>
@@ -175,33 +170,20 @@ export function AppSidebar() {
             ))}
           </SidebarMenu>
         </SidebarGroup>
-        <SidebarGroup className="mt-auto">
-          <SidebarGroupLabel className="px-4 py-2">Configuration</SidebarGroupLabel>
-          <SidebarMenu>
-            {data.secondary.map((item) => (
-              <SidebarMenuItem key={item.title}>
-                <SidebarMenuButton asChild isActive={pathname === item.url} tooltip={item.title}>
-                  <Link href={item.url}>
-                    {item.icon && <item.icon />}
-                    <span>{item.title}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="border-t border-border/40 p-4">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" className="hover:bg-accent/10 transition-colors">
+            <SidebarMenuButton size="lg" className="hover:bg-accent/10 transition-colors" onClick={handleLogout}>
               <Avatar className="size-8 rounded-lg">
-                <AvatarImage src={data.user.avatar} />
-                <AvatarFallback className="rounded-lg">BA</AvatarFallback>
+                <AvatarImage src={user?.photoURL || ""} />
+                <AvatarFallback className="rounded-lg">
+                  {user?.email?.charAt(0).toUpperCase() || "U"}
+                </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight ml-2">
-                <span className="truncate font-semibold">{data.user.name}</span>
-                <span className="truncate text-xs text-muted-foreground">{data.user.email}</span>
+                <span className="truncate font-semibold">{user?.displayName || "User"}</span>
+                <span className="truncate text-xs text-muted-foreground">{user?.email}</span>
               </div>
               <LogOut className="ml-auto size-4 opacity-50" />
             </SidebarMenuButton>
