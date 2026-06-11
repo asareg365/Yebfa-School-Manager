@@ -42,7 +42,7 @@ export default function PrivacyPage() {
           <section className="space-y-4">
             <h2 className="text-2xl font-bold font-headline text-primary">3. AI Processing</h2>
             <p className="text-muted-foreground leading-relaxed">
-              When using our AI features (Reporting, Forecasting), data is processed securely via Genkit and Google Vertex AI. Your institutional data is used solely to generate reports for your account and is not used to train global public models.
+              When using our AI features (Reporting, Forecasting, Video Generation), data is processed securely via Genkit and Google Vertex AI. Your institutional data is used solely to generate reports or media for your account and is not used to train global public models.
             </p>
           </section>
 
