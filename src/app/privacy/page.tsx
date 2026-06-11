@@ -49,7 +49,7 @@ export default function PrivacyPage() {
           <section className="space-y-4">
             <h2 className="text-2xl font-bold font-headline text-primary">4. Contact</h2>
             <p className="text-muted-foreground leading-relaxed">
-              For any privacy-related inquiries, please contact us at privacy@yebfa.io.
+              For any privacy-related inquiries or data requests, please contact our administrative team directly at <strong>asareg365@gmail.com</strong> or <strong>frankyeb@gmail.com</strong>.
             </p>
           </section>
         </div>

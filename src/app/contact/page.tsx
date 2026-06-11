@@ -21,7 +21,7 @@ export default function ContactPage() {
       setLoading(false)
       toast({
         title: "Message Sent",
-        description: "Our administrative team will reach out to you within 24 hours.",
+        description: "Your inquiry has been directed to our administrators (asareg365@gmail.com & frankyeb@gmail.com).",
       })
       const form = e.target as HTMLFormElement
       form.reset()
