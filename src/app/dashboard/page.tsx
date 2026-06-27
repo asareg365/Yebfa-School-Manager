@@ -20,7 +20,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     const storedId = localStorage.getItem('selected_institution_id')
-    setInstitutionId(storedId || "demo-institution-2026")
+    setInstitutionId(storedId)
   }, [])
 
   const studentsQuery = useMemo(() => {
@@ -58,6 +58,21 @@ export default function Dashboard() {
       <p className="font-headline font-bold text-muted-foreground animate-pulse">Synchronizing Academic Node...</p>
     </div>
   )
+
+  if (!institutionId) {
+    return (
+      <div className="p-12 text-center space-y-6">
+        <div className="size-20 bg-muted rounded-full flex items-center justify-center mx-auto">
+          <Activity className="size-10 text-muted-foreground/30" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-2xl font-bold font-headline">Institutional Node Offline</h2>
+          <p className="text-muted-foreground max-w-sm mx-auto">Please visit the Admin Hub to select or provision an active school instance.</p>
+        </div>
+        <Button asChild className="h-11 px-8"><Link href="/admin">Visit Admin Hub</Link></Button>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">

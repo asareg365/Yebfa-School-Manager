@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection } from "@/firebase"
 import { collection, addDoc, query, orderBy, deleteDoc, doc, where, serverTimestamp } from "firebase/firestore"
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
@@ -36,6 +36,7 @@ export default function StaffPage() {
   const [loading, setLoading] = useState(false)
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [isBulkOpen, setIsBulkOpen] = useState(false)
+  const [institutionId, setInstitutionId] = useState<string | null>(null)
   
   const [staffForm, setStaffForm] = useState({
     fullName: "",
@@ -48,10 +49,13 @@ export default function StaffPage() {
   })
   const [bulkData, setBulkData] = useState("")
 
-  const institutionId = typeof window !== 'undefined' ? localStorage.getItem('selected_institution_id') || "demo-institution-2026" : "demo-institution-2026"
+  useEffect(() => {
+    const storedId = localStorage.getItem('selected_institution_id')
+    setInstitutionId(storedId)
+  }, [])
 
   const staffQuery = useMemo(() => {
-    if (!db) return null;
+    if (!db || !institutionId) return null;
     return query(
       collection(db, "staff"),
       where("institutionId", "==", institutionId),
@@ -63,7 +67,7 @@ export default function StaffPage() {
 
   const handleAddStaff = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!db || loading) return
+    if (!db || !institutionId || loading) return
     setLoading(true)
     
     try {
@@ -94,7 +98,7 @@ export default function StaffPage() {
   }
 
   const handleBulkUpload = async () => {
-    if (!db || loading || !bulkData.trim()) return
+    if (!db || !institutionId || loading || !bulkData.trim()) return
     setLoading(true)
 
     const lines = bulkData.split('\n').filter(line => line.trim() !== '')
@@ -137,6 +141,16 @@ export default function StaffPage() {
     } catch (error: any) {
       toast({ variant: "destructive", title: "Delete Failed", description: error.message })
     }
+  }
+
+  if (!institutionId) {
+    return (
+      <div className="p-12 text-center space-y-4">
+        <h2 className="text-xl font-bold">No Institution Selected</h2>
+        <p className="text-muted-foreground">Please select an institution from the Super Admin hub to manage staff.</p>
+        <Button asChild><a href="/admin">Go to Admin Hub</a></Button>
+      </div>
+    )
   }
 
   return (
