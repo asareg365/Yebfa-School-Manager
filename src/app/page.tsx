@@ -37,7 +37,7 @@ export default function LandingPage() {
                 <Link href="/login">Sign In</Link>
               </Button>
               <Button className="bg-primary hover:bg-primary/90" asChild>
-                <Link href="/login">Get Started</Link>
+                <Link href="/register/institution">Get Started</Link>
               </Button>
             </>
           )}
@@ -59,8 +59,8 @@ export default function LandingPage() {
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 animate-in fade-in slide-in-from-bottom-12 duration-1000">
               <Button size="lg" className="h-14 px-8 text-lg font-medium bg-primary hover:bg-primary/90" asChild>
-                <Link href={user ? "/dashboard" : "/login"}>
-                  {user ? "Enter Dashboard" : "Launch Demo"} <ArrowRight className="ml-2 size-5" />
+                <Link href={user ? "/dashboard" : "/register/institution"}>
+                  {user ? "Enter Dashboard" : "Register Institution"} <ArrowRight className="ml-2 size-5" />
                 </Link>
               </Button>
               <Button size="lg" variant="outline" className="h-14 px-8 text-lg font-medium gap-2" asChild>

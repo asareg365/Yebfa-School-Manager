@@ -1,12 +1,11 @@
-
-'use client';
+"use client"
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { School, Loader2, AlertCircle, Info } from "lucide-react"
+import { School, Loader2, AlertCircle, Info, ArrowRight } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth"
@@ -25,7 +24,7 @@ export default function LoginPage() {
   const { user } = useUser()
 
   useEffect(() => {
-    if (firebaseConfig.apiKey === "REPLACEME") {
+    if (firebaseConfig.apiKey === "REPLACEME" || !firebaseConfig.apiKey) {
       setConfigError(true)
     }
     if (user) {
@@ -91,7 +90,7 @@ export default function LoginPage() {
               <AlertCircle className="h-4 w-4" />
               <AlertTitle className="font-bold">Configuration Required</AlertTitle>
               <AlertDescription className="text-xs">
-                To enable login, please click the <strong>Firebase</strong> icon in the Studio sidebar and link a project. This will provide your unique API keys.
+                To enable login, please click the <strong>Firebase</strong> icon in the Studio sidebar and link a project.
               </AlertDescription>
             </Alert>
           ) : (
@@ -154,9 +153,15 @@ export default function LoginPage() {
               <p>Email: <span className="font-mono bg-white px-1 border rounded">admin@demo.com</span></p>
               <p>Pass: <span className="font-mono bg-white px-1 border rounded">demo1234</span></p>
             </div>
-            <p className="text-[10px] text-muted-foreground italic">Note: These will only work after you link a Firebase project.</p>
           </div>
         </CardContent>
+        <CardFooter className="bg-muted/30 p-4">
+          <Button variant="link" className="w-full gap-2 text-primary font-bold" asChild>
+            <Link href="/register/institution">
+              Register New Institution <ArrowRight className="size-4" />
+            </Link>
+          </Button>
+        </CardFooter>
       </Card>
       
       <p className="mt-8 text-center text-sm text-muted-foreground">
