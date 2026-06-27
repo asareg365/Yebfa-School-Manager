@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,6 +19,7 @@ export default function AcademicPage() {
             <p className="text-sm text-muted-foreground">Review and edit subject syllabi for Term 2, 2026.</p>
           </CardContent>
         </Card>
+        
         <Card className="cursor-pointer hover:border-primary/40 transition-colors">
           <CardHeader>
             <GraduationCap className="size-8 text-primary mb-2" />
@@ -27,14 +29,17 @@ export default function AcademicPage() {
             <p className="text-sm text-muted-foreground">Coordinate mid-term and final examination dates.</p>
           </CardContent>
         </Card>
+        
         <Card className="cursor-pointer hover:border-primary/40 transition-colors">
-          <ClipboardList className="size-8 text-primary mb-2" />
-          <CardTitle>Grading Schema</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">Standardize grading across all departments.</p>
-        </CardContent>
-      </Card>
+          <CardHeader>
+            <ClipboardList className="size-8 text-primary mb-2" />
+            <CardTitle>Grading Schema</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">Standardize grading across all departments.</p>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
