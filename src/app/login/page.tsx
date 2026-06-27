@@ -33,7 +33,7 @@ export default function LoginPage() {
     }
     if (user) {
       const destination = isSuperAdmin(user.email) ? "/admin" : "/dashboard"
-      router.push(destination)
+      router.replace(destination)
     }
   }, [user, router])
 

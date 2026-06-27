@@ -1,17 +1,20 @@
+
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Loader2 } from "lucide-react"
+import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Loader2, CheckCircle2, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 import Link from "next/link"
 import { useUser, useFirestore, useCollection } from "@/firebase"
 import { useRouter } from "next/navigation"
 import { useEffect, useState, useMemo } from "react"
 import { toast } from "@/hooks/use-toast"
-import { collection, addDoc, serverTimestamp, query, orderBy, deleteDoc, doc } from "firebase/firestore"
+import { collection, addDoc, serverTimestamp, query, orderBy, deleteDoc, doc, updateDoc } from "firebase/firestore"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
 
@@ -19,7 +22,15 @@ export default function AdminPortal() {
   const { user, loading: authLoading } = useUser()
   const db = useFirestore()
   const router = useRouter()
+  
   const [provisioning, setProvisioning] = useState(false)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [newSchool, setNewSchool] = useState({
+    name: "",
+    ownerEmail: "",
+    type: "Secondary",
+    location: "Goaso, Ahafo"
+  })
 
   const isSuperAdmin = user?.email === 'asareg365@gmail.com' || user?.email === 'frankyeb@gmail.com'
 
@@ -36,40 +47,60 @@ export default function AdminPortal() {
     }
   }, [user, authLoading, isSuperAdmin, router])
 
-  const handleProvisionSchool = () => {
+  const handleManualProvision = async (e: React.FormEvent) => {
+    e.preventDefault()
     if (!db || provisioning) return
+
+    // Prevent Duplicates
+    const existing = institutions.find(inst => inst.ownerEmail.toLowerCase() === newSchool.ownerEmail.toLowerCase())
+    if (existing) {
+      toast({
+        variant: "destructive",
+        title: "Duplicate Found",
+        description: `An institution with the owner email ${newSchool.ownerEmail} already exists.`,
+      })
+      return
+    }
+
     setProvisioning(true)
-    
-    const demoSchools = ["Greenwood Academy", "Sunshine International", "Ahafo Tech Institute", "Valley View College"]
-    const randomSchool = demoSchools[Math.floor(Math.random() * demoSchools.length)]
-    
     const data = {
-      name: randomSchool,
-      ownerEmail: `admin@${randomSchool.toLowerCase().replace(/\s/g, "")}.com`,
-      type: "Secondary",
-      location: "Goaso, Ahafo",
+      ...newSchool,
       subscriptionPlan: "premium",
+      status: "active",
       createdAt: serverTimestamp()
     }
 
-    addDoc(collection(db, "institutions"), data)
-      .then(() => {
-        toast({
-          title: "School Provisioned",
-          description: `${randomSchool} has been added to the global node.`,
-        })
+    try {
+      await addDoc(collection(db, "institutions"), data)
+      toast({
+        title: "School Provisioned",
+        description: `${newSchool.name} is now live.`,
       })
-      .catch(async (error) => {
-        const permissionError = new FirestorePermissionError({
-          path: 'institutions',
-          operation: 'create',
-          requestResourceData: data,
-        });
-        errorEmitter.emit('permission-error', permissionError);
+      setIsDialogOpen(false)
+      setNewSchool({ name: "", ownerEmail: "", type: "Secondary", location: "Goaso, Ahafo" })
+    } catch (error: any) {
+      const permissionError = new FirestorePermissionError({
+        path: 'institutions',
+        operation: 'create',
+        requestResourceData: data,
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    } finally {
+      setProvisioning(false)
+    }
+  }
+
+  const handleApprove = async (id: string, name: string) => {
+    const docRef = doc(db, "institutions", id)
+    try {
+      await updateDoc(docRef, { status: "active" })
+      toast({
+        title: "Registration Approved",
+        description: `${name} has been activated.`,
       })
-      .finally(() => {
-        setProvisioning(false)
-      })
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Approval Failed", description: error.message })
+    }
   }
 
   const handleDeleteSchool = (id: string, name: string) => {
@@ -78,7 +109,7 @@ export default function AdminPortal() {
       .then(() => {
         toast({
           title: "Instance Deprovisioned",
-          description: `${name} has been removed from the registry.`,
+          description: `${name} has been removed.`,
         })
       })
       .catch(async (error) => {
@@ -101,32 +132,66 @@ export default function AdminPortal() {
             <ShieldCheck className="size-3" /> System Super Admin
           </div>
           <h1 className="text-4xl font-headline font-bold text-primary">Global Enterprise Hub</h1>
-          <p className="text-muted-foreground">Strategic multi-tenant node management for Yebfa School Manager.</p>
+          <p className="text-muted-foreground text-sm">Strategic multi-tenant node management for Yebfa School Manager.</p>
         </div>
         <div className="flex gap-4">
-          <Button variant="outline" asChild>
+          <Button variant="outline" asChild className="h-11">
             <Link href="/dashboard">To Institutional View</Link>
           </Button>
-          <Button 
-            className="bg-accent text-accent-foreground hover:bg-accent/90 gap-2"
-            onClick={handleProvisionSchool}
-            disabled={provisioning}
-          >
-            {provisioning ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
-            Provision New School
-          </Button>
+          
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-accent text-accent-foreground hover:bg-accent/90 gap-2 h-11">
+                <Plus className="size-4" /> Provision New School
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <form onSubmit={handleManualProvision}>
+                <DialogHeader>
+                  <DialogTitle>Provision Institution</DialogTitle>
+                  <DialogDescription>Manually create a new school instance. This will bypass the review process.</DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">School Name</Label>
+                    <Input id="name" required value={newSchool.name} onChange={(e) => setNewSchool({...newSchool, name: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Owner Email</Label>
+                    <Input id="email" type="email" required value={newSchool.ownerEmail} onChange={(e) => setNewSchool({...newSchool, ownerEmail: e.target.value})} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="type">Type</Label>
+                      <Input id="type" value={newSchool.type} onChange={(e) => setNewSchool({...newSchool, type: e.target.value})} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="loc">Location</Label>
+                      <Input id="loc" value={newSchool.location} onChange={(e) => setNewSchool({...newSchool, location: e.target.value})} />
+                    </div>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button type="submit" disabled={provisioning}>
+                    {provisioning ? <Loader2 className="size-4 animate-spin mr-2" /> : <CheckCircle2 className="size-4 mr-2" />}
+                    Confirm Provisioning
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto w-full space-y-10">
         <div className="grid gap-6 md:grid-cols-4">
           {[
-            { title: "Active Tenants", value: institutions.length, icon: School, trend: "Global Registry" },
-            { title: "Total Users", value: "---", icon: Users, trend: "Across All Nodes" },
+            { title: "Active Tenants", value: institutions.filter(i => i.status === 'active').length, icon: School, trend: "Global Registry" },
+            { title: "Pending Reviews", value: institutions.filter(i => i.status !== 'active').length, icon: Users, trend: "Registration Queue" },
             { title: "Global Revenue", value: "GH₵---", icon: Wallet, trend: "Fiscal Year 2026" },
             { title: "System Health", value: "100%", icon: Activity, trend: "All Nodes Online" }
           ].map((stat) => (
-            <Card key={stat.title} className="border-none shadow-md bg-white">
+            <Card key={stat.title} className="border-none shadow-sm bg-white">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">{stat.title}</CardTitle>
                 <stat.icon className="size-4 text-primary opacity-50" />
@@ -139,8 +204,8 @@ export default function AdminPortal() {
           ))}
         </div>
 
-        <Card className="border-none shadow-lg">
-          <CardHeader>
+        <Card className="border-none shadow-lg bg-white overflow-hidden">
+          <CardHeader className="bg-white border-b px-6 py-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <CardTitle className="font-headline font-bold text-xl text-primary">Institution Registry</CardTitle>
@@ -148,7 +213,7 @@ export default function AdminPortal() {
               </div>
               <div className="relative w-full md:w-64">
                 <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-                <Input placeholder="Search registry..." className="pl-9" />
+                <Input placeholder="Search registry..." className="pl-9 h-10" />
               </div>
             </div>
           </CardHeader>
@@ -160,9 +225,7 @@ export default function AdminPortal() {
                 </div>
                 <div className="max-w-sm">
                   <h3 className="text-lg font-bold text-primary">No Registered Tenants</h3>
-                  <p className="text-sm text-muted-foreground">
-                    As of 2026, no school instances have been provisioned. Use the provision button above to begin.
-                  </p>
+                  <p className="text-sm text-muted-foreground">As of 2026, no school instances have been provisioned.</p>
                 </div>
               </div>
             ) : (
@@ -170,9 +233,9 @@ export default function AdminPortal() {
                 <TableHeader>
                   <TableRow className="bg-muted/30">
                     <TableHead>School Name</TableHead>
-                    <TableHead>Type</TableHead>
+                    <TableHead>Owner / Email</TableHead>
                     <TableHead>Location</TableHead>
-                    <TableHead>Owner Email</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead>Plan</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -180,24 +243,43 @@ export default function AdminPortal() {
                 <TableBody>
                   {institutions.map((inst: any) => (
                     <TableRow key={inst.id}>
-                      <TableCell className="font-bold text-primary">{inst.name}</TableCell>
-                      <TableCell>{inst.type}</TableCell>
-                      <TableCell>{inst.location}</TableCell>
-                      <TableCell className="text-muted-foreground text-xs">{inst.ownerEmail}</TableCell>
+                      <TableCell className="font-bold text-primary">
+                        {inst.name}
+                        {inst.status === 'pending_review' && <Badge className="ml-2 bg-amber-500">New</Badge>}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium">{inst.ownerName || 'Unknown Owner'}</span>
+                          <span className="text-[10px] text-muted-foreground">{inst.ownerEmail}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm">{inst.location}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={`text-[10px] font-bold uppercase ${inst.status === 'active' ? 'text-green-600 border-green-200 bg-green-50' : 'text-amber-600 border-amber-200 bg-amber-50'}`}>
+                          {inst.status || 'pending'}
+                        </Badge>
+                      </TableCell>
                       <TableCell>
                         <Badge variant="secondary" className="bg-accent/10 text-accent border-none uppercase text-[9px] font-bold">
-                          {inst.subscriptionPlan}
+                          {inst.subscriptionPlan || 'basic'}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="text-destructive hover:bg-destructive/10"
-                          onClick={() => handleDeleteSchool(inst.id, inst.name)}
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-2">
+                          {inst.status !== 'active' && (
+                            <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 h-8" onClick={() => handleApprove(inst.id, inst.name)}>
+                              Approve
+                            </Button>
+                          )}
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="text-destructive hover:bg-destructive/10 h-8 w-8"
+                            onClick={() => handleDeleteSchool(inst.id, inst.name)}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
