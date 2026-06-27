@@ -23,23 +23,29 @@
         "location": { "type": "string" },
         "type": { "type": "string" },
         "subscriptionPlan": { "type": "string", "enum": ["basic", "premium", "enterprise"] },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "createdAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["active", "pending_review", "suspended"] }
       },
       "required": ["name", "ownerEmail"]
     },
     "Student": {
       "title": "Student",
-      "description": "Student enrollment record.",
+      "description": "Comprehensive student enrollment record.",
       "type": "object",
       "properties": {
         "firstName": { "type": "string" },
         "lastName": { "type": "string" },
+        "gender": { "type": "string" },
         "gradeLevel": { "type": "string" },
         "studentId": { "type": "string" },
         "status": { "type": "string", "enum": ["active", "suspended", "graduated"] },
-        "institutionId": { "type": "string" }
+        "institutionId": { "type": "string" },
+        "dateOfBirth": { "type": "string", "format": "date" },
+        "parentName": { "type": "string" },
+        "parentPhone": { "type": "string" },
+        "homeAddress": { "type": "string" }
       },
-      "required": ["firstName", "lastName", "gradeLevel", "institutionId"]
+      "required": ["firstName", "lastName", "gradeLevel", "institutionId", "studentId"]
     },
     "Staff": {
       "title": "Staff Member",
@@ -50,9 +56,12 @@
         "role": { "type": "string" },
         "department": { "type": "string" },
         "email": { "type": "string", "format": "email" },
+        "phoneNumber": { "type": "string" },
+        "staffId": { "type": "string" },
+        "joiningDate": { "type": "string", "format": "date" },
         "institutionId": { "type": "string" }
       },
-      "required": ["fullName", "role", "institutionId"]
+      "required": ["fullName", "role", "institutionId", "staffId"]
     }
   },
   "auth": {
@@ -61,7 +70,7 @@
   "firestore": {
     "/users/{userId}": {
       "schema": "User",
-      "description": "User profiles. Super Admins: asareg365@gmail.com, frankyeb@gmail.com. Owners: admin@demo.com."
+      "description": "User profiles. Super Admins: asareg365@gmail.com, frankyeb@gmail.com."
     },
     "/institutions/{institutionId}": {
       "schema": "Institution",

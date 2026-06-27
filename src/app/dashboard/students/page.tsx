@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, UserPlus, Filter, GraduationCap, Trash2, Pencil, Loader2, Upload, FileJson } from "lucide-react"
+import { Search, UserPlus, Filter, GraduationCap, Trash2, Pencil, Loader2, Upload, FileJson, User, Phone, MapPin, Calendar as CalendarIcon } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection } from "@/firebase"
 import { collection, addDoc, query, orderBy, deleteDoc, doc, where, serverTimestamp } from "firebase/firestore"
@@ -25,8 +25,13 @@ export default function StudentsPage() {
   const [studentForm, setStudentForm] = useState({
     firstName: "",
     lastName: "",
+    gender: "Male",
     gradeLevel: "SHS 1",
-    studentId: ""
+    studentId: "",
+    dateOfBirth: "",
+    parentName: "",
+    parentPhone: "",
+    homeAddress: ""
   })
   const [bulkData, setBulkData] = useState("")
 
@@ -62,7 +67,17 @@ export default function StudentsPage() {
         description: `${studentForm.firstName} has been added successfully.`,
       })
       setIsEnrollOpen(false)
-      setStudentForm({ firstName: "", lastName: "", gradeLevel: "SHS 1", studentId: "" })
+      setStudentForm({ 
+        firstName: "", 
+        lastName: "", 
+        gender: "Male", 
+        gradeLevel: "SHS 1", 
+        studentId: "", 
+        dateOfBirth: "", 
+        parentName: "", 
+        parentPhone: "", 
+        homeAddress: "" 
+      })
     } catch (error: any) {
       toast({ variant: "destructive", title: "Enrollment Failed", description: error.message })
     } finally {
@@ -79,13 +94,16 @@ export default function StudentsPage() {
 
     try {
       for (const line of lines) {
-        const [first, last, grade, id] = line.split(',').map(s => s?.trim())
+        const [first, last, gender, grade, id, parent, phone] = line.split(',').map(s => s?.trim())
         if (first && last) {
           await addDoc(collection(db, "students"), {
             firstName: first,
             lastName: last,
+            gender: gender || "Male",
             gradeLevel: grade || "Unassigned",
             studentId: id || `STU-${Math.floor(1000 + Math.random() * 9000)}`,
+            parentName: parent || "",
+            parentPhone: phone || "",
             status: "active",
             institutionId,
             createdAt: serverTimestamp()
@@ -132,16 +150,15 @@ export default function StudentsPage() {
             <DialogContent className="max-w-xl rounded-2xl">
               <DialogHeader>
                 <DialogTitle className="text-2xl font-headline font-bold text-primary">Bulk Student Import</DialogTitle>
-                <DialogDescription>Paste comma-separated student data below (Format: FirstName, LastName, Grade, ID)</DialogDescription>
+                <DialogDescription>Format: FirstName, LastName, Gender, Grade, ID, ParentName, ParentPhone</DialogDescription>
               </DialogHeader>
               <div className="py-4 space-y-4">
                 <Textarea 
-                  placeholder="John, Doe, SHS 1, 10021&#10;Jane, Smith, JHS 3, 10022" 
+                  placeholder="John, Doe, Male, SHS 1, 10021, Robert Doe, 0244111222&#10;Jane, Smith, Female, JHS 3, 10022, Alice Smith, 0555333444" 
                   className="min-h-[200px] font-mono text-sm"
                   value={bulkData}
                   onChange={(e) => setBulkData(e.target.value)}
                 />
-                <p className="text-[10px] text-muted-foreground italic">One student per line. Student ID is optional and will be generated if missing.</p>
               </div>
               <DialogFooter>
                 <Button onClick={handleBulkUpload} disabled={loading} className="w-full h-11">
@@ -158,44 +175,105 @@ export default function StudentsPage() {
                 <UserPlus className="size-4" /> Enroll Student
               </Button>
             </DialogTrigger>
-            <DialogContent className="rounded-2xl">
+            <DialogContent className="rounded-2xl max-w-2xl">
               <form onSubmit={handleEnroll}>
                 <DialogHeader>
                   <DialogTitle className="text-2xl font-headline font-bold text-primary">Enroll New Student</DialogTitle>
-                  <DialogDescription>Enter academic credentials for the 2026 session.</DialogDescription>
+                  <DialogDescription>Comprehensive academic and personal data collection.</DialogDescription>
                 </DialogHeader>
-                <div className="grid gap-6 py-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="first">First Name</Label>
-                      <Input id="first" required value={studentForm.firstName} onChange={(e) => setStudentForm({...studentForm, firstName: e.target.value})} />
+                <div className="grid gap-6 py-4 max-h-[70vh] overflow-y-auto px-1">
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b pb-1">Personal Info</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="first">First Name</Label>
+                        <Input id="first" required value={studentForm.firstName} onChange={(e) => setStudentForm({...studentForm, firstName: e.target.value})} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="last">Last Name</Label>
+                        <Input id="last" required value={studentForm.lastName} onChange={(e) => setStudentForm({...studentForm, lastName: e.target.value})} />
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="last">Last Name</Label>
-                      <Input id="last" required value={studentForm.lastName} onChange={(e) => setStudentForm({...studentForm, lastName: e.target.value})} />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="gender">Gender</Label>
+                        <Select onValueChange={(v) => setStudentForm({...studentForm, gender: v})} defaultValue={studentForm.gender}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Gender" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Male">Male</SelectItem>
+                            <SelectItem value="Female">Female</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="dob">Date of Birth</Label>
+                        <div className="relative">
+                          <CalendarIcon className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                          <Input id="dob" type="date" className="pl-10" required value={studentForm.dateOfBirth} onChange={(e) => setStudentForm({...studentForm, dateOfBirth: e.target.value})} />
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="grade">Grade Level</Label>
-                    <Select onValueChange={(v) => setStudentForm({...studentForm, gradeLevel: v})} defaultValue={studentForm.gradeLevel}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select Grade" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Primary 1-6">Primary Node</SelectItem>
-                        <SelectItem value="JHS 1-3">Junior High Node</SelectItem>
-                        <SelectItem value="SHS 1">SHS 1</SelectItem>
-                        <SelectItem value="SHS 2">SHS 2</SelectItem>
-                        <SelectItem value="SHS 3">SHS 3</SelectItem>
-                      </SelectContent>
-                    </Select>
+
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b pb-1">Academic Status</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="grade">Grade Level</Label>
+                        <Select onValueChange={(v) => setStudentForm({...studentForm, gradeLevel: v})} defaultValue={studentForm.gradeLevel}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Grade" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Primary 1-6">Primary Node</SelectItem>
+                            <SelectItem value="JHS 1-3">Junior High Node</SelectItem>
+                            <SelectItem value="SHS 1">SHS 1</SelectItem>
+                            <SelectItem value="SHS 2">SHS 2</SelectItem>
+                            <SelectItem value="SHS 3">SHS 3</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="sid">Student ID</Label>
+                        <div className="relative">
+                          <Hash className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                          <Input id="sid" className="pl-10" placeholder="STU-XXXX" required value={studentForm.studentId} onChange={(e) => setStudentForm({...studentForm, studentId: e.target.value})} />
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="sid">Student ID (Optional)</Label>
-                    <Input id="sid" placeholder="STU-XXXX" value={studentForm.studentId} onChange={(e) => setStudentForm({...studentForm, studentId: e.target.value})} />
+
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b pb-1">Guardian & Contact</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="pname">Parent/Guardian Name</Label>
+                        <div className="relative">
+                          <User className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                          <Input id="pname" className="pl-10" required value={studentForm.parentName} onChange={(e) => setStudentForm({...studentForm, parentName: e.target.value})} />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="pphone">Guardian Phone</Label>
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                          <Input id="pphone" className="pl-10" required value={studentForm.parentPhone} onChange={(e) => setStudentForm({...studentForm, parentPhone: e.target.value})} />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="addr">Home Address</Label>
+                      <div className="relative">
+                        <MapPin className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                        <Input id="addr" className="pl-10" required value={studentForm.homeAddress} onChange={(e) => setStudentForm({...studentForm, homeAddress: e.target.value})} />
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <DialogFooter>
+                <DialogFooter className="pt-4 border-t mt-4">
                   <Button type="submit" disabled={loading} className="w-full h-11">
                     {loading ? <Loader2 className="size-4 animate-spin mr-2" /> : <GraduationCap className="size-4 mr-2" />}
                     Complete Enrollment
@@ -232,9 +310,9 @@ export default function StudentsPage() {
             <Table>
               <TableHeader className="bg-muted/30">
                 <TableRow>
-                  <TableHead className="font-bold py-4">ID</TableHead>
-                  <TableHead className="font-bold py-4">Full Name</TableHead>
-                  <TableHead className="font-bold py-4">Grade</TableHead>
+                  <TableHead className="font-bold py-4">ID / Name</TableHead>
+                  <TableHead className="font-bold py-4">Grade / Gender</TableHead>
+                  <TableHead className="font-bold py-4">Guardian Contact</TableHead>
                   <TableHead className="font-bold py-4">Status</TableHead>
                   <TableHead className="text-right font-bold py-4">Actions</TableHead>
                 </TableRow>
@@ -242,9 +320,26 @@ export default function StudentsPage() {
               <TableBody>
                 {students.map((stu: any) => (
                   <TableRow key={stu.id} className="hover:bg-slate-50 transition-colors">
-                    <TableCell className="font-mono text-[11px] font-bold text-muted-foreground">{stu.studentId || 'NO ID'}</TableCell>
-                    <TableCell className="font-bold text-primary">{stu.lastName}, {stu.firstName}</TableCell>
-                    <TableCell className="text-sm font-medium">{stu.gradeLevel}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-mono text-[10px] font-bold text-muted-foreground uppercase">{stu.studentId || 'NO ID'}</span>
+                        <span className="font-bold text-primary">{stu.lastName}, {stu.firstName}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-sm font-medium">{stu.gradeLevel}</span>
+                        <Badge variant="ghost" className="w-fit h-4 text-[9px] px-1 font-bold uppercase">{stu.gender}</Badge>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-xs font-bold text-primary">{stu.parentName}</span>
+                        <span className="text-[10px] text-muted-foreground font-mono flex items-center gap-1">
+                          <Phone className="size-3" /> {stu.parentPhone}
+                        </span>
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-[9px] uppercase font-bold text-green-600 bg-green-50 border-green-200">
                         {stu.status}
@@ -264,5 +359,27 @@ export default function StudentsPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+function Hash(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <line x1="4" x2="20" y1="9" y2="9" />
+      <line x1="4" x2="20" y1="15" y2="15" />
+      <line x1="10" x2="8" y1="3" y2="21" />
+      <line x1="16" x2="14" y1="3" y2="21" />
+    </svg>
   )
 }

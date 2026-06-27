@@ -4,7 +4,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Users, Mail, UserCog, Search, Trash2, Pencil, Loader2, Upload, UserPlus } from "lucide-react"
+import { Users, Mail, UserCog, Search, Trash2, Pencil, Loader2, Upload, UserPlus, Phone, Calendar as CalendarIcon, Hash } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection } from "@/firebase"
@@ -16,6 +16,21 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 
+const DEPARTMENTS = [
+  "Administration",
+  "Mathematics",
+  "Science",
+  "Languages",
+  "Social Studies",
+  "Creative Arts",
+  "ICT & Computing",
+  "Physical Education",
+  "Finance",
+  "Admissions",
+  "Facilities & Maintenance",
+  "Security"
+]
+
 export default function StaffPage() {
   const db = useFirestore()
   const [loading, setLoading] = useState(false)
@@ -26,7 +41,10 @@ export default function StaffPage() {
     fullName: "",
     role: "",
     department: "Administration",
-    email: ""
+    email: "",
+    phoneNumber: "",
+    staffId: "",
+    joiningDate: new Date().toISOString().split('T')[0]
   })
   const [bulkData, setBulkData] = useState("")
 
@@ -59,7 +77,15 @@ export default function StaffPage() {
         description: `${staffForm.fullName} has joined the roster.`,
       })
       setIsAddOpen(false)
-      setStaffForm({ fullName: "", role: "", department: "Administration", email: "" })
+      setStaffForm({ 
+        fullName: "", 
+        role: "", 
+        department: "Administration", 
+        email: "", 
+        phoneNumber: "", 
+        staffId: "", 
+        joiningDate: new Date().toISOString().split('T')[0] 
+      })
     } catch (error: any) {
       toast({ variant: "destructive", title: "Error", description: error.message })
     } finally {
@@ -76,13 +102,15 @@ export default function StaffPage() {
 
     try {
       for (const line of lines) {
-        const [name, role, dept, email] = line.split(',').map(s => s?.trim())
+        const [name, role, dept, email, phone, id] = line.split(',').map(s => s?.trim())
         if (name && role) {
           await addDoc(collection(db, "staff"), {
             fullName: name,
             role: role,
             department: dept || "General",
             email: email || `${name.toLowerCase().replace(/\s/g, '.')}@yebfa.edu`,
+            phoneNumber: phone || "",
+            staffId: id || `EMP-${Math.floor(1000 + Math.random() * 9000)}`,
             institutionId,
             createdAt: serverTimestamp()
           })
@@ -128,11 +156,11 @@ export default function StaffPage() {
             <DialogContent className="max-w-xl rounded-2xl">
               <DialogHeader>
                 <DialogTitle className="text-2xl font-headline font-bold text-primary">Bulk Staff Import</DialogTitle>
-                <DialogDescription>Format: FullName, Role, Department, Email</DialogDescription>
+                <DialogDescription>Format: FullName, Role, Department, Email, Phone, StaffID</DialogDescription>
               </DialogHeader>
               <div className="py-4 space-y-4">
                 <Textarea 
-                  placeholder="Isaac Boateng, Senior Teacher, Science, isaac@yebfa.edu&#10;Sarah Mensah, Accountant, Finance, sarah@yebfa.edu" 
+                  placeholder="Isaac Boateng, Senior Teacher, Science, isaac@yebfa.edu, 0244123456, EMP-101&#10;Sarah Mensah, Accountant, Finance, sarah@yebfa.edu, 0555987654, EMP-102" 
                   className="min-h-[200px] font-mono text-sm"
                   value={bulkData}
                   onChange={(e) => setBulkData(e.target.value)}
@@ -153,22 +181,24 @@ export default function StaffPage() {
                 <UserPlus className="size-4" /> Add Staff Member
               </Button>
             </DialogTrigger>
-            <DialogContent className="rounded-2xl">
+            <DialogContent className="rounded-2xl max-w-2xl">
               <form onSubmit={handleAddStaff}>
                 <DialogHeader>
                   <DialogTitle className="text-2xl font-headline font-bold text-primary">Add Faculty/Staff</DialogTitle>
-                  <DialogDescription>Create a new personnel node for your institution.</DialogDescription>
+                  <DialogDescription>Create a new personnel node with comprehensive details.</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-6 py-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="sname">Full Name</Label>
-                    <Input id="sname" required value={staffForm.fullName} onChange={(e) => setStaffForm({...staffForm, fullName: e.target.value})} />
-                  </div>
                   <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="sname">Full Name</Label>
+                      <Input id="sname" required value={staffForm.fullName} onChange={(e) => setStaffForm({...staffForm, fullName: e.target.value})} />
+                    </div>
                     <div className="space-y-2">
                       <Label htmlFor="srole">Role / Designation</Label>
                       <Input id="srole" required value={staffForm.role} onChange={(e) => setStaffForm({...staffForm, role: e.target.value})} />
                     </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="sdept">Department</Label>
                       <Select onValueChange={(v) => setStaffForm({...staffForm, department: v})} defaultValue={staffForm.department}>
@@ -176,18 +206,42 @@ export default function StaffPage() {
                           <SelectValue placeholder="Department" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Administration">Administration</SelectItem>
-                          <SelectItem value="Mathematics">Mathematics</SelectItem>
-                          <SelectItem value="Science">Science</SelectItem>
-                          <SelectItem value="Languages">Languages</SelectItem>
-                          <SelectItem value="Finance">Finance</SelectItem>
+                          {DEPARTMENTS.map(dept => (
+                            <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="sid">Staff ID</Label>
+                      <div className="relative">
+                        <Hash className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                        <Input id="sid" className="pl-10" required value={staffForm.staffId} onChange={(e) => setStaffForm({...staffForm, staffId: e.target.value})} />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="semail">Email Address</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                        <Input id="semail" type="email" className="pl-10" required value={staffForm.email} onChange={(e) => setStaffForm({...staffForm, email: e.target.value})} />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="sphone">Phone Number</Label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                        <Input id="sphone" type="tel" className="pl-10" required value={staffForm.phoneNumber} onChange={(e) => setStaffForm({...staffForm, phoneNumber: e.target.value})} />
+                      </div>
+                    </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="semail">Professional Email</Label>
-                    <Input id="semail" type="email" required value={staffForm.email} onChange={(e) => setStaffForm({...staffForm, email: e.target.value})} />
+                    <Label htmlFor="sdate">Joining Date</Label>
+                    <div className="relative">
+                      <CalendarIcon className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                      <Input id="sdate" type="date" className="pl-10" required value={staffForm.joiningDate} onChange={(e) => setStaffForm({...staffForm, joiningDate: e.target.value})} />
+                    </div>
                   </div>
                 </div>
                 <DialogFooter>
@@ -222,23 +276,33 @@ export default function StaffPage() {
             <Table>
               <TableHeader className="bg-muted/30">
                 <TableRow>
-                  <TableHead className="font-bold py-4">Staff Name</TableHead>
+                  <TableHead className="font-bold py-4">Staff ID / Name</TableHead>
                   <TableHead className="font-bold py-4">Department / Role</TableHead>
-                  <TableHead className="font-bold py-4">Credentials</TableHead>
+                  <TableHead className="font-bold py-4">Contact Info</TableHead>
                   <TableHead className="text-right font-bold py-4">Management</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {staff.map((s: any) => (
                   <TableRow key={s.id} className="hover:bg-slate-50 transition-colors">
-                    <TableCell className="font-bold text-primary">{s.fullName}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-mono font-bold text-muted-foreground uppercase">{s.staffId || 'NO ID'}</span>
+                        <span className="font-bold text-primary">{s.fullName}</span>
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <div className="flex flex-col gap-1">
                         <span className="text-[10px] font-bold text-accent uppercase tracking-wider">{s.department}</span>
                         <span className="text-sm font-medium">{s.role}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-xs font-mono">{s.email}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1 text-[11px] font-medium text-muted-foreground">
+                        <span className="flex items-center gap-1"><Mail className="size-3" /> {s.email}</span>
+                        {s.phoneNumber && <span className="flex items-center gap-1"><Phone className="size-3" /> {s.phoneNumber}</span>}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary"><Pencil className="size-3.5" /></Button>
