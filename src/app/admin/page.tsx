@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,9 +9,11 @@ import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import { useUser, useFirestore, useCollection } from "@/firebase"
 import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { toast } from "@/hooks/use-toast"
 import { collection, addDoc, serverTimestamp, query, orderBy, deleteDoc, doc } from "firebase/firestore"
+import { errorEmitter } from "@/firebase/error-emitter"
+import { FirestorePermissionError } from "@/firebase/errors"
 
 export default function AdminPortal() {
   const { user, loading: authLoading } = useUser()
@@ -22,7 +23,11 @@ export default function AdminPortal() {
 
   const isSuperAdmin = user?.email === 'asareg365@gmail.com' || user?.email === 'frankyeb@gmail.com'
 
-  const institutionsQuery = query(collection(db, "institutions"), orderBy("createdAt", "desc"))
+  const institutionsQuery = useMemo(() => {
+    if (!db) return null;
+    return query(collection(db, "institutions"), orderBy("createdAt", "desc"));
+  }, [db]);
+
   const { data: institutions, loading: dataLoading } = useCollection(institutionsQuery)
 
   useEffect(() => {
@@ -31,52 +36,58 @@ export default function AdminPortal() {
     }
   }, [user, authLoading, isSuperAdmin, router])
 
-  const handleProvisionSchool = async () => {
+  const handleProvisionSchool = () => {
     if (!db || provisioning) return
     setProvisioning(true)
     
-    try {
-      const demoSchools = ["Greenwood Academy", "Sunshine International", "Ahafo Tech Institute", "Valley View College"]
-      const randomSchool = demoSchools[Math.floor(Math.random() * demoSchools.length)]
-      
-      await addDoc(collection(db, "institutions"), {
-        name: randomSchool,
-        ownerEmail: `admin@${randomSchool.toLowerCase().replace(/\s/g, "")}.com`,
-        type: "Secondary",
-        location: "Goaso, Ahafo",
-        subscriptionPlan: "premium",
-        createdAt: serverTimestamp()
-      })
-
-      toast({
-        title: "School Provisioned",
-        description: `${randomSchool} has been added to the global node.`,
-      })
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Provisioning Failed",
-        description: error.message
-      })
-    } finally {
-      setProvisioning(false)
+    const demoSchools = ["Greenwood Academy", "Sunshine International", "Ahafo Tech Institute", "Valley View College"]
+    const randomSchool = demoSchools[Math.floor(Math.random() * demoSchools.length)]
+    
+    const data = {
+      name: randomSchool,
+      ownerEmail: `admin@${randomSchool.toLowerCase().replace(/\s/g, "")}.com`,
+      type: "Secondary",
+      location: "Goaso, Ahafo",
+      subscriptionPlan: "premium",
+      createdAt: serverTimestamp()
     }
+
+    addDoc(collection(db, "institutions"), data)
+      .then(() => {
+        toast({
+          title: "School Provisioned",
+          description: `${randomSchool} has been added to the global node.`,
+        })
+      })
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: 'institutions',
+          operation: 'create',
+          requestResourceData: data,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => {
+        setProvisioning(false)
+      })
   }
 
-  const handleDeleteSchool = async (id: string, name: string) => {
-    try {
-      await deleteDoc(doc(db, "institutions", id))
-      toast({
-        title: "Instance Deprovisioned",
-        description: `${name} has been removed from the registry.`,
+  const handleDeleteSchool = (id: string, name: string) => {
+    const docRef = doc(db, "institutions", id);
+    deleteDoc(docRef)
+      .then(() => {
+        toast({
+          title: "Instance Deprovisioned",
+          description: `${name} has been removed from the registry.`,
+        })
       })
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Delete Failed",
-        description: error.message
-      })
-    }
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
   }
 
   if (authLoading) return <div className="p-12 text-center font-headline font-bold">Verifying Global Credentials...</div>
