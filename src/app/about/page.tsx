@@ -1,40 +1,10 @@
-
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { School, ArrowLeft, Target, Award, ShieldCheck, Play, Loader2, Sparkles, Video } from "lucide-react"
-import { generateDemoVideo } from "@/ai/flows/generate-demo-video"
-import { toast } from "@/hooks/use-toast"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { School, ArrowLeft, Target, Award, ShieldCheck } from "lucide-react"
 
 export default function AboutPage() {
-  const [generating, setGenerating] = useState(false)
-  const [videoUrl, setVideoUrl] = useState<string | null>(null)
-
-  const handleWatchDemo = async () => {
-    setGenerating(true)
-    setVideoUrl(null)
-    try {
-      const result = await generateDemoVideo()
-      setVideoUrl(result.videoUrl)
-      toast({
-        title: "AI Demo Synthesized",
-        description: "Your custom cinematic walkthrough is ready.",
-      })
-    } catch (error: any) {
-      console.error("Video Generation Error:", error)
-      toast({
-        variant: "destructive",
-        title: "Synthesis Failed",
-        description: error.message || "Could not generate AI video. Please check your AI configuration.",
-      })
-    } finally {
-      setGenerating(false)
-    }
-  }
-
   return (
     <div className="min-h-screen bg-background">
       <header className="px-6 lg:px-12 h-20 flex items-center justify-between border-b border-border/40">
@@ -57,68 +27,6 @@ export default function AboutPage() {
           <p className="text-xl text-muted-foreground leading-relaxed">
             Founded in 2024 and reaching maturity in 2026, Yebfa Enterprise is dedicated to modernizing educational institutions across Ghana and West Africa through intelligent, secure, and accessible technology.
           </p>
-          
-          <div className="pt-6">
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button size="lg" className="h-16 px-10 text-lg gap-3 bg-primary hover:bg-primary/90 shadow-2xl">
-                  <Play className="size-6 fill-current" /> Watch 2026 Vision Demo
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-4xl p-0 overflow-hidden border-none bg-black">
-                <DialogHeader className="p-6 bg-primary text-primary-foreground">
-                  <DialogTitle className="flex items-center gap-2">
-                    <Sparkles className="size-5 text-accent" />
-                    AI-Generated Platform Walkthrough
-                  </DialogTitle>
-                </DialogHeader>
-                <div className="aspect-video relative flex items-center justify-center bg-zinc-900">
-                  {videoUrl ? (
-                    <video 
-                      src={videoUrl} 
-                      controls 
-                      autoPlay 
-                      className="w-full h-full object-contain"
-                    />
-                  ) : (
-                    <div className="text-center space-y-6 p-12">
-                      <div className="size-20 rounded-full bg-white/5 flex items-center justify-center mx-auto">
-                        {generating ? (
-                          <Loader2 className="size-10 text-accent animate-spin" />
-                        ) : (
-                          <Video className="size-10 text-white/20" />
-                        )}
-                      </div>
-                      <div className="max-w-md mx-auto">
-                        <h3 className="text-white font-bold text-xl">
-                          {generating ? "Synthesizing AI Vision..." : "Ready to Visualize 2026?"}
-                        </h3>
-                        <p className="text-zinc-500 text-sm mt-2">
-                          {generating 
-                            ? "Please wait while our AI models generate a cinematic 4K walkthrough of the Yebfa Ecosystem. This usually takes 45-90 seconds." 
-                            : "Our AI will generate a unique cinematic walkthrough of the Yebfa Ecosystem interface specifically for you."}
-                        </p>
-                      </div>
-                      <Button 
-                        onClick={handleWatchDemo} 
-                        disabled={generating}
-                        className="bg-accent hover:bg-accent/90 text-accent-foreground h-12 px-8"
-                      >
-                        {generating ? (
-                          <>
-                            <Loader2 className="mr-2 size-4 animate-spin" />
-                            Processing frames...
-                          </>
-                        ) : (
-                          "Generate Custom Demo"
-                        )}
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </DialogContent>
-            </Dialog>
-          </div>
         </section>
 
         <section className="grid gap-12 md:grid-cols-3">
@@ -131,7 +39,6 @@ export default function AboutPage() {
               To empower school administrators with AI-driven insights that drive student success and financial sustainability across the Ahafo region and beyond.
             </p>
           </div>
-          <div className="size-12 rounded-lg bg-primary/5 flex items-center justify-center hidden"></div> {/* Spacer hack for alignment */}
           <div className="space-y-4">
             <div className="size-12 rounded-lg bg-primary/5 flex items-center justify-center">
               <ShieldCheck className="size-6 text-primary" />

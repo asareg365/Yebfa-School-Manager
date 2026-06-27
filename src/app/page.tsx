@@ -1,9 +1,8 @@
-
 "use client"
 
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { School, ArrowRight, Zap, Play } from "lucide-react"
+import { School, ArrowRight, Zap } from "lucide-react"
 import { useUser } from "@/firebase"
 
 export default function LandingPage() {
@@ -65,7 +64,7 @@ export default function LandingPage() {
                 </Link>
               </Button>
               <Button size="lg" variant="outline" className="h-14 px-8 text-lg font-medium gap-2" asChild>
-                <Link href="/about"><Play className="size-4" /> Watch Vision Demo</Link>
+                <Link href="/about">Learn More</Link>
               </Button>
             </div>
           </div>
