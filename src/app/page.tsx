@@ -1,3 +1,4 @@
+
 "use client"
 
 import Link from "next/link"
@@ -16,7 +17,7 @@ export default function LandingPage() {
           <div className="size-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-lg">
             <School className="size-6" />
           </div>
-          <span className="text-2xl font-headline font-bold tracking-tight text-primary">Yebfa</span>
+          <span className="text-2xl font-headline font-bold tracking-tight text-primary">Yebfa School Manager</span>
         </Link>
         <nav className="hidden md:flex items-center gap-8">
           <Link href="/about" className="text-sm font-medium hover:text-accent transition-colors">About</Link>
@@ -81,9 +82,9 @@ export default function LandingPage() {
             <div className="size-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground">
               <School className="size-5" />
             </div>
-            <span className="text-xl font-headline font-bold text-primary">Yebfa</span>
+            <span className="text-xl font-headline font-bold text-primary">Yebfa School Manager</span>
           </div>
-          <p className="text-sm text-muted-foreground">© 2026 Yebfa Enterprise. All rights reserved.</p>
+          <p className="text-sm text-muted-foreground">© 2026 Yebfa School Manager. All rights reserved.</p>
           <div className="flex gap-6">
             <Link href="/privacy" className="text-sm text-muted-foreground hover:text-primary transition-colors">Privacy</Link>
             <Link href="/terms" className="text-sm text-muted-foreground hover:text-primary transition-colors">Terms</Link>

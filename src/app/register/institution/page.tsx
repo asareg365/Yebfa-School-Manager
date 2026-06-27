@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState } from "react"
@@ -36,7 +37,7 @@ export default function InstitutionRegistrationPage() {
         <div className="size-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-lg">
           <School className="size-6" />
         </div>
-        <span className="text-2xl font-headline font-bold tracking-tight text-primary">Yebfa</span>
+        <span className="text-2xl font-headline font-bold tracking-tight text-primary">Yebfa School Manager</span>
       </Link>
 
       <Card className="w-full max-w-2xl border-none shadow-2xl overflow-hidden">
@@ -45,7 +46,7 @@ export default function InstitutionRegistrationPage() {
             <div className="size-8 rounded-lg bg-white/10 flex items-center justify-center">
               <ShieldCheck className="size-5" />
             </div>
-            <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Enterprise Provisioning 2026</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Institutional Provisioning 2026</span>
           </div>
           <CardTitle className="text-3xl font-headline font-bold">Register Your Institution</CardTitle>
           <CardDescription className="text-primary-foreground/70">

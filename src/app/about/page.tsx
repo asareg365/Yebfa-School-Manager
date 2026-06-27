@@ -1,3 +1,4 @@
+
 "use client"
 
 import Link from "next/link"
@@ -12,7 +13,7 @@ export default function AboutPage() {
           <div className="size-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-lg">
             <School className="size-6" />
           </div>
-          <span className="text-2xl font-headline font-bold tracking-tight text-primary">Yebfa</span>
+          <span className="text-2xl font-headline font-bold tracking-tight text-primary">Yebfa School Manager</span>
         </Link>
         <Button variant="ghost" asChild>
           <Link href="/"><ArrowLeft className="mr-2 size-4" /> Back to Home</Link>
@@ -25,7 +26,7 @@ export default function AboutPage() {
             We are building the <span className="text-accent italic">future</span> of education.
           </h1>
           <p className="text-xl text-muted-foreground leading-relaxed">
-            Founded in 2024 and reaching maturity in 2026, Yebfa Enterprise is dedicated to modernizing educational institutions across Ghana and West Africa through intelligent, secure, and accessible technology.
+            Founded in 2024 and reaching maturity in 2026, Yebfa School Manager is dedicated to modernizing educational institutions across Ghana and West Africa through intelligent, secure, and accessible technology.
           </p>
         </section>
 
@@ -63,7 +64,7 @@ export default function AboutPage() {
           <div className="max-w-2xl">
             <h2 className="text-3xl font-headline font-bold mb-4">Our Presence in 2026</h2>
             <p className="text-primary-foreground/80 leading-relaxed">
-              Headquartered in Goaso, Ahafo Region, Yebfa powers over 150 institutions across Ghana. Our strategic financial forecasts have helped schools save an average of 15% in operational costs while improving student outcomes.
+              Headquartered in Goaso, Ahafo Region, Yebfa School Manager powers over 150 institutions across Ghana. Our strategic financial forecasts have helped schools save an average of 15% in operational costs while improving student outcomes.
             </p>
           </div>
           <Button variant="secondary" size="lg" asChild className="bg-white text-primary hover:bg-white/90">

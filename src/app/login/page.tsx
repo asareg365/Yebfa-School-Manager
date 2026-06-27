@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -74,7 +75,7 @@ export default function LoginPage() {
         <div className="size-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-lg">
           <School className="size-6" />
         </div>
-        <span className="text-2xl font-headline font-bold tracking-tight text-primary">Yebfa</span>
+        <span className="text-2xl font-headline font-bold tracking-tight text-primary">Yebfa School Manager</span>
       </Link>
       
       <Card className="w-full max-w-md border-none shadow-xl">

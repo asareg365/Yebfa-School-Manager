@@ -11,7 +11,7 @@ export default function TermsPage() {
           <div className="size-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-lg">
             <School className="size-6" />
           </div>
-          <span className="text-2xl font-headline font-bold tracking-tight text-primary">Yebfa</span>
+          <span className="text-2xl font-headline font-bold tracking-tight text-primary">Yebfa School Manager</span>
         </Link>
         <Button variant="ghost" asChild>
           <Link href="/"><ArrowLeft className="mr-2 size-4" /> Back to Home</Link>
@@ -42,14 +42,14 @@ export default function TermsPage() {
           <section className="space-y-4">
             <h2 className="text-2xl font-bold font-headline text-primary">3. Intellectual Property</h2>
             <p className="text-muted-foreground leading-relaxed">
-              All software, AI flows, and UI components remain the property of Yebfa Enterprise. Your data remains your property, and we provide tools for you to export it at any time.
+              All software, AI flows, and UI components remain the property of Yebfa School Manager. Your data remains your property, and we provide tools for you to export it at any time.
             </p>
           </section>
 
           <section className="space-y-4">
             <h2 className="text-2xl font-bold font-headline text-primary">4. Liability</h2>
             <p className="text-muted-foreground leading-relaxed">
-              Yebfa provides tools for strategic assistance. Final academic and financial decisions remain the responsibility of the school administration.
+              Yebfa School Manager provides tools for strategic assistance. Final academic and financial decisions remain the responsibility of the school administration.
             </p>
           </section>
         </div>

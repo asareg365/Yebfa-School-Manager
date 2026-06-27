@@ -11,7 +11,7 @@ export default function PrivacyPage() {
           <div className="size-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-lg">
             <School className="size-6" />
           </div>
-          <span className="text-2xl font-headline font-bold tracking-tight text-primary">Yebfa</span>
+          <span className="text-2xl font-headline font-bold tracking-tight text-primary">Yebfa School Manager</span>
         </Link>
         <Button variant="ghost" asChild>
           <Link href="/"><ArrowLeft className="mr-2 size-4" /> Back to Home</Link>
@@ -28,7 +28,7 @@ export default function PrivacyPage() {
           <section className="space-y-4">
             <h2 className="text-2xl font-bold font-headline text-primary">1. Data Collection</h2>
             <p className="text-muted-foreground leading-relaxed">
-              Yebfa Enterprise ("we", "us", or "our") collects information necessary to provide the school management services. This includes institution details, student records, staff information, and financial transaction history. We do not sell this data to third parties.
+              Yebfa School Manager ("we", "us", or "our") collects information necessary to provide the school management services. This includes institution details, student records, staff information, and financial transaction history. We do not sell this data to third parties.
             </p>
           </section>
 
@@ -42,7 +42,7 @@ export default function PrivacyPage() {
           <section className="space-y-4">
             <h2 className="text-2xl font-bold font-headline text-primary">3. AI Processing</h2>
             <p className="text-muted-foreground leading-relaxed">
-              When using our AI features (Reporting, Forecasting, Video Generation), data is processed securely via Genkit and Google Vertex AI. Your institutional data is used solely to generate reports or media for your account and is not used to train global public models.
+              When using our AI features (Reporting, Forecasting), data is processed securely via Genkit and Google Vertex AI. Your institutional data is used solely to generate reports or media for your account and is not used to train global public models.
             </p>
           </section>
 
