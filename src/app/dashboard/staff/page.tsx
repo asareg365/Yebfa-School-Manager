@@ -12,7 +12,7 @@ export default function StaffPage() {
   const handleAddStaff = () => {
     toast({
       title: "Human Resources Node",
-      description: "Opening staff provisioning interface...",
+      description: "Provisioning a new staff access credential...",
     })
   }
 

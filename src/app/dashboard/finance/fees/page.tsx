@@ -7,10 +7,17 @@ import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
 
 export default function FeesPage() {
-  const handlePayment = () => {
+  const handleNewPayment = () => {
     toast({
       title: "Merchant Gateway",
-      description: "Redirecting to secure payment processor...",
+      description: "Initializing new payment record in the Term 2 ledger...",
+    })
+  }
+
+  const handleViewHistory = () => {
+    toast({
+      title: "Audit History",
+      description: "Fetching full financial intake history from regional nodes...",
     })
   }
 
@@ -21,7 +28,7 @@ export default function FeesPage() {
           <h1 className="text-3xl font-headline font-bold text-primary">Fee Management</h1>
           <p className="text-muted-foreground">Monitor collection cycles and outstanding balances.</p>
         </div>
-        <Button className="gap-2" onClick={handlePayment}>
+        <Button className="gap-2" onClick={handleNewPayment}>
           <Plus className="size-4" /> New Payment Record
         </Button>
       </div>
@@ -66,7 +73,7 @@ export default function FeesPage() {
               <CardTitle className="text-lg">Recent Ledger Activity</CardTitle>
               <CardDescription>Audit of latest financial intake.</CardDescription>
             </div>
-            <Button variant="ghost" size="sm" className="text-xs font-bold text-primary">View Full History</Button>
+            <Button variant="ghost" size="sm" className="text-xs font-bold text-primary underline" onClick={handleViewHistory}>View Full History</Button>
           </div>
         </CardHeader>
         <CardContent className="h-64 flex flex-col items-center justify-center text-center space-y-4 border-t">

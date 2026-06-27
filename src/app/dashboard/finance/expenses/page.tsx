@@ -5,8 +5,30 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Receipt, Plus, Search, Filter, PieChart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { toast } from "@/hooks/use-toast"
 
 export default function ExpensesPage() {
+  const handleRecordExpenditure = () => {
+    toast({
+      title: "Expenditure Recorded",
+      description: "Allocating funds and updating the institutional expense node...",
+    })
+  }
+
+  const handleDownloadReport = () => {
+    toast({
+      title: "Report Processing",
+      description: "Generating comprehensive expenditure analysis for download...",
+    })
+  }
+
+  const handleFilter = () => {
+    toast({
+      title: "Ledger Filtered",
+      description: "Sorting vouchers by selected department and category.",
+    })
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -14,7 +36,7 @@ export default function ExpensesPage() {
           <h1 className="text-3xl font-headline font-bold text-primary">Expense Tracking</h1>
           <p className="text-muted-foreground">Monitor institutional spending and operational costs.</p>
         </div>
-        <Button className="bg-primary hover:bg-primary/90 gap-2">
+        <Button className="bg-primary hover:bg-primary/90 gap-2" onClick={handleRecordExpenditure}>
           <Plus className="size-4" /> Record Expenditure
         </Button>
       </div>
@@ -44,11 +66,11 @@ export default function ExpensesPage() {
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Search vouchers..." className="pl-9" />
             </div>
-            <Button variant="outline" size="sm" className="gap-2">
+            <Button variant="outline" size="sm" className="gap-2" onClick={handleFilter}>
               <Filter className="size-4" /> Filter
             </Button>
           </div>
-          <Button variant="ghost" size="sm" className="text-xs font-bold text-primary underline">Download Report</Button>
+          <Button variant="ghost" size="sm" className="text-xs font-bold text-primary underline" onClick={handleDownloadReport}>Download Report</Button>
         </CardHeader>
         <CardContent className="p-20 flex flex-col items-center justify-center text-center space-y-4">
           <div className="size-20 rounded-full bg-muted flex items-center justify-center">

@@ -4,8 +4,23 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Wallet, Users, ArrowUpRight, Banknote, Calendar } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { toast } from "@/hooks/use-toast"
 
 export default function PayrollPage() {
+  const handleScheduleRun = () => {
+    toast({
+      title: "Term Run Scheduled",
+      description: "Automated disbursement cycle for Term 2 has been initialized.",
+    })
+  }
+
+  const handleConfigureBanking = () => {
+    toast({
+      title: "Banking Node",
+      description: "Redirecting to secure merchant bank configuration gateway...",
+    })
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -13,7 +28,7 @@ export default function PayrollPage() {
           <h1 className="text-3xl font-headline font-bold text-primary">Payroll Processor</h1>
           <p className="text-muted-foreground">Automated salary management and tax compliance.</p>
         </div>
-        <Button className="bg-primary hover:bg-primary/90 gap-2">
+        <Button className="bg-primary hover:bg-primary/90 gap-2" onClick={handleScheduleRun}>
           <Calendar className="size-4" /> Schedule Term Run
         </Button>
       </div>
@@ -61,7 +76,7 @@ export default function PayrollPage() {
             <p className="text-sm text-muted-foreground">
               To process payroll, please ensure all staff members in the <strong>Staff Roster</strong> have valid account details and salary grades assigned.
             </p>
-            <Button variant="outline" className="mt-6">Configure Banking Node</Button>
+            <Button variant="outline" className="mt-6" onClick={handleConfigureBanking}>Configure Banking Node</Button>
           </div>
         </CardContent>
       </Card>

@@ -9,10 +9,17 @@ import { Search, UserPlus, Filter, GraduationCap } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 
 export default function StudentsPage() {
-  const handleAddStudent = () => {
+  const handleEnroll = () => {
     toast({
-      title: "Enrollment Module Active",
-      description: "Redirecting to student registration form...",
+      title: "Enrollment Node Active",
+      description: "Initializing secure registration for new student record...",
+    })
+  }
+
+  const handleFilter = () => {
+    toast({
+      title: "Query Refined",
+      description: "Filtering directory by selected academic criteria.",
     })
   }
 
@@ -23,7 +30,7 @@ export default function StudentsPage() {
           <h1 className="text-3xl font-headline font-bold text-primary">Student Directory</h1>
           <p className="text-muted-foreground">Manage student records and academic enrollment for 2026.</p>
         </div>
-        <Button className="gap-2" onClick={handleAddStudent}>
+        <Button className="gap-2" onClick={handleEnroll}>
           <UserPlus className="size-4" /> Add New Student
         </Button>
       </div>
@@ -36,7 +43,7 @@ export default function StudentsPage() {
               <Input placeholder="Search by name, ID or class..." className="pl-9" />
             </div>
             <div className="flex items-center gap-2 w-full md:w-auto">
-              <Button variant="outline" className="gap-2 flex-1 md:flex-none">
+              <Button variant="outline" className="gap-2 flex-1 md:flex-none" onClick={handleFilter}>
                 <Filter className="size-4" /> Filter
               </Button>
             </div>
@@ -61,7 +68,7 @@ export default function StudentsPage() {
                     <GraduationCap className="size-12 opacity-20 mb-2" />
                     <p className="font-bold text-primary">No Registered Students</p>
                     <p className="text-xs">No students have been enrolled in the current term node.</p>
-                    <Button variant="link" className="text-accent" onClick={handleAddStudent}>Enroll first student</Button>
+                    <Button variant="link" className="text-accent" onClick={handleEnroll}>Enroll first student</Button>
                   </div>
                 </TableCell>
               </TableRow>

@@ -2,11 +2,26 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { History, Search, Filter, Terminal } from "lucide-react"
+import { History, Search, Filter, Terminal, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { toast } from "@/hooks/use-toast"
 
 export default function LogsPage() {
+  const handleExportCSV = () => {
+    toast({
+      title: "Export Initiated",
+      description: "Compiling audit trail into CSV format for local download...",
+    })
+  }
+
+  const handleFilter = () => {
+    toast({
+      title: "Logs Filtered",
+      description: "Sorting activity audit by selected severity and node.",
+    })
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col gap-2">
@@ -21,11 +36,13 @@ export default function LogsPage() {
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Search logs..." className="pl-9" />
             </div>
-            <Button variant="outline" size="sm" className="gap-2">
+            <Button variant="outline" size="sm" className="gap-2" onClick={handleFilter}>
               <Filter className="size-4" /> Filter
             </Button>
           </div>
-          <Button variant="ghost" size="sm" className="text-xs font-bold text-primary underline">Export CSV</Button>
+          <Button variant="ghost" size="sm" className="text-xs font-bold text-primary underline gap-2" onClick={handleExportCSV}>
+            <Download className="size-3" /> Export CSV
+          </Button>
         </CardHeader>
         <CardContent className="p-12 flex flex-col items-center justify-center text-center space-y-4">
           <div className="size-16 rounded-full bg-muted flex items-center justify-center">
