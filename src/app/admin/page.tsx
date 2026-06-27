@@ -2,7 +2,7 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Loader2, CheckCircle2, AlertCircle } from "lucide-react"
+import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Pencil, Loader2, CheckCircle2, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -121,7 +121,14 @@ export default function AdminPortal() {
       });
   }
 
-  if (authLoading) return <div className="p-12 text-center font-headline font-bold">Verifying Global Credentials...</div>
+  const handleEditSchool = (name: string) => {
+    toast({
+      title: "Edit Mode",
+      description: `Opening configuration portal for ${name}...`,
+    })
+  }
+
+  if (authLoading) return <div className="p-12 text-center font-headline font-bold text-primary">Synchronizing Global Credentials...</div>
   if (!isSuperAdmin) return null
 
   return (
@@ -131,49 +138,49 @@ export default function AdminPortal() {
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest">
             <ShieldCheck className="size-3" /> System Super Admin
           </div>
-          <h1 className="text-4xl font-headline font-bold text-primary">Global Enterprise Hub</h1>
+          <h1 className="text-4xl font-headline font-bold text-primary tracking-tight">Global Enterprise Hub</h1>
           <p className="text-muted-foreground text-sm">Strategic multi-tenant node management for Yebfa School Manager.</p>
         </div>
         <div className="flex gap-4">
-          <Button variant="outline" asChild className="h-11">
+          <Button variant="outline" asChild className="h-11 border-primary/20">
             <Link href="/dashboard">To Institutional View</Link>
           </Button>
           
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-accent text-accent-foreground hover:bg-accent/90 gap-2 h-11">
+              <Button className="bg-accent text-accent-foreground hover:bg-accent/90 gap-2 h-11 shadow-lg shadow-accent/20">
                 <Plus className="size-4" /> Provision New School
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="rounded-2xl border-none shadow-2xl">
               <form onSubmit={handleManualProvision}>
                 <DialogHeader>
-                  <DialogTitle>Provision Institution</DialogTitle>
-                  <DialogDescription>Manually create a new school instance. This will bypass the review process.</DialogDescription>
+                  <DialogTitle className="text-2xl font-headline font-bold text-primary">Provision Institution</DialogTitle>
+                  <DialogDescription>Manually create a new school instance. This will bypass the global review process.</DialogDescription>
                 </DialogHeader>
-                <div className="grid gap-4 py-4">
+                <div className="grid gap-6 py-6">
                   <div className="space-y-2">
                     <Label htmlFor="name">School Name</Label>
-                    <Input id="name" required value={newSchool.name} onChange={(e) => setNewSchool({...newSchool, name: e.target.value})} />
+                    <Input id="name" required value={newSchool.name} onChange={(e) => setNewSchool({...newSchool, name: e.target.value})} className="h-11" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="email">Owner Email</Label>
-                    <Input id="email" type="email" required value={newSchool.ownerEmail} onChange={(e) => setNewSchool({...newSchool, ownerEmail: e.target.value})} />
+                    <Input id="email" type="email" required value={newSchool.ownerEmail} onChange={(e) => setNewSchool({...newSchool, ownerEmail: e.target.value})} className="h-11" />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="type">Type</Label>
-                      <Input id="type" value={newSchool.type} onChange={(e) => setNewSchool({...newSchool, type: e.target.value})} />
+                      <Input id="type" value={newSchool.type} onChange={(e) => setNewSchool({...newSchool, type: e.target.value})} className="h-11" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="loc">Location</Label>
-                      <Input id="loc" value={newSchool.location} onChange={(e) => setNewSchool({...newSchool, location: e.target.value})} />
+                      <Input id="loc" value={newSchool.location} onChange={(e) => setNewSchool({...newSchool, location: e.target.value})} className="h-11" />
                     </div>
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button type="submit" disabled={provisioning}>
-                    {provisioning ? <Loader2 className="size-4 animate-spin mr-2" /> : <CheckCircle2 className="size-4 mr-2" />}
+                  <Button type="submit" disabled={provisioning} className="h-11 px-8 gap-2">
+                    {provisioning ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
                     Confirm Provisioning
                   </Button>
                 </DialogFooter>
@@ -191,93 +198,103 @@ export default function AdminPortal() {
             { title: "Global Revenue", value: "GH₵---", icon: Wallet, trend: "Fiscal Year 2026" },
             { title: "System Health", value: "100%", icon: Activity, trend: "All Nodes Online" }
           ].map((stat) => (
-            <Card key={stat.title} className="border-none shadow-sm bg-white">
+            <Card key={stat.title} className="border-none shadow-sm bg-white hover:shadow-md transition-shadow">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">{stat.title}</CardTitle>
-                <stat.icon className="size-4 text-primary opacity-50" />
+                <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{stat.title}</CardTitle>
+                <div className="size-8 rounded-lg bg-primary/5 flex items-center justify-center">
+                  <stat.icon className="size-4 text-primary opacity-50" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold font-headline">{stat.value}</div>
-                <p className="text-[10px] text-muted-foreground font-medium mt-1">{stat.trend}</p>
+                <div className="text-3xl font-bold font-headline">{stat.value}</div>
+                <p className="text-[10px] text-muted-foreground font-medium mt-1 uppercase tracking-tight">{stat.trend}</p>
               </CardContent>
             </Card>
           ))}
         </div>
 
-        <Card className="border-none shadow-lg bg-white overflow-hidden">
+        <Card className="border-none shadow-xl bg-white overflow-hidden rounded-2xl">
           <CardHeader className="bg-white border-b px-6 py-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <CardTitle className="font-headline font-bold text-xl text-primary">Institution Registry</CardTitle>
-                <CardDescription>Management of multi-tenant instance deployments.</CardDescription>
+                <CardDescription>Management of multi-tenant instance deployments across the network.</CardDescription>
               </div>
               <div className="relative w-full md:w-64">
                 <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-                <Input placeholder="Search registry..." className="pl-9 h-10" />
+                <Input placeholder="Search registry..." className="pl-9 h-10 border-muted-foreground/20" />
               </div>
             </div>
           </CardHeader>
           <CardContent className="p-0">
             {institutions.length === 0 && !dataLoading ? (
-              <div className="flex flex-col items-center justify-center text-center p-20 space-y-4">
-                <div className="size-20 rounded-full bg-muted flex items-center justify-center">
+              <div className="flex flex-col items-center justify-center text-center p-24 space-y-4">
+                <div className="size-24 rounded-full bg-muted/30 flex items-center justify-center">
                   <Database className="size-10 text-muted-foreground/20" />
                 </div>
                 <div className="max-w-sm">
-                  <h3 className="text-lg font-bold text-primary">No Registered Tenants</h3>
-                  <p className="text-sm text-muted-foreground">As of 2026, no school instances have been provisioned.</p>
+                  <h3 className="text-xl font-bold text-primary">No Registered Tenants</h3>
+                  <p className="text-sm text-muted-foreground mt-2 leading-relaxed">As of 2026, no school instances have been provisioned or requested.</p>
                 </div>
               </div>
             ) : (
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-muted/30">
-                    <TableHead>School Name</TableHead>
-                    <TableHead>Owner / Email</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Plan</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                  <TableRow className="bg-muted/30 hover:bg-muted/30">
+                    <TableHead className="font-bold py-4">School Name</TableHead>
+                    <TableHead className="font-bold py-4">Owner / Email</TableHead>
+                    <TableHead className="font-bold py-4">Location</TableHead>
+                    <TableHead className="font-bold py-4">Status</TableHead>
+                    <TableHead className="font-bold py-4">Plan</TableHead>
+                    <TableHead className="text-right font-bold py-4">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {institutions.map((inst: any) => (
-                    <TableRow key={inst.id}>
+                    <TableRow key={inst.id} className="hover:bg-slate-50/80 transition-colors">
                       <TableCell className="font-bold text-primary">
                         {inst.name}
-                        {inst.status === 'pending_review' && <Badge className="ml-2 bg-amber-500">New</Badge>}
+                        {inst.status === 'pending_review' && <Badge className="ml-2 bg-accent text-white border-none text-[9px]">NEW</Badge>}
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col">
-                          <span className="text-sm font-medium">{inst.ownerName || 'Unknown Owner'}</span>
-                          <span className="text-[10px] text-muted-foreground">{inst.ownerEmail}</span>
+                          <span className="text-sm font-semibold">{inst.ownerName || 'Unknown Owner'}</span>
+                          <span className="text-[10px] text-muted-foreground font-mono">{inst.ownerEmail}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm">{inst.location}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground font-medium">{inst.location}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={`text-[10px] font-bold uppercase ${inst.status === 'active' ? 'text-green-600 border-green-200 bg-green-50' : 'text-amber-600 border-amber-200 bg-amber-50'}`}>
+                        <Badge variant="outline" className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 ${inst.status === 'active' ? 'text-green-600 border-green-200 bg-green-50' : 'text-amber-600 border-amber-200 bg-amber-50'}`}>
                           {inst.status || 'pending'}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="secondary" className="bg-accent/10 text-accent border-none uppercase text-[9px] font-bold">
+                        <Badge variant="secondary" className="bg-primary/5 text-primary border-none uppercase text-[9px] font-bold px-2 py-0.5">
                           {inst.subscriptionPlan || 'basic'}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1">
                           {inst.status !== 'active' && (
-                            <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 h-8" onClick={() => handleApprove(inst.id, inst.name)}>
+                            <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 h-8 px-3 text-[11px] font-bold uppercase tracking-tight" onClick={() => handleApprove(inst.id, inst.name)}>
                               Approve
                             </Button>
                           )}
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            className="text-destructive hover:bg-destructive/10 h-8 w-8"
+                            className="text-muted-foreground hover:text-primary h-8 w-8"
+                            onClick={() => handleEditSchool(inst.name)}
+                          >
+                            <Pencil className="size-3.5" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="text-muted-foreground hover:text-destructive h-8 w-8"
                             onClick={() => handleDeleteSchool(inst.id, inst.name)}
                           >
-                            <Trash2 className="size-4" />
+                            <Trash2 className="size-3.5" />
                           </Button>
                         </div>
                       </TableCell>

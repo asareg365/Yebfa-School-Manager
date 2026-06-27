@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, UserPlus, Filter, GraduationCap, Trash2, Loader2, MoreVertical } from "lucide-react"
+import { Search, UserPlus, Filter, GraduationCap, Trash2, Pencil, Loader2, MoreVertical } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection, useUser } from "@/firebase"
 import { collection, addDoc, query, orderBy, deleteDoc, doc, where } from "firebase/firestore"
@@ -81,6 +81,13 @@ export default function StudentsPage() {
     }
   }
 
+  const handleEdit = (name: string) => {
+    toast({
+      title: "Edit Profile",
+      description: `Accessing academic records for ${name}...`,
+    })
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -88,21 +95,21 @@ export default function StudentsPage() {
           <h1 className="text-3xl font-headline font-bold text-primary">Student Directory</h1>
           <p className="text-muted-foreground">Manage student records and academic enrollment for 2026.</p>
         </div>
-        <Button className="gap-2 bg-primary hover:bg-primary/90" onClick={handleEnroll} disabled={enrolling}>
+        <Button className="gap-2 bg-primary hover:bg-primary/90 h-11 px-6 shadow-lg shadow-primary/10" onClick={handleEnroll} disabled={enrolling}>
           {enrolling ? <Loader2 className="size-4 animate-spin" /> : <UserPlus className="size-4" />}
           Enroll Student
         </Button>
       </div>
 
-      <Card className="border-none shadow-md">
-        <CardHeader className="border-b pb-6">
+      <Card className="border-none shadow-md overflow-hidden rounded-2xl">
+        <CardHeader className="border-b pb-6 bg-white">
           <div className="flex flex-col md:flex-row items-center gap-4">
             <div className="relative flex-1 w-full">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search by name, ID or class..." className="pl-9" />
+              <Input placeholder="Search by name, ID or class..." className="pl-9 h-11 bg-slate-50 border-none" />
             </div>
             <div className="flex items-center gap-2 w-full md:w-auto">
-              <Button variant="outline" className="gap-2 flex-1 md:flex-none">
+              <Button variant="outline" className="gap-2 flex-1 md:flex-none h-11 border-muted-foreground/20">
                 <Filter className="size-4" /> Filter
               </Button>
             </div>
@@ -110,47 +117,57 @@ export default function StudentsPage() {
         </CardHeader>
         <CardContent className="p-0">
           {students.length === 0 && !loading ? (
-            <div className="flex flex-col items-center justify-center text-center p-20 space-y-4">
-              <div className="size-16 rounded-full bg-muted flex items-center justify-center">
-                <GraduationCap className="size-8 text-muted-foreground/30" />
+            <div className="flex flex-col items-center justify-center text-center p-24 space-y-4">
+              <div className="size-20 rounded-full bg-primary/5 flex items-center justify-center">
+                <GraduationCap className="size-10 text-primary opacity-20" />
               </div>
               <div className="max-w-xs">
-                <p className="font-bold text-primary">No Registered Students</p>
-                <p className="text-xs text-muted-foreground">No students have been enrolled in the current term node.</p>
-                <Button variant="link" className="text-accent" onClick={handleEnroll}>Enroll first student</Button>
+                <p className="font-bold text-primary text-lg">No Registered Students</p>
+                <p className="text-sm text-muted-foreground mt-1">No students have been enrolled in the current term node.</p>
+                <Button variant="link" className="text-accent font-bold mt-2" onClick={handleEnroll}>Enroll your first student</Button>
               </div>
             </div>
           ) : (
             <Table>
               <TableHeader className="bg-muted/30">
                 <TableRow>
-                  <TableHead className="w-[120px]">ID</TableHead>
-                  <TableHead>Full Name</TableHead>
-                  <TableHead>Grade Level</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="w-[120px] font-bold py-4">ID</TableHead>
+                  <TableHead className="font-bold py-4">Full Name</TableHead>
+                  <TableHead className="font-bold py-4">Grade Level</TableHead>
+                  <TableHead className="font-bold py-4">Status</TableHead>
+                  <TableHead className="text-right font-bold py-4">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {students.map((stu: any) => (
-                  <TableRow key={stu.id} className="hover:bg-muted/20">
-                    <TableCell className="font-mono text-xs font-bold text-muted-foreground">{stu.studentId}</TableCell>
+                  <TableRow key={stu.id} className="hover:bg-slate-50 transition-colors">
+                    <TableCell className="font-mono text-[11px] font-bold text-muted-foreground">{stu.studentId}</TableCell>
                     <TableCell className="font-bold text-primary">{stu.lastName}, {stu.firstName}</TableCell>
-                    <TableCell>{stu.gradeLevel}</TableCell>
+                    <TableCell className="text-sm font-medium">{stu.gradeLevel}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="text-[9px] uppercase font-bold text-green-600 bg-green-50 border-green-200">
+                      <Badge variant="outline" className="text-[9px] uppercase font-bold text-green-600 bg-green-50 border-green-200 px-2 py-0.5 tracking-wider">
                         {stu.status}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => handleDelete(stu.id, `${stu.firstName} ${stu.lastName}`)}
-                        className="text-muted-foreground hover:text-destructive"
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleEdit(`${stu.firstName} ${stu.lastName}`)}
+                          className="text-muted-foreground hover:text-primary h-8 w-8"
+                        >
+                          <Pencil className="size-3.5" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleDelete(stu.id, `${stu.firstName} ${stu.lastName}`)}
+                          className="text-muted-foreground hover:text-destructive h-8 w-8"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
