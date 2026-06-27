@@ -24,12 +24,16 @@ export default function LoginPage() {
   const auth = useAuth()
   const { user } = useUser()
 
+  const isSuperAdmin = (email: string | null) => 
+    email === 'asareg365@gmail.com' || email === 'frankyeb@gmail.com'
+
   useEffect(() => {
     if (firebaseConfig.apiKey === "REPLACEME" || !firebaseConfig.apiKey) {
       setConfigError(true)
     }
     if (user) {
-      router.push("/dashboard")
+      const destination = isSuperAdmin(user.email) ? "/admin" : "/dashboard"
+      router.push(destination)
     }
   }, [user, router])
 
@@ -38,8 +42,9 @@ export default function LoginPage() {
     if (!auth || configError) return
     setLoading(true)
     try {
-      await signInWithEmailAndPassword(auth, email, password)
-      router.push("/dashboard")
+      const credential = await signInWithEmailAndPassword(auth, email, password)
+      const destination = isSuperAdmin(credential.user.email) ? "/admin" : "/dashboard"
+      router.push(destination)
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -56,8 +61,9 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const provider = new GoogleAuthProvider()
-      await signInWithPopup(auth, provider)
-      router.push("/dashboard")
+      const credential = await signInWithPopup(auth, provider)
+      const destination = isSuperAdmin(credential.user.email) ? "/admin" : "/dashboard"
+      router.push(destination)
     } catch (error: any) {
       toast({
         variant: "destructive",
