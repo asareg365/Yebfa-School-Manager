@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -9,27 +9,80 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { School, ArrowLeft, Loader2, MapPin, Mail, User, ShieldCheck } from "lucide-react"
+import { School, ArrowLeft, Loader2, MapPin, Mail, User, ShieldCheck, AlertCircle } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
+import { useFirestore, useUser } from "@/firebase"
+import { collection, addDoc, serverTimestamp } from "firebase/firestore"
+import { errorEmitter } from "@/firebase/error-emitter"
+import { FirestorePermissionError } from "@/firebase/errors"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export default function InstitutionRegistrationPage() {
   const [loading, setLoading] = useState(false)
+  const [formData, setFormData] = useState({
+    name: "",
+    type: "",
+    location: "",
+    ownerName: "",
+    ownerEmail: ""
+  })
+  
   const router = useRouter()
+  const db = useFirestore()
+  const { user, loading: authLoading } = useUser()
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (user && !formData.ownerEmail) {
+      setFormData(prev => ({ ...prev, ownerEmail: user.email || "" }))
+    }
+  }, [user])
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
     
-    // Simulating registration process
-    setTimeout(() => {
-      setLoading(false)
+    if (!user) {
       toast({
-        title: "Registration Request Received",
-        description: "An administrator will review your application and contact you at the provided email.",
+        variant: "destructive",
+        title: "Authentication Required",
+        description: "Please sign in to register your institution.",
       })
       router.push("/login")
-    }, 2000)
+      return
+    }
+
+    setLoading(true)
+    
+    const data = {
+      name: formData.name,
+      type: formData.type,
+      location: formData.location,
+      ownerName: formData.ownerName,
+      ownerEmail: formData.ownerEmail,
+      subscriptionPlan: "basic",
+      status: "pending_review",
+      createdAt: serverTimestamp()
+    }
+
+    try {
+      await addDoc(collection(db, "institutions"), data)
+      toast({
+        title: "Registration Submitted",
+        description: "Your institution has been logged. An administrator will review your application.",
+      })
+      router.push("/dashboard")
+    } catch (error: any) {
+      const permissionError = new FirestorePermissionError({
+        path: 'institutions',
+        operation: 'create',
+        requestResourceData: data,
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    } finally {
+      setLoading(false)
+    }
   }
+
+  if (authLoading) return <div className="min-h-screen flex items-center justify-center font-headline font-bold">Verifying Session...</div>
 
   return (
     <div className="min-h-screen bg-muted/30 flex flex-col items-center py-12 px-6">
@@ -54,6 +107,16 @@ export default function InstitutionRegistrationPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="p-8">
+          {!user && (
+            <Alert variant="destructive" className="mb-6 bg-red-50 border-red-200">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle className="font-bold">Login Required</AlertTitle>
+              <AlertDescription className="text-xs">
+                You must be <Link href="/login" className="underline font-bold">signed in</Link> to submit a registration request.
+              </AlertDescription>
+            </Alert>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-8">
             <div className="space-y-6">
               <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b pb-2">Institution Details</h3>
@@ -62,12 +125,22 @@ export default function InstitutionRegistrationPage() {
                   <Label htmlFor="schoolName">Official School Name</Label>
                   <div className="relative">
                     <School className="absolute left-3 top-3 size-4 text-muted-foreground" />
-                    <Input id="schoolName" placeholder="e.g. Greenwood Academy" className="pl-10" required />
+                    <Input 
+                      id="schoolName" 
+                      placeholder="e.g. Greenwood Academy" 
+                      className="pl-10" 
+                      required 
+                      value={formData.name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="schoolType">Institution Type</Label>
-                  <Select required>
+                  <Select 
+                    required 
+                    onValueChange={(val) => setFormData(prev => ({ ...prev, type: val }))}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select type..." />
                     </SelectTrigger>
@@ -84,7 +157,14 @@ export default function InstitutionRegistrationPage() {
                 <Label htmlFor="location">Location / Region</Label>
                 <div className="relative">
                   <MapPin className="absolute left-3 top-3 size-4 text-muted-foreground" />
-                  <Input id="location" placeholder="e.g. Goaso, Ahafo Region" className="pl-10" required />
+                  <Input 
+                    id="location" 
+                    placeholder="e.g. Goaso, Ahafo Region" 
+                    className="pl-10" 
+                    required 
+                    value={formData.location}
+                    onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
+                  />
                 </div>
               </div>
             </div>
@@ -96,20 +176,36 @@ export default function InstitutionRegistrationPage() {
                   <Label htmlFor="adminName">Owner/Principal Name</Label>
                   <div className="relative">
                     <User className="absolute left-3 top-3 size-4 text-muted-foreground" />
-                    <Input id="adminName" placeholder="Full Name" className="pl-10" required />
+                    <Input 
+                      id="adminName" 
+                      placeholder="Full Name" 
+                      className="pl-10" 
+                      required 
+                      value={formData.ownerName}
+                      onChange={(e) => setFormData(prev => ({ ...prev, ownerName: e.target.value }))}
+                    />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="adminEmail">Contact Email</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 size-4 text-muted-foreground" />
-                    <Input id="adminEmail" type="email" placeholder="email@institution.com" className="pl-10" required />
+                    <Input 
+                      id="adminEmail" 
+                      type="email" 
+                      placeholder="email@institution.com" 
+                      className="pl-10" 
+                      required 
+                      readOnly={!!user}
+                      value={formData.ownerEmail}
+                      onChange={(e) => setFormData(prev => ({ ...prev, ownerEmail: e.target.value }))}
+                    />
                   </div>
                 </div>
               </div>
             </div>
 
-            <Button className="w-full h-14 text-lg font-bold shadow-lg" type="submit" disabled={loading}>
+            <Button className="w-full h-14 text-lg font-bold shadow-lg" type="submit" disabled={loading || !user}>
               {loading ? (
                 <>
                   <Loader2 className="mr-2 size-5 animate-spin" />

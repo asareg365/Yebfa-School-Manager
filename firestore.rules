@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -11,8 +12,8 @@ service cloud.firestore {
 
     match /institutions/{institutionId} {
       allow read: if request.auth != null;
-      // Allow create if super admin or if the user being assigned as owner matches the logged in user
-      allow create: if request.auth != null && (isSuperAdmin() || request.resource.data.ownerEmail == request.auth.token.email);
+      // Allow creation of institutions (registration requests) by any logged-in user
+      allow create: if request.auth != null;
       allow update, delete: if request.auth != null && (isSuperAdmin() || resource.data.ownerEmail == request.auth.token.email);
     }
 
