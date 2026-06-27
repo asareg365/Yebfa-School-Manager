@@ -6,11 +6,11 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { School, Loader2, AlertCircle } from "lucide-react"
+import { School, Loader2, AlertCircle, Info } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth"
-import { useAuth } from "@/firebase"
+import { useAuth, useUser } from "@/firebase"
 import { firebaseConfig } from "@/firebase/config"
 import { toast } from "@/hooks/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -22,12 +22,16 @@ export default function LoginPage() {
   const [configError, setConfigError] = useState(false)
   const router = useRouter()
   const auth = useAuth()
+  const { user } = useUser()
 
   useEffect(() => {
     if (firebaseConfig.apiKey === "REPLACEME") {
       setConfigError(true)
     }
-  }, [])
+    if (user) {
+      router.push("/dashboard")
+    }
+  }, [user, router])
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -82,12 +86,20 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {configError && (
-            <Alert variant="destructive" className="mb-4">
+          {configError ? (
+            <Alert variant="destructive" className="bg-red-50 border-red-200">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Action Required</AlertTitle>
-              <AlertDescription>
-                Firebase is not configured. Please link your Firebase project in the Studio settings.
+              <AlertTitle className="font-bold">Configuration Required</AlertTitle>
+              <AlertDescription className="text-xs">
+                To enable login, please click the <strong>Firebase</strong> icon in the Studio sidebar and link a project. This will provide your unique API keys.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <Alert className="bg-blue-50 border-blue-200 text-blue-800">
+              <Info className="h-4 w-4" />
+              <AlertTitle className="text-xs font-bold uppercase tracking-wider">Demo Access</AlertTitle>
+              <AlertDescription className="text-xs">
+                Use the credentials below to explore the 2026 enterprise features.
               </AlertDescription>
             </Alert>
           )}
@@ -102,6 +114,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                disabled={configError}
               />
             </div>
             <div className="space-y-2">
@@ -112,6 +125,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                disabled={configError}
               />
             </div>
             <Button className="w-full" type="submit" disabled={loading || configError}>
@@ -124,7 +138,7 @@ export default function LoginPage() {
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+              <span className="bg-background px-2 text-muted-foreground">Or</span>
             </div>
           </div>
           
@@ -132,16 +146,21 @@ export default function LoginPage() {
             Google Workspace
           </Button>
 
-          <div className="p-4 bg-muted/50 rounded-lg text-xs space-y-1 border border-border">
-            <p className="font-bold text-primary">Demo Credentials (2026):</p>
-            <p>Email: <span className="font-mono">admin@demo.com</span></p>
-            <p>Pass: <span className="font-mono">demo1234</span></p>
+          <div className="p-4 bg-primary/5 rounded-lg text-xs space-y-2 border border-primary/10">
+            <p className="font-bold text-primary flex items-center gap-2">
+              <Info className="size-3" /> Demo Credentials (2026)
+            </p>
+            <div className="space-y-1">
+              <p>Email: <span className="font-mono bg-white px-1 border rounded">admin@demo.com</span></p>
+              <p>Pass: <span className="font-mono bg-white px-1 border rounded">demo1234</span></p>
+            </div>
+            <p className="text-[10px] text-muted-foreground italic">Note: These will only work after you link a Firebase project.</p>
           </div>
         </CardContent>
       </Card>
       
       <p className="mt-8 text-center text-sm text-muted-foreground">
-        Need assistance? Contact <Link href="/contact" className="text-primary hover:underline">asareg365@gmail.com</Link>
+        Need assistance? Contact <Link href="/contact" className="text-primary hover:underline font-medium">asareg365@gmail.com</Link>
       </p>
     </div>
   )

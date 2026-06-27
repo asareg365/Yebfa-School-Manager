@@ -89,6 +89,7 @@ export function AppSidebar() {
   const auth = useAuth()
   const router = useRouter()
 
+  // Prevent hydration mismatch for dynamic user content
   React.useEffect(() => {
     setMounted(true)
   }, [])
@@ -102,19 +103,25 @@ export function AppSidebar() {
 
   const isSuperAdmin = user?.email === 'asareg365@gmail.com' || user?.email === 'frankyeb@gmail.com'
 
-  if (!mounted) return null
+  if (!mounted) return (
+    <Sidebar collapsible="icon" className="border-r border-border/40">
+       <SidebarHeader className="h-16 border-b flex items-center px-6" />
+       <SidebarContent />
+       <SidebarFooter className="border-t p-4 h-20" />
+    </Sidebar>
+  )
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border/40">
       <SidebarHeader className="h-16 flex items-center px-6">
         <div className="flex items-center gap-3">
-          <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
             <School className="size-5" />
           </div>
           {state === "expanded" && (
             <div className="flex flex-col gap-0.5 leading-none">
               <span className="font-headline font-bold text-lg tracking-tight">Yebfa</span>
-              <span className="text-xs text-muted-foreground font-medium">School Manager</span>
+              <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Enterprise 2026</span>
             </div>
           )}
         </div>
@@ -163,13 +170,13 @@ export function AppSidebar() {
 
         {isSuperAdmin && (
           <SidebarGroup>
-            <SidebarGroupLabel className="px-4 py-2">System</SidebarGroupLabel>
+            <SidebarGroupLabel className="px-4 py-2">System Management</SidebarGroupLabel>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={pathname === "/admin"} tooltip="Global Hub" className="text-accent font-bold">
+                <SidebarMenuButton asChild isActive={pathname === "/admin"} tooltip="Global Hub" className="text-accent hover:text-accent font-bold">
                   <Link href="/admin">
                     <ShieldCheck className="text-accent" />
-                    <span>Admin Hub</span>
+                    <span>Super Admin Hub</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -183,12 +190,12 @@ export function AppSidebar() {
             <SidebarMenuButton size="lg" className="hover:bg-accent/10 transition-colors" onClick={handleLogout}>
               <Avatar className="size-8 rounded-lg">
                 <AvatarImage src={user?.photoURL || ""} />
-                <AvatarFallback className="rounded-lg">
+                <AvatarFallback className="rounded-lg bg-primary text-primary-foreground font-bold">
                   {user?.email?.charAt(0).toUpperCase() || "U"}
                 </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight ml-2">
-                <span className="truncate font-semibold">{user?.displayName || "User"}</span>
+                <span className="truncate font-semibold">{user?.displayName || "Administrator"}</span>
                 <span className="truncate text-xs text-muted-foreground">{user?.email}</span>
               </div>
               <LogOut className="ml-auto size-4 opacity-50" />
