@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -21,12 +20,21 @@ export default function DashboardLayout({
   const { user, loading } = useUser();
   const router = useRouter();
   const [hasNotifications, setHasNotifications] = useState(true);
+  const [institutionName, setInstitutionName] = useState<string>("Institution Hub");
 
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
     }
   }, [user, loading, router]);
+
+  useEffect(() => {
+    // Safely read from localStorage after mount to avoid hydration mismatch
+    const storedName = localStorage.getItem('selected_institution_name');
+    if (storedName) {
+      setInstitutionName(storedName);
+    }
+  }, []);
 
   if (loading) {
     return (
@@ -113,7 +121,7 @@ export default function DashboardLayout({
               </PopoverContent>
             </Popover>
             <div className="hidden sm:flex flex-col text-right">
-              <span className="text-sm font-semibold">Institution Hub</span>
+              <span className="text-sm font-semibold truncate max-w-[150px]">{institutionName}</span>
               <span className="text-xs text-muted-foreground uppercase font-bold tracking-tighter">Live Node 2026</span>
             </div>
           </div>
