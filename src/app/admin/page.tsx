@@ -2,10 +2,11 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, School, Wallet, ShieldCheck, Globe, Activity, Plus } from "lucide-react"
+import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import { useUser } from "@/firebase"
 import { useRouter } from "next/navigation"
@@ -15,7 +16,6 @@ export default function AdminPortal() {
   const { user, loading } = useUser()
   const router = useRouter()
 
-  // Simplified super admin check for MVP
   const isSuperAdmin = user?.email === 'asareg365@gmail.com' || user?.email === 'frankyeb@gmail.com'
 
   useEffect(() => {
@@ -35,11 +35,11 @@ export default function AdminPortal() {
             <ShieldCheck className="size-3" /> System Super Admin
           </div>
           <h1 className="text-4xl font-headline font-bold text-primary">Global Enterprise Hub</h1>
-          <p className="text-muted-foreground">Overview across all school instances and multi-tenant nodes.</p>
+          <p className="text-muted-foreground">Strategic multi-tenant node management for 2026.</p>
         </div>
         <div className="flex gap-4">
           <Button variant="outline" asChild>
-            <Link href="/dashboard"><ArrowLeft className="mr-2 size-4" /> To Institutional View</Link>
+            <Link href="/dashboard">To Institutional View</Link>
           </Button>
           <Button className="bg-accent text-accent-foreground hover:bg-accent/90 gap-2">
             <Plus className="size-4" /> Provision New School
@@ -50,10 +50,10 @@ export default function AdminPortal() {
       <div className="max-w-7xl mx-auto w-full space-y-10">
         <div className="grid gap-6 md:grid-cols-4">
           {[
-            { title: "Active Tenants", value: "148", icon: School, trend: "+12 this month" },
-            { title: "Total Users", value: "85.2k", icon: Users, trend: "+5.4% YoY" },
-            { title: "Global Revenue", value: "GH₵4.2M", icon: Wallet, trend: "Recurring (Annual)" },
-            { title: "System Health", value: "99.98%", icon: Activity, trend: "Live (US-Central)" }
+            { title: "Active Tenants", value: "0", icon: School, trend: "Awaiting Data Sync" },
+            { title: "Total Users", value: "0", icon: Users, trend: "System Initialized" },
+            { title: "Global Revenue", value: "GH₵0.00", icon: Wallet, trend: "Fiscal Year 2026" },
+            { title: "System Health", value: "100%", icon: Activity, trend: "All Nodes Online" }
           ].map((stat) => (
             <Card key={stat.title} className="border-none shadow-md bg-white">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -62,7 +62,7 @@ export default function AdminPortal() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold font-headline">{stat.value}</div>
-                <p className="text-[10px] text-green-600 font-medium mt-1">{stat.trend}</p>
+                <p className="text-[10px] text-muted-foreground font-medium mt-1">{stat.trend}</p>
               </CardContent>
             </Card>
           ))}
@@ -70,74 +70,30 @@ export default function AdminPortal() {
 
         <Card className="border-none shadow-lg">
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <CardTitle className="font-headline font-bold text-xl">Recent Institution Provisioning</CardTitle>
-                <CardDescription>Live tracking of multi-tenant instance deployments.</CardDescription>
+                <CardTitle className="font-headline font-bold text-xl">Institution Registry</CardTitle>
+                <CardDescription>Management of multi-tenant instance deployments.</CardDescription>
               </div>
-              <Button variant="ghost" className="text-xs text-primary underline">Export Audit Log</Button>
+              <div className="relative w-full md:w-64">
+                <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+                <Input placeholder="Search registry..." className="pl-9" />
+              </div>
             </div>
           </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Institution Name</TableHead>
-                  <TableHead>Plan</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {[
-                  { name: "Greenwood Academy", plan: "Premium", loc: "Accra", status: "Active" },
-                  { name: "Ridge Preparatory", plan: "Enterprise", loc: "Kumasi", status: "Active" },
-                  { name: "Sunset High", plan: "Basic", loc: "Cape Coast", status: "Trial" },
-                  { name: "Volta Tech Institute", plan: "Premium", loc: "Ho", status: "Pending Migration" }
-                ].map((row, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="font-bold">{row.name}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="bg-primary/5 text-primary text-[10px] uppercase">{row.plan}</Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{row.loc}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div className={`size-2 rounded-full ${row.status === 'Active' ? 'bg-green-500' : 'bg-orange-400'}`} />
-                        <span className="text-xs font-medium">{row.status}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="sm">Audit</Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+          <CardContent className="min-h-[400px] flex flex-col items-center justify-center text-center p-12 space-y-4">
+            <div className="size-20 rounded-full bg-muted flex items-center justify-center">
+              <Database className="size-10 text-muted-foreground/20" />
+            </div>
+            <div className="max-w-sm">
+              <h3 className="text-lg font-bold text-primary">No Registered Tenants</h3>
+              <p className="text-sm text-muted-foreground">
+                As of 2026, no school instances have been provisioned in this security context. Use the provision button above to begin.
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
     </div>
-  )
-}
-
-function ArrowLeft(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="m12 19-7-7 7-7" />
-      <path d="M19 12H5" />
-    </svg>
   )
 }
