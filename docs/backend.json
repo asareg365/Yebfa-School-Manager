@@ -20,9 +20,39 @@
       "properties": {
         "name": { "type": "string" },
         "ownerEmail": { "type": "string" },
-        "subscriptionPlan": { "type": "string", "enum": ["basic", "premium", "enterprise"] }
+        "location": { "type": "string" },
+        "type": { "type": "string" },
+        "subscriptionPlan": { "type": "string", "enum": ["basic", "premium", "enterprise"] },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["name", "ownerEmail"]
+    },
+    "Student": {
+      "title": "Student",
+      "description": "Student enrollment record.",
+      "type": "object",
+      "properties": {
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "gradeLevel": { "type": "string" },
+        "studentId": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "suspended", "graduated"] },
+        "institutionId": { "type": "string" }
+      },
+      "required": ["firstName", "lastName", "gradeLevel", "institutionId"]
+    },
+    "Staff": {
+      "title": "Staff Member",
+      "description": "Institutional employee record.",
+      "type": "object",
+      "properties": {
+        "fullName": { "type": "string" },
+        "role": { "type": "string" },
+        "department": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "institutionId": { "type": "string" }
+      },
+      "required": ["fullName", "role", "institutionId"]
     }
   },
   "auth": {
@@ -36,6 +66,14 @@
     "/institutions/{institutionId}": {
       "schema": "Institution",
       "description": "Details for each school instance."
+    },
+    "/students/{studentId}": {
+      "schema": "Student",
+      "description": "Global student records partitioned by institutionId."
+    },
+    "/staff/{staffId}": {
+      "schema": "Staff",
+      "description": "Global staff records partitioned by institutionId."
     }
   }
 }

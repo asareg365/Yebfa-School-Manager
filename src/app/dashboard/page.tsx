@@ -2,16 +2,25 @@
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, GraduationCap, Wallet, Clock, Activity, ArrowUpRight } from "lucide-react"
+import { Users, GraduationCap, Wallet, Clock, Activity, ArrowUpRight, TrendingUp } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
-import { useUser } from "@/firebase"
+import { useUser, useFirestore, useCollection } from "@/firebase"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import { collection, query, where } from "firebase/firestore"
 
 export default function Dashboard() {
-  const { user, loading } = useUser()
+  const { user, loading: authLoading } = useUser()
+  const db = useFirestore()
+  const institutionId = "demo-institution-2026"
 
-  if (loading) return (
+  const studentsQuery = query(collection(db, "students"), where("institutionId", "==", institutionId))
+  const { data: students } = useCollection(studentsQuery)
+
+  const staffQuery = query(collection(db, "staff"), where("institutionId", "==", institutionId))
+  const { data: staff } = useCollection(staffQuery)
+
+  if (authLoading) return (
     <div className="p-10 text-center space-y-4">
       <Activity className="size-10 text-primary animate-spin mx-auto" />
       <p className="font-headline font-bold text-muted-foreground animate-pulse">Synchronizing Academic Node...</p>
@@ -29,7 +38,7 @@ export default function Dashboard() {
           <Button variant="outline" size="sm" asChild>
             <Link href="/dashboard/logs">System Logs</Link>
           </Button>
-          <Button size="sm" asChild>
+          <Button size="sm" className="bg-primary" asChild>
             <Link href="/dashboard/students">Enroll Student</Link>
           </Button>
         </div>
@@ -37,10 +46,10 @@ export default function Dashboard() {
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { title: "Student Roster", value: "0", icon: GraduationCap, label: "Total Active Enrollment" },
+          { title: "Student Roster", value: students.length, icon: GraduationCap, label: "Total Active Enrollment" },
           { title: "Presence Avg", value: "0%", icon: Clock, label: "Last 7 Business Days" },
-          { title: "Fiscal Intake", value: "GH₵0.00", icon: Wallet, label: "Current Term Collection" },
-          { title: "Faculty Node", value: "0", icon: Users, label: "Verified Staff Members" }
+          { title: "Fiscal Intake", value: "GH₵ 0.00", icon: Wallet, label: "Current Term Collection" },
+          { title: "Faculty Node", value: staff.length, icon: Users, label: "Verified Staff Members" }
         ].map((stat) => (
           <Card key={stat.title} className="overflow-hidden border-none shadow-md bg-white hover:shadow-lg transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
