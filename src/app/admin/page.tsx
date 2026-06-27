@@ -2,13 +2,14 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Pencil, Loader2, CheckCircle2, AlertCircle } from "lucide-react"
+import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Pencil, Loader2, CheckCircle2, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import Link from "next/link"
 import { useUser, useFirestore, useCollection } from "@/firebase"
 import { useRouter } from "next/navigation"
@@ -24,7 +25,8 @@ export default function AdminPortal() {
   const router = useRouter()
   
   const [provisioning, setProvisioning] = useState(false)
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isProvisionDialogOpen, setIsProvisionDialogOpen] = useState(false)
+  const [isSelectDialogOpen, setIsSelectDialogOpen] = useState(false)
   const [newSchool, setNewSchool] = useState({
     name: "",
     ownerEmail: "",
@@ -51,7 +53,6 @@ export default function AdminPortal() {
     e.preventDefault()
     if (!db || provisioning) return
 
-    // Prevent Duplicates
     const existing = institutions.find(inst => inst.ownerEmail.toLowerCase() === newSchool.ownerEmail.toLowerCase())
     if (existing) {
       toast({
@@ -76,7 +77,7 @@ export default function AdminPortal() {
         title: "School Provisioned",
         description: `${newSchool.name} is now live.`,
       })
-      setIsDialogOpen(false)
+      setIsProvisionDialogOpen(false)
       setNewSchool({ name: "", ownerEmail: "", type: "Secondary", location: "Goaso, Ahafo" })
     } catch (error: any) {
       const permissionError = new FirestorePermissionError({
@@ -91,19 +92,27 @@ export default function AdminPortal() {
   }
 
   const handleApprove = async (id: string, name: string) => {
+    if (!db) return
     const docRef = doc(db, "institutions", id)
-    try {
-      await updateDoc(docRef, { status: "active" })
-      toast({
-        title: "Registration Approved",
-        description: `${name} has been activated.`,
+    updateDoc(docRef, { status: "active" })
+      .then(() => {
+        toast({
+          title: "Registration Approved",
+          description: `${name} has been activated.`,
+        })
       })
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Approval Failed", description: error.message })
-    }
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'update',
+          requestResourceData: { status: "active" }
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
   }
 
   const handleDeleteSchool = (id: string, name: string) => {
+    if (!db) return
     const docRef = doc(db, "institutions", id);
     deleteDoc(docRef)
       .then(() => {
@@ -128,8 +137,20 @@ export default function AdminPortal() {
     })
   }
 
+  const handleSelectInstitution = (id: string, name: string) => {
+    localStorage.setItem('selected_institution_id', id);
+    localStorage.setItem('selected_institution_name', name);
+    toast({
+      title: "Switching Context",
+      description: `Entering ${name} dashboard node...`,
+    })
+    router.push("/dashboard")
+  }
+
   if (authLoading) return <div className="p-12 text-center font-headline font-bold text-primary">Synchronizing Global Credentials...</div>
   if (!isSuperAdmin) return null
+
+  const activeInstitutions = institutions.filter(i => i.status === 'active')
 
   return (
     <div className="min-h-screen bg-slate-50 p-6 lg:p-12 space-y-10 animate-in fade-in duration-700">
@@ -142,11 +163,46 @@ export default function AdminPortal() {
           <p className="text-muted-foreground text-sm">Strategic multi-tenant node management for Yebfa School Manager.</p>
         </div>
         <div className="flex gap-4">
-          <Button variant="outline" asChild className="h-11 border-primary/20">
-            <Link href="/dashboard">To Institutional View</Link>
-          </Button>
+          <Dialog open={isSelectDialogOpen} onOpenChange={setIsSelectDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="h-11 border-primary/20 bg-white">
+                To Institutional View
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="rounded-2xl border-none shadow-2xl max-w-md">
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-headline font-bold text-primary">Select Institution</DialogTitle>
+                <DialogDescription>Choose an active node to view its specific academic and financial data.</DialogDescription>
+              </DialogHeader>
+              <ScrollArea className="max-h-[300px] mt-4">
+                <div className="space-y-2 pr-4">
+                  {activeInstitutions.length === 0 ? (
+                    <p className="text-center py-8 text-muted-foreground text-sm italic">No active institutions provisioned.</p>
+                  ) : (
+                    activeInstitutions.map((inst) => (
+                      <Button
+                        key={inst.id}
+                        variant="ghost"
+                        className="w-full justify-between h-14 group hover:bg-primary/5 border border-transparent hover:border-primary/10 rounded-xl px-4"
+                        onClick={() => handleSelectInstitution(inst.id, inst.name)}
+                      >
+                        <div className="flex flex-col items-start">
+                          <span className="font-bold text-primary">{inst.name}</span>
+                          <span className="text-[10px] text-muted-foreground uppercase">{inst.location}</span>
+                        </div>
+                        <ArrowRight className="size-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </Button>
+                    ))
+                  )}
+                </div>
+              </ScrollArea>
+              <DialogFooter className="pt-4 border-t mt-4">
+                <Button variant="ghost" size="sm" onClick={() => setIsSelectDialogOpen(false)}>Close Registry</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={isProvisionDialogOpen} onOpenChange={setIsProvisionDialogOpen}>
             <DialogTrigger asChild>
               <Button className="bg-accent text-accent-foreground hover:bg-accent/90 gap-2 h-11 shadow-lg shadow-accent/20">
                 <Plus className="size-4" /> Provision New School
