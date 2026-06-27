@@ -2,23 +2,55 @@
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, GraduationCap, Wallet, Clock, Activity, ArrowUpRight, TrendingUp } from "lucide-react"
+import { Users, GraduationCap, Wallet, Clock, Activity, ArrowUpRight, TrendingUp, PlayCircle, Loader2 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import { useUser, useFirestore, useCollection } from "@/firebase"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { collection, query, where } from "firebase/firestore"
+import { useEffect, useState, useMemo } from "react"
+import { generateDemoVideo } from "@/ai/flows/generate-demo-video"
+import { toast } from "@/hooks/use-toast"
 
 export default function Dashboard() {
   const { user, loading: authLoading } = useUser()
   const db = useFirestore()
-  const institutionId = "demo-institution-2026"
+  const [institutionId, setInstitutionId] = useState<string | null>(null)
+  const [videoLoading, setVideoLoading] = useState(false)
 
-  const studentsQuery = query(collection(db, "students"), where("institutionId", "==", institutionId))
+  useEffect(() => {
+    const storedId = localStorage.getItem('selected_institution_id')
+    setInstitutionId(storedId || "demo-institution-2026")
+  }, [])
+
+  const studentsQuery = useMemo(() => {
+    if (!db || !institutionId) return null
+    return query(collection(db, "students"), where("institutionId", "==", institutionId))
+  }, [db, institutionId])
+
+  const staffQuery = useMemo(() => {
+    if (!db || !institutionId) return null
+    return query(collection(db, "staff"), where("institutionId", "==", institutionId))
+  }, [db, institutionId])
+
   const { data: students } = useCollection(studentsQuery)
-
-  const staffQuery = query(collection(db, "staff"), where("institutionId", "==", institutionId))
   const { data: staff } = useCollection(staffQuery)
+
+  const handleGenerateVideo = async () => {
+    setVideoLoading(true)
+    try {
+      const result = await generateDemoVideo()
+      const win = window.open()
+      if (win) {
+        win.document.write(`<video controls autoplay src="${result.videoUrl}" style="width:100%; height:100%;"></video>`)
+      }
+      toast({ title: "Walkthrough Generated", description: "The AI cinematic walkthrough is ready." })
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Video Failed", description: error.message })
+    } finally {
+      setVideoLoading(false)
+    }
+  }
 
   if (authLoading) return (
     <div className="p-10 text-center space-y-4">
@@ -35,6 +67,16 @@ export default function Dashboard() {
           <p className="text-muted-foreground">Welcome, {user?.displayName || 'Administrator'}. Global node status: <span className="text-green-600 font-bold">Online</span></p>
         </div>
         <div className="flex items-center gap-3">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="gap-2" 
+            onClick={handleGenerateVideo} 
+            disabled={videoLoading}
+          >
+            {videoLoading ? <Loader2 className="size-4 animate-spin" /> : <PlayCircle className="size-4" />}
+            AI Video Tour
+          </Button>
           <Button variant="outline" size="sm" asChild>
             <Link href="/dashboard/logs">System Logs</Link>
           </Button>
@@ -46,10 +88,10 @@ export default function Dashboard() {
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { title: "Student Roster", value: students.length, icon: GraduationCap, label: "Total Active Enrollment" },
+          { title: "Student Roster", value: students?.length || 0, icon: GraduationCap, label: "Total Active Enrollment" },
           { title: "Presence Avg", value: "0%", icon: Clock, label: "Last 7 Business Days" },
-          { title: "Fiscal Intake", value: "GH₵ 0.00", icon: Wallet, label: "Current Term Collection" },
-          { title: "Faculty Node", value: staff.length, icon: Users, label: "Verified Staff Members" }
+          { title: "Fiscal Intake", value: `GH₵ ${(students?.length || 0) * 0}`, icon: Wallet, label: "Current Term Collection" },
+          { title: "Faculty Node", value: staff?.length || 0, icon: Users, label: "Verified Staff Members" }
         ].map((stat) => (
           <Card key={stat.title} className="overflow-hidden border-none shadow-md bg-white hover:shadow-lg transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
