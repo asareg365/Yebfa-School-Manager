@@ -11,6 +11,7 @@ import Link from "next/link"
 import { useUser } from "@/firebase"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
+import { toast } from "@/hooks/use-toast"
 
 export default function AdminPortal() {
   const { user, loading } = useUser()
@@ -24,6 +25,13 @@ export default function AdminPortal() {
     }
   }, [user, loading, isSuperAdmin, router])
 
+  const handleProvisionSchool = () => {
+    toast({
+      title: "Global Provisioning Active",
+      description: "Initializing a new secure multi-tenant node for the requested institution...",
+    })
+  }
+
   if (loading) return <div className="p-12 text-center font-headline font-bold">Verifying Global Credentials...</div>
   if (!isSuperAdmin) return null
 
@@ -35,13 +43,16 @@ export default function AdminPortal() {
             <ShieldCheck className="size-3" /> System Super Admin
           </div>
           <h1 className="text-4xl font-headline font-bold text-primary">Global Enterprise Hub</h1>
-          <p className="text-muted-foreground">Strategic multi-tenant node management for 2026.</p>
+          <p className="text-muted-foreground">Strategic multi-tenant node management for Yebfa School Manager.</p>
         </div>
         <div className="flex gap-4">
           <Button variant="outline" asChild>
             <Link href="/dashboard">To Institutional View</Link>
           </Button>
-          <Button className="bg-accent text-accent-foreground hover:bg-accent/90 gap-2">
+          <Button 
+            className="bg-accent text-accent-foreground hover:bg-accent/90 gap-2"
+            onClick={handleProvisionSchool}
+          >
             <Plus className="size-4" /> Provision New School
           </Button>
         </div>
