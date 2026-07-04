@@ -22,6 +22,8 @@
         "ownerEmail": { "type": "string" },
         "location": { "type": "string" },
         "type": { "type": "string" },
+        "gradeLevel": { "type": "string", "description": "Category of grade levels (e.g. Basic, Secondary)." },
+        "specificGrades": { "type": "string", "description": "Specific range of grades covered." },
         "subscriptionPlan": { "type": "string", "enum": ["basic", "premium", "enterprise"] },
         "createdAt": { "type": "string", "format": "date-time" },
         "status": { "type": "string", "enum": ["active", "pending_review", "suspended"] }

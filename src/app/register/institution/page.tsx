@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { School, ArrowLeft, Loader2, MapPin, Mail, User, ShieldCheck, AlertCircle } from "lucide-react"
+import { School, ArrowLeft, Loader2, MapPin, Mail, User, ShieldCheck, AlertCircle, Layers } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useUser } from "@/firebase"
 import { collection, addDoc, serverTimestamp } from "firebase/firestore"
@@ -17,11 +17,21 @@ import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
+const GRADE_LEVEL_CATEGORIES = [
+  { id: "basic", label: "Basic Education (KG - Primary)", grades: ["KG 1-2", "Primary 1-6", "KG - Primary 6"] },
+  { id: "jhs", label: "Junior High School", grades: ["JHS 1-3"] },
+  { id: "shs", label: "Senior High School", grades: ["SHS 1-3", "TVET"] },
+  { id: "tertiary", label: "Higher Education", grades: ["University", "Polytechnic", "College of Ed"] },
+  { id: "combined", label: "K-12 (Combined)", grades: ["KG - SHS 3", "Primary - JHS 3"] }
+]
+
 export default function InstitutionRegistrationPage() {
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
     type: "",
+    gradeLevel: "",
+    specificGrades: "",
     location: "",
     ownerName: "",
     ownerEmail: ""
@@ -54,7 +64,9 @@ export default function InstitutionRegistrationPage() {
     
     const data = {
       name: formData.name,
-      type: formData.type,
+      type: formData.gradeLevel, // Use category as type for legacy compatibility
+      gradeLevel: formData.gradeLevel,
+      specificGrades: formData.specificGrades,
       location: formData.location,
       ownerName: formData.ownerName,
       ownerEmail: formData.ownerEmail,
@@ -81,6 +93,8 @@ export default function InstitutionRegistrationPage() {
       setLoading(false)
     }
   }
+
+  const selectedCategory = GRADE_LEVEL_CATEGORIES.find(c => c.label === formData.gradeLevel)
 
   if (authLoading) return <div className="min-h-screen flex items-center justify-center font-headline font-bold">Verifying Session...</div>
 
@@ -120,7 +134,7 @@ export default function InstitutionRegistrationPage() {
           <form onSubmit={handleSubmit} className="space-y-8">
             <div className="space-y-6">
               <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b pb-2">Institution Details</h3>
-              <div className="grid gap-6 md:grid-cols-2">
+              <div className="grid gap-6 md:grid-cols-1">
                 <div className="space-y-2">
                   <Label htmlFor="schoolName">Official School Name</Label>
                   <div className="relative">
@@ -128,31 +142,52 @@ export default function InstitutionRegistrationPage() {
                     <Input 
                       id="schoolName" 
                       placeholder="e.g. Greenwood Academy" 
-                      className="pl-10" 
+                      className="pl-10 h-11" 
                       required 
                       value={formData.name}
                       onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                     />
                   </div>
                 </div>
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="schoolType">Institution Type</Label>
+                  <Label htmlFor="gradeLevel">Grade Level Category</Label>
                   <Select 
                     required 
-                    onValueChange={(val) => setFormData(prev => ({ ...prev, type: val }))}
+                    onValueChange={(val) => setFormData(prev => ({ ...prev, gradeLevel: val, specificGrades: "" }))}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select type..." />
+                    <SelectTrigger className="h-11">
+                      <SelectValue placeholder="Select level..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="primary">Primary School</SelectItem>
-                      <SelectItem value="secondary">Secondary / High School</SelectItem>
-                      <SelectItem value="tertiary">Tertiary / University</SelectItem>
-                      <SelectItem value="vocational">Vocational / Technical</SelectItem>
+                      {GRADE_LEVEL_CATEGORIES.map(cat => (
+                        <SelectItem key={cat.id} value={cat.label}>{cat.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="specificGrade">Specific Grade Range</Label>
+                  <Select 
+                    required 
+                    disabled={!formData.gradeLevel}
+                    onValueChange={(val) => setFormData(prev => ({ ...prev, specificGrades: val }))}
+                  >
+                    <SelectTrigger className="h-11">
+                      <SelectValue placeholder={formData.gradeLevel ? "Select specific range..." : "Select category first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {selectedCategory?.grades.map(grade => (
+                        <SelectItem key={grade} value={grade}>{grade}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
+
               <div className="space-y-2">
                 <Label htmlFor="location">Location / Region</Label>
                 <div className="relative">
@@ -160,7 +195,7 @@ export default function InstitutionRegistrationPage() {
                   <Input 
                     id="location" 
                     placeholder="e.g. Goaso, Ahafo Region" 
-                    className="pl-10" 
+                    className="pl-10 h-11" 
                     required 
                     value={formData.location}
                     onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
@@ -179,7 +214,7 @@ export default function InstitutionRegistrationPage() {
                     <Input 
                       id="adminName" 
                       placeholder="Full Name" 
-                      className="pl-10" 
+                      className="pl-10 h-11" 
                       required 
                       value={formData.ownerName}
                       onChange={(e) => setFormData(prev => ({ ...prev, ownerName: e.target.value }))}
@@ -194,7 +229,7 @@ export default function InstitutionRegistrationPage() {
                       id="adminEmail" 
                       type="email" 
                       placeholder="email@institution.com" 
-                      className="pl-10" 
+                      className="pl-10 h-11" 
                       required 
                       readOnly={!!user}
                       value={formData.ownerEmail}

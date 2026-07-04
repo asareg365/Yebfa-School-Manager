@@ -2,7 +2,7 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Pencil, Loader2, CheckCircle2, ArrowRight } from "lucide-react"
+import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Pencil, Loader2, CheckCircle2, ArrowRight, Layers } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -31,6 +31,8 @@ export default function AdminPortal() {
     name: "",
     ownerEmail: "",
     type: "Secondary",
+    gradeLevel: "Secondary",
+    specificGrades: "SHS 1-3",
     location: "Goaso, Ahafo"
   })
 
@@ -78,7 +80,7 @@ export default function AdminPortal() {
         description: `${newSchool.name} is now live.`,
       })
       setIsProvisionDialogOpen(false)
-      setNewSchool({ name: "", ownerEmail: "", type: "Secondary", location: "Goaso, Ahafo" })
+      setNewSchool({ name: "", ownerEmail: "", type: "Secondary", gradeLevel: "Secondary", specificGrades: "SHS 1-3", location: "Goaso, Ahafo" })
     } catch (error: any) {
       const permissionError = new FirestorePermissionError({
         path: 'institutions',
@@ -225,8 +227,8 @@ export default function AdminPortal() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="type">Type</Label>
-                      <Input id="type" value={newSchool.type} onChange={(e) => setNewSchool({...newSchool, type: e.target.value})} className="h-11" />
+                      <Label htmlFor="type">Category</Label>
+                      <Input id="type" value={newSchool.gradeLevel} onChange={(e) => setNewSchool({...newSchool, gradeLevel: e.target.value, type: e.target.value})} className="h-11" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="loc">Location</Label>
@@ -297,9 +299,9 @@ export default function AdminPortal() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/30 hover:bg-muted/30">
-                    <TableHead className="font-bold py-4">School Name</TableHead>
+                    <TableHead className="font-bold py-4">School Details</TableHead>
                     <TableHead className="font-bold py-4">Owner / Email</TableHead>
-                    <TableHead className="font-bold py-4">Location</TableHead>
+                    <TableHead className="font-bold py-4">Grade Levels</TableHead>
                     <TableHead className="font-bold py-4">Status</TableHead>
                     <TableHead className="font-bold py-4">Plan</TableHead>
                     <TableHead className="text-right font-bold py-4">Actions</TableHead>
@@ -309,8 +311,11 @@ export default function AdminPortal() {
                   {institutions.map((inst: any) => (
                     <TableRow key={inst.id} className="hover:bg-slate-50/80 transition-colors">
                       <TableCell className="font-bold text-primary">
-                        {inst.name}
-                        {inst.status === 'pending_review' && <Badge className="ml-2 bg-accent text-white border-none text-[9px]">NEW</Badge>}
+                        <div className="flex flex-col">
+                          <span className="font-bold">{inst.name}</span>
+                          <span className="text-[10px] text-muted-foreground uppercase">{inst.location}</span>
+                        </div>
+                        {inst.status === 'pending_review' && <Badge className="mt-1 bg-accent text-white border-none text-[9px]">NEW REQUEST</Badge>}
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col">
@@ -318,7 +323,12 @@ export default function AdminPortal() {
                           <span className="text-[10px] text-muted-foreground font-mono">{inst.ownerEmail}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground font-medium">{inst.location}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] font-bold text-primary uppercase">{inst.gradeLevel || inst.type}</span>
+                          <span className="text-[10px] text-muted-foreground italic">{inst.specificGrades || "All Grades"}</span>
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 ${inst.status === 'active' ? 'text-green-600 border-green-200 bg-green-50' : 'text-amber-600 border-amber-200 bg-amber-50'}`}>
                           {inst.status || 'pending'}
