@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -28,12 +29,19 @@ export default function DashboardLayout({
     }
   }, [user, loading, router]);
 
+  // Handle dynamic name updates from local storage
   useEffect(() => {
-    // Safely read from localStorage after mount to avoid hydration mismatch
-    const storedName = localStorage.getItem('selected_institution_name');
-    if (storedName) {
-      setInstitutionName(storedName);
-    }
+    const updateName = () => {
+      const storedName = localStorage.getItem('selected_institution_name');
+      if (storedName) {
+        setInstitutionName(storedName);
+      }
+    };
+    
+    updateName();
+    // Poll for changes to local storage to keep header in sync with auto-selection
+    const interval = setInterval(updateName, 2000);
+    return () => clearInterval(interval);
   }, []);
 
   if (loading) {

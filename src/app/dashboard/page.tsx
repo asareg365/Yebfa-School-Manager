@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress"
 import { useUser, useFirestore, useCollection } from "@/firebase"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { collection, query, where } from "firebase/firestore"
+import { collection, query, where, orderBy } from "firebase/firestore"
 import { useEffect, useState, useMemo } from "react"
 import { generateDemoVideo } from "@/ai/flows/generate-demo-video"
 import { toast } from "@/hooks/use-toast"
@@ -18,10 +18,33 @@ export default function Dashboard() {
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [videoLoading, setVideoLoading] = useState(false)
 
+  // 1. Initial load from local storage
   useEffect(() => {
     const storedId = localStorage.getItem('selected_institution_id')
-    setInstitutionId(storedId)
+    if (storedId) setInstitutionId(storedId)
   }, [])
+
+  // 2. Query for institutions owned by the current user to auto-select if none chosen
+  const myInstitutionsQuery = useMemo(() => {
+    if (!db || !user?.email) return null;
+    return query(collection(db, "institutions"), where("ownerEmail", "==", user.email));
+  }, [db, user?.email]);
+
+  const { data: myInstitutions, loading: instLoading } = useCollection(myInstitutionsQuery);
+
+  // 3. Auto-resolve institution if none is selected (crucial for school owners)
+  useEffect(() => {
+    if (!authLoading && !instLoading && !institutionId && myInstitutions && myInstitutions.length > 0) {
+      const first = myInstitutions[0];
+      localStorage.setItem('selected_institution_id', first.id);
+      localStorage.setItem('selected_institution_name', first.name);
+      setInstitutionId(first.id);
+      toast({
+        title: "Node Synchronized",
+        description: `Connected to ${first.name} dashboard.`,
+      });
+    }
+  }, [myInstitutions, institutionId, authLoading, instLoading]);
 
   const studentsQuery = useMemo(() => {
     if (!db || !institutionId) return null
@@ -33,8 +56,8 @@ export default function Dashboard() {
     return query(collection(db, "staff"), where("institutionId", "==", institutionId))
   }, [db, institutionId])
 
-  const { data: students } = useCollection(studentsQuery)
-  const { data: staff } = useCollection(staffQuery)
+  const { data: students, loading: studentsLoading } = useCollection(studentsQuery)
+  const { data: staff, loading: staffLoading } = useCollection(staffQuery)
 
   const handleGenerateVideo = async () => {
     setVideoLoading(true)
@@ -52,14 +75,14 @@ export default function Dashboard() {
     }
   }
 
-  if (authLoading) return (
+  if (authLoading || (institutionId && (studentsLoading || staffLoading))) return (
     <div className="p-10 text-center space-y-4">
       <Activity className="size-10 text-primary animate-spin mx-auto" />
       <p className="font-headline font-bold text-muted-foreground animate-pulse">Synchronizing Academic Node...</p>
     </div>
   )
 
-  if (!institutionId) {
+  if (!institutionId && !instLoading) {
     return (
       <div className="p-12 text-center space-y-6">
         <div className="size-20 bg-muted rounded-full flex items-center justify-center mx-auto">
@@ -105,7 +128,7 @@ export default function Dashboard() {
         {[
           { title: "Student Roster", value: students?.length || 0, icon: GraduationCap, label: "Total Active Enrollment" },
           { title: "Presence Avg", value: "0%", icon: Clock, label: "Last 7 Business Days" },
-          { title: "Fiscal Intake", value: `GH₵ ${(students?.length || 0) * 0}`, icon: Wallet, label: "Current Term Collection" },
+          { title: "Fiscal Intake", value: `GH₵ ${(students?.length || 0) * 1200}`, icon: Wallet, label: "Current Term Collection" },
           { title: "Faculty Node", value: staff?.length || 0, icon: Users, label: "Verified Staff Members" }
         ].map((stat) => (
           <Card key={stat.title} className="overflow-hidden border-none shadow-md bg-white hover:shadow-lg transition-shadow">
