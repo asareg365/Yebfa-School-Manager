@@ -26,7 +26,9 @@
         "specificGrades": { "type": "string", "description": "Specific range of grades covered." },
         "subscriptionPlan": { "type": "string", "enum": ["basic", "premium", "enterprise"] },
         "createdAt": { "type": "string", "format": "date-time" },
-        "status": { "type": "string", "enum": ["active", "pending_review", "suspended"] }
+        "status": { "type": "string", "enum": ["active", "pending_review", "suspended"] },
+        "academicYear": { "type": "string" },
+        "currentTerm": { "type": "string" }
       },
       "required": ["name", "ownerEmail"]
     },
@@ -61,7 +63,9 @@
         "phoneNumber": { "type": "string" },
         "staffId": { "type": "string" },
         "joiningDate": { "type": "string", "format": "date" },
-        "institutionId": { "type": "string" }
+        "institutionId": { "type": "string" },
+        "assignedClasses": { "type": "string", "description": "Comma-separated list of assigned classes." },
+        "assignedSubjects": { "type": "string", "description": "Comma-separated list of assigned subjects." }
       },
       "required": ["fullName", "role", "institutionId", "staffId"]
     }

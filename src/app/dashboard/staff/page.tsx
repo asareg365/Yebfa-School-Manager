@@ -4,7 +4,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Users, Mail, UserCog, Search, Trash2, Pencil, Loader2, Upload, UserPlus, Phone, Calendar as CalendarIcon, Hash } from "lucide-react"
+import { Users, Mail, UserCog, Search, Trash2, Pencil, Loader2, Upload, UserPlus, Phone, Calendar as CalendarIcon, Hash, BookOpen, GraduationCap } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection } from "@/firebase"
@@ -45,7 +45,9 @@ export default function StaffPage() {
     email: "",
     phoneNumber: "",
     staffId: "",
-    joiningDate: new Date().toISOString().split('T')[0]
+    joiningDate: new Date().toISOString().split('T')[0],
+    assignedClasses: "",
+    assignedSubjects: ""
   })
   const [bulkData, setBulkData] = useState("")
 
@@ -88,7 +90,9 @@ export default function StaffPage() {
         email: "", 
         phoneNumber: "", 
         staffId: "", 
-        joiningDate: new Date().toISOString().split('T')[0] 
+        joiningDate: new Date().toISOString().split('T')[0],
+        assignedClasses: "",
+        assignedSubjects: ""
       })
     } catch (error: any) {
       toast({ variant: "destructive", title: "Error", description: error.message })
@@ -106,7 +110,7 @@ export default function StaffPage() {
 
     try {
       for (const line of lines) {
-        const [name, role, dept, email, phone, id] = line.split(',').map(s => s?.trim())
+        const [name, role, dept, email, phone, id, classes, subjects] = line.split(',').map(s => s?.trim())
         if (name && role) {
           await addDoc(collection(db, "staff"), {
             fullName: name,
@@ -115,6 +119,8 @@ export default function StaffPage() {
             email: email || `${name.toLowerCase().replace(/\s/g, '.')}@yebfa.edu`,
             phoneNumber: phone || "",
             staffId: id || `EMP-${Math.floor(1000 + Math.random() * 9000)}`,
+            assignedClasses: classes || "",
+            assignedSubjects: subjects || "",
             institutionId,
             createdAt: serverTimestamp()
           })
@@ -170,11 +176,11 @@ export default function StaffPage() {
             <DialogContent className="max-w-xl rounded-2xl">
               <DialogHeader>
                 <DialogTitle className="text-2xl font-headline font-bold text-primary">Bulk Staff Import</DialogTitle>
-                <DialogDescription>Format: FullName, Role, Department, Email, Phone, StaffID</DialogDescription>
+                <DialogDescription>Format: FullName, Role, Dept, Email, Phone, StaffID, Classes, Subjects</DialogDescription>
               </DialogHeader>
               <div className="py-4 space-y-4">
                 <Textarea 
-                  placeholder="Isaac Boateng, Senior Teacher, Science, isaac@yebfa.edu, 0244123456, EMP-101&#10;Sarah Mensah, Accountant, Finance, sarah@yebfa.edu, 0555987654, EMP-102" 
+                  placeholder="Isaac Boateng, Teacher, Science, isaac@yebfa.edu, 0244, EMP-101, SHS 1A|SHS 2B, Math|Science" 
                   className="min-h-[200px] font-mono text-sm"
                   value={bulkData}
                   onChange={(e) => setBulkData(e.target.value)}
@@ -195,7 +201,7 @@ export default function StaffPage() {
                 <UserPlus className="size-4" /> Add Staff Member
               </Button>
             </DialogTrigger>
-            <DialogContent className="rounded-2xl max-w-2xl">
+            <DialogContent className="rounded-2xl max-w-2xl max-h-[85vh] overflow-y-auto">
               <form onSubmit={handleAddStaff}>
                 <DialogHeader>
                   <DialogTitle className="text-2xl font-headline font-bold text-primary">Add Faculty/Staff</DialogTitle>
@@ -234,6 +240,36 @@ export default function StaffPage() {
                       </div>
                     </div>
                   </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="sclasses">Assigned Classes</Label>
+                      <div className="relative">
+                        <GraduationCap className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                        <Input 
+                          id="sclasses" 
+                          className="pl-10" 
+                          placeholder="e.g. JHS 1, JHS 2" 
+                          value={staffForm.assignedClasses} 
+                          onChange={(e) => setStaffForm({...staffForm, assignedClasses: e.target.value})} 
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ssubjects">Assigned Subjects</Label>
+                      <div className="relative">
+                        <BookOpen className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                        <Input 
+                          id="ssubjects" 
+                          className="pl-10" 
+                          placeholder="e.g. Mathematics, English" 
+                          value={staffForm.assignedSubjects} 
+                          onChange={(e) => setStaffForm({...staffForm, assignedSubjects: e.target.value})} 
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="semail">Email Address</Label>
@@ -291,6 +327,7 @@ export default function StaffPage() {
               <TableHeader className="bg-muted/30">
                 <TableRow>
                   <TableHead className="font-bold py-4">Staff ID / Name</TableHead>
+                  <TableHead className="font-bold py-4">Assignments</TableHead>
                   <TableHead className="font-bold py-4">Department / Role</TableHead>
                   <TableHead className="font-bold py-4">Contact Info</TableHead>
                   <TableHead className="text-right font-bold py-4">Management</TableHead>
@@ -303,6 +340,25 @@ export default function StaffPage() {
                       <div className="flex flex-col">
                         <span className="text-[10px] font-mono font-bold text-muted-foreground uppercase">{s.staffId || 'NO ID'}</span>
                         <span className="font-bold text-primary">{s.fullName}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1">
+                        {s.assignedClasses && (
+                          <div className="flex items-center gap-1">
+                            <GraduationCap className="size-3 text-muted-foreground" />
+                            <span className="text-[10px] font-medium">{s.assignedClasses}</span>
+                          </div>
+                        )}
+                        {s.assignedSubjects && (
+                          <div className="flex items-center gap-1">
+                            <BookOpen className="size-3 text-muted-foreground" />
+                            <span className="text-[10px] font-medium">{s.assignedSubjects}</span>
+                          </div>
+                        )}
+                        {!s.assignedClasses && !s.assignedSubjects && (
+                          <span className="text-[10px] italic text-muted-foreground">Unassigned</span>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>

@@ -79,6 +79,11 @@ const navigation = [
     url: "/dashboard/reports",
     icon: FileText,
   },
+  {
+    title: "Configuration",
+    url: "/dashboard/settings",
+    icon: Settings,
+  },
 ]
 
 export function AppSidebar() {
