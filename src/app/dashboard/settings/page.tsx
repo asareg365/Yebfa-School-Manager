@@ -8,16 +8,17 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { School, User, Bell, Shield, Wallet, Save, Loader2, Globe, Building } from "lucide-react"
+import { School, User, Bell, Shield, Wallet, Save, Loader2, Globe, Building, Plus, Layers, Trash2 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useFirestore, useDoc } from "@/firebase"
-import { doc, updateDoc } from "firebase/firestore"
+import { doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore"
 import { toast } from "@/hooks/use-toast"
 
 export default function SettingsPage() {
   const db = useFirestore()
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [newDept, setNewDept] = useState("")
 
   useEffect(() => {
     const storedId = localStorage.getItem('selected_institution_id')
@@ -57,6 +58,31 @@ export default function SettingsPage() {
     }
   }
 
+  const handleAddDepartment = async () => {
+    if (!instRef || !newDept.trim()) return
+    try {
+      await updateDoc(instRef, {
+        customDepartments: arrayUnion(newDept.trim())
+      })
+      setNewDept("")
+      toast({ title: "Department Added", description: `${newDept} is now available in the registry.` })
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Action Failed", description: error.message })
+    }
+  }
+
+  const handleRemoveDepartment = async (dept: string) => {
+    if (!instRef) return
+    try {
+      await updateDoc(instRef, {
+        customDepartments: arrayRemove(dept)
+      })
+      toast({ title: "Department Removed", description: `${dept} has been archived.` })
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Action Failed", description: error.message })
+    }
+  }
+
   if (loading) return <div className="p-10 text-center animate-pulse font-headline">Synchronizing Institutional Node...</div>
   if (!institutionId) return <div className="p-10 text-center font-bold text-destructive">No Active Institution Selected</div>
 
@@ -75,11 +101,11 @@ export default function SettingsPage() {
           <TabsTrigger value="academic" className="rounded-lg gap-2">
             <School className="size-4" /> Academic Cycle
           </TabsTrigger>
+          <TabsTrigger value="departments" className="rounded-lg gap-2">
+            <Layers className="size-4" /> Departments
+          </TabsTrigger>
           <TabsTrigger value="security" className="rounded-lg gap-2">
             <Shield className="size-4" /> Security
-          </TabsTrigger>
-          <TabsTrigger value="billing" className="rounded-lg gap-2">
-            <Wallet className="size-4" /> Billing
           </TabsTrigger>
         </TabsList>
 
@@ -99,16 +125,6 @@ export default function SettingsPage() {
                   <div className="space-y-2">
                     <Label htmlFor="location">Campus Location</Label>
                     <Input id="location" name="location" defaultValue={institution?.location} required />
-                  </div>
-                </div>
-                <div className="grid gap-6 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="type">Institution Category</Label>
-                    <Input id="type" value={institution?.gradeLevel} disabled className="bg-muted/30" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="owner">Registered Owner</Label>
-                    <Input id="owner" value={institution?.ownerEmail} disabled className="bg-muted/30" />
                   </div>
                 </div>
               </CardContent>
@@ -143,7 +159,6 @@ export default function SettingsPage() {
                         <SelectItem value="Term 1">Term 1 (First Term)</SelectItem>
                         <SelectItem value="Term 2">Term 2 (Second Term)</SelectItem>
                         <SelectItem value="Term 3">Term 3 (Third Term)</SelectItem>
-                        <SelectItem value="Summer">Summer Intensive</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -157,6 +172,48 @@ export default function SettingsPage() {
             </Card>
           </TabsContent>
         </form>
+
+        <TabsContent value="departments" className="space-y-6">
+          <Card className="border-none shadow-md bg-white">
+            <CardHeader>
+              <CardTitle className="text-xl">Departmental Registry</CardTitle>
+              <CardDescription>Manage custom departments available for faculty and staff assignments.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex gap-4">
+                <div className="flex-1 space-y-2">
+                  <Label>New Department Name</Label>
+                  <Input 
+                    placeholder="e.g. Guidance & Counseling" 
+                    value={newDept} 
+                    onChange={(e) => setNewDept(e.target.value)} 
+                  />
+                </div>
+                <Button className="mt-8 gap-2" onClick={handleAddDepartment}>
+                  <Plus className="size-4" /> Add Node
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Active Custom Departments</h4>
+                {institution?.customDepartments?.length > 0 ? (
+                  <div className="grid gap-2">
+                    {institution.customDepartments.map((dept: string) => (
+                      <div key={dept} className="flex items-center justify-between p-3 rounded-lg border bg-slate-50">
+                        <span className="text-sm font-semibold">{dept}</span>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleRemoveDepartment(dept)}>
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic p-4 border rounded-lg border-dashed text-center">No custom departments added. Default registry is active.</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="security" className="space-y-6">
           <Card className="border-none shadow-md bg-white">
@@ -178,47 +235,6 @@ export default function SettingsPage() {
                   <p className="text-sm text-muted-foreground">Force strict multi-tenant partition verification.</p>
                 </div>
                 <Switch defaultChecked />
-              </div>
-              <div className="flex items-center justify-between p-4 rounded-xl border bg-muted/5">
-                <div className="space-y-0.5">
-                  <Label className="text-base">Public Roster</Label>
-                  <p className="text-sm text-muted-foreground">Allow public verification of student enrollment IDs.</p>
-                </div>
-                <Switch />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="billing" className="space-y-6">
-          <Card className="border-none shadow-md bg-white overflow-hidden">
-            <CardHeader>
-              <CardTitle className="text-xl">Subscription Hub</CardTitle>
-              <CardDescription>Manage your Yebfa School Manager license and payment nodes.</CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="p-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="size-10 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
-                      <Shield className="size-5" />
-                    </div>
-                    <div>
-                      <p className="font-bold text-primary">Current Plan: {institution?.subscriptionPlan?.toUpperCase() || "BASIC"}</p>
-                      <p className="text-xs text-muted-foreground">Term-based licensing active.</p>
-                    </div>
-                  </div>
-                  <Button variant="outline" size="sm">Upgrade Node</Button>
-                </div>
-              </div>
-              <div className="bg-muted/30 p-12 flex flex-col items-center justify-center text-center gap-4 border-t">
-                <Globe className="size-12 text-muted-foreground/20" />
-                <div className="max-w-xs">
-                  <p className="text-sm font-bold">Billing Portal Syncing...</p>
-                  <p className="text-xs text-muted-foreground leading-relaxed mt-1 italic">
-                    Connecting to secure regional payment node. Transaction history will populate here.
-                  </p>
-                </div>
               </div>
             </CardContent>
           </Card>

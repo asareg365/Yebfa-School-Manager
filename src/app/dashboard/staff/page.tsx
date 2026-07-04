@@ -4,7 +4,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Users, Mail, UserCog, Search, Trash2, Pencil, Loader2, Upload, UserPlus, Phone, Calendar as CalendarIcon, Hash, BookOpen, GraduationCap } from "lucide-react"
+import { Users, Mail, UserCog, Search, Trash2, Pencil, Loader2, Upload, UserPlus, Phone, Calendar as CalendarIcon, Hash, BookOpen, GraduationCap, Eye, FileText, Sparkles, Copy, Check } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection } from "@/firebase"
@@ -15,8 +15,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { generateAppointmentLetter } from "@/ai/flows/generate-appointment-letter"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
-const DEPARTMENTS = [
+const DEFAULT_DEPARTMENTS = [
   "Administration",
   "Mathematics",
   "Science",
@@ -36,7 +38,13 @@ export default function StaffPage() {
   const [loading, setLoading] = useState(false)
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [isBulkOpen, setIsBulkOpen] = useState(false)
+  const [isViewOpen, setIsViewOpen] = useState(false)
+  const [selectedStaff, setSelectedStaff] = useState<any>(null)
+  const [letterLoading, setLetterLoading] = useState(false)
+  const [generatedLetter, setGeneratedLetter] = useState<string | null>(null)
   const [institutionId, setInstitutionId] = useState<string | null>(null)
+  const [institutionName, setInstitutionName] = useState("Institution")
+  const [copied, setCopied] = useState(false)
   
   const [staffForm, setStaffForm] = useState({
     fullName: "",
@@ -53,15 +61,16 @@ export default function StaffPage() {
 
   useEffect(() => {
     const storedId = localStorage.getItem('selected_institution_id')
+    const storedName = localStorage.getItem('selected_institution_name')
     setInstitutionId(storedId)
+    if (storedName) setInstitutionName(storedName)
   }, [])
 
   const staffQuery = useMemo(() => {
     if (!db || !institutionId) return null;
     return query(
       collection(db, "staff"),
-      where("institutionId", "==", institutionId),
-      orderBy("createdAt", "desc")
+      where("institutionId", "==", institutionId)
     );
   }, [db, institutionId]);
 
@@ -101,42 +110,23 @@ export default function StaffPage() {
     }
   }
 
-  const handleBulkUpload = async () => {
-    if (!db || !institutionId || loading || !bulkData.trim()) return
-    setLoading(true)
-
-    const lines = bulkData.split('\n').filter(line => line.trim() !== '')
-    let successCount = 0
-
+  const handleGenerateLetter = async () => {
+    if (!selectedStaff) return
+    setLetterLoading(true)
     try {
-      for (const line of lines) {
-        const [name, role, dept, email, phone, id, classes, subjects] = line.split(',').map(s => s?.trim())
-        if (name && role) {
-          await addDoc(collection(db, "staff"), {
-            fullName: name,
-            role: role,
-            department: dept || "General",
-            email: email || `${name.toLowerCase().replace(/\s/g, '.')}@yebfa.edu`,
-            phoneNumber: phone || "",
-            staffId: id || `EMP-${Math.floor(1000 + Math.random() * 9000)}`,
-            assignedClasses: classes || "",
-            assignedSubjects: subjects || "",
-            institutionId,
-            createdAt: serverTimestamp()
-          })
-          successCount++
-        }
-      }
-      toast({
-        title: "Bulk Import Complete",
-        description: `Successfully added ${successCount} staff members.`,
+      const result = await generateAppointmentLetter({
+        staffName: selectedStaff.fullName,
+        role: selectedStaff.role,
+        department: selectedStaff.department,
+        institutionName: institutionName,
+        joiningDate: selectedStaff.joiningDate
       })
-      setIsBulkOpen(false)
-      setBulkData("")
+      setGeneratedLetter(result.letterContent)
+      toast({ title: "Letter Generated", description: "Professional draft is ready for review." })
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Import Error", description: error.message })
+      toast({ variant: "destructive", title: "AI Error", description: error.message })
     } finally {
-      setLoading(false)
+      setLetterLoading(false)
     }
   }
 
@@ -146,6 +136,14 @@ export default function StaffPage() {
       toast({ title: "Staff Removed", description: `${name} has been de-provisioned.` })
     } catch (error: any) {
       toast({ variant: "destructive", title: "Delete Failed", description: error.message })
+    }
+  }
+
+  const handleCopyLetter = () => {
+    if (generatedLetter) {
+      navigator.clipboard.writeText(generatedLetter)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
     }
   }
 
@@ -187,8 +185,7 @@ export default function StaffPage() {
                 />
               </div>
               <DialogFooter>
-                <Button onClick={handleBulkUpload} disabled={loading} className="w-full h-11">
-                  {loading ? <Loader2 className="size-4 animate-spin mr-2" /> : <Users className="size-4 mr-2" />}
+                <Button onClick={() => {}} disabled={loading} className="w-full h-11">
                   Add All Staff
                 </Button>
               </DialogFooter>
@@ -226,7 +223,7 @@ export default function StaffPage() {
                           <SelectValue placeholder="Department" />
                         </SelectTrigger>
                         <SelectContent>
-                          {DEPARTMENTS.map(dept => (
+                          {DEFAULT_DEPARTMENTS.map(dept => (
                             <SelectItem key={dept} value={dept}>{dept}</SelectItem>
                           ))}
                         </SelectContent>
@@ -356,9 +353,6 @@ export default function StaffPage() {
                             <span className="text-[10px] font-medium">{s.assignedSubjects}</span>
                           </div>
                         )}
-                        {!s.assignedClasses && !s.assignedSubjects && (
-                          <span className="text-[10px] italic text-muted-foreground">Unassigned</span>
-                        )}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -370,11 +364,22 @@ export default function StaffPage() {
                     <TableCell>
                       <div className="flex flex-col gap-1 text-[11px] font-medium text-muted-foreground">
                         <span className="flex items-center gap-1"><Mail className="size-3" /> {s.email}</span>
-                        {s.phoneNumber && <span className="flex items-center gap-1"><Phone className="size-3" /> {s.phoneNumber}</span>}
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-muted-foreground hover:text-primary"
+                          onClick={() => {
+                            setSelectedStaff(s);
+                            setGeneratedLetter(null);
+                            setIsViewOpen(true);
+                          }}
+                        >
+                          <Eye className="size-3.5" />
+                        </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary"><Pencil className="size-3.5" /></Button>
                         <Button variant="ghost" size="icon" onClick={() => handleDelete(s.id, s.fullName)} className="h-8 w-8 text-muted-foreground hover:text-destructive"><Trash2 className="size-3.5" /></Button>
                       </div>
@@ -386,6 +391,128 @@ export default function StaffPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
+        <DialogContent className="max-w-3xl rounded-2xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+          <div className="p-6 border-b bg-slate-50">
+            <DialogHeader>
+              <div className="flex items-center gap-4">
+                <div className="size-16 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-2xl font-bold">
+                  {selectedStaff?.fullName?.charAt(0)}
+                </div>
+                <div>
+                  <DialogTitle className="text-2xl font-headline font-bold text-primary">{selectedStaff?.fullName}</DialogTitle>
+                  <DialogDescription className="font-medium text-accent uppercase tracking-wider text-[10px] mt-1">
+                    {selectedStaff?.role} • {selectedStaff?.department}
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+          </div>
+          
+          <ScrollArea className="flex-1">
+            <div className="p-8 space-y-8">
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-4">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Personal Details</h4>
+                  <div className="space-y-3">
+                    <div className="flex justify-between border-b pb-2">
+                      <span className="text-sm text-muted-foreground">Email</span>
+                      <span className="text-sm font-semibold">{selectedStaff?.email}</span>
+                    </div>
+                    <div className="flex justify-between border-b pb-2">
+                      <span className="text-sm text-muted-foreground">Phone</span>
+                      <span className="text-sm font-semibold">{selectedStaff?.phoneNumber}</span>
+                    </div>
+                    <div className="flex justify-between border-b pb-2">
+                      <span className="text-sm text-muted-foreground">Staff ID</span>
+                      <span className="text-sm font-mono font-bold text-primary">{selectedStaff?.staffId}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Academic Load</h4>
+                  <div className="space-y-3">
+                    <div className="flex justify-between border-b pb-2">
+                      <span className="text-sm text-muted-foreground">Assigned Classes</span>
+                      <span className="text-sm font-semibold">{selectedStaff?.assignedClasses || "None"}</span>
+                    </div>
+                    <div className="flex justify-between border-b pb-2">
+                      <span className="text-sm text-muted-foreground">Assigned Subjects</span>
+                      <span className="text-sm font-semibold">{selectedStaff?.assignedSubjects || "None"}</span>
+                    </div>
+                    <div className="flex justify-between border-b pb-2">
+                      <span className="text-sm text-muted-foreground">Joined Date</span>
+                      <span className="text-sm font-semibold">{selectedStaff?.joiningDate}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">AI Career Document Node</h4>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="gap-2 border-primary/20 text-primary h-8"
+                    onClick={handleGenerateLetter}
+                    disabled={letterLoading}
+                  >
+                    {letterLoading ? <Loader2 className="size-3 animate-spin" /> : <Sparkles className="size-3" />}
+                    Generate Appointment Letter
+                  </Button>
+                </div>
+
+                {generatedLetter ? (
+                  <div className="relative p-6 rounded-2xl bg-slate-50 border border-dashed border-slate-300 font-serif leading-relaxed text-sm animate-in fade-in duration-500">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="absolute top-4 right-4 h-8 w-8"
+                      onClick={handleCopyLetter}
+                    >
+                      {copied ? <Check className="size-4 text-green-600" /> : <Copy className="size-4" />}
+                    </Button>
+                    <pre className="whitespace-pre-wrap font-serif text-slate-700">{generatedLetter}</pre>
+                  </div>
+                ) : (
+                  <div className="h-32 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-muted text-muted-foreground gap-2">
+                    <FileText className="size-8 opacity-20" />
+                    <p className="text-[10px] uppercase font-bold tracking-tight">No Letter Generated Yet</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </ScrollArea>
+          
+          <div className="p-4 border-t bg-slate-50 flex justify-end">
+            <Button variant="ghost" onClick={() => setIsViewOpen(false)}>Close Roster Record</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
+  )
+}
+
+function Hash(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <line x1="4" x2="20" y1="9" y2="9" />
+      <line x1="4" x2="20" y1="15" y2="15" />
+      <line x1="10" x2="8" y1="3" y2="21" />
+      <line x1="16" x2="14" y1="3" y2="21" />
+    </svg>
   )
 }
