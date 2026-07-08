@@ -68,6 +68,19 @@
         "assignedSubjects": { "type": "string", "description": "Comma-separated list of assigned subjects." }
       },
       "required": ["fullName", "role", "institutionId", "staffId"]
+    },
+    "Subject": {
+      "title": "Academic Subject",
+      "description": "Details of a course or subject within the curriculum.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "category": { "type": "string", "enum": ["Core", "Elective", "Vocational"] },
+        "gradeLevel": { "type": "string" },
+        "institutionId": { "type": "string" },
+        "description": { "type": "string" }
+      },
+      "required": ["name", "category", "gradeLevel", "institutionId"]
     }
   },
   "auth": {
@@ -89,6 +102,10 @@
     "/staff/{staffId}": {
       "schema": "Staff",
       "description": "Global staff records partitioned by institutionId."
+    },
+    "/subjects/{subjectId}": {
+      "schema": "Subject",
+      "description": "Academic subjects and curriculum maps."
     }
   }
 }
