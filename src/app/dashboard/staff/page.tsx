@@ -8,7 +8,7 @@ import { Users, Mail, UserCog, Search, Trash2, Pencil, Loader2, Upload, UserPlus
 import { Input } from "@/components/ui/input"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection } from "@/firebase"
-import { collection, addDoc, query, deleteDoc, doc, where, serverTimestamp } from "firebase/firestore"
+import { collection, addDoc, query, deleteDoc, doc, where, serverTimestamp, updateDoc } from "firebase/firestore"
 import { useState, useMemo, useEffect } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -37,9 +37,11 @@ export default function StaffPage() {
   const db = useFirestore()
   const [loading, setLoading] = useState(false)
   const [isAddOpen, setIsAddOpen] = useState(false)
+  const [isEditOpen, setIsEditOpen] = useState(false)
   const [isBulkOpen, setIsBulkOpen] = useState(false)
   const [isViewOpen, setIsViewOpen] = useState(false)
   const [selectedStaff, setSelectedStaff] = useState<any>(null)
+  const [editingStaff, setEditingStaff] = useState<any>(null)
   const [letterLoading, setLetterLoading] = useState(false)
   const [generatedLetter, setGeneratedLetter] = useState<string | null>(null)
   const [institutionId, setInstitutionId] = useState<string | null>(null)
@@ -76,7 +78,6 @@ export default function StaffPage() {
 
   const { data: staffData, loading: dataLoading } = useCollection(staffQuery)
 
-  // Sort staff by creation date client-side
   const staff = useMemo(() => {
     return [...staffData].sort((a, b) => {
       const dateA = a.createdAt?.toMillis?.() || Date.now();
@@ -119,6 +120,26 @@ export default function StaffPage() {
     }
   }
 
+  const handleUpdateStaff = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!db || !editingStaff || loading) return
+    setLoading(true)
+    try {
+      const docRef = doc(db, "staff", editingStaff.id)
+      await updateDoc(docRef, staffForm)
+      toast({
+        title: "Staff Record Updated",
+        description: `${staffForm.fullName}'s profile is now synchronized.`,
+      })
+      setIsEditOpen(false)
+      setEditingStaff(null)
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Update Failed", description: error.message })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleGenerateLetter = async () => {
     if (!selectedStaff) return
     setLetterLoading(true)
@@ -156,15 +177,13 @@ export default function StaffPage() {
     }
   }
 
-  if (!institutionId) {
-    return (
-      <div className="p-12 text-center space-y-4">
-        <h2 className="text-xl font-bold">No Institution Selected</h2>
-        <p className="text-muted-foreground">Please select an institution from the Super Admin hub to manage staff.</p>
-        <Button asChild><a href="/admin">Go to Admin Hub</a></Button>
-      </div>
-    )
-  }
+  if (!institutionId) return (
+    <div className="p-12 text-center space-y-4">
+      <h2 className="text-xl font-bold">No Institution Selected</h2>
+      <p className="text-muted-foreground">Please select an institution from the Super Admin hub.</p>
+      <Button asChild><a href="/admin">Go to Admin Hub</a></Button>
+    </div>
+  )
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -174,32 +193,9 @@ export default function StaffPage() {
           <p className="text-muted-foreground">Manage institutional workforce and personnel links.</p>
         </div>
         <div className="flex gap-3">
-          <Dialog open={isBulkOpen} onOpenChange={setIsBulkOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="gap-2 h-11 px-6">
-                <Upload className="size-4" /> Bulk Import
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-xl rounded-2xl">
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-headline font-bold text-primary">Bulk Staff Import</DialogTitle>
-                <DialogDescription>Format: FullName, Role, Dept, Email, Phone, StaffID, Classes, Subjects</DialogDescription>
-              </DialogHeader>
-              <div className="py-4 space-y-4">
-                <Textarea 
-                  placeholder="Isaac Boateng, Teacher, Science, isaac@yebfa.edu, 0244, EMP-101, SHS 1A|SHS 2B, Math|Science" 
-                  className="min-h-[200px] font-mono text-sm"
-                  value={bulkData}
-                  onChange={(e) => setBulkData(e.target.value)}
-                />
-              </div>
-              <DialogFooter>
-                <Button onClick={() => {}} disabled={loading} className="w-full h-11">
-                  Add All Staff
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <Button variant="outline" className="gap-2 h-11 px-6" onClick={() => setIsBulkOpen(true)}>
+            <Upload className="size-4" /> Bulk Import
+          </Button>
 
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
             <DialogTrigger asChild>
@@ -211,26 +207,23 @@ export default function StaffPage() {
               <form onSubmit={handleAddStaff}>
                 <DialogHeader>
                   <DialogTitle className="text-2xl font-headline font-bold text-primary">Add Faculty/Staff</DialogTitle>
-                  <DialogDescription>Create a new personnel node with comprehensive details.</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-6 py-6">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="sname">Full Name</Label>
-                      <Input id="sname" required value={staffForm.fullName} onChange={(e) => setStaffForm({...staffForm, fullName: e.target.value})} />
+                      <Label>Full Name</Label>
+                      <Input required value={staffForm.fullName} onChange={(e) => setStaffForm({...staffForm, fullName: e.target.value})} />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="srole">Role / Designation</Label>
-                      <Input id="srole" required value={staffForm.role} onChange={(e) => setStaffForm({...staffForm, role: e.target.value})} />
+                      <Label>Role</Label>
+                      <Input required value={staffForm.role} onChange={(e) => setStaffForm({...staffForm, role: e.target.value})} />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="sdept">Department</Label>
+                      <Label>Department</Label>
                       <Select onValueChange={(v) => setStaffForm({...staffForm, department: v})} defaultValue={staffForm.department}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Department" />
-                        </SelectTrigger>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {DEFAULT_DEPARTMENTS.map(dept => (
                             <SelectItem key={dept} value={dept}>{dept}</SelectItem>
@@ -239,68 +232,35 @@ export default function StaffPage() {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="sid">Staff ID</Label>
-                      <Input id="sid" required value={staffForm.staffId} onChange={(e) => setStaffForm({...staffForm, staffId: e.target.value})} />
+                      <Label>Staff ID</Label>
+                      <Input required value={staffForm.staffId} onChange={(e) => setStaffForm({...staffForm, staffId: e.target.value})} />
                     </div>
                   </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="sclasses">Assigned Classes</Label>
-                      <div className="relative">
-                        <GraduationCap className="absolute left-3 top-3 size-4 text-muted-foreground" />
-                        <Input 
-                          id="sclasses" 
-                          className="pl-10" 
-                          placeholder="e.g. JHS 1, JHS 2" 
-                          value={staffForm.assignedClasses} 
-                          onChange={(e) => setStaffForm({...staffForm, assignedClasses: e.target.value})} 
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="ssubjects">Assigned Subjects</Label>
-                      <div className="relative">
-                        <BookOpen className="absolute left-3 top-3 size-4 text-muted-foreground" />
-                        <Input 
-                          id="ssubjects" 
-                          className="pl-10" 
-                          placeholder="e.g. Mathematics, English" 
-                          value={staffForm.assignedSubjects} 
-                          onChange={(e) => setStaffForm({...staffForm, assignedSubjects: e.target.value})} 
-                        />
-                      </div>
-                    </div>
-                  </div>
-
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="semail">Email Address</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-3 size-4 text-muted-foreground" />
-                        <Input id="semail" type="email" className="pl-10" required value={staffForm.email} onChange={(e) => setStaffForm({...staffForm, email: e.target.value})} />
-                      </div>
+                      <Label>Email</Label>
+                      <Input type="email" required value={staffForm.email} onChange={(e) => setStaffForm({...staffForm, email: e.target.value})} />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="sphone">Phone Number</Label>
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-3 size-4 text-muted-foreground" />
-                        <Input id="sphone" type="tel" className="pl-10" required value={staffForm.phoneNumber} onChange={(e) => setStaffForm({...staffForm, phoneNumber: e.target.value})} />
-                      </div>
+                      <Label>Phone</Label>
+                      <Input type="tel" required value={staffForm.phoneNumber} onChange={(e) => setStaffForm({...staffForm, phoneNumber: e.target.value})} />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="sdate">Joining Date</Label>
-                    <div className="relative">
-                      <CalendarIcon className="absolute left-3 top-3 size-4 text-muted-foreground" />
-                      <Input id="sdate" type="date" className="pl-10" required value={staffForm.joiningDate} onChange={(e) => setStaffForm({...staffForm, joiningDate: e.target.value})} />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Classes</Label>
+                      <Input placeholder="e.g. SHS 1" value={staffForm.assignedClasses} onChange={(e) => setStaffForm({...staffForm, assignedClasses: e.target.value})} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Subjects</Label>
+                      <Input placeholder="e.g. Math" value={staffForm.assignedSubjects} onChange={(e) => setStaffForm({...staffForm, assignedSubjects: e.target.value})} />
                     </div>
                   </div>
                 </div>
                 <DialogFooter>
                   <Button type="submit" disabled={loading} className="w-full h-11">
-                    {loading ? <Loader2 className="size-4 animate-spin mr-2" /> : <UserCog className="size-4 mr-2" />}
-                    Confirm Personnel
+                    {loading ? <Loader2 className="animate-spin mr-2" /> : <UserPlus className="mr-2" />}
+                    Confirm Roster Record
                   </Button>
                 </DialogFooter>
               </form>
@@ -318,76 +278,53 @@ export default function StaffPage() {
         </CardHeader>
         <CardContent className="p-0">
           {staff.length === 0 && !dataLoading ? (
-            <div className="h-80 flex flex-col items-center justify-center gap-2 text-muted-foreground p-12">
-              <div className="size-20 rounded-full bg-primary/5 flex items-center justify-center mb-4">
-                <UserCog className="size-10 text-primary opacity-20" />
-              </div>
-              <p className="font-bold text-primary text-lg">Staff Ledger Empty</p>
-              <p className="text-sm">No personnel accounts detected in this institutional node.</p>
+            <div className="h-80 flex flex-col items-center justify-center p-12 text-center">
+              <UserCog className="size-12 text-primary/10 mb-4" />
+              <p className="text-muted-foreground font-bold">No Staff Members Found</p>
             </div>
           ) : (
             <Table>
               <TableHeader className="bg-muted/30">
                 <TableRow>
-                  <TableHead className="font-bold py-4">Staff ID / Name</TableHead>
-                  <TableHead className="font-bold py-4">Assignments</TableHead>
-                  <TableHead className="font-bold py-4">Department / Role</TableHead>
-                  <TableHead className="font-bold py-4">Contact Info</TableHead>
-                  <TableHead className="text-right font-bold py-4">Management</TableHead>
+                  <TableHead>Staff ID / Name</TableHead>
+                  <TableHead>Department / Role</TableHead>
+                  <TableHead>Assignments</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {staff.map((s: any) => (
-                  <TableRow key={s.id} className="hover:bg-slate-50 transition-colors">
+                  <TableRow key={s.id} className="hover:bg-slate-50">
                     <TableCell>
                       <div className="flex flex-col">
-                        <span className="text-[10px] font-mono font-bold text-muted-foreground uppercase">{s.staffId || 'NO ID'}</span>
+                        <span className="text-[10px] font-mono text-muted-foreground">{s.staffId}</span>
                         <span className="font-bold text-primary">{s.fullName}</span>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-col gap-1">
-                        {s.assignedClasses && (
-                          <div className="flex items-center gap-1">
-                            <GraduationCap className="size-3 text-muted-foreground" />
-                            <span className="text-[10px] font-medium">{s.assignedClasses}</span>
-                          </div>
-                        )}
-                        {s.assignedSubjects && (
-                          <div className="flex items-center gap-1">
-                            <BookOpen className="size-3 text-muted-foreground" />
-                            <span className="text-[10px] font-medium">{s.assignedSubjects}</span>
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[10px] font-bold text-accent uppercase tracking-wider">{s.department}</span>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-accent">{s.department}</span>
                         <span className="text-sm font-medium">{s.role}</span>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-col gap-1 text-[11px] font-medium text-muted-foreground">
-                        <span className="flex items-center gap-1"><Mail className="size-3" /> {s.email}</span>
+                      <div className="text-[10px] text-muted-foreground">
+                        {s.assignedClasses || "No Classes"} • {s.assignedSubjects || "No Subjects"}
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 text-muted-foreground hover:text-primary"
-                          onClick={() => {
-                            setSelectedStaff(s);
-                            setGeneratedLetter(null);
-                            setIsViewOpen(true);
-                          }}
-                        >
-                          <Eye className="size-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary"><Pencil className="size-3.5" /></Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(s.id, s.fullName)} className="h-8 w-8 text-muted-foreground hover:text-destructive"><Trash2 className="size-3.5" /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+                          setSelectedStaff(s);
+                          setGeneratedLetter(null);
+                          setIsViewOpen(true);
+                        }}><Eye className="size-3.5" /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+                          setEditingStaff(s);
+                          setStaffForm({ ...s });
+                          setIsEditOpen(true);
+                        }}><Pencil className="size-3.5" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(s.id, s.fullName)} className="h-8 w-8 text-destructive"><Trash2 className="size-3.5" /></Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -398,103 +335,61 @@ export default function StaffPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
-        <DialogContent className="max-w-3xl rounded-2xl max-h-[90vh] overflow-hidden flex flex-col p-0">
-          <div className="p-6 border-b bg-slate-50">
+      {/* Edit Staff Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="max-w-2xl">
+          <form onSubmit={handleUpdateStaff}>
             <DialogHeader>
-              <div className="flex items-center gap-4">
-                <div className="size-16 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-2xl font-bold">
-                  {selectedStaff?.fullName?.charAt(0)}
-                </div>
-                <div>
-                  <DialogTitle className="text-2xl font-headline font-bold text-primary">{selectedStaff?.fullName}</DialogTitle>
-                  <DialogDescription className="font-medium text-accent uppercase tracking-wider text-[10px] mt-1">
-                    {selectedStaff?.role} • {selectedStaff?.department}
-                  </DialogDescription>
-                </div>
-              </div>
+              <DialogTitle>Edit Staff Profile</DialogTitle>
             </DialogHeader>
-          </div>
-          
-          <ScrollArea className="flex-1">
-            <div className="p-8 space-y-8">
-              <div className="grid gap-6 md:grid-cols-2">
-                <div className="space-y-4">
-                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Personal Details</h4>
-                  <div className="space-y-3">
-                    <div className="flex justify-between border-b pb-2">
-                      <span className="text-sm text-muted-foreground">Email</span>
-                      <span className="text-sm font-semibold">{selectedStaff?.email}</span>
-                    </div>
-                    <div className="flex justify-between border-b pb-2">
-                      <span className="text-sm text-muted-foreground">Phone</span>
-                      <span className="text-sm font-semibold">{selectedStaff?.phoneNumber}</span>
-                    </div>
-                    <div className="flex justify-between border-b pb-2">
-                      <span className="text-sm text-muted-foreground">Staff ID</span>
-                      <span className="text-sm font-mono font-bold text-primary">{selectedStaff?.staffId}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Academic Load</h4>
-                  <div className="space-y-3">
-                    <div className="flex justify-between border-b pb-2">
-                      <span className="text-sm text-muted-foreground">Assigned Classes</span>
-                      <span className="text-sm font-semibold">{selectedStaff?.assignedClasses || "None"}</span>
-                    </div>
-                    <div className="flex justify-between border-b pb-2">
-                      <span className="text-sm text-muted-foreground">Assigned Subjects</span>
-                      <span className="text-sm font-semibold">{selectedStaff?.assignedSubjects || "None"}</span>
-                    </div>
-                    <div className="flex justify-between border-b pb-2">
-                      <span className="text-sm text-muted-foreground">Joined Date</span>
-                      <span className="text-sm font-semibold">{selectedStaff?.joiningDate}</span>
-                    </div>
-                  </div>
-                </div>
+            <div className="grid gap-6 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2"><Label>Full Name</Label><Input required value={staffForm.fullName} onChange={e => setStaffForm({...staffForm, fullName: e.target.value})} /></div>
+                <div className="space-y-2"><Label>Role</Label><Input required value={staffForm.role} onChange={e => setStaffForm({...staffForm, role: e.target.value})} /></div>
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2"><Label>Email</Label><Input type="email" required value={staffForm.email} onChange={e => setStaffForm({...staffForm, email: e.target.value})} /></div>
+                <div className="space-y-2"><Label>Phone</Label><Input required value={staffForm.phoneNumber} onChange={e => setStaffForm({...staffForm, phoneNumber: e.target.value})} /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2"><Label>Classes</Label><Input value={staffForm.assignedClasses} onChange={e => setStaffForm({...staffForm, assignedClasses: e.target.value})} /></div>
+                <div className="space-y-2"><Label>Subjects</Label><Input value={staffForm.assignedSubjects} onChange={e => setStaffForm({...staffForm, assignedSubjects: e.target.value})} /></div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={loading} className="w-full">{loading ? <Loader2 className="animate-spin" /> : "Save Changes"}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">AI Career Document Node</h4>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    className="gap-2 border-primary/20 text-primary h-8"
-                    onClick={handleGenerateLetter}
-                    disabled={letterLoading}
-                  >
-                    {letterLoading ? <Loader2 className="size-3 animate-spin" /> : <Sparkles className="size-3" />}
-                    Generate Appointment Letter
-                  </Button>
+      <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
+        <DialogContent className="max-w-3xl rounded-2xl p-0 overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="p-6 bg-slate-50 border-b">
+            <DialogTitle className="text-2xl font-bold text-primary">{selectedStaff?.fullName}</DialogTitle>
+            <DialogDescription className="text-accent font-bold uppercase text-[10px]">{selectedStaff?.role} • {selectedStaff?.department}</DialogDescription>
+          </div>
+          <ScrollArea className="flex-1 p-8">
+            <div className="space-y-8">
+              <div className="grid grid-cols-2 gap-8">
+                <div className="space-y-1"><p className="text-[10px] font-bold text-muted-foreground uppercase">Staff ID</p><p className="font-mono text-primary font-bold">{selectedStaff?.staffId}</p></div>
+                <div className="space-y-1"><p className="text-[10px] font-bold text-muted-foreground uppercase">Joining Date</p><p className="font-medium">{selectedStaff?.joiningDate}</p></div>
+              </div>
+              <div className="p-6 rounded-2xl bg-muted/30 border-2 border-dashed border-muted">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-sm font-bold flex items-center gap-2"><Sparkles className="size-4 text-primary" /> AI Appointment Link</h4>
+                  <Button size="sm" onClick={handleGenerateLetter} disabled={letterLoading}>{letterLoading ? <Loader2 className="animate-spin" /> : "Generate Draft"}</Button>
                 </div>
-
                 {generatedLetter ? (
-                  <div className="relative p-6 rounded-2xl bg-slate-50 border border-dashed border-slate-300 font-serif leading-relaxed text-sm animate-in fade-in duration-500">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="absolute top-4 right-4 h-8 w-8"
-                      onClick={handleCopyLetter}
-                    >
-                      {copied ? <Check className="size-4 text-green-600" /> : <Copy className="size-4" />}
-                    </Button>
-                    <pre className="whitespace-pre-wrap font-serif text-slate-700">{generatedLetter}</pre>
+                  <div className="relative p-6 bg-white rounded-xl border leading-relaxed text-sm font-serif">
+                    <Button variant="ghost" size="icon" className="absolute top-2 right-2" onClick={handleCopyLetter}>{copied ? <Check /> : <Copy />}</Button>
+                    <pre className="whitespace-pre-wrap">{generatedLetter}</pre>
                   </div>
-                ) : (
-                  <div className="h-32 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-muted text-muted-foreground gap-2">
-                    <FileText className="size-8 opacity-20" />
-                    <p className="text-[10px] uppercase font-bold tracking-tight">No Letter Generated Yet</p>
-                  </div>
-                )}
+                ) : <p className="text-xs text-center italic text-muted-foreground">Click generate to create an AI-powered appointment letter.</p>}
               </div>
             </div>
           </ScrollArea>
-          
-          <div className="p-4 border-t bg-slate-50 flex justify-end">
-            <Button variant="ghost" onClick={() => setIsViewOpen(false)}>Close Roster Record</Button>
-          </div>
+          <div className="p-4 border-t bg-slate-50 flex justify-end"><Button variant="ghost" onClick={() => setIsViewOpen(false)}>Close</Button></div>
         </DialogContent>
       </Dialog>
     </div>
