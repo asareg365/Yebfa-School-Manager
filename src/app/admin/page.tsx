@@ -15,7 +15,7 @@ import { useUser, useFirestore, useCollection } from "@/firebase"
 import { useRouter } from "next/navigation"
 import { useEffect, useState, useMemo } from "react"
 import { toast } from "@/hooks/use-toast"
-import { collection, addDoc, serverTimestamp, query, orderBy, deleteDoc, doc, updateDoc } from "firebase/firestore"
+import { collection, addDoc, serverTimestamp, query, deleteDoc, doc, updateDoc } from "firebase/firestore"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
 
@@ -40,14 +40,23 @@ export default function AdminPortal() {
 
   const institutionsQuery = useMemo(() => {
     if (!db) return null;
-    return query(collection(db, "institutions"), orderBy("createdAt", "desc"));
+    return query(collection(db, "institutions"));
   }, [db]);
 
-  const { data: institutions, loading: dataLoading } = useCollection(institutionsQuery)
+  const { data: rawInstitutions, loading: dataLoading } = useCollection(institutionsQuery)
+
+  // Sort institutions client-side
+  const institutions = useMemo(() => {
+    return [...rawInstitutions].sort((a, b) => {
+      const dateA = a.createdAt?.toMillis?.() || Date.now();
+      const dateB = b.createdAt?.toMillis?.() || Date.now();
+      return dateB - dateA;
+    });
+  }, [rawInstitutions]);
 
   useEffect(() => {
     if (!authLoading && !isSuperAdmin) {
-      router.push("/dashboard")
+      router.replace("/dashboard")
     }
   }, [user, authLoading, isSuperAdmin, router])
 

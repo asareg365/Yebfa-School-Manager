@@ -4,11 +4,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Users, Mail, UserCog, Search, Trash2, Pencil, Loader2, Upload, UserPlus, Phone, Calendar as CalendarIcon, Hash, BookOpen, GraduationCap, Eye, FileText, Sparkles, Copy, Check } from "lucide-react"
+import { Users, Mail, UserCog, Search, Trash2, Pencil, Loader2, Upload, UserPlus, Phone, Calendar as CalendarIcon, BookOpen, GraduationCap, Eye, FileText, Sparkles, Copy, Check } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection } from "@/firebase"
-import { collection, addDoc, query, orderBy, deleteDoc, doc, where, serverTimestamp } from "firebase/firestore"
+import { collection, addDoc, query, deleteDoc, doc, where, serverTimestamp } from "firebase/firestore"
 import { useState, useMemo, useEffect } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -74,7 +74,16 @@ export default function StaffPage() {
     );
   }, [db, institutionId]);
 
-  const { data: staff, loading: dataLoading } = useCollection(staffQuery)
+  const { data: staffData, loading: dataLoading } = useCollection(staffQuery)
+
+  // Sort staff by creation date client-side
+  const staff = useMemo(() => {
+    return [...staffData].sort((a, b) => {
+      const dateA = a.createdAt?.toMillis?.() || Date.now();
+      const dateB = b.createdAt?.toMillis?.() || Date.now();
+      return dateB - dateA;
+    });
+  }, [staffData]);
 
   const handleAddStaff = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -231,10 +240,7 @@ export default function StaffPage() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="sid">Staff ID</Label>
-                      <div className="relative">
-                        <Hash className="absolute left-3 top-3 size-4 text-muted-foreground" />
-                        <Input id="sid" className="pl-10" required value={staffForm.staffId} onChange={(e) => setStaffForm({...staffForm, staffId: e.target.value})} />
-                      </div>
+                      <Input id="sid" required value={staffForm.staffId} onChange={(e) => setStaffForm({...staffForm, staffId: e.target.value})} />
                     </div>
                   </div>
                   

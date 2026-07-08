@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Search, UserPlus, Filter, GraduationCap, Trash2, Pencil, Loader2, Upload, FileJson, User, Phone, MapPin, Calendar as CalendarIcon } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection } from "@/firebase"
-import { collection, addDoc, query, orderBy, deleteDoc, doc, where, serverTimestamp } from "firebase/firestore"
+import { collection, addDoc, query, deleteDoc, doc, where, serverTimestamp } from "firebase/firestore"
 import { useState, useMemo, useEffect } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -45,12 +45,20 @@ export default function StudentsPage() {
     if (!db || !institutionId) return null;
     return query(
       collection(db, "students"), 
-      where("institutionId", "==", institutionId),
-      orderBy("createdAt", "desc")
+      where("institutionId", "==", institutionId)
     );
   }, [db, institutionId]);
 
-  const { data: students, loading: dataLoading } = useCollection(studentsQuery)
+  const { data: studentsData, loading: dataLoading } = useCollection(studentsQuery)
+
+  // Sort students by creation date client-side to ensure immediate local updates show up
+  const students = useMemo(() => {
+    return [...studentsData].sort((a, b) => {
+      const dateA = a.createdAt?.toMillis?.() || Date.now();
+      const dateB = b.createdAt?.toMillis?.() || Date.now();
+      return dateB - dateA;
+    });
+  }, [studentsData]);
 
   const handleEnroll = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -252,10 +260,7 @@ export default function StudentsPage() {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="sid">Student ID</Label>
-                        <div className="relative">
-                          <Hash className="absolute left-3 top-3 size-4 text-muted-foreground" />
-                          <Input id="sid" className="pl-10" placeholder="STU-XXXX" required value={studentForm.studentId} onChange={(e) => setStudentForm({...studentForm, studentId: e.target.value})} />
-                        </div>
+                        <Input id="sid" placeholder="STU-XXXX" required value={studentForm.studentId} onChange={(e) => setStudentForm({...studentForm, studentId: e.target.value})} />
                       </div>
                     </div>
                   </div>
@@ -373,27 +378,5 @@ export default function StudentsPage() {
         </CardContent>
       </Card>
     </div>
-  )
-}
-
-function Hash(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <line x1="4" x2="20" y1="9" y2="9" />
-      <line x1="4" x2="20" y1="15" y2="15" />
-      <line x1="10" x2="8" y1="3" y2="21" />
-      <line x1="16" x2="14" y1="3" y2="21" />
-    </svg>
   )
 }
