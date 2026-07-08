@@ -12,8 +12,8 @@ service cloud.firestore {
 
     match /institutions/{institutionId} {
       allow read: if request.auth != null;
-      // Allow creation of institutions (registration requests) by any logged-in user
       allow create: if request.auth != null;
+      // Allow owners or super admins to update institution settings like departments
       allow update, delete: if request.auth != null && (isSuperAdmin() || resource.data.ownerEmail == request.auth.token.email);
     }
 

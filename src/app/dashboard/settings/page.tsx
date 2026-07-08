@@ -25,7 +25,7 @@ export default function SettingsPage() {
     setInstitutionId(storedId)
   }, [])
 
-  const instRef = institutionId ? doc(db, "institutions", institutionId) : null
+  const instRef = institutionId ? doc(db!, "institutions", institutionId) : null
   const { data: institution, loading } = useDoc(instRef)
 
   const handleSaveSettings = async (e: React.FormEvent) => {
@@ -44,14 +44,14 @@ export default function SettingsPage() {
     try {
       await updateDoc(instRef, data)
       toast({
-        title: "Settings Updated",
-        description: "Your institutional profile has been synchronized with the global node.",
+        title: "Profile Synchronized",
+        description: "Institutional node updated successfully.",
       })
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Update Failed",
-        description: error.message,
+        description: "Insufficient permissions or network error.",
       })
     } finally {
       setIsSaving(false)
@@ -65,9 +65,9 @@ export default function SettingsPage() {
         customDepartments: arrayUnion(newDept.trim())
       })
       setNewDept("")
-      toast({ title: "Department Added", description: `${newDept} is now available in the registry.` })
+      toast({ title: "Department Registered", description: `${newDept} is now active.` })
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Action Failed", description: error.message })
+      toast({ variant: "destructive", title: "Access Denied", description: "You must be the institution owner." })
     }
   }
 
@@ -77,20 +77,20 @@ export default function SettingsPage() {
       await updateDoc(instRef, {
         customDepartments: arrayRemove(dept)
       })
-      toast({ title: "Department Removed", description: `${dept} has been archived.` })
+      toast({ title: "Department Removed", description: `${dept} has been de-provisioned.` })
     } catch (error: any) {
       toast({ variant: "destructive", title: "Action Failed", description: error.message })
     }
   }
 
-  if (loading) return <div className="p-10 text-center animate-pulse font-headline">Synchronizing Institutional Node...</div>
-  if (!institutionId) return <div className="p-10 text-center font-bold text-destructive">No Active Institution Selected</div>
+  if (loading) return <div className="p-10 text-center animate-pulse">Establishing Node Link...</div>
+  if (!institutionId) return <div className="p-10 text-center font-bold text-destructive">No Active Instance Connected</div>
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">System Configuration</h1>
-        <p className="text-muted-foreground">Manage your institution's profile, academic cycles, and security settings.</p>
+        <p className="text-muted-foreground">Managing {institution?.name} • Ahafo Regional Hub</p>
       </div>
 
       <Tabs defaultValue="profile" className="w-full">
@@ -111,128 +111,102 @@ export default function SettingsPage() {
 
         <form onSubmit={handleSaveSettings}>
           <TabsContent value="profile" className="space-y-6">
-            <Card className="border-none shadow-md bg-white">
+            <Card className="border-none shadow-md">
               <CardHeader>
-                <CardTitle className="text-xl">Institutional Identity</CardTitle>
-                <CardDescription>Update the public-facing details of your school instance.</CardDescription>
+                <CardTitle>Institutional Identity</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="schoolName">Official School Name</Label>
-                    <Input id="schoolName" name="schoolName" defaultValue={institution?.name} required />
+                    <Label>School Name</Label>
+                    <Input name="schoolName" defaultValue={institution?.name} required />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="location">Campus Location</Label>
-                    <Input id="location" name="location" defaultValue={institution?.location} required />
+                    <Label>Location</Label>
+                    <Input name="location" defaultValue={institution?.location} required />
                   </div>
                 </div>
               </CardContent>
-              <CardFooter className="border-t pt-6 bg-slate-50/50">
-                <Button type="submit" disabled={isSaving} className="gap-2 ml-auto">
-                  {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-                  Save Profile Node
+              <CardFooter className="border-t pt-6">
+                <Button type="submit" disabled={isSaving} className="ml-auto">
+                  {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4 mr-2" />}
+                  Save Profile
                 </Button>
               </CardFooter>
             </Card>
           </TabsContent>
 
           <TabsContent value="academic" className="space-y-6">
-            <Card className="border-none shadow-md bg-white">
+            <Card className="border-none shadow-md">
               <CardHeader>
-                <CardTitle className="text-xl">Term Cycles</CardTitle>
-                <CardDescription>Define the current academic period for reporting and financial data.</CardDescription>
+                <CardTitle>Term Cycles</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid gap-6 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="academicYear">Current Academic Year</Label>
-                    <Input id="academicYear" name="academicYear" placeholder="e.g. 2025/2026" defaultValue={institution?.academicYear} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="currentTerm">Current Active Term</Label>
-                    <Select name="currentTerm" defaultValue={institution?.currentTerm || "Term 1"}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select Term" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Term 1">Term 1 (First Term)</SelectItem>
-                        <SelectItem value="Term 2">Term 2 (Second Term)</SelectItem>
-                        <SelectItem value="Term 3">Term 3 (Third Term)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+              <CardContent className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Academic Year</Label>
+                  <Input name="academicYear" defaultValue={institution?.academicYear} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Active Term</Label>
+                  <Select name="currentTerm" defaultValue={institution?.currentTerm || "Term 1"}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Term 1">Term 1</SelectItem>
+                      <SelectItem value="Term 2">Term 2</SelectItem>
+                      <SelectItem value="Term 3">Term 3</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </CardContent>
               <CardFooter className="border-t pt-6">
-                <Button type="submit" disabled={isSaving} className="gap-2 ml-auto">
-                   <Save className="size-4" /> Synchronize Cycle
-                </Button>
+                <Button type="submit" className="ml-auto">Update Cycle</Button>
               </CardFooter>
             </Card>
           </TabsContent>
         </form>
 
         <TabsContent value="departments" className="space-y-6">
-          <Card className="border-none shadow-md bg-white">
+          <Card className="border-none shadow-md">
             <CardHeader>
-              <CardTitle className="text-xl">Departmental Registry</CardTitle>
-              <CardDescription>Manage custom departments available for faculty and staff assignments.</CardDescription>
+              <CardTitle>Departmental Registry</CardTitle>
+              <CardDescription>Add specialized faculty nodes to your roster picker.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex gap-4">
                 <div className="flex-1 space-y-2">
-                  <Label>New Department Name</Label>
                   <Input 
                     placeholder="e.g. Guidance & Counseling" 
                     value={newDept} 
-                    onChange={(e) => setNewDept(e.target.value)} 
+                    onChange={e => setNewDept(e.target.value)} 
                   />
                 </div>
-                <Button className="mt-8 gap-2" onClick={handleAddDepartment}>
-                  <Plus className="size-4" /> Add Node
+                <Button className="gap-2" onClick={handleAddDepartment}>
+                  <Plus className="size-4" /> Add Department
                 </Button>
               </div>
 
-              <div className="space-y-3">
-                <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Active Custom Departments</h4>
-                {institution?.customDepartments?.length > 0 ? (
-                  <div className="grid gap-2">
-                    {institution.customDepartments.map((dept: string) => (
-                      <div key={dept} className="flex items-center justify-between p-3 rounded-lg border bg-slate-50">
-                        <span className="text-sm font-semibold">{dept}</span>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleRemoveDepartment(dept)}>
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </div>
-                    ))}
+              <div className="grid gap-2">
+                {institution?.customDepartments?.map((dept: string) => (
+                  <div key={dept} className="flex items-center justify-between p-3 rounded-lg border bg-slate-50">
+                    <span className="text-sm font-semibold">{dept}</span>
+                    <Button variant="ghost" size="icon" onClick={() => handleRemoveDepartment(dept)}>
+                      <Trash2 className="size-4 text-destructive" />
+                    </Button>
                   </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground italic p-4 border rounded-lg border-dashed text-center">No custom departments added. Default registry is active.</p>
-                )}
+                ))}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="security" className="space-y-6">
-          <Card className="border-none shadow-md bg-white">
-            <CardHeader>
-              <CardTitle className="text-xl">Node Security & Access</CardTitle>
-              <CardDescription>Manage how users interact with your school's private data.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between p-4 rounded-xl border bg-muted/5">
-                <div className="space-y-0.5">
-                  <Label className="text-base">Two-Factor Authentication</Label>
-                  <p className="text-sm text-muted-foreground">Require 2FA for all administrative accounts.</p>
-                </div>
-                <Switch disabled />
-              </div>
-              <div className="flex items-center justify-between p-4 rounded-xl border bg-muted/5">
-                <div className="space-y-0.5">
-                  <Label className="text-base">Data Isolation Check</Label>
-                  <p className="text-sm text-muted-foreground">Force strict multi-tenant partition verification.</p>
+          <Card className="border-none shadow-md">
+            <CardHeader><CardTitle>Access Controls</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between p-4 border rounded-xl">
+                <div>
+                  <Label>Data Isolation Check</Label>
+                  <p className="text-xs text-muted-foreground">Strict multi-tenant verification active.</p>
                 </div>
                 <Switch defaultChecked />
               </div>
