@@ -7,11 +7,41 @@ import { useUser } from "@/firebase";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/dashboard/app-sidebar";
 import { Separator } from "@/components/ui/separator";
-import { Bell, Search, Loader2, Info, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Bell, Search, Loader2, Info, AlertTriangle, CheckCircle2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
+
+const INITIAL_NOTIFICATIONS = [
+  {
+    id: '1',
+    title: 'New Policy Updated',
+    description: 'The 2026 Academic guidelines have been updated.',
+    time: '2 hours ago',
+    type: 'info',
+    icon: Info,
+    color: 'bg-blue-100 text-blue-600'
+  },
+  {
+    id: '2',
+    title: 'Fee Overdue Alert',
+    description: '15 students are past the Term 2 deadline.',
+    time: '5 hours ago',
+    type: 'warning',
+    icon: AlertTriangle,
+    color: 'bg-orange-100 text-orange-600'
+  },
+  {
+    id: '3',
+    title: 'Sync Complete',
+    description: 'Global node sync for Ahafo region finished.',
+    time: 'Yesterday',
+    type: 'success',
+    icon: CheckCircle2,
+    color: 'bg-green-100 text-green-600'
+  }
+];
 
 export default function DashboardLayout({
   children,
@@ -21,6 +51,7 @@ export default function DashboardLayout({
   const { user, loading } = useUser();
   const router = useRouter();
   const [hasNotifications, setHasNotifications] = useState(true);
+  const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
   const [institutionName, setInstitutionName] = useState<string>("Institution Hub");
 
   useEffect(() => {
@@ -29,7 +60,6 @@ export default function DashboardLayout({
     }
   }, [user, loading, router]);
 
-  // Handle dynamic name updates from local storage
   useEffect(() => {
     const updateName = () => {
       const storedName = localStorage.getItem('selected_institution_name');
@@ -39,10 +69,18 @@ export default function DashboardLayout({
     };
     
     updateName();
-    // Poll for changes to local storage to keep header in sync with auto-selection
     const interval = setInterval(updateName, 2000);
     return () => clearInterval(interval);
   }, []);
+
+  const handleMarkAllRead = () => {
+    setHasNotifications(false);
+  };
+
+  const handleClearAll = () => {
+    setNotifications([]);
+    setHasNotifications(false);
+  };
 
   if (loading) {
     return (
@@ -79,7 +117,7 @@ export default function DashboardLayout({
               <PopoverTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
                   <Bell className="h-5 w-5" />
-                  {hasNotifications && (
+                  {hasNotifications && notifications.length > 0 && (
                     <span className="absolute top-2 right-2.5 size-2 bg-accent rounded-full border-2 border-background" />
                   )}
                 </Button>
@@ -87,41 +125,53 @@ export default function DashboardLayout({
               <PopoverContent className="w-80 p-0" align="end">
                 <div className="p-4 border-b flex items-center justify-between">
                   <h4 className="font-bold text-sm">Notifications</h4>
-                  <Button variant="ghost" size="sm" className="text-[10px] h-6 px-2" onClick={() => setHasNotifications(false)}>Mark all read</Button>
+                  <div className="flex gap-2">
+                    {notifications.length > 0 && (
+                      <>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-[10px] h-6 px-2 text-muted-foreground hover:text-primary" 
+                          onClick={handleMarkAllRead}
+                        >
+                          Mark all read
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-[10px] h-6 px-2 text-destructive hover:bg-destructive/10" 
+                          onClick={handleClearAll}
+                        >
+                          Clear
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
                 <ScrollArea className="h-[300px]">
-                  <div className="divide-y">
-                    <div className="p-4 flex gap-3 hover:bg-muted/50 transition-colors">
-                      <div className="size-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-                        <Info className="size-4 text-blue-600" />
+                  {notifications.length === 0 ? (
+                    <div className="p-12 text-center space-y-2">
+                      <div className="size-12 rounded-full bg-muted flex items-center justify-center mx-auto">
+                        <Bell className="size-6 text-muted-foreground/30" />
                       </div>
-                      <div className="space-y-1">
-                        <p className="text-xs font-bold">New Policy Updated</p>
-                        <p className="text-[10px] text-muted-foreground">The 2026 Academic guidelines have been updated.</p>
-                        <p className="text-[9px] font-medium text-primary">2 hours ago</p>
-                      </div>
+                      <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">No notifications</p>
                     </div>
-                    <div className="p-4 flex gap-3 hover:bg-muted/50 transition-colors">
-                      <div className="size-8 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
-                        <AlertTriangle className="size-4 text-orange-600" />
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-xs font-bold">Fee Overdue Alert</p>
-                        <p className="text-[10px] text-muted-foreground">15 students are past the Term 2 deadline.</p>
-                        <p className="text-[9px] font-medium text-primary">5 hours ago</p>
-                      </div>
+                  ) : (
+                    <div className="divide-y">
+                      {notifications.map((notif) => (
+                        <div key={notif.id} className="p-4 flex gap-3 hover:bg-muted/50 transition-colors">
+                          <div className={`size-8 rounded-full ${notif.color} flex items-center justify-center shrink-0`}>
+                            <notif.icon className="size-4" />
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-bold">{notif.title}</p>
+                            <p className="text-[10px] text-muted-foreground">{notif.description}</p>
+                            <p className="text-[9px] font-medium text-primary">{notif.time}</p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div className="p-4 flex gap-3 hover:bg-muted/50 transition-colors">
-                      <div className="size-8 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-                        <CheckCircle2 className="size-4 text-green-600" />
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-xs font-bold">Sync Complete</p>
-                        <p className="text-[10px] text-muted-foreground">Global node sync for Ahafo region finished.</p>
-                        <p className="text-[9px] font-medium text-primary">Yesterday</p>
-                      </div>
-                    </div>
-                  </div>
+                  )}
                 </ScrollArea>
                 <div className="p-2 border-t text-center">
                   <Button variant="ghost" size="sm" className="w-full text-[10px]">View all activity</Button>
