@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, UserPlus, GraduationCap, Trash2, Pencil, Loader2, Upload, IdCard, User, Camera, X, Check } from "lucide-react"
+import { Search, UserPlus, GraduationCap, Trash2, Pencil, Loader2, Upload, IdCard, User, Camera, X, Check, FileText } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection, useDoc } from "@/firebase"
 import { collection, addDoc, query, deleteDoc, doc, where, serverTimestamp, updateDoc } from "firebase/firestore"
@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 const PRIMARY_GRADES = ["KG 1", "KG 2", "Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6"]
 const JHS_GRADES = ["JHS 1", "JHS 2", "JHS 3"]
@@ -22,6 +23,7 @@ const SHS_GRADES = ["SHS 1", "SHS 2", "SHS 3"]
 
 export default function StudentsPage() {
   const db = useFirestore()
+  const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [isEnrollOpen, setIsEnrollOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
@@ -123,7 +125,6 @@ export default function StudentsPage() {
       canvas.width = 400
       canvas.height = 400
       
-      // Calculate square crop
       const size = Math.min(video.videoWidth, video.videoHeight)
       const x = (video.videoWidth - size) / 2
       const y = (video.videoHeight - size) / 2
@@ -198,6 +199,13 @@ export default function StudentsPage() {
     }
   }
 
+  if (dataLoading) return (
+    <div className="p-24 text-center space-y-4">
+      <Loader2 className="size-10 animate-spin text-primary mx-auto" />
+      <p className="font-bold text-muted-foreground uppercase tracking-widest">Synchronizing Directory Node...</p>
+    </div>
+  )
+
   if (!institutionId) return (
     <div className="p-12 text-center space-y-4">
       <h2 className="text-xl font-bold">No Institution Selected</h2>
@@ -230,11 +238,7 @@ export default function StudentsPage() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          {dataLoading ? (
-            <div className="p-24 text-center">
-              <Loader2 className="size-10 animate-spin text-primary mx-auto" />
-            </div>
-          ) : students.length === 0 ? (
+          {students.length === 0 ? (
             <div className="p-24 text-center space-y-4">
               <GraduationCap className="size-16 text-primary opacity-10 mx-auto" />
               <p className="font-bold text-muted-foreground">Empty Directory Node</p>
@@ -285,6 +289,9 @@ export default function StudentsPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" asChild>
+                           <Link href="/dashboard/exams"><FileText className="size-3.5" /></Link>
+                        </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
                           setEditingStudent(stu);
                           setStudentForm(stu);
