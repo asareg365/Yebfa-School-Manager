@@ -137,7 +137,7 @@ export default function LoginPage() {
               <Input 
                 id="email" 
                 type="email" 
-                placeholder="frankyeb@gmail.com" 
+                placeholder="admin@yebfa.com" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -195,7 +195,7 @@ export default function LoginPage() {
       </Card>
       
       <p className="mt-8 text-center text-sm text-muted-foreground">
-        Ahafo Region Technical Support: <Link href="/contact" className="text-primary hover:underline font-medium">frankyeb@gmail.com</Link>
+        Ahafo Region Technical Support: <Link href="/contact" className="text-primary hover:underline font-medium">support@yebfa.com</Link>
       </p>
     </div>
   )
