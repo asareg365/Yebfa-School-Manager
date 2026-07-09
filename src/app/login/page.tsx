@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { School, Loader2, AlertCircle, Info, ArrowRight, ShieldCheck } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth"
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword } from "firebase/auth"
 import { useAuth, useUser } from "@/firebase"
 import { firebaseConfig } from "@/firebase/config"
 import { toast } from "@/hooks/use-toast"
@@ -42,10 +42,26 @@ export default function LoginPage() {
     if (!auth || configError) return
     setLoading(true)
     try {
+      // Attempt login first
       const credential = await signInWithEmailAndPassword(auth, email, password)
       const destination = isSuperAdmin(credential.user.email) ? "/admin" : "/dashboard"
       router.replace(destination)
     } catch (error: any) {
+      // If user doesn't exist and it's one of the Super Admins, try auto-registering for the demo
+      if (error.code === 'auth/user-not-found' && isSuperAdmin(email)) {
+        try {
+          const credential = await createUserWithEmailAndPassword(auth, email, password)
+          router.replace("/admin")
+          return
+        } catch (regError: any) {
+          toast({
+            variant: "destructive",
+            title: "Access Error",
+            description: regError.message,
+          })
+        }
+      }
+      
       toast({
         variant: "destructive",
         title: "Login Failed",
@@ -121,7 +137,7 @@ export default function LoginPage() {
               <Input 
                 id="email" 
                 type="email" 
-                placeholder="admin@demo.com" 
+                placeholder="frankyeb@gmail.com" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -161,11 +177,11 @@ export default function LoginPage() {
 
           <div className="p-4 bg-primary/5 rounded-lg text-xs space-y-2 border border-primary/10">
             <p className="font-bold text-primary flex items-center gap-2">
-              <Info className="size-3" /> Demo Credentials (2026)
+              <Info className="size-3" /> System Super Admin (Ghana Hub)
             </p>
             <div className="space-y-1">
-              <p>Email: <span className="font-mono bg-white px-1 border rounded">admin@demo.com</span></p>
-              <p>Pass: <span className="font-mono bg-white px-1 border rounded">demo1234</span></p>
+              <p>Email: <span className="font-mono bg-white px-1 border rounded">frankyeb@gmail.com</span></p>
+              <p>Pass: <span className="font-mono bg-white px-1 border rounded">0275034377</span></p>
             </div>
           </div>
         </CardContent>
@@ -179,7 +195,7 @@ export default function LoginPage() {
       </Card>
       
       <p className="mt-8 text-center text-sm text-muted-foreground">
-        Ahafo Region Technical Support: <Link href="/contact" className="text-primary hover:underline font-medium">asareg365@gmail.com</Link>
+        Ahafo Region Technical Support: <Link href="/contact" className="text-primary hover:underline font-medium">frankyeb@gmail.com</Link>
       </p>
     </div>
   )
