@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from "@/firebase";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -60,27 +60,28 @@ export default function DashboardLayout({
     }
   }, [user, loading, router]);
 
+  // Efficient local storage polling
   useEffect(() => {
     const updateName = () => {
       const storedName = localStorage.getItem('selected_institution_name');
-      if (storedName) {
+      if (storedName && storedName !== institutionName) {
         setInstitutionName(storedName);
       }
     };
     
     updateName();
-    const interval = setInterval(updateName, 2000);
+    const interval = setInterval(updateName, 1000);
     return () => clearInterval(interval);
+  }, [institutionName]);
+
+  const handleMarkAllRead = useCallback(() => {
+    setHasNotifications(false);
   }, []);
 
-  const handleMarkAllRead = () => {
-    setHasNotifications(false);
-  };
-
-  const handleClearAll = () => {
+  const handleClearAll = useCallback(() => {
     setNotifications([]);
     setHasNotifications(false);
-  };
+  }, []);
 
   if (loading) {
     return (
@@ -108,21 +109,21 @@ export default function DashboardLayout({
               <Input
                 type="search"
                 placeholder="Search students, staff, records..."
-                className="w-80 pl-9 h-10 bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary/20"
+                className="w-80 pl-9 h-10 bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary/20 transition-all"
               />
             </div>
           </div>
           <div className="flex items-center gap-4">
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative">
+                <Button variant="ghost" size="icon" className="relative transition-transform active:scale-95">
                   <Bell className="h-5 w-5" />
                   {hasNotifications && notifications.length > 0 && (
                     <span className="absolute top-2 right-2.5 size-2 bg-accent rounded-full border-2 border-background" />
                   )}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-80 p-0" align="end">
+              <PopoverContent className="w-80 p-0 shadow-2xl border-none rounded-xl" align="end">
                 <div className="p-4 border-b flex items-center justify-between">
                   <h4 className="font-bold text-sm">Notifications</h4>
                   <div className="flex gap-2">
@@ -179,12 +180,12 @@ export default function DashboardLayout({
               </PopoverContent>
             </Popover>
             <div className="hidden sm:flex flex-col text-right">
-              <span className="text-sm font-semibold truncate max-w-[150px]">{institutionName}</span>
+              <span className="text-sm font-semibold truncate max-w-[180px] text-primary">{institutionName}</span>
               <span className="text-xs text-muted-foreground uppercase font-bold tracking-tighter">Live Node 2026</span>
             </div>
           </div>
         </header>
-        <main className="flex-1 p-6 lg:p-10 max-w-7xl mx-auto w-full transition-all duration-300">
+        <main className="flex-1 p-6 lg:p-10 max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-300">
           {children}
         </main>
       </SidebarInset>
