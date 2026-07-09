@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -15,7 +14,8 @@ import {
   FileText,
   School,
   ShieldCheck,
-  ClipboardList
+  ClipboardList,
+  CheckSquare
 } from "lucide-react"
 
 import {
@@ -60,7 +60,7 @@ const navigation = [
     url: "#",
     icon: CheckCircle,
     items: [
-      { title: "Attendance Insights", url: "/dashboard/attendance" },
+      { title: "Daily Attendance", url: "/dashboard/attendance" },
       { title: "Examination Center", url: "/dashboard/exams" },
       { title: "Daily Logs", url: "/dashboard/logs" },
     ],

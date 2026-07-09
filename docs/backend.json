@@ -1,4 +1,3 @@
-
 {
   "entities": {
     "User": {
@@ -89,6 +88,20 @@
         "institutionId": { "type": "string" }
       },
       "required": ["studentId", "subjectId", "institutionId"]
+    },
+    "AttendanceRecord": {
+      "title": "Attendance Record",
+      "description": "Daily attendance tracking for students.",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "gradeLevel": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["present", "absent"] },
+        "institutionId": { "type": "string" }
+      },
+      "required": ["studentId", "date", "status", "institutionId"]
     }
   },
   "auth": {
@@ -118,6 +131,10 @@
     "/exam_records/{recordId}": {
       "schema": "ExamRecord",
       "description": "Examination scores."
+    },
+    "/attendance/{recordId}": {
+      "schema": "AttendanceRecord",
+      "description": "Daily attendance logs."
     }
   }
 }

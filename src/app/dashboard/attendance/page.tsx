@@ -1,114 +1,265 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Progress } from "@/components/ui/progress"
-import { Calendar as CalendarIcon, Users, Activity, Clock, ShieldAlert, CheckCircle, RefreshCcw } from "lucide-react"
+import { Users, Activity, Clock, CheckCircle, Save, Loader2, Calendar as CalendarIcon, Filter, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
-import { useFirestore, useCollection } from "@/firebase"
-import { collection, query, where } from "firebase/firestore"
+import { useFirestore, useCollection, useDoc } from "@/firebase"
+import { collection, query, where, addDoc, serverTimestamp, setDoc, doc, getDocs } from "firebase/firestore"
 import { useEffect, useState, useMemo } from "react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
+
+const PRIMARY_GRADES = ["KG 1", "KG 2", "Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6"]
+const JHS_GRADES = ["JHS 1", "JHS 2", "JHS 3"]
+const SHS_GRADES = ["SHS 1", "SHS 2", "SHS 3"]
 
 export default function AttendancePage() {
   const db = useFirestore()
   const [institutionId, setInstitutionId] = useState<string | null>(null)
-  const [isSyncing, setIsSyncing] = useState(false)
+  const [selectedGrade, setSelectedGrade] = useState("")
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+  const [presentStudents, setPresentStudents] = useState<Record<string, boolean>>({})
+  const [isSaving, setIsSaving] = useState(false)
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false)
 
   useEffect(() => {
     const storedId = localStorage.getItem('selected_institution_id')
-    setInstitutionId(storedId || "demo-institution-2026")
+    if (storedId) setInstitutionId(storedId)
   }, [])
 
+  const instRef = institutionId ? doc(db!, "institutions", institutionId) : null
+  const { data: institution } = useDoc(instRef)
+
   const studentsQuery = useMemo(() => {
-    if (!db || !institutionId) return null
-    return query(collection(db, "students"), where("institutionId", "==", institutionId))
-  }, [db, institutionId])
+    if (!db || !institutionId || !selectedGrade) return null
+    return query(collection(db, "students"), where("institutionId", "==", institutionId), where("gradeLevel", "==", selectedGrade))
+  }, [db, institutionId, selectedGrade])
 
-  const { data: students } = useCollection(studentsQuery)
+  const { data: students, loading: studentsLoading } = useCollection(studentsQuery)
 
-  const handleSync = () => {
-    setIsSyncing(true)
-    setTimeout(() => {
-      setIsSyncing(false)
-      toast({
-        title: "Regional Sync Complete",
-        description: "Local attendance nodes in Ahafo have been updated.",
+  // Fetch existing attendance for the selected date and grade
+  useEffect(() => {
+    async function fetchAttendance() {
+      if (!db || !institutionId || !selectedGrade || !selectedDate) return
+      setIsLoadingHistory(true)
+      try {
+        const q = query(
+          collection(db, "attendance"),
+          where("institutionId", "==", institutionId),
+          where("gradeLevel", "==", selectedGrade),
+          where("date", "==", selectedDate)
+        )
+        const snap = await getDocs(q)
+        const history: Record<string, boolean> = {}
+        snap.docs.forEach(d => {
+          const data = d.data()
+          history[data.studentId] = data.status === "present"
+        })
+        setPresentStudents(history)
+      } catch (error) {
+        console.error("Error loading attendance history:", error)
+      } finally {
+        setIsLoadingHistory(false)
+      }
+    }
+    fetchAttendance()
+  }, [db, institutionId, selectedGrade, selectedDate])
+
+  const availableGrades = useMemo(() => {
+    const category = institution?.gradeLevel || institution?.type || "Basic"
+    if (category.toLowerCase().includes("primary") || category.toLowerCase().includes("basic")) return PRIMARY_GRADES
+    if (category.toLowerCase().includes("jhs")) return JHS_GRADES
+    if (category.toLowerCase().includes("shs")) return SHS_GRADES
+    return [...PRIMARY_GRADES, ...JHS_GRADES, ...SHS_GRADES]
+  }, [institution])
+
+  const handleToggleAttendance = (studentId: string, isPresent: boolean) => {
+    setPresentStudents(prev => ({
+      ...prev,
+      [studentId]: isPresent
+    }))
+  }
+
+  const handleSaveAttendance = async () => {
+    if (!db || !institutionId || !selectedGrade || !selectedDate) return
+    setIsSaving(true)
+    try {
+      const promises = students.map(student => {
+        const status = presentStudents[student.id] ? "present" : "absent"
+        const recordId = `${student.id}_${selectedDate}`
+        return setDoc(doc(db, "attendance", recordId), {
+          studentId: student.id,
+          studentName: `${student.firstName} ${student.lastName}`,
+          gradeLevel: selectedGrade,
+          date: selectedDate,
+          status: status,
+          institutionId: institutionId,
+          updatedAt: serverTimestamp()
+        }, { merge: true })
       })
-    }, 1500)
+
+      await Promise.all(promises)
+      toast({
+        title: "Attendance Recorded",
+        description: `Daily roll call for ${selectedGrade} has been synchronized.`,
+      })
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Save Failed",
+        description: error.message
+      })
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-headline font-bold text-primary">Attendance Insights</h1>
-          <p className="text-muted-foreground">Real-time presence tracking for {students?.length || 0} students.</p>
+          <h1 className="text-3xl font-headline font-bold text-primary">Daily Attendance</h1>
+          <p className="text-muted-foreground">Recording student presence for the academic cycle.</p>
         </div>
-        <Button variant="outline" className="gap-2" onClick={handleSync} disabled={isSyncing}>
-          <RefreshCcw className={`size-4 ${isSyncing ? 'animate-spin' : ''}`} />
-          Refresh Global Node
-        </Button>
+        <div className="flex items-center gap-3">
+          <input 
+            type="date" 
+            value={selectedDate} 
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="h-10 px-3 rounded-md border border-input bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+          <Button 
+            onClick={handleSaveAttendance} 
+            disabled={isSaving || !selectedGrade || students.length === 0}
+            className="gap-2 bg-primary shadow-lg shadow-primary/10 h-11 px-6"
+          >
+            {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+            Save Roll Call
+          </Button>
+        </div>
       </div>
       
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {[
-          { label: "Today's Presence", value: "0%", icon: Activity, detail: "Awaiting Roll Call" },
-          { label: "Active Students", value: students?.length || 0, icon: Users, detail: "Synced Roster" },
-          { label: "Average Arrival", value: "--:--", icon: Clock, detail: "No Data" },
-          { label: "Critical Absences", value: "0", icon: ShieldAlert, detail: "Clear Ledger" }
-        ].map((stat, i) => (
-          <Card key={i} className="border-none shadow-md bg-white">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{stat.label}</CardTitle>
-              <stat.icon className="size-4 text-primary opacity-40" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold font-headline">{stat.value}</div>
-              <p className="text-[10px] text-muted-foreground mt-1 font-medium">{stat.detail}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-4">
         <Card className="border-none shadow-md bg-white">
-          <CardHeader>
-            <CardTitle>Attendance by Department</CardTitle>
-            <CardDescription>Live stats across institutional grade levels.</CardDescription>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Present Count</CardTitle>
           </CardHeader>
-          <CardContent className="h-64 flex flex-col items-center justify-center text-center space-y-4">
-            <div className="w-full max-w-xs space-y-6">
-              {["Junior High Node", "Senior High Node", "Primary Node"].map((node) => (
-                <div key={node} className="space-y-2">
-                  <div className="flex justify-between text-xs font-bold">
-                    <span>{node}</span>
-                    <span className="text-muted-foreground">0%</span>
-                  </div>
-                  <Progress value={0} className="h-1.5" />
-                </div>
-              ))}
+          <CardContent>
+            <div className="text-3xl font-bold font-headline">
+              {Object.values(presentStudents).filter(v => v).length}
             </div>
-            <p className="text-[10px] text-muted-foreground italic mt-4 uppercase tracking-widest font-bold">Connect biometric devices to begin tracking.</p>
+            <p className="text-[10px] text-muted-foreground mt-1 font-medium">Selected Class Node</p>
           </CardContent>
         </Card>
-        
         <Card className="border-none shadow-md bg-white">
-          <CardHeader>
-            <CardTitle>Historical Trends</CardTitle>
-            <CardDescription>30-day attendance variance report.</CardDescription>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Absent Count</CardTitle>
           </CardHeader>
-          <CardContent className="h-64 flex flex-col items-center justify-center text-center p-8 space-y-4">
-            <CalendarIcon className="size-12 text-muted-foreground/10" />
-            <div className="max-w-xs">
-              <p className="text-sm font-bold text-primary">No Historical Records</p>
-              <p className="text-xs text-muted-foreground leading-relaxed mt-2 italic">
-                Trends will appear here once the system has recorded at least 5 days of institutional attendance.
-              </p>
+          <CardContent>
+            <div className="text-3xl font-bold font-headline text-accent">
+              {students.length - Object.values(presentStudents).filter(v => v).length}
             </div>
+            <p className="text-[10px] text-muted-foreground mt-1 font-medium">Requiring Follow-up</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-4">
+        <Card className="md:col-span-1 border-none shadow-md">
+          <CardHeader><CardTitle className="text-sm">Class Selection</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Select Grade Node</Label>
+              <Select onValueChange={setSelectedGrade} value={selectedGrade}>
+                <SelectTrigger><SelectValue placeholder="Grade Node" /></SelectTrigger>
+                <SelectContent>
+                  {availableGrades.map(grade => (
+                    <SelectItem key={grade} value={grade}>{grade}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="md:col-span-3 border-none shadow-md overflow-hidden">
+          <CardHeader className="border-b bg-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Roster Attendance</CardTitle>
+                <CardDescription>
+                  {selectedGrade ? `Enrolled students in ${selectedGrade}` : "Please select a grade node to begin."}
+                </CardDescription>
+              </div>
+              <Badge variant="outline" className="font-mono text-[10px] uppercase">
+                {selectedDate}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            {studentsLoading || isLoadingHistory ? (
+              <div className="p-20 text-center space-y-4">
+                <Loader2 className="size-8 animate-spin mx-auto text-primary" />
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Synchronizing Roster Status...</p>
+              </div>
+            ) : !selectedGrade ? (
+              <div className="p-20 text-center space-y-4">
+                <Users className="size-12 text-primary/10 mx-auto" />
+                <p className="text-sm font-bold text-muted-foreground">Select a grade node to display the student list.</p>
+              </div>
+            ) : students.length === 0 ? (
+              <div className="p-20 text-center italic text-muted-foreground">No students enrolled in this grade node.</div>
+            ) : (
+              <Table>
+                <TableHeader className="bg-muted/30">
+                  <TableRow>
+                    <TableHead className="w-12 text-center">Tick</TableHead>
+                    <TableHead>Student Details</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Identifier</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {students.map((stu: any) => (
+                    <TableRow key={stu.id} className="hover:bg-slate-50 transition-colors">
+                      <TableCell className="text-center">
+                        <Checkbox 
+                          checked={!!presentStudents[stu.id]} 
+                          onCheckedChange={(checked) => handleToggleAttendance(stu.id, !!checked)}
+                          className="size-5"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="size-8 rounded-full bg-muted overflow-hidden flex items-center justify-center border">
+                            {stu.photoUrl ? <img src={stu.photoUrl} className="w-full h-full object-cover" /> : <Users className="size-4 text-muted-foreground" />}
+                          </div>
+                          <span className="font-bold text-primary">{stu.firstName} {stu.lastName}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={presentStudents[stu.id] ? "default" : "secondary"} className={`text-[10px] uppercase font-bold ${presentStudents[stu.id] ? 'bg-green-100 text-green-700 hover:bg-green-100' : 'bg-red-50 text-red-600 hover:bg-red-50'}`}>
+                          {presentStudents[stu.id] ? "Present" : "Absent"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-[10px] text-muted-foreground">
+                        {stu.studentId}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </div>
     </div>
   )
+}
+
+function Label({ children }: { children: React.ReactNode }) {
+  return <label className="text-sm font-bold text-primary">{children}</label>
 }
