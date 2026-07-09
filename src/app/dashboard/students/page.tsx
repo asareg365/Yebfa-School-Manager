@@ -5,16 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, UserPlus, GraduationCap, Trash2, Pencil, Loader2, Upload, IdCard, User, Camera } from "lucide-react"
+import { Search, UserPlus, GraduationCap, Trash2, Pencil, Loader2, Upload, IdCard, User, Camera, X, Check } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection, useDoc } from "@/firebase"
 import { collection, addDoc, query, deleteDoc, doc, where, serverTimestamp, updateDoc } from "firebase/firestore"
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
 import Link from "next/link"
 
 const PRIMARY_GRADES = ["KG 1", "KG 2", "Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6"]
@@ -26,10 +25,15 @@ export default function StudentsPage() {
   const [loading, setLoading] = useState(false)
   const [isEnrollOpen, setIsEnrollOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
-  const [isBulkOpen, setIsBulkOpen] = useState(false)
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [editingStudent, setEditingStudent] = useState<any>(null)
   
+  // Camera/Photo States
+  const [isCameraActive, setIsCameraActive] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const [studentForm, setStudentForm] = useState({
     firstName: "",
     lastName: "",
@@ -42,7 +46,6 @@ export default function StudentsPage() {
     homeAddress: "",
     photoUrl: ""
   })
-  const [bulkData, setBulkData] = useState("")
 
   useEffect(() => {
     const storedId = localStorage.getItem('selected_institution_id')
@@ -78,7 +81,6 @@ export default function StudentsPage() {
     return [...PRIMARY_GRADES, ...JHS_GRADES, ...SHS_GRADES]
   }, [institution])
 
-  // Automatic ID Generation logic
   useEffect(() => {
     if (isEnrollOpen && !studentForm.studentId) {
       const nextNum = studentsData.length + 1;
@@ -86,6 +88,61 @@ export default function StudentsPage() {
       setStudentForm(prev => ({ ...prev, studentId: autoId, gradeLevel: availableGrades[0] }));
     }
   }, [isEnrollOpen, studentsData, availableGrades]);
+
+  // Image Handling Logic
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setStudentForm(prev => ({ ...prev, photoUrl: reader.result as string }))
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const startCamera = async () => {
+    setIsCameraActive(true)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+      }
+    } catch (err) {
+      toast({ variant: "destructive", title: "Camera Error", description: "Could not access camera device." })
+      setIsCameraActive(false)
+    }
+  }
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current
+      const canvas = canvasRef.current
+      const context = canvas.getContext('2d')
+      
+      canvas.width = 400
+      canvas.height = 400
+      
+      // Calculate square crop
+      const size = Math.min(video.videoWidth, video.videoHeight)
+      const x = (video.videoWidth - size) / 2
+      const y = (video.videoHeight - size) / 2
+      
+      context?.drawImage(video, x, y, size, size, 0, 0, 400, 400)
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.8)
+      setStudentForm(prev => ({ ...prev, photoUrl: dataUrl }))
+      stopCamera()
+    }
+  }
+
+  const stopCamera = () => {
+    if (videoRef.current?.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream
+      stream.getTracks().forEach(track => track.stop())
+      videoRef.current.srcObject = null
+    }
+    setIsCameraActive(false)
+  }
 
   const handleEnroll = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -103,9 +160,10 @@ export default function StudentsPage() {
       await addDoc(collection(db, "students"), data)
       toast({
         title: "Student Enrolled",
-        description: `${studentForm.firstName} enrolled with ID: ${studentForm.studentId}`,
+        description: `${studentForm.firstName} enrolled successfully.`,
       })
       setIsEnrollOpen(false)
+      stopCamera()
       setStudentForm({ firstName: "", lastName: "", gender: "Male", gradeLevel: availableGrades[0], studentId: "", dateOfBirth: "", parentName: "", parentPhone: "", homeAddress: "", photoUrl: "" })
     } catch (error: any) {
       toast({ variant: "destructive", title: "Enrollment Failed", description: error.message })
@@ -120,8 +178,9 @@ export default function StudentsPage() {
     setLoading(true)
     try {
       await updateDoc(doc(db, "students", editingStudent.id), studentForm)
-      toast({ title: "Record Updated", description: `${studentForm.firstName}'s details are synchronized.` })
+      toast({ title: "Record Updated", description: "Student details synchronized." })
       setIsEditOpen(false)
+      stopCamera()
       setEditingStudent(null)
     } catch (error: any) {
       toast({ variant: "destructive", title: "Update Failed", description: error.message })
@@ -151,7 +210,7 @@ export default function StudentsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary">Student Directory</h1>
-          <p className="text-muted-foreground">Managing {students.length} enrollment nodes for {institution?.name}.</p>
+          <p className="text-muted-foreground">Managing {students.length} enrollment nodes.</p>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" className="gap-2 h-11" asChild>
@@ -196,11 +255,11 @@ export default function StudentsPage() {
                   <TableRow key={stu.id} className="hover:bg-slate-50">
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <div className="size-8 rounded-full overflow-hidden bg-muted flex items-center justify-center border">
+                        <div className="size-10 rounded-full overflow-hidden bg-muted flex items-center justify-center border">
                           {stu.photoUrl ? (
                             <img src={stu.photoUrl} alt="" className="w-full h-full object-cover" />
                           ) : (
-                            <User className="size-4 text-muted-foreground" />
+                            <User className="size-5 text-muted-foreground" />
                           )}
                         </div>
                         <div className="flex flex-col">
@@ -247,14 +306,66 @@ export default function StudentsPage() {
       </Card>
 
       {/* Enrollment Dialog */}
-      <Dialog open={isEnrollOpen} onOpenChange={setIsEnrollOpen}>
+      <Dialog open={isEnrollOpen} onOpenChange={(val) => {
+        if (!val) stopCamera()
+        setIsEnrollOpen(val)
+      }}>
         <DialogContent className="max-w-2xl">
           <form onSubmit={handleEnroll}>
             <DialogHeader>
               <DialogTitle>Enroll New Student</DialogTitle>
-              <DialogDescription>Assigning to {institution?.name} node.</DialogDescription>
+              <DialogDescription>Capturing node for {institution?.name}.</DialogDescription>
             </DialogHeader>
-            <div className="grid gap-6 py-4 max-h-[70vh] overflow-y-auto">
+            <div className="grid gap-6 py-4 max-h-[75vh] overflow-y-auto pr-2">
+              <div className="flex flex-col items-center gap-4 p-4 border-2 border-dashed rounded-2xl bg-muted/30">
+                <div className="relative size-32 rounded-2xl overflow-hidden bg-background border shadow-sm group">
+                  {studentForm.photoUrl ? (
+                    <img src={studentForm.photoUrl} alt="Preview" className="w-full h-full object-cover" />
+                  ) : isCameraActive ? (
+                    <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover scale-x-[-1]" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <User className="size-12 text-muted-foreground/20" />
+                    </div>
+                  )}
+                  {studentForm.photoUrl && (
+                    <Button 
+                      type="button" 
+                      variant="destructive" 
+                      size="icon" 
+                      className="absolute top-1 right-1 size-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => setStudentForm(prev => ({ ...prev, photoUrl: "" }))}
+                    >
+                      <X className="size-3" />
+                    </Button>
+                  )}
+                </div>
+                
+                <canvas ref={canvasRef} className="hidden" />
+                
+                <div className="flex gap-2">
+                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" className="hidden" />
+                  <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => fileInputRef.current?.click()}>
+                    <Upload className="size-4" /> Upload Photo
+                  </Button>
+                  
+                  {!isCameraActive ? (
+                    <Button type="button" variant="outline" size="sm" className="gap-2" onClick={startCamera}>
+                      <Camera className="size-4" /> Snap Photo
+                    </Button>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Button type="button" variant="default" size="sm" onClick={capturePhoto} className="bg-green-600 hover:bg-green-700">
+                        <Check className="size-4 mr-2" /> Capture
+                      </Button>
+                      <Button type="button" variant="destructive" size="sm" onClick={stopCamera}>
+                        <X className="size-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>First Name</Label>
@@ -278,16 +389,9 @@ export default function StudentsPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Student ID (Auto-Generated)</Label>
+                  <Label>Student ID</Label>
                   <Input required readOnly value={studentForm.studentId} className="bg-muted font-mono" />
                 </div>
-              </div>
-              <div className="space-y-2">
-                 <Label>Photo URL</Label>
-                 <div className="relative">
-                   <Camera className="absolute left-3 top-3 size-4 text-muted-foreground" />
-                   <Input placeholder="https://..." className="pl-10" value={studentForm.photoUrl} onChange={e => setStudentForm({...studentForm, photoUrl: e.target.value})} />
-                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -301,7 +405,7 @@ export default function StudentsPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button type="submit" disabled={loading} className="w-full">
+              <Button type="submit" disabled={loading} className="w-full h-12">
                 {loading ? <Loader2 className="size-4 animate-spin mr-2" /> : <GraduationCap className="size-4 mr-2" />}
                 Complete Enrollment
               </Button>
@@ -311,13 +415,49 @@ export default function StudentsPage() {
       </Dialog>
 
       {/* Edit Dialog */}
-      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+      <Dialog open={isEditOpen} onOpenChange={(val) => {
+        if (!val) {
+          stopCamera()
+          setEditingStudent(null)
+        }
+        setIsEditOpen(val)
+      }}>
         <DialogContent className="max-w-2xl">
           <form onSubmit={handleUpdate}>
             <DialogHeader>
               <DialogTitle>Edit Student Node</DialogTitle>
             </DialogHeader>
-            <div className="grid gap-6 py-4">
+            <div className="grid gap-6 py-4 max-h-[75vh] overflow-y-auto pr-2">
+               <div className="flex flex-col items-center gap-4 p-4 border-2 border-dashed rounded-2xl bg-muted/30">
+                <div className="relative size-32 rounded-2xl overflow-hidden bg-background border shadow-sm group">
+                  {studentForm.photoUrl ? (
+                    <img src={studentForm.photoUrl} alt="Preview" className="w-full h-full object-cover" />
+                  ) : isCameraActive ? (
+                    <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover scale-x-[-1]" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <User className="size-12 text-muted-foreground/20" />
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex gap-2">
+                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" className="hidden" />
+                  <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                    Update Photo
+                  </Button>
+                  {!isCameraActive ? (
+                    <Button type="button" variant="outline" size="sm" onClick={startCamera}>
+                      Use Camera
+                    </Button>
+                  ) : (
+                    <Button type="button" variant="default" size="sm" onClick={capturePhoto} className="bg-green-600">
+                      Capture
+                    </Button>
+                  )}
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>First Name</Label>
@@ -327,10 +467,6 @@ export default function StudentsPage() {
                   <Label>Last Name</Label>
                   <Input required value={studentForm.lastName} onChange={e => setStudentForm({...studentForm, lastName: e.target.value})} />
                 </div>
-              </div>
-              <div className="space-y-2">
-                 <Label>Photo URL</Label>
-                 <Input value={studentForm.photoUrl} onChange={e => setStudentForm({...studentForm, photoUrl: e.target.value})} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -351,7 +487,7 @@ export default function StudentsPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button type="submit" disabled={loading} className="w-full">Save Changes</Button>
+              <Button type="submit" disabled={loading} className="w-full h-12">Save Changes</Button>
             </DialogFooter>
           </form>
         </DialogContent>
