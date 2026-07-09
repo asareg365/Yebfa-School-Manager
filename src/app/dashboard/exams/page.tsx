@@ -6,18 +6,23 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ClipboardList, Printer, Save, Loader2, CheckCircle2, User, Search, BookOpen, GraduationCap } from "lucide-react"
+import { ClipboardList, Printer, Save, Loader2, CheckCircle2, User, Search, BookOpen, GraduationCap, Pencil, X, Camera, Upload, Check } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useFirestore, useCollection, useUser } from "@/firebase"
-import { collection, query, where, addDoc, serverTimestamp, getDocs } from "firebase/firestore"
-import { useState, useMemo, useEffect } from "react"
+import { useFirestore, useCollection, useUser, useDoc } from "@/firebase"
+import { collection, query, where, addDoc, serverTimestamp, getDocs, doc, setDoc, updateDoc } from "firebase/firestore"
+import { useState, useMemo, useEffect, useRef } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+
+const PRIMARY_GRADES = ["KG 1", "KG 2", "Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6"]
+const JHS_GRADES = ["JHS 1", "JHS 2", "JHS 3"]
+const SHS_GRADES = ["SHS 1", "SHS 2", "SHS 3"]
 
 export default function ExaminationCenterPage() {
   const db = useFirestore()
-  const { user } = useUser()
+  const { user, loading: authLoading } = useUser()
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [selectedGrade, setSelectedGrade] = useState("")
   const [selectedSubject, setSelectedSubject] = useState("")
@@ -26,11 +31,31 @@ export default function ExaminationCenterPage() {
   const [classScores, setClassScores] = useState<Record<string, number>>({})
   const [examScores, setExamScores] = useState<Record<string, number>>({})
   const [isSaving, setIsSaving] = useState(false)
+  const [loadingScores, setLoadingScores] = useState(false)
 
   // Individual Report States
   const [reportStudent, setReportStudent] = useState<any>(null)
   const [studentRecords, setStudentRecords] = useState<any[]>([])
   const [loadingRecords, setLoadingRecords] = useState(false)
+
+  // Student Edit States
+  const [isEditOpen, setIsEditOpen] = useState(false)
+  const [editingStudent, setEditingStudent] = useState<any>(null)
+  const [isCameraActive, setIsCameraActive] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [studentForm, setStudentForm] = useState({
+    firstName: "",
+    lastName: "",
+    gender: "Male",
+    gradeLevel: "Primary 1",
+    studentId: "",
+    parentName: "",
+    parentPhone: "",
+    photoUrl: ""
+  })
 
   useEffect(() => {
     const storedId = localStorage.getItem('selected_institution_id')
@@ -40,7 +65,7 @@ export default function ExaminationCenterPage() {
   // Auto-resolve institution for school owners if missing
   useEffect(() => {
     async function resolveInst() {
-      if (!institutionId && user?.email && db) {
+      if (!institutionId && user?.email && db && !authLoading) {
         const q = query(collection(db, "institutions"), where("ownerEmail", "==", user.email))
         const snap = await getDocs(q)
         if (!snap.empty) {
@@ -52,7 +77,42 @@ export default function ExaminationCenterPage() {
       }
     }
     resolveInst()
-  }, [user, db, institutionId])
+  }, [user, db, institutionId, authLoading])
+
+  // Load existing scores when grade/subject changes
+  useEffect(() => {
+    async function fetchExistingScores() {
+      if (!db || !institutionId || !selectedSubject || !selectedGrade) return
+      setLoadingScores(true)
+      try {
+        const q = query(
+          collection(db, "exam_records"),
+          where("institutionId", "==", institutionId),
+          where("subjectId", "==", selectedSubject),
+          where("gradeLevel", "==", selectedGrade),
+          where("academicYear", "==", "2026"),
+          where("term", "==", "Term 2")
+        )
+        const snap = await getDocs(q)
+        const newClassScores: Record<string, number> = {}
+        const newExamScores: Record<string, number> = {}
+        
+        snap.docs.forEach(d => {
+          const data = d.data()
+          newClassScores[data.studentId] = data.classScore
+          newExamScores[data.studentId] = data.examScore
+        })
+        
+        setClassScores(newClassScores)
+        setExamScores(newExamScores)
+      } catch (error) {
+        console.error("Error loading existing scores:", error)
+      } finally {
+        setLoadingScores(false)
+      }
+    }
+    fetchExistingScores()
+  }, [db, institutionId, selectedSubject, selectedGrade])
 
   const studentsQuery = useMemo(() => {
     if (!db || !institutionId || !selectedGrade) return null;
@@ -66,6 +126,17 @@ export default function ExaminationCenterPage() {
 
   const { data: students, loading: studentsLoading } = useCollection(studentsQuery)
   const { data: subjects } = useCollection(subjectsQuery)
+
+  const instRef = institutionId ? doc(db!, "institutions", institutionId) : null
+  const { data: institution } = useDoc(instRef)
+
+  const availableGrades = useMemo(() => {
+    const category = institution?.gradeLevel || institution?.type || "Basic"
+    if (category.toLowerCase().includes("primary") || category.toLowerCase().includes("basic")) return PRIMARY_GRADES
+    if (category.toLowerCase().includes("jhs")) return JHS_GRADES
+    if (category.toLowerCase().includes("shs")) return SHS_GRADES
+    return [...PRIMARY_GRADES, ...JHS_GRADES, ...SHS_GRADES]
+  }, [institution])
 
   const filteredSubjects = useMemo(() => {
     if (!selectedGrade) return subjects;
@@ -100,8 +171,10 @@ export default function ExaminationCenterPage() {
       const promises = studentsToSave.map((student) => {
         const cScore = classScores[student.id] || 0;
         const eScore = examScores[student.id] || 0;
+        // Use a consistent ID to prevent duplicates (student_subject_term_year)
+        const recordId = `${student.id}_${selectedSubject}_2026_Term2`;
         
-        return addDoc(collection(db, "exam_records"), {
+        return setDoc(doc(db, "exam_records", recordId), {
           studentId: student.id,
           studentName: `${student.firstName} ${student.lastName}`,
           subjectId: selectedSubject,
@@ -113,12 +186,12 @@ export default function ExaminationCenterPage() {
           term: "Term 2",
           academicYear: "2026",
           institutionId,
-          createdAt: serverTimestamp()
-        });
+          updatedAt: serverTimestamp()
+        }, { merge: true });
       });
 
       await Promise.all(promises);
-      toast({ title: "Scores Recorded", description: "Data synchronized successfully." });
+      toast({ title: "Scores Recorded", description: "Batch data synchronized successfully." });
     } catch (error: any) {
       toast({ variant: "destructive", title: "Sync Failed", description: error.message });
     } finally {
@@ -146,12 +219,91 @@ export default function ExaminationCenterPage() {
     }
   }
 
+  // Student Editing Logic
+  const handleEditClick = (student: any) => {
+    setEditingStudent(student)
+    setStudentForm({
+      firstName: student.firstName || "",
+      lastName: student.lastName || "",
+      gender: student.gender || "Male",
+      gradeLevel: student.gradeLevel || availableGrades[0],
+      studentId: student.studentId || "",
+      parentName: student.parentName || "",
+      parentPhone: student.parentPhone || "",
+      photoUrl: student.photoUrl || ""
+    })
+    setIsEditOpen(true)
+  }
+
+  const handleUpdateStudent = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!db || !editingStudent) return
+    setIsSaving(true)
+    try {
+      await updateDoc(doc(db, "students", editingStudent.id), studentForm)
+      toast({ title: "Profile Updated", description: `${studentForm.firstName}'s record synchronized.` })
+      setIsEditOpen(false)
+      setEditingStudent(null)
+      if (reportStudent?.id === editingStudent.id) {
+        setReportStudent({ ...reportStudent, ...studentForm })
+      }
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Update Failed", description: error.message })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onloadend = () => setStudentForm(prev => ({ ...prev, photoUrl: reader.result as string }))
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const startCamera = async () => {
+    setIsCameraActive(true)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+      if (videoRef.current) videoRef.current.srcObject = stream
+    } catch (err) {
+      toast({ variant: "destructive", title: "Camera Error", description: "Access denied." })
+      setIsCameraActive(false)
+    }
+  }
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current
+      const canvas = canvasRef.current
+      const context = canvas.getContext('2d')
+      canvas.width = 400
+      canvas.height = 400
+      const size = Math.min(video.videoWidth, video.videoHeight)
+      const x = (video.videoWidth - size) / 2
+      const y = (video.videoHeight - size) / 2
+      context?.drawImage(video, x, y, size, size, 0, 0, 400, 400)
+      setStudentForm(prev => ({ ...prev, photoUrl: canvas.toDataURL('image/jpeg', 0.8) }))
+      stopCamera()
+    }
+  }
+
+  const stopCamera = () => {
+    if (videoRef.current?.srcObject) {
+      (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop())
+      videoRef.current.srcObject = null
+    }
+    setIsCameraActive(false)
+  }
+
   const uniqueGrades = useMemo(() => {
     const grades = new Set(subjects.map(s => s.gradeLevel));
     return Array.from(grades).sort();
   }, [subjects]);
 
-  if (!institutionId) return (
+  if (!institutionId && !authLoading) return (
     <div className="p-20 text-center space-y-4">
       <Loader2 className="size-10 animate-spin mx-auto text-primary" />
       <p className="font-bold text-muted-foreground uppercase tracking-widest">Resolving Academic Node...</p>
@@ -220,8 +372,11 @@ export default function ExaminationCenterPage() {
                     <ClipboardList className="size-12 text-primary/10 mx-auto" />
                     <p className="text-sm font-bold text-muted-foreground">Select a grade node to begin capture.</p>
                   </div>
-                ) : studentsLoading ? (
-                  <div className="p-20 text-center"><Loader2 className="size-8 animate-spin mx-auto text-primary" /></div>
+                ) : (studentsLoading || loadingScores) ? (
+                  <div className="p-20 text-center space-y-4">
+                    <Loader2 className="size-8 animate-spin mx-auto text-primary" />
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Synchronizing Roster...</p>
+                  </div>
                 ) : students.length === 0 ? (
                   <div className="p-20 text-center italic text-muted-foreground">No students enrolled in this grade node.</div>
                 ) : (
@@ -233,15 +388,21 @@ export default function ExaminationCenterPage() {
                         <TableHead className="w-32">Exam Score (70%)</TableHead>
                         <TableHead className="w-24">Total (%)</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {students.map((stu: any) => (
                         <TableRow key={stu.id}>
                           <TableCell>
-                            <div className="flex flex-col">
-                              <span className="text-[10px] font-mono font-bold text-muted-foreground">{stu.studentId}</span>
-                              <span className="font-bold text-primary">{stu.firstName} {stu.lastName}</span>
+                            <div className="flex items-center gap-3">
+                              <div className="size-8 rounded-full bg-muted overflow-hidden flex items-center justify-center border shrink-0">
+                                {stu.photoUrl ? <img src={stu.photoUrl} className="w-full h-full object-cover" /> : <User className="size-4 text-muted-foreground" />}
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-[10px] font-mono font-bold text-muted-foreground">{stu.studentId}</span>
+                                <span className="font-bold text-primary">{stu.firstName} {stu.lastName}</span>
+                              </div>
                             </div>
                           </TableCell>
                           <TableCell>
@@ -274,6 +435,11 @@ export default function ExaminationCenterPage() {
                               <Badge variant="outline" className="text-muted-foreground italic">Pending</Badge>
                             )}
                           </TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => handleEditClick(stu)}>
+                              <Pencil className="size-3.5" />
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -300,10 +466,15 @@ export default function ExaminationCenterPage() {
                      <button 
                        key={s.id} 
                        onClick={() => fetchStudentRecords(s)}
-                       className={`w-full text-left p-4 hover:bg-slate-50 transition-colors ${reportStudent?.id === s.id ? 'bg-primary/5 border-l-4 border-primary' : ''}`}
+                       className={`w-full text-left p-4 hover:bg-slate-50 transition-colors flex items-center gap-3 ${reportStudent?.id === s.id ? 'bg-primary/5 border-l-4 border-primary' : ''}`}
                      >
-                       <p className="text-xs font-bold text-primary uppercase">{s.firstName} {s.lastName}</p>
-                       <p className="text-[10px] text-muted-foreground">{s.gradeLevel} • {s.studentId}</p>
+                       <div className="size-8 rounded-full bg-muted overflow-hidden flex items-center justify-center border shrink-0">
+                          {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover" /> : <User className="size-4 text-muted-foreground" />}
+                       </div>
+                       <div>
+                        <p className="text-xs font-bold text-primary uppercase">{s.firstName} {s.lastName}</p>
+                        <p className="text-[10px] text-muted-foreground">{s.gradeLevel} • {s.studentId}</p>
+                       </div>
                      </button>
                    ))}
                  </div>
@@ -317,9 +488,14 @@ export default function ExaminationCenterPage() {
                   <CardDescription>Detailed academic summary for Term 2, 2026.</CardDescription>
                 </div>
                 {reportStudent && (
-                  <Button variant="outline" className="gap-2" onClick={() => window.print()}>
-                    <Printer className="size-4" /> Print Report Card
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="outline" className="gap-2" onClick={() => handleEditClick(reportStudent)}>
+                      <Pencil className="size-4" /> Edit Profile
+                    </Button>
+                    <Button variant="outline" className="gap-2" onClick={() => window.print()}>
+                      <Printer className="size-4" /> Print Report Card
+                    </Button>
+                  </div>
                 )}
               </CardHeader>
               <CardContent className="p-0 min-h-[400px]">
@@ -335,9 +511,14 @@ export default function ExaminationCenterPage() {
                 ) : (
                   <div className="p-8 space-y-8">
                     <div className="flex justify-between items-start">
-                      <div className="space-y-1">
-                        <h2 className="text-2xl font-bold text-primary">{reportStudent.firstName} {reportStudent.lastName}</h2>
-                        <p className="text-sm text-muted-foreground font-bold uppercase tracking-wider">{reportStudent.studentId} • {reportStudent.gradeLevel}</p>
+                      <div className="flex gap-4">
+                        <div className="size-20 rounded-2xl bg-muted overflow-hidden border-2 border-primary/20 flex items-center justify-center shrink-0">
+                          {reportStudent.photoUrl ? <img src={reportStudent.photoUrl} className="w-full h-full object-cover" /> : <User className="size-10 text-primary/10" />}
+                        </div>
+                        <div className="space-y-1">
+                          <h2 className="text-2xl font-bold text-primary">{reportStudent.firstName} {reportStudent.lastName}</h2>
+                          <p className="text-sm text-muted-foreground font-bold uppercase tracking-wider">{reportStudent.studentId} • {reportStudent.gradeLevel}</p>
+                        </div>
                       </div>
                       <Badge className="bg-primary text-white text-[10px] uppercase px-3 py-1">Term 2, 2026</Badge>
                     </div>
@@ -376,6 +557,95 @@ export default function ExaminationCenterPage() {
         </TabsContent>
       </Tabs>
 
+      {/* Edit Student Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={(val) => {
+        if (!val) {
+          stopCamera()
+          setEditingStudent(null)
+        }
+        setIsEditOpen(val)
+      }}>
+        <DialogContent className="max-w-2xl">
+          <form onSubmit={handleUpdateStudent}>
+            <DialogHeader>
+              <DialogTitle>Edit Student Record</DialogTitle>
+              <DialogDescription>Updating academic and personal identity node.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-6 py-4 max-h-[75vh] overflow-y-auto pr-2">
+               <div className="flex flex-col items-center gap-4 p-4 border-2 border-dashed rounded-2xl bg-muted/30">
+                <div className="relative size-32 rounded-2xl overflow-hidden bg-background border shadow-sm group">
+                  {studentForm.photoUrl ? (
+                    <img src={studentForm.photoUrl} alt="Preview" className="w-full h-full object-cover" />
+                  ) : isCameraActive ? (
+                    <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover scale-x-[-1]" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <User className="size-12 text-muted-foreground/20" />
+                    </div>
+                  )}
+                  {studentForm.photoUrl && (
+                    <Button 
+                      type="button" 
+                      variant="destructive" 
+                      size="icon" 
+                      className="absolute top-1 right-1 size-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => setStudentForm(prev => ({ ...prev, photoUrl: "" }))}
+                    >
+                      <X className="size-3" />
+                    </Button>
+                  )}
+                </div>
+                
+                <canvas ref={canvasRef} className="hidden" />
+                
+                <div className="flex gap-2">
+                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" className="hidden" />
+                  <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => fileInputRef.current?.click()}>
+                    <Upload className="size-4" /> Upload
+                  </Button>
+                  {!isCameraActive ? (
+                    <Button type="button" variant="outline" size="sm" className="gap-2" onClick={startCamera}>
+                      <Camera className="size-4" /> Camera
+                    </Button>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Button type="button" variant="default" size="sm" onClick={capturePhoto} className="bg-green-600">
+                        Capture
+                      </Button>
+                      <Button type="button" variant="destructive" size="sm" onClick={stopCamera}>
+                        <X className="size-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2"><Label>First Name</Label><Input required value={studentForm.firstName} onChange={e => setStudentForm({...studentForm, firstName: e.target.value})} /></div>
+                <div className="space-y-2"><Label>Last Name</Label><Input required value={studentForm.lastName} onChange={e => setStudentForm({...studentForm, lastName: e.target.value})} /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Grade Level</Label>
+                  <Select onValueChange={v => setStudentForm({...studentForm, gradeLevel: v})} value={studentForm.gradeLevel}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {availableGrades.map(grade => <SelectItem key={grade} value={grade}>{grade}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2"><Label>Student ID</Label><Input required readOnly value={studentForm.studentId} className="bg-muted font-mono" /></div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={isSaving} className="w-full h-12">
+                {isSaving ? <Loader2 className="animate-spin mr-2" /> : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* Print View Wrapper */}
       <div className="hidden print:block bg-white p-12 space-y-10">
         <div className="flex justify-between items-start border-b-2 border-primary pb-8">
@@ -395,22 +665,27 @@ export default function ExaminationCenterPage() {
 
         {reportStudent && (
           <>
-            <div className="grid grid-cols-3 gap-10">
-              <div className="p-6 bg-slate-50 rounded-2xl border">
-                <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Student Name</p>
-                <p className="text-lg font-bold text-primary">{reportStudent.firstName} {reportStudent.lastName}</p>
+            <div className="grid grid-cols-4 gap-6 items-center">
+              <div className="size-32 rounded-2xl bg-muted overflow-hidden border-2 border-primary/20 flex items-center justify-center shrink-0">
+                {reportStudent.photoUrl ? <img src={reportStudent.photoUrl} className="w-full h-full object-cover" /> : <User className="size-16 text-primary/10" />}
               </div>
-              <div className="p-6 bg-slate-50 rounded-2xl border">
-                <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Student ID</p>
-                <p className="text-lg font-mono font-bold text-accent">{reportStudent.studentId}</p>
-              </div>
-              <div className="p-6 bg-slate-50 rounded-2xl border">
-                <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Grade Level</p>
-                <p className="text-lg font-bold text-primary">{reportStudent.gradeLevel}</p>
+              <div className="col-span-3 grid grid-cols-3 gap-6">
+                <div className="p-4 bg-slate-50 rounded-2xl border">
+                  <p className="text-[9px] uppercase font-bold text-muted-foreground mb-1">Student Name</p>
+                  <p className="text-md font-bold text-primary">{reportStudent.firstName} {reportStudent.lastName}</p>
+                </div>
+                <div className="p-4 bg-slate-50 rounded-2xl border">
+                  <p className="text-[9px] uppercase font-bold text-muted-foreground mb-1">Student ID</p>
+                  <p className="text-md font-mono font-bold text-accent">{reportStudent.studentId}</p>
+                </div>
+                <div className="p-4 bg-slate-50 rounded-2xl border">
+                  <p className="text-[9px] uppercase font-bold text-muted-foreground mb-1">Grade Level</p>
+                  <p className="text-md font-bold text-primary">{reportStudent.gradeLevel}</p>
+                </div>
               </div>
             </div>
 
-            <Table className="border-t border-b">
+            <Table className="border-t border-b mt-10">
               <TableHeader>
                 <TableRow className="bg-slate-100">
                   <TableHead className="font-bold py-4">Academic Subject</TableHead>
