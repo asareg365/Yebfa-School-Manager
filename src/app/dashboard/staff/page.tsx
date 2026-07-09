@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Users, Mail, UserCog, Search, Trash2, Pencil, Loader2, Upload, UserPlus, Phone, Calendar as CalendarIcon, BookOpen, GraduationCap, Eye, FileText, Sparkles, Copy, Check } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { toast } from "@/hooks/use-toast"
-import { useFirestore, useCollection } from "@/firebase"
+import { useFirestore, useCollection, useUser } from "@/firebase"
 import { collection, addDoc, query, deleteDoc, doc, where, serverTimestamp, updateDoc } from "firebase/firestore"
 import { useState, useMemo, useEffect } from "react"
 import { Badge } from "@/components/ui/badge"
@@ -35,10 +35,10 @@ const DEFAULT_DEPARTMENTS = [
 
 export default function StaffPage() {
   const db = useFirestore()
+  const { user, loading: authLoading } = useUser()
   const [loading, setLoading] = useState(false)
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
-  const [isBulkOpen, setIsBulkOpen] = useState(false)
   const [isViewOpen, setIsViewOpen] = useState(false)
   const [selectedStaff, setSelectedStaff] = useState<any>(null)
   const [editingStaff, setEditingStaff] = useState<any>(null)
@@ -59,32 +59,31 @@ export default function StaffPage() {
     assignedClasses: "",
     assignedSubjects: ""
   })
-  const [bulkData, setBulkData] = useState("")
 
   useEffect(() => {
     const storedId = localStorage.getItem('selected_institution_id')
     const storedName = localStorage.getItem('selected_institution_name')
-    setInstitutionId(storedId)
+    if (storedId) setInstitutionId(storedId)
     if (storedName) setInstitutionName(storedName)
   }, [])
 
   const staffQuery = useMemo(() => {
-    if (!db || !institutionId) return null;
+    if (!db || !institutionId || authLoading || !user) return null;
     return query(
       collection(db, "staff"),
       where("institutionId", "==", institutionId)
     );
-  }, [db, institutionId]);
+  }, [db, institutionId, authLoading, user]);
 
-  const { data: staffData, loading: dataLoading } = useCollection(staffQuery)
+  const { data: rawStaff, loading: dataLoading } = useCollection(staffQuery)
 
   const staff = useMemo(() => {
-    return [...staffData].sort((a, b) => {
+    return [...rawStaff].sort((a, b) => {
       const dateA = a.createdAt?.toMillis?.() || Date.now();
       const dateB = b.createdAt?.toMillis?.() || Date.now();
       return dateB - dateA;
     });
-  }, [staffData]);
+  }, [rawStaff]);
 
   const handleAddStaff = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -177,11 +176,13 @@ export default function StaffPage() {
     }
   }
 
+  if (authLoading) return <div className="p-12 text-center animate-pulse">Synchronizing Node...</div>
+
   if (!institutionId) return (
     <div className="p-12 text-center space-y-4">
       <h2 className="text-xl font-bold">No Institution Selected</h2>
       <p className="text-muted-foreground">Please select an institution from the Super Admin hub.</p>
-      <Button asChild><a href="/admin">Go to Admin Hub</a></Button>
+      <Button asChild><Link href="/admin">Go to Admin Hub</Link></Button>
     </div>
   )
 
@@ -193,10 +194,6 @@ export default function StaffPage() {
           <p className="text-muted-foreground">Manage institutional workforce and personnel links.</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" className="gap-2 h-11 px-6" onClick={() => setIsBulkOpen(true)}>
-            <Upload className="size-4" /> Bulk Import
-          </Button>
-
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2 bg-primary hover:bg-primary/90 h-11 px-6 shadow-lg shadow-primary/10">
@@ -246,16 +243,6 @@ export default function StaffPage() {
                       <Input type="tel" required value={staffForm.phoneNumber} onChange={(e) => setStaffForm({...staffForm, phoneNumber: e.target.value})} />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Classes</Label>
-                      <Input placeholder="e.g. SHS 1" value={staffForm.assignedClasses} onChange={(e) => setStaffForm({...staffForm, assignedClasses: e.target.value})} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Subjects</Label>
-                      <Input placeholder="e.g. Math" value={staffForm.assignedSubjects} onChange={(e) => setStaffForm({...staffForm, assignedSubjects: e.target.value})} />
-                    </div>
-                  </div>
                 </div>
                 <DialogFooter>
                   <Button type="submit" disabled={loading} className="w-full h-11">
@@ -277,7 +264,12 @@ export default function StaffPage() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          {staff.length === 0 && !dataLoading ? (
+          {dataLoading ? (
+            <div className="p-24 text-center">
+              <Loader2 className="size-8 animate-spin mx-auto text-primary" />
+              <p className="mt-4 text-sm text-muted-foreground">Syncing Staff Node...</p>
+            </div>
+          ) : staff.length === 0 ? (
             <div className="h-80 flex flex-col items-center justify-center p-12 text-center">
               <UserCog className="size-12 text-primary/10 mb-4" />
               <p className="text-muted-foreground font-bold">No Staff Members Found</p>
@@ -335,7 +327,6 @@ export default function StaffPage() {
         </CardContent>
       </Card>
 
-      {/* Edit Staff Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="max-w-2xl">
           <form onSubmit={handleUpdateStaff}>
@@ -350,10 +341,6 @@ export default function StaffPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2"><Label>Email</Label><Input type="email" required value={staffForm.email} onChange={e => setStaffForm({...staffForm, email: e.target.value})} /></div>
                 <div className="space-y-2"><Label>Phone</Label><Input required value={staffForm.phoneNumber} onChange={e => setStaffForm({...staffForm, phoneNumber: e.target.value})} /></div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Classes</Label><Input value={staffForm.assignedClasses} onChange={e => setStaffForm({...staffForm, assignedClasses: e.target.value})} /></div>
-                <div className="space-y-2"><Label>Subjects</Label><Input value={staffForm.assignedSubjects} onChange={e => setStaffForm({...staffForm, assignedSubjects: e.target.value})} /></div>
               </div>
             </div>
             <DialogFooter>
@@ -382,7 +369,7 @@ export default function StaffPage() {
                 </div>
                 {generatedLetter ? (
                   <div className="relative p-6 bg-white rounded-xl border leading-relaxed text-sm font-serif">
-                    <Button variant="ghost" size="icon" className="absolute top-2 right-2" onClick={handleCopyLetter}>{copied ? <Check /> : <Copy />}</Button>
+                    <Button variant="ghost" size="icon" className="absolute top-2 right-2" onClick={handleCopyLetter}>{copied ? <Check className="size-4" /> : <Copy className="size-4" />}</Button>
                     <pre className="whitespace-pre-wrap">{generatedLetter}</pre>
                   </div>
                 ) : <p className="text-xs text-center italic text-muted-foreground">Click generate to create an AI-powered appointment letter.</p>}

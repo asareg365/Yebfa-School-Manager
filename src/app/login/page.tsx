@@ -22,31 +22,33 @@ export default function LoginPage() {
   const [configError, setConfigError] = useState(false)
   const router = useRouter()
   const auth = useAuth()
-  const { user } = useUser()
+  const { user, loading: authLoading } = useUser()
 
-  const isSuperAdmin = (email: string | null) => 
+  const isSuperAdminEmail = (email: string | null) => 
     email === 'asareg365@gmail.com' || email === 'frankyeb@gmail.com'
 
   useEffect(() => {
     if (firebaseConfig.apiKey === "REPLACEME" || !firebaseConfig.apiKey) {
       setConfigError(true)
     }
-    if (user) {
-      const destination = isSuperAdmin(user.email) ? "/admin" : "/dashboard"
+    if (!authLoading && user) {
+      const destination = isSuperAdminEmail(user.email) ? "/admin" : "/dashboard"
       router.replace(destination)
     }
-  }, [user, router])
+  }, [user, authLoading, router])
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!auth || configError) return
     setLoading(true)
+    
     try {
       const credential = await signInWithEmailAndPassword(auth, email, password)
-      const destination = isSuperAdmin(credential.user.email) ? "/admin" : "/dashboard"
+      const destination = isSuperAdminEmail(credential.user.email) ? "/admin" : "/dashboard"
       router.replace(destination)
     } catch (error: any) {
-      if ((error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') && isSuperAdmin(email)) {
+      // If user doesn't exist and it's a super admin email, try to register them
+      if ((error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential' || error.code === 'auth/invalid-email') && isSuperAdminEmail(email)) {
         try {
           await createUserWithEmailAndPassword(auth, email, password)
           router.replace("/admin")
@@ -55,8 +57,10 @@ export default function LoginPage() {
           toast({
             variant: "destructive",
             title: "Access Error",
-            description: regError.message,
+            description: regError.message || "Failed to provision administrator account.",
           })
+          setLoading(false)
+          return
         }
       }
       
@@ -76,7 +80,7 @@ export default function LoginPage() {
     try {
       const provider = new GoogleAuthProvider()
       const credential = await signInWithPopup(auth, provider)
-      const destination = isSuperAdmin(credential.user.email) ? "/admin" : "/dashboard"
+      const destination = isSuperAdminEmail(credential.user.email) ? "/admin" : "/dashboard"
       router.replace(destination)
     } catch (error: any) {
       toast({
@@ -88,6 +92,12 @@ export default function LoginPage() {
       setLoading(false)
     }
   }
+
+  if (authLoading) return (
+    <div className="min-h-screen flex items-center justify-center bg-muted/30">
+      <Loader2 className="size-8 animate-spin text-primary" />
+    </div>
+  )
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-muted/30">
@@ -107,7 +117,7 @@ export default function LoginPage() {
             </div>
           </div>
           <CardDescription>
-            Secure access to your management ecosystem.
+            Secure access to your institutional ecosystem.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -116,15 +126,15 @@ export default function LoginPage() {
               <AlertCircle className="h-4 w-4" />
               <AlertTitle className="font-bold">Configuration Required</AlertTitle>
               <AlertDescription className="text-xs">
-                To enable login, please click the <strong>Firebase</strong> icon in the Studio sidebar and link a project.
+                Firebase is not configured. Please link a project in the sidebar.
               </AlertDescription>
             </Alert>
           ) : (
             <Alert className="bg-blue-50 border-blue-200 text-blue-800">
               <Info className="h-4 w-4" />
-              <AlertTitle className="text-xs font-bold uppercase tracking-wider">Authentication Node</AlertTitle>
+              <AlertTitle className="text-xs font-bold uppercase tracking-wider">Secure Access</AlertTitle>
               <AlertDescription className="text-xs">
-                Logins are role-aware. Super Admins will be routed to the Global Hub.
+                Logins are role-aware. Enter your registered credentials below.
               </AlertDescription>
             </Alert>
           )}
@@ -173,18 +183,11 @@ export default function LoginPage() {
           <Button variant="outline" className="w-full h-11" onClick={handleGoogleLogin} disabled={loading || configError}>
             Continue with Google
           </Button>
-
-          <div className="p-4 bg-primary/5 rounded-lg text-xs space-y-1 border border-primary/10">
-            <p className="font-bold text-primary flex items-center gap-2">
-              <Info className="size-3" /> System Access
-            </p>
-            <p className="text-muted-foreground">Please use the credentials provided by your regional administrator to access the system nodes.</p>
-          </div>
         </CardContent>
         <CardFooter className="bg-muted/30 p-4">
           <Button variant="link" className="w-full gap-2 text-primary font-bold" asChild>
             <Link href="/register/institution">
-              New Institution Registration <ArrowRight className="size-4" />
+              Register New Institution <ArrowRight className="size-4" />
             </Link>
           </Button>
         </CardFooter>

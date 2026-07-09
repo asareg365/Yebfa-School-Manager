@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -11,11 +12,14 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
+    // If query is null, we assume we're waiting for auth/context
     if (!query) {
       setLoading(false);
+      setData([]);
       return;
     }
 
+    setLoading(true);
     const unsubscribe = onSnapshot(
       query,
       (snapshot: QuerySnapshot<T>) => {
@@ -25,11 +29,13 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
         }));
         setData(items);
         setLoading(false);
+        setError(null);
       },
       async (err: any) => {
+        // Only emit error if it's truly a permission issue and not a transient state
         if (err.code === 'permission-denied') {
           const permissionError = new FirestorePermissionError({
-            path: 'Query', // For collections, provide generic identifier or path if available
+            path: 'Query', 
             operation: 'list',
           });
           errorEmitter.emit('permission-error', permissionError);
