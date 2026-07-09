@@ -2,7 +2,7 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Pencil, Loader2, CheckCircle2, ArrowRight, Layers } from "lucide-react"
+import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Pencil, Loader2, CheckCircle2, ArrowRight, Layers, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -11,16 +11,18 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import Link from "next/link"
-import { useUser, useFirestore, useCollection } from "@/firebase"
+import { useUser, useFirestore, useCollection, useAuth } from "@/firebase"
 import { useRouter } from "next/navigation"
 import { useEffect, useState, useMemo } from "react"
 import { toast } from "@/hooks/use-toast"
 import { collection, addDoc, serverTimestamp, query, deleteDoc, doc, updateDoc } from "firebase/firestore"
+import { signOut } from "firebase/auth"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
 
 export default function AdminPortal() {
   const { user, loading: authLoading } = useUser()
+  const auth = useAuth()
   const db = useFirestore()
   const router = useRouter()
   
@@ -59,6 +61,17 @@ export default function AdminPortal() {
       router.replace("/dashboard")
     }
   }, [user, authLoading, isSuperAdmin, router])
+
+  const handleLogout = async () => {
+    if (auth) {
+      await signOut(auth)
+      router.push("/login")
+      toast({
+        title: "Session Terminated",
+        description: "Super Admin node signed out successfully.",
+      })
+    }
+  }
 
   const handleManualProvision = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -173,7 +186,15 @@ export default function AdminPortal() {
           <h1 className="text-4xl font-headline font-bold text-primary tracking-tight">Global Enterprise Hub</h1>
           <p className="text-muted-foreground text-sm">Strategic multi-tenant node management for Yebfa School Manager.</p>
         </div>
-        <div className="flex gap-4">
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="ghost" 
+            className="h-11 gap-2 text-muted-foreground hover:text-destructive transition-colors font-bold" 
+            onClick={handleLogout}
+          >
+            <LogOut className="size-4" /> Sign Out
+          </Button>
+          
           <Dialog open={isSelectDialogOpen} onOpenChange={setIsSelectDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" className="h-11 border-primary/20 bg-white">
