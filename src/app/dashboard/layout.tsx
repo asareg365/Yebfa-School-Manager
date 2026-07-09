@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -7,41 +6,11 @@ import { useUser } from "@/firebase";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/dashboard/app-sidebar";
 import { Separator } from "@/components/ui/separator";
-import { Bell, Search, Loader2, Info, AlertTriangle, CheckCircle2, Trash2 } from "lucide-react";
+import { Bell, Search, Loader2, Info, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
-const INITIAL_NOTIFICATIONS = [
-  {
-    id: '1',
-    title: 'New Policy Updated',
-    description: 'The 2026 Academic guidelines have been updated.',
-    time: '2 hours ago',
-    type: 'info',
-    icon: Info,
-    color: 'bg-blue-100 text-blue-600'
-  },
-  {
-    id: '2',
-    title: 'Fee Overdue Alert',
-    description: '15 students are past the Term 2 deadline.',
-    time: '5 hours ago',
-    type: 'warning',
-    icon: AlertTriangle,
-    color: 'bg-orange-100 text-orange-600'
-  },
-  {
-    id: '3',
-    title: 'Sync Complete',
-    description: 'Global node sync for Ahafo region finished.',
-    time: 'Yesterday',
-    type: 'success',
-    icon: CheckCircle2,
-    color: 'bg-green-100 text-green-600'
-  }
-];
 
 export default function DashboardLayout({
   children,
@@ -50,9 +19,47 @@ export default function DashboardLayout({
 }) {
   const { user, loading } = useUser();
   const router = useRouter();
-  const [hasNotifications, setHasNotifications] = useState(true);
-  const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
+  const [hasNotifications, setHasNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
   const [institutionName, setInstitutionName] = useState<string>("Institution Hub");
+
+  // Load notifications and cleared status from storage
+  useEffect(() => {
+    const isCleared = localStorage.getItem('notifications_cleared_v1') === 'true';
+    if (!isCleared) {
+      const initial = [
+        {
+          id: '1',
+          title: 'New Policy Updated',
+          description: 'The 2026 Academic guidelines have been updated.',
+          time: '2 hours ago',
+          type: 'info',
+          icon: Info,
+          color: 'bg-blue-100 text-blue-600'
+        },
+        {
+          id: '2',
+          title: 'Fee Overdue Alert',
+          description: '15 students are past the Term 2 deadline.',
+          time: '5 hours ago',
+          type: 'warning',
+          icon: AlertTriangle,
+          color: 'bg-orange-100 text-orange-600'
+        },
+        {
+          id: '3',
+          title: 'Sync Complete',
+          description: 'Global node sync for Ahafo region finished.',
+          time: 'Yesterday',
+          type: 'success',
+          icon: CheckCircle2,
+          color: 'bg-green-100 text-green-600'
+        }
+      ];
+      setNotifications(initial);
+      setHasNotifications(true);
+    }
+  }, []);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -60,7 +67,7 @@ export default function DashboardLayout({
     }
   }, [user, loading, router]);
 
-  // Efficient local storage polling
+  // Efficient local storage polling for institution name
   useEffect(() => {
     const updateName = () => {
       const storedName = localStorage.getItem('selected_institution_name');
@@ -70,7 +77,7 @@ export default function DashboardLayout({
     };
     
     updateName();
-    const interval = setInterval(updateName, 1000);
+    const interval = setInterval(updateName, 2000);
     return () => clearInterval(interval);
   }, [institutionName]);
 
@@ -81,6 +88,7 @@ export default function DashboardLayout({
   const handleClearAll = useCallback(() => {
     setNotifications([]);
     setHasNotifications(false);
+    localStorage.setItem('notifications_cleared_v1', 'true');
   }, []);
 
   if (loading) {
