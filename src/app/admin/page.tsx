@@ -41,13 +41,13 @@ export default function AdminPortal() {
   const isSuperAdmin = user?.email === 'asareg365@gmail.com' || user?.email === 'frankyeb@gmail.com'
 
   const institutionsQuery = useMemo(() => {
-    if (!db) return null;
+    // Only run query if db exists and user is confirmed as Super Admin
+    if (!db || authLoading || !isSuperAdmin) return null;
     return query(collection(db, "institutions"));
-  }, [db]);
+  }, [db, isSuperAdmin, authLoading]);
 
   const { data: rawInstitutions, loading: dataLoading } = useCollection(institutionsQuery)
 
-  // Sort institutions client-side
   const institutions = useMemo(() => {
     return [...rawInstitutions].sort((a, b) => {
       const dateA = a.createdAt?.toMillis?.() || Date.now();
@@ -95,24 +95,26 @@ export default function AdminPortal() {
       createdAt: serverTimestamp()
     }
 
-    try {
-      await addDoc(collection(db, "institutions"), data)
-      toast({
-        title: "School Provisioned",
-        description: `${newSchool.name} is now live.`,
+    addDoc(collection(db, "institutions"), data)
+      .then(() => {
+        toast({
+          title: "School Provisioned",
+          description: `${newSchool.name} is now live.`,
+        })
+        setIsProvisionDialogOpen(false)
+        setNewSchool({ name: "", ownerEmail: "", type: "Secondary", gradeLevel: "Secondary", specificGrades: "SHS 1-3", location: "Goaso, Ahafo" })
       })
-      setIsProvisionDialogOpen(false)
-      setNewSchool({ name: "", ownerEmail: "", type: "Secondary", gradeLevel: "Secondary", specificGrades: "SHS 1-3", location: "Goaso, Ahafo" })
-    } catch (error: any) {
-      const permissionError = new FirestorePermissionError({
-        path: 'institutions',
-        operation: 'create',
-        requestResourceData: data,
-      });
-      errorEmitter.emit('permission-error', permissionError);
-    } finally {
-      setProvisioning(false)
-    }
+      .catch(async (error: any) => {
+        const permissionError = new FirestorePermissionError({
+          path: 'institutions',
+          operation: 'create',
+          requestResourceData: data,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => {
+        setProvisioning(false)
+      })
   }
 
   const handleApprove = async (id: string, name: string) => {
@@ -315,7 +317,12 @@ export default function AdminPortal() {
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            {institutions.length === 0 && !dataLoading ? (
+            {dataLoading ? (
+               <div className="p-24 text-center">
+                 <Loader2 className="size-8 animate-spin text-primary mx-auto" />
+                 <p className="mt-4 text-sm text-muted-foreground">Synchronizing Global Ledger...</p>
+               </div>
+            ) : institutions.length === 0 ? (
               <div className="flex flex-col items-center justify-center text-center p-24 space-y-4">
                 <div className="size-24 rounded-full bg-muted/30 flex items-center justify-center">
                   <Database className="size-10 text-muted-foreground/20" />

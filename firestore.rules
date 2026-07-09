@@ -2,42 +2,59 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Shared validation functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
     function isSuperAdmin() {
-      return request.auth != null && (request.auth.token.email == 'asareg365@gmail.com' || request.auth.token.email == 'frankyeb@gmail.com');
+      return isAuthenticated() && (
+        request.auth.token.email == 'asareg365@gmail.com' || 
+        request.auth.token.email == 'frankyeb@gmail.com'
+      );
+    }
+
+    function isOwner(email) {
+      return isAuthenticated() && request.auth.token.email == email;
+    }
+
+    // Global rule for super admins to manage everything
+    match /{document=**} {
+      allow read, write: if isSuperAdmin();
     }
 
     match /users/{userId} {
-      allow read, write: if request.auth != null && (request.auth.uid == userId || isSuperAdmin());
+      allow read, write: if isAuthenticated() && (request.auth.uid == userId);
     }
 
     match /institutions/{institutionId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && (isSuperAdmin() || resource.data.ownerEmail == request.auth.token.email);
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && (isSuperAdmin() || resource.data.ownerEmail == request.auth.token.email);
     }
 
     match /students/{studentId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isAuthenticated();
     }
 
     match /staff/{staffId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isAuthenticated();
     }
 
     match /subjects/{subjectId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isAuthenticated();
     }
 
     match /fee_payments/{paymentId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isAuthenticated();
     }
 
     match /expenditure_vouchers/{voucherId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isAuthenticated();
     }
 
     match /payroll_cycles/{cycleId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isAuthenticated();
     }
   }
 }
