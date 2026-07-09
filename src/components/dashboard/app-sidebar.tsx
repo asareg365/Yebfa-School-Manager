@@ -14,7 +14,8 @@ import {
   Wallet,
   FileText,
   School,
-  ShieldCheck
+  ShieldCheck,
+  ClipboardList
 } from "lucide-react"
 
 import {
@@ -60,6 +61,7 @@ const navigation = [
     icon: CheckCircle,
     items: [
       { title: "Attendance Insights", url: "/dashboard/attendance" },
+      { title: "Examination Center", url: "/dashboard/exams" },
       { title: "Daily Logs", url: "/dashboard/logs" },
     ],
   },
@@ -94,7 +96,6 @@ export function AppSidebar() {
   const auth = useAuth()
   const router = useRouter()
 
-  // Prevent hydration mismatch for dynamic user content
   React.useEffect(() => {
     setMounted(true)
   }, [])

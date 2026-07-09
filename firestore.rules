@@ -2,7 +2,6 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Shared validation functions
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -14,11 +13,6 @@ service cloud.firestore {
       );
     }
 
-    function isOwner(email) {
-      return isAuthenticated() && request.auth.token.email == email;
-    }
-
-    // Global rule for super admins to manage everything
     match /{document=**} {
       allow read, write: if isSuperAdmin();
     }
@@ -42,6 +36,10 @@ service cloud.firestore {
     }
 
     match /subjects/{subjectId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /exam_records/{recordId} {
       allow read, write: if isAuthenticated();
     }
 

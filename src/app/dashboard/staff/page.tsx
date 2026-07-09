@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { generateAppointmentLetter } from "@/ai/flows/generate-appointment-letter"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import Link from "next/link"
 
 const DEFAULT_DEPARTMENTS = [
   "Administration",
@@ -79,11 +80,20 @@ export default function StaffPage() {
 
   const staff = useMemo(() => {
     return [...rawStaff].sort((a, b) => {
-      const dateA = a.createdAt?.toMillis?.() || Date.now();
-      const dateB = b.createdAt?.toMillis?.() || Date.now();
-      return dateB - dateA;
+      const idA = a.staffId || "";
+      const idB = b.staffId || "";
+      return idB.localeCompare(idA);
     });
   }, [rawStaff]);
+
+  // Auto-ID Logic for Staff
+  useEffect(() => {
+    if (isAddOpen && !staffForm.staffId) {
+      const nextNum = rawStaff.length + 1;
+      const autoId = `STF-${String(nextNum).padStart(4, '0')}`;
+      setStaffForm(prev => ({ ...prev, staffId: autoId }));
+    }
+  }, [isAddOpen, rawStaff]);
 
   const handleAddStaff = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -98,7 +108,7 @@ export default function StaffPage() {
       })
       toast({
         title: "Staff Member Added",
-        description: `${staffForm.fullName} has joined the roster.`,
+        description: `${staffForm.fullName} enrolled with ID: ${staffForm.staffId}`,
       })
       setIsAddOpen(false)
       setStaffForm({ 
@@ -219,7 +229,7 @@ export default function StaffPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Department</Label>
-                      <Select onValueChange={(v) => setStaffForm({...staffForm, department: v})} defaultValue={staffForm.department}>
+                      <Select onValueChange={(v) => setStaffForm({...staffForm, department: v})} value={staffForm.department}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {DEFAULT_DEPARTMENTS.map(dept => (
@@ -229,8 +239,8 @@ export default function StaffPage() {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label>Staff ID</Label>
-                      <Input required value={staffForm.staffId} onChange={(e) => setStaffForm({...staffForm, staffId: e.target.value})} />
+                      <Label>Staff ID (Auto-Generated)</Label>
+                      <Input required readOnly value={staffForm.staffId} className="bg-muted font-mono" />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -242,6 +252,10 @@ export default function StaffPage() {
                       <Label>Phone</Label>
                       <Input type="tel" required value={staffForm.phoneNumber} onChange={(e) => setStaffForm({...staffForm, phoneNumber: e.target.value})} />
                     </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                     <div className="space-y-2"><Label>Assigned Classes</Label><Input value={staffForm.assignedClasses} onChange={e => setStaffForm({...staffForm, assignedClasses: e.target.value})} placeholder="e.g. Primary 1, JHS 2" /></div>
+                     <div className="space-y-2"><Label>Assigned Subjects</Label><Input value={staffForm.assignedSubjects} onChange={e => setStaffForm({...staffForm, assignedSubjects: e.target.value})} placeholder="e.g. Math, Science" /></div>
                   </div>
                 </div>
                 <DialogFooter>
@@ -267,7 +281,6 @@ export default function StaffPage() {
           {dataLoading ? (
             <div className="p-24 text-center">
               <Loader2 className="size-8 animate-spin mx-auto text-primary" />
-              <p className="mt-4 text-sm text-muted-foreground">Syncing Staff Node...</p>
             </div>
           ) : staff.length === 0 ? (
             <div className="h-80 flex flex-col items-center justify-center p-12 text-center">

@@ -22,13 +22,14 @@
         "ownerEmail": { "type": "string" },
         "location": { "type": "string" },
         "type": { "type": "string" },
-        "gradeLevel": { "type": "string", "description": "Category of grade levels (e.g. Basic, Secondary)." },
-        "specificGrades": { "type": "string", "description": "Specific range of grades covered." },
+        "gradeLevel": { "type": "string" },
+        "specificGrades": { "type": "string" },
         "subscriptionPlan": { "type": "string", "enum": ["basic", "premium", "enterprise"] },
         "createdAt": { "type": "string", "format": "date-time" },
         "status": { "type": "string", "enum": ["active", "pending_review", "suspended"] },
         "academicYear": { "type": "string" },
-        "currentTerm": { "type": "string" }
+        "currentTerm": { "type": "string" },
+        "customDepartments": { "type": "array", "items": { "type": "string" } }
       },
       "required": ["name", "ownerEmail"]
     },
@@ -47,7 +48,8 @@
         "dateOfBirth": { "type": "string", "format": "date" },
         "parentName": { "type": "string" },
         "parentPhone": { "type": "string" },
-        "homeAddress": { "type": "string" }
+        "homeAddress": { "type": "string" },
+        "photoUrl": { "type": "string" }
       },
       "required": ["firstName", "lastName", "gradeLevel", "institutionId", "studentId"]
     },
@@ -64,23 +66,27 @@
         "staffId": { "type": "string" },
         "joiningDate": { "type": "string", "format": "date" },
         "institutionId": { "type": "string" },
-        "assignedClasses": { "type": "string", "description": "Comma-separated list of assigned classes." },
-        "assignedSubjects": { "type": "string", "description": "Comma-separated list of assigned subjects." }
+        "assignedClasses": { "type": "string" },
+        "assignedSubjects": { "type": "string" }
       },
       "required": ["fullName", "role", "institutionId", "staffId"]
     },
-    "Subject": {
-      "title": "Academic Subject",
-      "description": "Details of a course or subject within the curriculum.",
+    "ExamRecord": {
+      "title": "Examination Record",
+      "description": "Records of student performance in exams.",
       "type": "object",
       "properties": {
-        "name": { "type": "string" },
-        "category": { "type": "string", "enum": ["Core", "Elective", "Vocational"] },
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "subjectId": { "type": "string" },
+        "subjectName": { "type": "string" },
         "gradeLevel": { "type": "string" },
-        "institutionId": { "type": "string" },
-        "description": { "type": "string" }
+        "score": { "type": "number" },
+        "term": { "type": "string" },
+        "academicYear": { "type": "string" },
+        "institutionId": { "type": "string" }
       },
-      "required": ["name", "category", "gradeLevel", "institutionId"]
+      "required": ["studentId", "subjectId", "score", "institutionId"]
     }
   },
   "auth": {
@@ -89,7 +95,7 @@
   "firestore": {
     "/users/{userId}": {
       "schema": "User",
-      "description": "User profiles. Super Admins: asareg365@gmail.com, frankyeb@gmail.com."
+      "description": "User profiles."
     },
     "/institutions/{institutionId}": {
       "schema": "Institution",
@@ -97,15 +103,19 @@
     },
     "/students/{studentId}": {
       "schema": "Student",
-      "description": "Global student records partitioned by institutionId."
+      "description": "Global student records."
     },
     "/staff/{staffId}": {
       "schema": "Staff",
-      "description": "Global staff records partitioned by institutionId."
+      "description": "Global staff records."
     },
     "/subjects/{subjectId}": {
       "schema": "Subject",
-      "description": "Academic subjects and curriculum maps."
+      "description": "Academic subjects."
+    },
+    "/exam_records/{recordId}": {
+      "schema": "ExamRecord",
+      "description": "Examination scores."
     }
   }
 }

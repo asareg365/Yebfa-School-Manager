@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, UserPlus, Filter, GraduationCap, Trash2, Pencil, Loader2, Upload, FileJson, User, Phone, MapPin, Calendar as CalendarIcon } from "lucide-react"
+import { Search, UserPlus, GraduationCap, Trash2, Pencil, Loader2, Upload, IdCard, User, Camera } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection, useDoc } from "@/firebase"
 import { collection, addDoc, query, deleteDoc, doc, where, serverTimestamp, updateDoc } from "firebase/firestore"
@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import Link from "next/link"
 
 const PRIMARY_GRADES = ["KG 1", "KG 2", "Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6"]
 const JHS_GRADES = ["JHS 1", "JHS 2", "JHS 3"]
@@ -38,7 +39,8 @@ export default function StudentsPage() {
     dateOfBirth: "",
     parentName: "",
     parentPhone: "",
-    homeAddress: ""
+    homeAddress: "",
+    photoUrl: ""
   })
   const [bulkData, setBulkData] = useState("")
 
@@ -62,9 +64,9 @@ export default function StudentsPage() {
 
   const students = useMemo(() => {
     return [...studentsData].sort((a, b) => {
-      const dateA = a.createdAt?.toMillis?.() || Date.now();
-      const dateB = b.createdAt?.toMillis?.() || Date.now();
-      return dateB - dateA;
+      const idA = a.studentId || "";
+      const idB = b.studentId || "";
+      return idB.localeCompare(idA);
     });
   }, [studentsData]);
 
@@ -75,6 +77,15 @@ export default function StudentsPage() {
     if (category.toLowerCase().includes("shs")) return SHS_GRADES
     return [...PRIMARY_GRADES, ...JHS_GRADES, ...SHS_GRADES]
   }, [institution])
+
+  // Automatic ID Generation logic
+  useEffect(() => {
+    if (isEnrollOpen && !studentForm.studentId) {
+      const nextNum = studentsData.length + 1;
+      const autoId = `STU-${String(nextNum).padStart(4, '0')}`;
+      setStudentForm(prev => ({ ...prev, studentId: autoId, gradeLevel: availableGrades[0] }));
+    }
+  }, [isEnrollOpen, studentsData, availableGrades]);
 
   const handleEnroll = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -92,10 +103,10 @@ export default function StudentsPage() {
       await addDoc(collection(db, "students"), data)
       toast({
         title: "Student Enrolled",
-        description: `${studentForm.firstName} has been added successfully.`,
+        description: `${studentForm.firstName} enrolled with ID: ${studentForm.studentId}`,
       })
       setIsEnrollOpen(false)
-      setStudentForm({ firstName: "", lastName: "", gender: "Male", gradeLevel: availableGrades[0], studentId: "", dateOfBirth: "", parentName: "", parentPhone: "", homeAddress: "" })
+      setStudentForm({ firstName: "", lastName: "", gender: "Male", gradeLevel: availableGrades[0], studentId: "", dateOfBirth: "", parentName: "", parentPhone: "", homeAddress: "", photoUrl: "" })
     } catch (error: any) {
       toast({ variant: "destructive", title: "Enrollment Failed", description: error.message })
     } finally {
@@ -114,38 +125,6 @@ export default function StudentsPage() {
       setEditingStudent(null)
     } catch (error: any) {
       toast({ variant: "destructive", title: "Update Failed", description: error.message })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleBulkUpload = async () => {
-    if (!db || !institutionId || loading || !bulkData.trim()) return
-    setLoading(true)
-    const lines = bulkData.split('\n').filter(line => line.trim() !== '')
-    try {
-      for (const line of lines) {
-        const [first, last, gender, grade, id, parent, phone] = line.split(',').map(s => s?.trim())
-        if (first && last) {
-          await addDoc(collection(db, "students"), {
-            firstName: first,
-            lastName: last,
-            gender: gender || "Male",
-            gradeLevel: grade || availableGrades[0],
-            studentId: id || `STU-${Math.floor(1000 + Math.random() * 9000)}`,
-            parentName: parent || "",
-            parentPhone: phone || "",
-            status: "active",
-            institutionId,
-            createdAt: serverTimestamp()
-          })
-        }
-      }
-      toast({ title: "Bulk Import Complete", description: "All records processed." })
-      setIsBulkOpen(false)
-      setBulkData("")
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Import Error", description: error.message })
     } finally {
       setLoading(false)
     }
@@ -175,8 +154,8 @@ export default function StudentsPage() {
           <p className="text-muted-foreground">Managing {students.length} enrollment nodes for {institution?.name}.</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" className="gap-2 h-11" onClick={() => setIsBulkOpen(true)}>
-            <Upload className="size-4" /> Bulk Upload
+          <Button variant="outline" className="gap-2 h-11" asChild>
+             <Link href="/dashboard/students/id-cards"><IdCard className="size-4" /> ID Card Generator</Link>
           </Button>
           <Button className="gap-2 bg-primary h-11" onClick={() => setIsEnrollOpen(true)}>
             <UserPlus className="size-4" /> Enroll Student
@@ -192,7 +171,11 @@ export default function StudentsPage() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          {students.length === 0 && !dataLoading ? (
+          {dataLoading ? (
+            <div className="p-24 text-center">
+              <Loader2 className="size-10 animate-spin text-primary mx-auto" />
+            </div>
+          ) : students.length === 0 ? (
             <div className="p-24 text-center space-y-4">
               <GraduationCap className="size-16 text-primary opacity-10 mx-auto" />
               <p className="font-bold text-muted-foreground">Empty Directory Node</p>
@@ -212,9 +195,18 @@ export default function StudentsPage() {
                 {students.map((stu: any) => (
                   <TableRow key={stu.id} className="hover:bg-slate-50">
                     <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-mono text-[10px] font-bold text-muted-foreground uppercase">{stu.studentId}</span>
-                        <span className="font-bold text-primary">{stu.firstName} {stu.lastName}</span>
+                      <div className="flex items-center gap-3">
+                        <div className="size-8 rounded-full overflow-hidden bg-muted flex items-center justify-center border">
+                          {stu.photoUrl ? (
+                            <img src={stu.photoUrl} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <User className="size-4 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-mono text-[10px] font-bold text-muted-foreground uppercase">{stu.studentId}</span>
+                          <span className="font-bold text-primary">{stu.firstName} {stu.lastName}</span>
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -275,11 +267,9 @@ export default function StudentsPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Grade Level (Live Sync)</Label>
-                  <Select onValueChange={v => setStudentForm({...studentForm, gradeLevel: v})} defaultValue={availableGrades[0]}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Grade" />
-                    </SelectTrigger>
+                  <Label>Grade Level</Label>
+                  <Select onValueChange={v => setStudentForm({...studentForm, gradeLevel: v})} value={studentForm.gradeLevel}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {availableGrades.map(grade => (
                         <SelectItem key={grade} value={grade}>{grade}</SelectItem>
@@ -288,9 +278,16 @@ export default function StudentsPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Student ID</Label>
-                  <Input required value={studentForm.studentId} onChange={e => setStudentForm({...studentForm, studentId: e.target.value})} />
+                  <Label>Student ID (Auto-Generated)</Label>
+                  <Input required readOnly value={studentForm.studentId} className="bg-muted font-mono" />
                 </div>
+              </div>
+              <div className="space-y-2">
+                 <Label>Photo URL</Label>
+                 <div className="relative">
+                   <Camera className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                   <Input placeholder="https://..." className="pl-10" value={studentForm.photoUrl} onChange={e => setStudentForm({...studentForm, photoUrl: e.target.value})} />
+                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -331,13 +328,15 @@ export default function StudentsPage() {
                   <Input required value={studentForm.lastName} onChange={e => setStudentForm({...studentForm, lastName: e.target.value})} />
                 </div>
               </div>
+              <div className="space-y-2">
+                 <Label>Photo URL</Label>
+                 <Input value={studentForm.photoUrl} onChange={e => setStudentForm({...studentForm, photoUrl: e.target.value})} />
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Grade Level</Label>
-                  <Select onValueChange={v => setStudentForm({...studentForm, gradeLevel: v})} defaultValue={studentForm.gradeLevel}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Grade" />
-                    </SelectTrigger>
+                  <Select onValueChange={v => setStudentForm({...studentForm, gradeLevel: v})} value={studentForm.gradeLevel}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {availableGrades.map(grade => (
                         <SelectItem key={grade} value={grade}>{grade}</SelectItem>
@@ -355,23 +354,6 @@ export default function StudentsPage() {
               <Button type="submit" disabled={loading} className="w-full">Save Changes</Button>
             </DialogFooter>
           </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isBulkOpen} onOpenChange={setIsBulkOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Bulk Upload Nodes</DialogTitle>
-          </DialogHeader>
-          <Textarea 
-            placeholder="First, Last, Gender, Grade, ID, Parent, Phone"
-            className="min-h-[200px] font-mono text-sm"
-            value={bulkData}
-            onChange={e => setBulkData(e.target.value)}
-          />
-          <DialogFooter>
-            <Button onClick={handleBulkUpload} disabled={loading} className="w-full">Process Bulk Upload</Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
