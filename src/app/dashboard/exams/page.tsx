@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -5,10 +6,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ClipboardList, Search, Printer, Save, Loader2, ChevronRight, FileText, CheckCircle2 } from "lucide-react"
+import { ClipboardList, Printer, Save, Loader2, CheckCircle2 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection } from "@/firebase"
-import { collection, query, where, addDoc, getDocs, setDoc, doc, serverTimestamp } from "firebase/firestore"
+import { collection, query, where, addDoc, serverTimestamp } from "firebase/firestore"
 import { useState, useMemo, useEffect } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
@@ -16,10 +17,13 @@ import { Badge } from "@/components/ui/badge"
 export default function ExaminationCenterPage() {
   const db = useFirestore()
   const [institutionId, setInstitutionId] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
   const [selectedGrade, setSelectedGrade] = useState("")
   const [selectedSubject, setSelectedSubject] = useState("")
-  const [scores, setScores] = useState<Record<string, number>>({})
+  
+  // Separate states for Class Scores and Exam Scores
+  const [classScores, setClassScores] = useState<Record<string, number>>({})
+  const [examScores, setExamScores] = useState<Record<string, number>>({})
+  
   const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
@@ -45,14 +49,17 @@ export default function ExaminationCenterPage() {
     return subjects.filter(s => s.gradeLevel === selectedGrade);
   }, [subjects, selectedGrade]);
 
-  const handleScoreChange = (studentId: string, score: string) => {
-    const num = parseFloat(score);
+  const handleScoreChange = (studentId: string, value: string, type: 'class' | 'exam') => {
+    const num = parseFloat(value);
+    const setter = type === 'class' ? setClassScores : setExamScores;
+    const currentScores = type === 'class' ? classScores : examScores;
+
     if (!isNaN(num) && num >= 0 && num <= 100) {
-      setScores(prev => ({ ...prev, [studentId]: num }));
-    } else if (score === "") {
-      const newScores = { ...scores };
+      setter(prev => ({ ...prev, [studentId]: num }));
+    } else if (value === "") {
+      const newScores = { ...currentScores };
       delete newScores[studentId];
-      setScores(newScores);
+      setter(newScores);
     }
   }
 
@@ -62,15 +69,23 @@ export default function ExaminationCenterPage() {
     
     try {
       const subjectObj = subjects.find(s => s.id === selectedSubject);
-      const promises = Object.entries(scores).map(([studentId, score]) => {
-        const student = students.find(s => s.id === studentId);
+      
+      // We only save records for students who have at least one score entered
+      const studentsToSave = students.filter(s => classScores[s.id] !== undefined || examScores[s.id] !== undefined);
+
+      const promises = studentsToSave.map((student) => {
+        const cScore = classScores[student.id] || 0;
+        const eScore = examScores[student.id] || 0;
+        
         return addDoc(collection(db, "exam_records"), {
-          studentId,
-          studentName: `${student?.firstName} ${student?.lastName}`,
+          studentId: student.id,
+          studentName: `${student.firstName} ${student.lastName}`,
           subjectId: selectedSubject,
           subjectName: subjectObj?.name || "Unknown",
           gradeLevel: selectedGrade,
-          score,
+          classScore: cScore,
+          examScore: eScore,
+          totalScore: cScore + eScore,
           term: "Term 2",
           academicYear: "2026",
           institutionId,
@@ -79,7 +94,7 @@ export default function ExaminationCenterPage() {
       });
 
       await Promise.all(promises);
-      toast({ title: "Scores Recorded", description: "Examination data synchronized across the ledger." });
+      toast({ title: "Scores Recorded", description: "Examination and Class assessment data synchronized." });
     } catch (error: any) {
       toast({ variant: "destructive", title: "Sync Failed", description: error.message });
     } finally {
@@ -101,13 +116,13 @@ export default function ExaminationCenterPage() {
       <div className="flex flex-col md:flex-row justify-between items-center gap-6 no-print">
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary">Examination Center</h1>
-          <p className="text-muted-foreground">Capture and manage institutional examination results.</p>
+          <p className="text-muted-foreground">Capture and manage institutional class and exam results.</p>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" className="gap-2" onClick={handlePrint} disabled={!selectedGrade}>
             <Printer className="size-4" /> Print Results
           </Button>
-          <Button className="gap-2 bg-primary" onClick={handleSaveAll} disabled={isSaving || !selectedSubject || Object.keys(scores).length === 0}>
+          <Button className="gap-2 bg-primary" onClick={handleSaveAll} disabled={isSaving || !selectedSubject || (Object.keys(classScores).length === 0 && Object.keys(examScores).length === 0)}>
             {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
             Save Batch Records
           </Button>
@@ -158,8 +173,10 @@ export default function ExaminationCenterPage() {
               <Table>
                 <TableHeader className="bg-muted/30">
                   <TableRow>
-                    <TableHead>Student ID / Name</TableHead>
-                    <TableHead className="w-32">Exam Score (%)</TableHead>
+                    <TableHead>Student Details</TableHead>
+                    <TableHead className="w-32">Class Score</TableHead>
+                    <TableHead className="w-32">Exam Score</TableHead>
+                    <TableHead className="w-24">Total</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -177,14 +194,28 @@ export default function ExaminationCenterPage() {
                           type="number" 
                           min="0" 
                           max="100" 
-                          placeholder="0-100" 
-                          value={scores[stu.id] || ""} 
-                          onChange={e => handleScoreChange(stu.id, e.target.value)}
+                          placeholder="0-30" 
+                          value={classScores[stu.id] ?? ""} 
+                          onChange={e => handleScoreChange(stu.id, e.target.value, 'class')}
                           className="h-9 font-bold"
                         />
                       </TableCell>
                       <TableCell>
-                        {scores[stu.id] !== undefined ? (
+                        <Input 
+                          type="number" 
+                          min="0" 
+                          max="100" 
+                          placeholder="0-70" 
+                          value={examScores[stu.id] ?? ""} 
+                          onChange={e => handleScoreChange(stu.id, e.target.value, 'exam')}
+                          className="h-9 font-bold"
+                        />
+                      </TableCell>
+                      <TableCell className="font-bold text-primary">
+                        {(classScores[stu.id] || 0) + (examScores[stu.id] || 0)}
+                      </TableCell>
+                      <TableCell>
+                        {(classScores[stu.id] !== undefined || examScores[stu.id] !== undefined) ? (
                           <Badge className="bg-green-100 text-green-700 hover:bg-green-100 gap-1 border-none">
                             <CheckCircle2 className="size-3" /> Ready
                           </Badge>
@@ -232,8 +263,10 @@ export default function ExaminationCenterPage() {
           <TableHeader>
             <TableRow>
               <TableHead className="font-bold">Student Name</TableHead>
-              <TableHead className="font-bold">Student ID</TableHead>
-              <TableHead className="text-right font-bold">Score (%)</TableHead>
+              <TableHead className="font-bold">ID</TableHead>
+              <TableHead className="text-right font-bold">Class Score</TableHead>
+              <TableHead className="text-right font-bold">Exam Score</TableHead>
+              <TableHead className="text-right font-bold">Total (%)</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -241,7 +274,9 @@ export default function ExaminationCenterPage() {
               <TableRow key={stu.id}>
                 <TableCell className="font-bold">{stu.firstName} {stu.lastName}</TableCell>
                 <TableCell className="font-mono">{stu.studentId}</TableCell>
-                <TableCell className="text-right font-bold">{scores[stu.id] || "N/A"}</TableCell>
+                <TableCell className="text-right">{classScores[stu.id] ?? "N/A"}</TableCell>
+                <TableCell className="text-right">{examScores[stu.id] ?? "N/A"}</TableCell>
+                <TableCell className="text-right font-bold">{(classScores[stu.id] || 0) + (examScores[stu.id] || 0)}</TableCell>
               </TableRow>
             ))}
           </TableBody>

@@ -73,7 +73,7 @@
     },
     "ExamRecord": {
       "title": "Examination Record",
-      "description": "Records of student performance in exams.",
+      "description": "Records of student performance in exams and class assessments.",
       "type": "object",
       "properties": {
         "studentId": { "type": "string" },
@@ -81,12 +81,14 @@
         "subjectId": { "type": "string" },
         "subjectName": { "type": "string" },
         "gradeLevel": { "type": "string" },
-        "score": { "type": "number" },
+        "classScore": { "type": "number", "description": "Assessment score from classwork." },
+        "examScore": { "type": "number", "description": "Score from terminal examination." },
+        "totalScore": { "type": "number", "description": "Sum of class and exam scores." },
         "term": { "type": "string" },
         "academicYear": { "type": "string" },
         "institutionId": { "type": "string" }
       },
-      "required": ["studentId", "subjectId", "score", "institutionId"]
+      "required": ["studentId", "subjectId", "institutionId"]
     }
   },
   "auth": {
