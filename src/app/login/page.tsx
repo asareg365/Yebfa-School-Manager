@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { School, Loader2, AlertCircle, Info, ArrowRight, ShieldCheck } from "lucide-react"
+import { School, Loader2, AlertCircle, Info, ArrowRight, ShieldCheck, KeyRound } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword } from "firebase/auth"
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth"
 import { useAuth, useUser } from "@/firebase"
 import { firebaseConfig } from "@/firebase/config"
 import { toast } from "@/hooks/use-toast"
@@ -19,6 +19,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
+  const [resetLoading, setResetLoading] = useState(false)
   const [configError, setConfigError] = useState(false)
   const router = useRouter()
   const auth = useAuth()
@@ -47,8 +48,8 @@ export default function LoginPage() {
       const destination = isSuperAdminEmail(credential.user.email) ? "/admin" : "/dashboard"
       router.replace(destination)
     } catch (error: any) {
-      // If user doesn't exist and it's a super admin email, try to register them
-      if ((error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential' || error.code === 'auth/invalid-email') && isSuperAdminEmail(email)) {
+      // Logic to auto-provision super admin on first attempt if account doesn't exist
+      if (error.code === 'auth/user-not-found' && isSuperAdminEmail(email)) {
         try {
           await createUserWithEmailAndPassword(auth, email, password)
           router.replace("/admin")
@@ -56,8 +57,8 @@ export default function LoginPage() {
         } catch (regError: any) {
           toast({
             variant: "destructive",
-            title: "Access Error",
-            description: regError.message || "Failed to provision administrator account.",
+            title: "Provisioning Error",
+            description: regError.message,
           })
           setLoading(false)
           return
@@ -67,10 +68,37 @@ export default function LoginPage() {
       toast({
         variant: "destructive",
         title: "Login Failed",
-        description: error.message || "Invalid credentials.",
+        description: "Invalid email or security password.",
       })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      toast({
+        variant: "destructive",
+        title: "Email Required",
+        description: "Please enter your email address to receive a reset link.",
+      })
+      return
+    }
+    setResetLoading(true)
+    try {
+      await sendPasswordResetEmail(auth, email)
+      toast({
+        title: "Reset Link Sent",
+        description: "Check your inbox for password recovery instructions.",
+      })
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Reset Failed",
+        description: error.message,
+      })
+    } finally {
+      setResetLoading(false)
     }
   }
 
@@ -134,7 +162,7 @@ export default function LoginPage() {
               <Info className="h-4 w-4" />
               <AlertTitle className="text-xs font-bold uppercase tracking-wider">Secure Access</AlertTitle>
               <AlertDescription className="text-xs">
-                Logins are role-aware. Enter your registered credentials below.
+                Enter your credentials to access the 2026 academic nodes.
               </AlertDescription>
             </Alert>
           )}
@@ -154,7 +182,17 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Security Password</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Security Password</Label>
+                <button 
+                  type="button" 
+                  onClick={handleForgotPassword}
+                  className="text-[10px] font-bold text-primary hover:underline uppercase tracking-tighter"
+                  disabled={resetLoading}
+                >
+                  {resetLoading ? "Processing..." : "Forgot Password?"}
+                </button>
+              </div>
               <Input 
                 id="password" 
                 type="password" 
@@ -176,7 +214,7 @@ export default function LoginPage() {
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">Network Provider</span>
+              <span className="bg-background px-2 text-muted-foreground text-[10px] font-bold">Network Provider</span>
             </div>
           </div>
           
