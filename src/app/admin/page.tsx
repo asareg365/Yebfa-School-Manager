@@ -1,8 +1,7 @@
-
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Pencil, Loader2, CheckCircle2, ArrowRight, Layers, LogOut, KeyRound, AlertTriangle } from "lucide-react"
+import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Pencil, Loader2, CheckCircle2, ArrowRight, Layers, LogOut, KeyRound, AlertTriangle, Info } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -20,6 +19,7 @@ import { signOut, updatePassword } from "firebase/auth"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export default function AdminPortal() {
   const { user, loading: authLoading } = useUser()
@@ -83,15 +83,24 @@ export default function AdminPortal() {
       await updatePassword(auth.currentUser, newPass)
       toast({
         title: "Credential Updated",
-        description: "Super Admin security password has been changed.",
+        description: "Super Admin security password has been changed successfully.",
       })
       setNewPass("")
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Update Failed",
-        description: error.message || "Please re-authenticate before changing sensitive information.",
-      })
+      console.error(error)
+      if (error.code === 'auth/requires-recent-login') {
+        toast({
+          variant: "destructive",
+          title: "Security Verification Required",
+          description: "For security, you must have signed in recently to change your password. Please sign out and sign back in, then try again.",
+        })
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Update Failed",
+          description: error.message || "An unexpected error occurred. Please try again.",
+        })
+      }
     } finally {
       setUpdatingPass(false)
     }
@@ -442,15 +451,13 @@ export default function AdminPortal() {
               </CardHeader>
               <CardContent className="p-8">
                 <form onSubmit={handleUpdatePassword} className="space-y-6">
-                  <div className="p-4 rounded-xl bg-amber-50 border border-amber-100 flex gap-4">
-                    <AlertTriangle className="size-5 text-amber-600 shrink-0" />
-                    <div>
-                      <p className="text-xs font-bold text-amber-900 uppercase tracking-tight">Security Protocol</p>
-                      <p className="text-xs text-amber-700 leading-relaxed mt-1">
-                        Sensitive actions require a recent login session. If the update fails, please sign out and sign back in to refresh your global token.
-                      </p>
-                    </div>
-                  </div>
+                  <Alert className="bg-amber-50 border-amber-100 text-amber-900">
+                    <AlertTriangle className="size-5 text-amber-600" />
+                    <AlertTitle className="text-xs font-bold uppercase tracking-tight">Security Protocol</AlertTitle>
+                    <AlertDescription className="text-xs leading-relaxed mt-1">
+                      Firebase requires a <strong>recent login session</strong> to change passwords. If the update fails, please sign out and sign back in to refresh your global token.
+                    </AlertDescription>
+                  </Alert>
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="adminEmail">Account Identifier</Label>
@@ -462,7 +469,7 @@ export default function AdminPortal() {
                         id="newPass" 
                         type="password" 
                         required 
-                        placeholder="Enter new 2026 security sequence" 
+                        placeholder="Enter new security sequence" 
                         value={newPass}
                         onChange={(e) => setNewPass(e.target.value)}
                         className="h-11 font-bold"
