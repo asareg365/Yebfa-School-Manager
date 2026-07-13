@@ -2,39 +2,47 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // --- AUTHENTICATION HELPERS ---
+    
     function isAuthenticated() {
       return request.auth != null;
     }
 
     function getUserEmail() {
-      return request.auth.token.get('email', '').lower();
+      // Robust email retrieval from token with case normalization
+      let email = request.auth.token.email != null ? request.auth.token.email : request.auth.token.get('email', '');
+      return string(email).lower();
     }
 
     function isSuperAdmin() {
-      return isAuthenticated() && 
-             (getUserEmail() == 'asareg365@gmail.com' || getUserEmail() == 'frankyeb@gmail.com');
+      let email = getUserEmail();
+      return isAuthenticated() && (email == 'asareg365@gmail.com' || email == 'frankyeb@gmail.com');
     }
 
     function isOwner(resourceData) {
-      return isAuthenticated() && 
-             resourceData.get('ownerEmail', '').lower() == getUserEmail();
+      // Use get() to safely handle cases where ownerEmail might be missing from the document
+      let owner = resourceData.get('ownerEmail', '').lower();
+      return isAuthenticated() && owner == getUserEmail();
     }
 
-    // Global override for Super Admins - gives full access to all paths
+    // --- GLOBAL OVERRIDE ---
+    
+    // Grant full access to identified Super Admins across all collections
     match /{document=**} {
       allow read, write: if isSuperAdmin();
     }
 
+    // --- COLLECTION SPECIFIC RULES ---
+
     match /users/{userId} {
-      allow read, write: if isAuthenticated() && (request.auth.uid == userId);
+      allow read, write: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin());
     }
 
     match /institutions/{institutionId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
-      allow update, delete: if isAuthenticated() && (
-        isSuperAdmin() || isOwner(resource.data)
-      );
+      // Allow update if Super Admin OR the verified owner of the document
+      allow update, delete: if isAuthenticated() && (isSuperAdmin() || isOwner(resource.data));
     }
 
     match /students/{studentId} {
@@ -53,18 +61,6 @@ service cloud.firestore {
       allow read, write: if isAuthenticated();
     }
 
-    match /fee_payments/{paymentId} {
-      allow read, write: if isAuthenticated();
-    }
-
-    match /expenditure_vouchers/{voucherId} {
-      allow read, write: if isAuthenticated();
-    }
-
-    match /payroll_cycles/{cycleId} {
-      allow read, write: if isAuthenticated();
-    }
-
     match /attendance/{attendanceId} {
       allow read, write: if isAuthenticated();
     }
@@ -74,6 +70,14 @@ service cloud.firestore {
     }
 
     match /student_ledger/{ledgerId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /expenditure_vouchers/{voucherId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /payroll_cycles/{cycleId} {
       allow read, write: if isAuthenticated();
     }
   }

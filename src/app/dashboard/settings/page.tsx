@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { School, User, Bell, Shield, Wallet, Save, Loader2, Building, Plus, Layers, Trash2, Camera, Upload, X } from "lucide-react"
+import { School, Shield, Building, Plus, Layers, Trash2, Save, Loader2, Upload, X } from "lucide-react"
 import { useState, useEffect, useRef, useMemo } from "react"
 import { useFirestore, useDoc } from "@/firebase"
 import { doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore"
@@ -59,20 +59,21 @@ export default function SettingsPage() {
 
   const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!instRef || isSaving) return
+    if (!instRef || isSaving || !institution) return
     
     setIsSaving(true)
     const formData = new FormData(e.target as HTMLFormElement)
     
     // Explicitly maintain existing values to prevent null overwrites
+    // This ensures data integrity and satisfies security rules
     const data = {
-      name: (formData.get("schoolName") as string) || institution?.name || "",
-      location: (formData.get("location") as string) || institution?.location || "",
-      address: (formData.get("address") as string) || institution?.address || "",
-      phone: (formData.get("phone") as string) || institution?.phone || "",
-      academicYear: (formData.get("academicYear") as string) || institution?.academicYear || "",
-      currentTerm: (formData.get("currentTerm") as string) || institution?.currentTerm || "Term 1",
-      logoUrl: logoPreview || institution?.logoUrl || ""
+      name: (formData.get("schoolName") as string) || institution.name || "",
+      location: (formData.get("location") as string) || institution.location || "",
+      address: (formData.get("address") as string) || institution.address || "",
+      phone: (formData.get("phone") as string) || institution.phone || "",
+      academicYear: (formData.get("academicYear") as string) || institution.academicYear || "",
+      currentTerm: (formData.get("currentTerm") as string) || institution.currentTerm || "Term 1",
+      logoUrl: logoPreview || institution.logoUrl || ""
     }
 
     updateDoc(instRef, data)
@@ -82,7 +83,7 @@ export default function SettingsPage() {
           description: "Institutional identity profile updated.",
         })
       })
-      .catch(async (error: any) => {
+      .catch(async (serverError: any) => {
         const permissionError = new FirestorePermissionError({
           path: instRef.path,
           operation: 'update',
@@ -118,7 +119,7 @@ export default function SettingsPage() {
     const updateData = { customDepartments: arrayRemove(dept) }
     updateDoc(instRef, updateData)
       .then(() => {
-        toast({ title: "Department Removed", description: `${dept} has been de-provisioned.` })
+        toast({ title: "Department Removed", description: `${dept} has been removed.` })
       })
       .catch(async (error: any) => {
         const permissionError = new FirestorePermissionError({
@@ -130,13 +131,13 @@ export default function SettingsPage() {
       })
   }
 
-  if (loading) return <div className="p-10 text-center animate-pulse font-headline font-bold text-primary">Loading Settings...</div>
-  if (!institutionId) return <div className="p-10 text-center font-bold text-destructive">No Active Institution Connected</div>
+  if (loading) return <div className="p-10 text-center animate-pulse font-headline font-bold text-primary">Loading configuration...</div>
+  if (!institutionId) return <div className="p-10 text-center font-bold text-destructive">No active institution connected</div>
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Institutional Configuration</h1>
+        <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Configuration</h1>
         <p className="text-muted-foreground">Managing {institution?.name} • Ahafo Regional Hub</p>
       </div>
 
@@ -199,11 +200,11 @@ export default function SettingsPage() {
                 </div>
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Physical Address (Back of ID Card)</Label>
+                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Physical Address (ID Card)</Label>
                     <Input name="address" defaultValue={institution?.address} placeholder="e.g. Plot 15, Station Road, Goaso" className="h-11 rounded-xl" />
                   </div>
                   <div className="space-y-2">
-                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Official Phone (Back of ID Card)</Label>
+                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Official Phone (ID Card)</Label>
                     <Input name="phone" defaultValue={institution?.phone} placeholder="e.g. 024-000-0000" className="h-11 rounded-xl" />
                   </div>
                 </div>
@@ -219,7 +220,7 @@ export default function SettingsPage() {
 
           <TabsContent value="academic" className="space-y-6">
             <Card className="border-none shadow-md bg-white rounded-2xl overflow-hidden">
-              <CardHeader><CardTitle className="font-headline font-bold">Term Cycles</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="font-headline font-bold">Academic Cycle</CardTitle></CardHeader>
               <CardContent className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Academic Year</Label>
@@ -239,7 +240,7 @@ export default function SettingsPage() {
               </CardContent>
               <CardFooter className="border-t pt-6 bg-slate-50/50">
                 <Button type="submit" disabled={isSaving} className="ml-auto h-11 px-8 rounded-xl bg-primary font-bold shadow-lg shadow-primary/10 transition-all active:scale-95">
-                  Authorize Cycle Update
+                  Authorize Update
                 </Button>
               </CardFooter>
             </Card>
@@ -248,7 +249,7 @@ export default function SettingsPage() {
 
         <TabsContent value="departments" className="space-y-6">
           <Card className="border-none shadow-md bg-white rounded-2xl overflow-hidden">
-            <CardHeader><CardTitle className="font-headline font-bold">Departmental Registry</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="font-headline font-bold">Departments</CardTitle></CardHeader>
             <CardContent className="space-y-6">
               <div className="flex gap-4">
                 <Input placeholder="e.g. Guidance & Counseling" value={newDept} onChange={e => setNewDept(e.target.value)} className="h-11 rounded-xl" />
@@ -264,7 +265,7 @@ export default function SettingsPage() {
                   </div>
                 ))}
                 {(!institution?.customDepartments || institution.customDepartments.length === 0) && (
-                   <p className="text-center py-12 text-sm text-muted-foreground italic">No custom departments registered for this institution.</p>
+                   <p className="text-center py-12 text-sm text-muted-foreground italic">No custom departments registered.</p>
                 )}
               </div>
             </CardContent>
@@ -278,7 +279,7 @@ export default function SettingsPage() {
               <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50/50 border border-slate-100">
                 <div className="space-y-1">
                   <Label className="font-bold text-primary">Security Verification</Label>
-                  <p className="text-xs text-muted-foreground">Strict multi-tenant verification active across all regional clusters.</p>
+                  <p className="text-xs text-muted-foreground">Multi-tenant verification active across all clusters.</p>
                 </div>
                 <Switch defaultChecked />
               </div>
