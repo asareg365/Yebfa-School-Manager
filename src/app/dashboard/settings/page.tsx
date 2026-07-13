@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
@@ -131,7 +130,7 @@ export default function SettingsPage() {
       })
   }
 
-  if (loading) return <div className="p-10 text-center animate-pulse font-headline font-bold text-primary">Establishing Node Link...</div>
+  if (loading) return <div className="p-10 text-center animate-pulse font-headline font-bold text-primary">Establishing Link...</div>
   if (!institutionId) return <div className="p-10 text-center font-bold text-destructive">No Active Instance Connected</div>
 
   return (
@@ -212,7 +211,7 @@ export default function SettingsPage() {
               <CardFooter className="border-t pt-6 bg-slate-50/50">
                 <Button type="submit" disabled={isSaving} className="ml-auto gap-2 h-11 px-8 rounded-xl bg-primary font-bold shadow-lg shadow-primary/10 transition-all active:scale-95">
                   {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-                  Save Branding Node
+                  Save Branding
                 </Button>
               </CardFooter>
             </Card>
@@ -265,7 +264,7 @@ export default function SettingsPage() {
                   </div>
                 ))}
                 {(!institution?.customDepartments || institution.customDepartments.length === 0) && (
-                   <p className="text-center py-12 text-sm text-muted-foreground italic">No custom departments registered for this node.</p>
+                   <p className="text-center py-12 text-sm text-muted-foreground italic">No custom departments registered for this institution.</p>
                 )}
               </div>
             </CardContent>

@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -51,7 +50,7 @@ export default function LogsPage() {
           <div className="max-w-xs">
             <h3 className="text-lg font-bold">Syncing Ledger...</h3>
             <p className="text-sm text-muted-foreground">
-              Connecting to institutional audit node. Real-time logs will appear here once operations commence.
+              Connecting to institutional audit system. Real-time logs will appear here once operations commence.
             </p>
           </div>
         </CardContent>

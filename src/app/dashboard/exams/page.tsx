@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -212,7 +211,7 @@ export default function ExaminationCenterPage() {
 
   const uniqueGrades = useMemo(() => Array.from(new Set(subjects.map(s => s.gradeLevel))).sort(), [subjects]);
 
-  if (!institutionId && !authLoading) return <div className="p-20 text-center animate-pulse font-bold text-muted-foreground">Synchronizing Academic Node...</div>
+  if (!institutionId && !authLoading) return <div className="p-20 text-center animate-pulse font-bold text-muted-foreground">Synchronizing Academic Hub...</div>
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -235,7 +234,7 @@ export default function ExaminationCenterPage() {
               <CardHeader><CardTitle className="text-sm">Context</CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Grade Node</Label>
+                  <Label>Grade</Label>
                   <Select onValueChange={setSelectedGrade} value={selectedGrade}><SelectTrigger><SelectValue placeholder="Grade" /></SelectTrigger>
                     <SelectContent>{uniqueGrades.map(grade => <SelectItem key={grade} value={grade}>{grade}</SelectItem>)}</SelectContent>
                   </Select>
@@ -261,7 +260,7 @@ export default function ExaminationCenterPage() {
               </CardHeader>
               <CardContent className="p-0">
                 {!selectedGrade ? (
-                  <div className="p-20 text-center opacity-20"><ClipboardList className="size-16 mx-auto mb-4" /><p>Select a node to begin.</p></div>
+                  <div className="p-20 text-center opacity-20"><ClipboardList className="size-16 mx-auto mb-4" /><p>Select a grade to begin.</p></div>
                 ) : (studentsLoading || loadingScores) ? (
                   <div className="p-20 text-center"><Loader2 className="size-8 animate-spin mx-auto text-primary" /></div>
                 ) : (
@@ -346,7 +345,7 @@ export default function ExaminationCenterPage() {
       </Tabs>
 
       {/* Reused Edit Dialog from Students Page for consistency */}
-      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}><DialogContent><form onSubmit={handleUpdateStudent}><DialogHeader><DialogTitle>Edit Academic Node</DialogTitle></DialogHeader>
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}><DialogContent><form onSubmit={handleUpdateStudent}><DialogHeader><DialogTitle>Edit Academic Record</DialogTitle></DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label>First Name</Label><Input value={studentForm.firstName} onChange={e => setStudentForm({...studentForm, firstName: e.target.value})} /></div><div className="space-y-2"><Label>Last Name</Label><Input value={studentForm.lastName} onChange={e => setStudentForm({...studentForm, lastName: e.target.value})} /></div></div>
           <div className="space-y-2"><Label>Student ID</Label><Input readOnly value={studentForm.studentId} className="bg-muted font-mono" /></div>

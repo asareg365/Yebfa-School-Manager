@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -138,7 +137,7 @@ export function AppSidebar() {
           {state === "expanded" && (
             <div className="flex flex-col gap-0.5 leading-none">
               <span className="font-headline font-bold text-lg tracking-tight">Yebfa School Manager</span>
-              <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Node 2026</span>
+              <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">System 2026</span>
             </div>
           )}
         </div>

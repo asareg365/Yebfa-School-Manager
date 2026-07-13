@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -114,7 +113,7 @@ Institutional Seal Authorized 2026`;
     } catch (e: any) { toast({ variant: "destructive", title: "AI Error", description: e.message }) } finally { setLetterLoading(false) }
   }
 
-  if (authLoading) return <div className="p-12 text-center animate-pulse">Synchronizing Node...</div>
+  if (authLoading) return <div className="p-12 text-center animate-pulse">Synchronizing...</div>
   if (!institutionId) return <div className="p-12 text-center"><Button asChild><Link href="/admin">Visit Admin Hub</Link></Button></div>
 
   return (

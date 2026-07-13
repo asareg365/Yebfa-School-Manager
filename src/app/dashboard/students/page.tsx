@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -207,7 +206,7 @@ export default function StudentsPage() {
   if (dataLoading) return (
     <div className="p-24 text-center space-y-4">
       <Loader2 className="size-10 animate-spin text-primary mx-auto" />
-      <p className="font-bold text-muted-foreground uppercase tracking-widest">Synchronizing Directory Node...</p>
+      <p className="font-bold text-muted-foreground uppercase tracking-widest">Synchronizing Directory...</p>
     </div>
   )
 
@@ -251,7 +250,7 @@ export default function StudentsPage() {
           {students.length === 0 ? (
             <div className="p-24 text-center space-y-4">
               <GraduationCap className="size-16 text-primary opacity-10 mx-auto" />
-              <p className="font-bold text-muted-foreground">Empty Directory Node</p>
+              <p className="font-bold text-muted-foreground">Empty Directory</p>
             </div>
           ) : (
             <Table>
@@ -331,7 +330,7 @@ export default function StudentsPage() {
           <form onSubmit={handleEnroll}>
             <DialogHeader className="bg-primary text-primary-foreground p-8">
               <DialogTitle className="text-2xl">Enroll New Student</DialogTitle>
-              <DialogDescription className="text-primary-foreground/70 text-sm">Capturing node for {institution?.name}.</DialogDescription>
+              <DialogDescription className="text-primary-foreground/70 text-sm">Capturing record for {institution?.name}.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-8 py-8 px-8 max-h-[70vh] overflow-y-auto">
               <div className="flex flex-col items-center gap-6 p-6 border-2 border-dashed rounded-3xl bg-muted/20">
@@ -442,7 +441,7 @@ export default function StudentsPage() {
         <DialogContent className="max-w-2xl border-none shadow-2xl rounded-2xl p-0 overflow-hidden">
           <form onSubmit={handleUpdate}>
             <DialogHeader className="bg-accent text-accent-foreground p-8">
-              <DialogTitle className="text-2xl">Edit Student Node</DialogTitle>
+              <DialogTitle className="text-2xl">Edit Student Record</DialogTitle>
               <DialogDescription className="text-accent-foreground/70">Updating records for {editingStudent?.firstName}.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-6 py-8 px-8 max-h-[70vh] overflow-y-auto">

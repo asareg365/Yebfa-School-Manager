@@ -49,7 +49,7 @@ export default function DashboardLayout({
         {
           id: '3',
           title: 'Sync Complete',
-          description: 'Global node sync for Ahafo region finished.',
+          description: 'Global sync for Ahafo region finished.',
           time: 'Yesterday',
           type: 'success',
           icon: CheckCircle2,
@@ -189,7 +189,7 @@ export default function DashboardLayout({
             </Popover>
             <div className="hidden sm:flex flex-col text-right">
               <span className="text-sm font-semibold truncate max-w-[180px] text-primary">{institutionName}</span>
-              <span className="text-xs text-muted-foreground uppercase font-bold tracking-tighter">Live Node 2026</span>
+              <span className="text-xs text-muted-foreground uppercase font-bold tracking-tighter">Live System 2026</span>
             </div>
           </div>
         </header>

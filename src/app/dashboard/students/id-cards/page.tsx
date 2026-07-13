@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -51,7 +50,7 @@ export default function StudentIDCardsPage() {
           </Button>
           <div>
             <h1 className="text-3xl font-headline font-bold text-primary">ID Card Generator</h1>
-            <p className="text-muted-foreground">Preview and print student identification nodes.</p>
+            <p className="text-muted-foreground">Preview and print student identification.</p>
           </div>
         </div>
         <div className="flex gap-3">
@@ -115,7 +114,7 @@ export default function StudentIDCardsPage() {
                   {institution?.logoUrl ? <img src={institution.logoUrl} className="size-12" /> : <SchoolIcon className="size-12" />}
                 </div>
                 <div className="space-y-3 z-10">
-                  <h4 className="text-[10px] font-bold text-primary uppercase tracking-widest border-b pb-1">Institutional Node</h4>
+                  <h4 className="text-[10px] font-bold text-primary uppercase tracking-widest border-b pb-1">Institutional Hub</h4>
                   <div className="space-y-1">
                     <p className="flex items-center justify-center gap-1.5 text-[9px] font-medium text-muted-foreground">
                       <MapPin className="size-2.5 text-accent" /> {institution?.address || "Ahafo Region, Ghana"}
@@ -168,7 +167,7 @@ export default function StudentIDCardsPage() {
             {/* Back */}
             <div className="w-[3.375in] h-[2.125in] bg-white rounded-xl border-2 border-black/10 p-6 flex flex-col items-center justify-center text-center relative overflow-hidden">
                 <div className="space-y-3">
-                  <h4 className="text-[10px] font-bold text-black uppercase tracking-widest border-b border-black/10 pb-1">Institutional Node</h4>
+                  <h4 className="text-[10px] font-bold text-black uppercase tracking-widest border-b border-black/10 pb-1">Institutional Hub</h4>
                   <div className="space-y-1">
                     <p className="text-[9px] font-medium text-slate-700">{institution?.address}</p>
                     <p className="text-[9px] font-medium text-slate-700">{institution?.phone}</p>

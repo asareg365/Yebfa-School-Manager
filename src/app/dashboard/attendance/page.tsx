@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -161,7 +160,7 @@ export default function AttendancePage() {
             <div className="text-3xl font-bold font-headline">
               {Object.values(presentStudents).filter(v => v).length}
             </div>
-            <p className="text-[10px] text-muted-foreground mt-1 font-medium">Selected Class Node</p>
+            <p className="text-[10px] text-muted-foreground mt-1 font-medium">Selected Class</p>
           </CardContent>
         </Card>
         <Card className="border-none shadow-md bg-white rounded-2xl">
@@ -182,9 +181,9 @@ export default function AttendancePage() {
           <CardHeader><CardTitle className="text-sm font-bold">Class Selection</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Select Grade Node</Label>
+              <Label>Select Grade</Label>
               <Select onValueChange={setSelectedGrade} value={selectedGrade}>
-                <SelectTrigger className="rounded-xl h-11"><SelectValue placeholder="Grade Node" /></SelectTrigger>
+                <SelectTrigger className="rounded-xl h-11"><SelectValue placeholder="Grade" /></SelectTrigger>
                 <SelectContent>
                   {availableGrades.map(grade => (
                     <SelectItem key={grade} value={grade}>{grade}</SelectItem>
@@ -201,7 +200,7 @@ export default function AttendancePage() {
               <div>
                 <CardTitle className="font-headline font-bold">Roster Attendance</CardTitle>
                 <CardDescription>
-                  {selectedGrade ? `Enrolled students in ${selectedGrade}` : "Please select a grade node to begin."}
+                  {selectedGrade ? `Enrolled students in ${selectedGrade}` : "Please select a grade to begin."}
                 </CardDescription>
               </div>
               <Badge variant="outline" className="font-mono text-[10px] uppercase font-bold tracking-tight rounded-lg">
@@ -218,10 +217,10 @@ export default function AttendancePage() {
             ) : !selectedGrade ? (
               <div className="p-20 text-center space-y-4">
                 <Users className="size-12 text-primary/10 mx-auto" />
-                <p className="text-sm font-bold text-muted-foreground">Select a grade node to display the student list.</p>
+                <p className="text-sm font-bold text-muted-foreground">Select a grade to display the student list.</p>
               </div>
             ) : students.length === 0 ? (
-              <div className="p-20 text-center italic text-muted-foreground">No students enrolled in this grade node.</div>
+              <div className="p-20 text-center italic text-muted-foreground">No students enrolled in this grade.</div>
             ) : (
               <Table>
                 <TableHeader className="bg-muted/30">

@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
@@ -85,7 +84,7 @@ export default function PersonalFeeLedgerPage() {
       <div className="flex flex-col md:flex-row justify-between items-center gap-6">
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary">Personal Fee Ledger</h1>
-          <p className="text-muted-foreground">Managing individual student financial nodes and accounts.</p>
+          <p className="text-muted-foreground">Managing individual student financial accounts.</p>
         </div>
       </div>
 

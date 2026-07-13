@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
@@ -44,7 +43,7 @@ export default function FeeConfigurationPage() {
         institutionId,
         createdAt: serverTimestamp()
       })
-      toast({ title: "Fee Node Authorized", description: `${feeForm.name} is now available in personal ledgers.` })
+      toast({ title: "Fee Authorized", description: `${feeForm.name} is now available in personal ledgers.` })
       setIsFeeOpen(false)
       setFeeForm({ name: "", defaultAmount: "", category: "Mandatory" })
     } catch (e: any) { toast({ variant: "destructive", title: "Error", description: e.message }) } finally { setLoading(false) }
@@ -53,7 +52,7 @@ export default function FeeConfigurationPage() {
   const handleDeleteFee = async (id: string) => {
     try {
       await deleteDoc(doc(db!, "approved_fees", id))
-      toast({ title: "Fee Removed", description: "This node is no longer an approved institutional charge." })
+      toast({ title: "Fee Removed", description: "This item is no longer an approved institutional charge." })
     } catch (e: any) { toast({ variant: "destructive", title: "Action Failed", description: e.message }) }
   }
 

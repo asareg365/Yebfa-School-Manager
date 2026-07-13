@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -40,7 +39,7 @@ export default function Dashboard() {
       localStorage.setItem('selected_institution_name', first.name);
       setInstitutionId(first.id);
       toast({
-        title: "Node Synchronized",
+        title: "System Synchronized",
         description: `Connected to ${first.name} dashboard.`,
       });
     }
@@ -78,7 +77,7 @@ export default function Dashboard() {
   if (authLoading || (institutionId && (studentsLoading || staffLoading))) return (
     <div className="p-10 text-center space-y-4">
       <Activity className="size-10 text-primary animate-spin mx-auto" />
-      <p className="font-headline font-bold text-muted-foreground animate-pulse">Synchronizing Academic Node...</p>
+      <p className="font-headline font-bold text-muted-foreground animate-pulse">Synchronizing Academic Hub...</p>
     </div>
   )
 
@@ -89,7 +88,7 @@ export default function Dashboard() {
           <Activity className="size-10 text-muted-foreground/30" />
         </div>
         <div className="space-y-2">
-          <h2 className="text-2xl font-bold font-headline">Institutional Node Offline</h2>
+          <h2 className="text-2xl font-bold font-headline">Institutional System Offline</h2>
           <p className="text-muted-foreground max-w-sm mx-auto">Please visit the Admin Hub to select or provision an active school instance.</p>
         </div>
         <Button asChild className="h-11 px-8"><Link href="/admin">Visit Admin Hub</Link></Button>
@@ -102,7 +101,7 @@ export default function Dashboard() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-headline font-bold tracking-tight text-primary">Institutional Overview</h1>
-          <p className="text-muted-foreground">Welcome, {user?.displayName || 'Administrator'}. Global node status: <span className="text-green-600 font-bold">Online</span></p>
+          <p className="text-muted-foreground">Welcome, {user?.displayName || 'Administrator'}. Global system status: <span className="text-green-600 font-bold">Online</span></p>
         </div>
         <div className="flex items-center gap-3">
           <Button 
@@ -129,7 +128,7 @@ export default function Dashboard() {
           { title: "Student Roster", value: students?.length || 0, icon: GraduationCap, label: "Total Active Enrollment" },
           { title: "Presence Avg", value: "0%", icon: Clock, label: "Last 7 Business Days" },
           { title: "Fiscal Intake", value: `GH₵ ${(students?.length || 0) * 1200}`, icon: Wallet, label: "Current Term Collection" },
-          { title: "Faculty Node", value: staff?.length || 0, icon: Users, label: "Verified Staff Members" }
+          { title: "Faculty", value: staff?.length || 0, icon: Users, label: "Verified Staff Members" }
         ].map((stat) => (
           <Card key={stat.title} className="overflow-hidden border-none shadow-md bg-white hover:shadow-lg transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between pb-2">

@@ -70,7 +70,7 @@ export default function AdminPortal() {
       router.push("/login")
       toast({
         title: "Session Terminated",
-        description: "Super Admin node signed out successfully.",
+        description: "Super Admin signed out successfully.",
       })
     }
   }
@@ -194,7 +194,7 @@ export default function AdminPortal() {
     localStorage.setItem('selected_institution_name', name);
     toast({
       title: "Switching Context",
-      description: `Entering ${name} dashboard node...`,
+      description: `Entering ${name} dashboard...`,
     })
     router.push("/dashboard")
   }
@@ -212,7 +212,7 @@ export default function AdminPortal() {
             <ShieldCheck className="size-3" /> System Super Admin
           </div>
           <h1 className="text-4xl font-headline font-bold text-primary tracking-tight">Global Enterprise Hub</h1>
-          <p className="text-muted-foreground text-sm">Strategic multi-tenant node management for Yebfa School Manager.</p>
+          <p className="text-muted-foreground text-sm">Strategic multi-tenant management for Yebfa School Manager.</p>
         </div>
         <div className="flex items-center gap-4">
           <Button 
@@ -232,7 +232,7 @@ export default function AdminPortal() {
             <DialogContent className="rounded-2xl border-none shadow-2xl max-w-md">
               <DialogHeader>
                 <DialogTitle className="text-2xl font-headline font-bold text-primary">Select Institution</DialogTitle>
-                <DialogDescription>Choose an active node to view its specific academic and financial data.</DialogDescription>
+                <DialogDescription>Choose an active institution to view its specific academic and financial data.</DialogDescription>
               </DialogHeader>
               <ScrollArea className="max-h-[300px] mt-4">
                 <div className="space-y-2 pr-4">
@@ -323,7 +323,7 @@ export default function AdminPortal() {
                 { title: "Active Tenants", value: institutions.filter(i => i.status === 'active').length, icon: School, trend: "Global Registry" },
                 { title: "Pending Reviews", value: institutions.filter(i => i.status !== 'active').length, icon: Users, trend: "Registration Queue" },
                 { title: "Global Revenue", value: "GH₵---", icon: Wallet, trend: "Fiscal Year 2026" },
-                { title: "System Health", value: "100%", icon: Activity, trend: "All Nodes Online" }
+                { title: "System Health", value: "100%", icon: Activity, trend: "All Systems Online" }
               ].map((stat) => (
                 <Card key={stat.title} className="border-none shadow-sm bg-white hover:shadow-md transition-shadow">
                   <CardHeader className="flex flex-row items-center justify-between pb-2">

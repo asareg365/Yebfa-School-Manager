@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -69,7 +68,7 @@ export default function PayrollPage() {
             <form onSubmit={handleScheduleRun}>
               <DialogHeader>
                 <DialogTitle>Schedule Payroll Cycle</DialogTitle>
-                <DialogDescription>Initialize institutional salary disbursement node.</DialogDescription>
+                <DialogDescription>Initialize institutional salary disbursement hub.</DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="space-y-2">

@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -142,7 +141,7 @@ export default function AcademicPage() {
               <form onSubmit={handleAddSubject}>
                 <DialogHeader>
                   <DialogTitle className="text-2xl font-headline font-bold text-primary">Map Academic Subject</DialogTitle>
-                  <DialogDescription>Define a new subject node for the 2026 academic cycle.</DialogDescription>
+                  <DialogDescription>Define a new subject for the 2026 academic cycle.</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-6 py-6">
                   <div className="space-y-2">
@@ -235,7 +234,7 @@ export default function AcademicPage() {
                 <BookCheck className="size-10 text-primary/30" />
               </div>
               <div className="max-w-sm">
-                <h3 className="text-xl font-bold text-primary">No Curriculum Nodes Detected</h3>
+                <h3 className="text-xl font-bold text-primary">No Curriculum Items Detected</h3>
                 <p className="text-sm text-muted-foreground mt-2 leading-relaxed italic">
                   Start building your curriculum by adding subjects. Map them to specific grade levels for tracking.
                 </p>

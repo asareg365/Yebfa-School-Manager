@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -162,7 +161,7 @@ export default function LoginPage() {
               <Info className="h-4 w-4" />
               <AlertTitle className="text-xs font-bold uppercase tracking-wider">Secure Access</AlertTitle>
               <AlertDescription className="text-xs">
-                Enter your credentials to access the 2026 academic nodes.
+                Enter your credentials to access the 2026 academic systems.
               </AlertDescription>
             </Alert>
           )}
