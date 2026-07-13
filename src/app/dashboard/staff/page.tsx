@@ -44,7 +44,7 @@ export default function StaffPage() {
     if (storedId) setInstitutionId(storedId)
   }, [])
 
-  const instRef = institutionId ? doc(db!, "institutions", institutionId) : null
+  const instRef = useMemo(() => institutionId ? doc(db!, "institutions", institutionId) : null, [db, institutionId])
   const { data: institution } = useDoc(instRef)
 
   const staffQuery = useMemo(() => {

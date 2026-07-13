@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -30,7 +31,7 @@ export default function AttendancePage() {
     if (storedId) setInstitutionId(storedId)
   }, [])
 
-  const instRef = institutionId ? doc(db!, "institutions", institutionId) : null
+  const instRef = useMemo(() => institutionId ? doc(db!, "institutions", institutionId) : null, [db, institutionId])
   const { data: institution } = useDoc(instRef)
 
   const studentsQuery = useMemo(() => {

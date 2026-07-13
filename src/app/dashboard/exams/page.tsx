@@ -103,7 +103,7 @@ export default function ExaminationCenterPage() {
   const { data: students, loading: studentsLoading } = useCollection(studentsQuery)
   const { data: subjects } = useCollection(subjectsQuery)
 
-  const instRef = institutionId ? doc(db!, "institutions", institutionId) : null
+  const instRef = useMemo(() => institutionId ? doc(db!, "institutions", institutionId) : null, [db, institutionId])
   const { data: institution } = useDoc(instRef)
 
   const availableGrades = useMemo(() => {

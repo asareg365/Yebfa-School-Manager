@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { School, User, Bell, Shield, Wallet, Save, Loader2, Globe, Building, Plus, Layers, Trash2, Camera, Upload, X } from "lucide-react"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { useFirestore, useDoc } from "@/firebase"
 import { doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore"
 import { toast } from "@/hooks/use-toast"
@@ -27,7 +27,7 @@ export default function SettingsPage() {
     setInstitutionId(storedId)
   }, [])
 
-  const instRef = institutionId ? doc(db!, "institutions", institutionId) : null
+  const instRef = useMemo(() => institutionId ? doc(db!, "institutions", institutionId) : null, [db, institutionId])
   const { data: institution, loading } = useDoc(instRef)
 
   useEffect(() => {
