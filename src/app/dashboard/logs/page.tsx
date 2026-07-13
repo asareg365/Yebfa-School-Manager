@@ -17,7 +17,7 @@ export default function LogsPage() {
   const handleFilter = () => {
     toast({
       title: "Logs Filtered",
-      description: "Sorting activity audit by selected severity and node.",
+      description: "Sorting activity audit by selected severity and system identifier.",
     })
   }
 

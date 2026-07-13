@@ -11,18 +11,23 @@ service cloud.firestore {
     function getUserEmail() {
       // Robust email retrieval from token with case normalization
       let email = request.auth.token.email != null ? request.auth.token.email : request.auth.token.get('email', '');
+      if (email == null || email == '') {
+        // Fallback for some identity providers
+        email = request.auth.token.get('firebase', {}).get('identities', {}).get('email', [''])[0];
+      }
       return string(email).lower();
     }
 
     function isSuperAdmin() {
       let email = getUserEmail();
-      return isAuthenticated() && (email == 'asareg365@gmail.com' || email == 'frankyeb@gmail.com');
+      let admins = ['asareg365@gmail.com', 'frankyeb@gmail.com'];
+      return isAuthenticated() && (email in admins);
     }
 
     function isOwner(resourceData) {
       // Use get() to safely handle cases where ownerEmail might be missing from the document
       let owner = resourceData.get('ownerEmail', '').lower();
-      return isAuthenticated() && owner == getUserEmail();
+      return isAuthenticated() && (owner == getUserEmail() || isSuperAdmin());
     }
 
     // --- GLOBAL OVERRIDE ---

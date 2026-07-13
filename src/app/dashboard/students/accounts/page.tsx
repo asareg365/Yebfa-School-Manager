@@ -12,6 +12,7 @@ import { useState, useMemo, useEffect } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/hooks/use-toast"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 
 export default function PersonalFeeLedgerPage() {
   const db = useFirestore()
@@ -164,7 +165,8 @@ export default function PersonalFeeLedgerPage() {
             <DialogHeader><DialogTitle>New Ledger Entry</DialogTitle><DialogDescription>Posting transaction to {selectedStudent?.firstName}'s account.</DialogDescription></DialogHeader>
             <div className="grid gap-6 py-6">
               <div className="space-y-2"><Label>Entry Type</Label>
-                <Select onValueChange={v => setEntryForm({...entryForm, type: v})} value={entryForm.type}><SelectTrigger><SelectValue /></SelectTrigger>
+                <Select onValueChange={v => setEntryForm({...entryForm, type: v})} value={entryForm.type}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent><SelectItem value="charge">Debit (Charge Fee/Item)</SelectItem><SelectItem value="payment">Credit (Record Payment)</SelectItem></SelectContent>
                 </Select>
               </div>
@@ -173,7 +175,8 @@ export default function PersonalFeeLedgerPage() {
                   <Select onValueChange={v => {
                     const fee = approvedFees.find(f => f.name === v);
                     setEntryForm({...entryForm, item: v, amount: fee?.defaultAmount.toString() || ""});
-                  }}><SelectTrigger><SelectValue placeholder="Choose fee item" /></SelectTrigger>
+                  }}>
+                    <SelectTrigger><SelectValue placeholder="Choose fee item" /></SelectTrigger>
                     <SelectContent>{approvedFees.map((f: any) => <SelectItem key={f.id} value={f.name}>{f.name} (GH₵{f.defaultAmount})</SelectItem>)}</SelectContent>
                   </Select>
                 ) : <Input required value={entryForm.item} onChange={e => setEntryForm({...entryForm, item: e.target.value})} placeholder="e.g. Cash Payment, MoMo Transfer" />}
