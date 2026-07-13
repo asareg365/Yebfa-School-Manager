@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -20,6 +21,9 @@
         "name": { "type": "string" },
         "ownerEmail": { "type": "string" },
         "location": { "type": "string" },
+        "address": { "type": "string" },
+        "phone": { "type": "string" },
+        "logoUrl": { "type": "string" },
         "type": { "type": "string" },
         "gradeLevel": { "type": "string" },
         "specificGrades": { "type": "string" },
@@ -80,28 +84,38 @@
         "subjectId": { "type": "string" },
         "subjectName": { "type": "string" },
         "gradeLevel": { "type": "string" },
-        "classScore": { "type": "number", "description": "Assessment score from classwork." },
-        "examScore": { "type": "number", "description": "Score from terminal examination." },
-        "totalScore": { "type": "number", "description": "Sum of class and exam scores." },
+        "classScore": { "type": "number" },
+        "examScore": { "type": "number" },
+        "totalScore": { "type": "number" },
         "term": { "type": "string" },
         "academicYear": { "type": "string" },
         "institutionId": { "type": "string" }
       },
       "required": ["studentId", "subjectId", "institutionId"]
     },
-    "AttendanceRecord": {
-      "title": "Attendance Record",
-      "description": "Daily attendance tracking for students.",
+    "FeeItem": {
+      "title": "Approved Fee Item",
+      "description": "Standardized charges like Books, Tuition, etc.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "defaultAmount": { "type": "number" },
+        "category": { "type": "string" },
+        "institutionId": { "type": "string" }
+      }
+    },
+    "StudentLedgerEntry": {
+      "title": "Student Ledger Entry",
+      "description": "Individual charges or credits on a student account.",
       "type": "object",
       "properties": {
         "studentId": { "type": "string" },
-        "studentName": { "type": "string" },
-        "gradeLevel": { "type": "string" },
-        "date": { "type": "string", "format": "date" },
-        "status": { "type": "string", "enum": ["present", "absent"] },
+        "type": { "type": "string", "enum": ["charge", "payment"] },
+        "item": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string" },
         "institutionId": { "type": "string" }
-      },
-      "required": ["studentId", "date", "status", "institutionId"]
+      }
     }
   },
   "auth": {
@@ -124,17 +138,17 @@
       "schema": "Staff",
       "description": "Global staff records."
     },
-    "/subjects/{subjectId}": {
-      "schema": "Subject",
-      "description": "Academic subjects."
-    },
     "/exam_records/{recordId}": {
       "schema": "ExamRecord",
       "description": "Examination scores."
     },
-    "/attendance/{recordId}": {
-      "schema": "AttendanceRecord",
-      "description": "Daily attendance logs."
+    "/approved_fees/{feeId}": {
+      "schema": "FeeItem",
+      "description": "Global approved fee list per school."
+    },
+    "/student_ledger/{ledgerId}": {
+      "schema": "StudentLedgerEntry",
+      "description": "Individual student account records."
     }
   }
 }

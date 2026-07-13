@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -14,8 +15,9 @@ import {
   FileText,
   School,
   ShieldCheck,
-  ClipboardList,
-  CheckSquare
+  Users,
+  GraduationCap,
+  Banknote
 } from "lucide-react"
 
 import {
@@ -46,13 +48,23 @@ const navigation = [
     icon: LayoutDashboard,
   },
   {
-    title: "Academic Ledger",
+    title: "Student Management",
     url: "#",
-    icon: BookOpen,
+    icon: GraduationCap,
     items: [
-      { title: "Student Directory", url: "/dashboard/students" },
+      { title: "Directory & Enrollment", url: "/dashboard/students" },
+      { title: "Examination Center", url: "/dashboard/exams" },
+      { title: "Personal Fee Ledger", url: "/dashboard/students/accounts" },
+      { title: "ID Card Generator", url: "/dashboard/students/id-cards" },
+    ],
+  },
+  {
+    title: "Teachers Management",
+    url: "#",
+    icon: Users,
+    items: [
       { title: "Staff Roster", url: "/dashboard/staff" },
-      { title: "Curriculum Planning", url: "/dashboard/academic" },
+      { title: "Departmental Links", url: "/dashboard/academic" },
     ],
   },
   {
@@ -61,8 +73,7 @@ const navigation = [
     icon: CheckCircle,
     items: [
       { title: "Daily Attendance", url: "/dashboard/attendance" },
-      { title: "Examination Center", url: "/dashboard/exams" },
-      { title: "Daily Logs", url: "/dashboard/logs" },
+      { title: "Activity Logs", url: "/dashboard/logs" },
     ],
   },
   {
@@ -70,7 +81,7 @@ const navigation = [
     url: "#",
     icon: Wallet,
     items: [
-      { title: "Fee Management", url: "/dashboard/finance/fees" },
+      { title: "Approved Fee Setup", url: "/dashboard/finance/fees" },
       { title: "Payroll Processor", url: "/dashboard/finance/payroll" },
       { title: "Expense Tracker", url: "/dashboard/finance/expenses" },
       { title: "AI Forecasts", url: "/dashboard/finance/forecast" },
@@ -139,7 +150,7 @@ export function AppSidebar() {
             {navigation.map((item) => (
               <SidebarMenuItem key={item.title}>
                 {item.items ? (
-                  <Collapsible asChild className="group/collapsible">
+                  <Collapsible asChild className="group/collapsible" defaultOpen={pathname.startsWith(item.url !== "#" ? item.url : "/dashboard")}>
                     <div className="flex flex-col">
                       <CollapsibleTrigger asChild>
                         <SidebarMenuButton tooltip={item.title}>
