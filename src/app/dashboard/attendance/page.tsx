@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { errorEmitter } from "@/firebase/error-emitter"
+import { FirestorePermissionError } from "@/firebase/errors"
 
 const PRIMARY_GRADES = ["KG 1", "KG 2", "Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6"]
 const JHS_GRADES = ["JHS 1", "JHS 2", "JHS 3"]
@@ -84,38 +86,45 @@ export default function AttendancePage() {
     }))
   }
 
-  const handleSaveAttendance = async () => {
+  const handleSaveAttendance = () => {
     if (!db || !institutionId || !selectedGrade || !selectedDate) return
     setIsSaving(true)
-    try {
-      const promises = students.map(student => {
-        const status = presentStudents[student.id] ? "present" : "absent"
-        const recordId = `${student.id}_${selectedDate}`
-        return setDoc(doc(db, "attendance", recordId), {
-          studentId: student.id,
-          studentName: `${student.firstName} ${student.lastName}`,
-          gradeLevel: selectedGrade,
-          date: selectedDate,
-          status: status,
-          institutionId: institutionId,
-          updatedAt: serverTimestamp()
-        }, { merge: true })
-      })
+    
+    const promises = students.map(student => {
+      const status = presentStudents[student.id] ? "present" : "absent"
+      const recordId = `${student.id}_${selectedDate}`
+      const data = {
+        studentId: student.id,
+        studentName: `${student.firstName} ${student.lastName}`,
+        gradeLevel: selectedGrade,
+        date: selectedDate,
+        status: status,
+        institutionId: institutionId,
+        updatedAt: serverTimestamp()
+      }
+      
+      const docRef = doc(db, "attendance", recordId)
+      return setDoc(docRef, data, { merge: true })
+        .catch(async (error: any) => {
+          const permissionError = new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'write',
+            requestResourceData: data,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        })
+    })
 
-      await Promise.all(promises)
-      toast({
-        title: "Attendance Recorded",
-        description: `Daily roll call for ${selectedGrade} has been synchronized.`,
+    Promise.all(promises)
+      .then(() => {
+        toast({
+          title: "Attendance Recorded",
+          description: `Daily roll call for ${selectedGrade} has been synchronized.`,
+        })
       })
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Save Failed",
-        description: error.message
+      .finally(() => {
+        setIsSaving(false)
       })
-    } finally {
-      setIsSaving(false)
-    }
   }
 
   return (
@@ -130,12 +139,12 @@ export default function AttendancePage() {
             type="date" 
             value={selectedDate} 
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="h-10 px-3 rounded-md border border-input bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            className="h-10 px-3 rounded-xl border border-input bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
           />
           <Button 
             onClick={handleSaveAttendance} 
             disabled={isSaving || !selectedGrade || students.length === 0}
-            className="gap-2 bg-primary shadow-lg shadow-primary/10 h-11 px-6"
+            className="gap-2 bg-primary shadow-lg shadow-primary/10 h-11 px-8 rounded-xl transition-all active:scale-95"
           >
             {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
             Save Roll Call
@@ -144,9 +153,9 @@ export default function AttendancePage() {
       </div>
       
       <div className="grid gap-6 md:grid-cols-4">
-        <Card className="border-none shadow-md bg-white">
+        <Card className="border-none shadow-md bg-white rounded-2xl">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Present Count</CardTitle>
+            <CardTitle className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Present Count</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold font-headline">
@@ -155,13 +164,13 @@ export default function AttendancePage() {
             <p className="text-[10px] text-muted-foreground mt-1 font-medium">Selected Class Node</p>
           </CardContent>
         </Card>
-        <Card className="border-none shadow-md bg-white">
+        <Card className="border-none shadow-md bg-white rounded-2xl">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Absent Count</CardTitle>
+            <CardTitle className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Absent Count</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold font-headline text-accent">
-              {students.length - Object.values(presentStudents).filter(v => v).length}
+              {Math.max(0, students.length - Object.values(presentStudents).filter(v => v).length)}
             </div>
             <p className="text-[10px] text-muted-foreground mt-1 font-medium">Requiring Follow-up</p>
           </CardContent>
@@ -169,13 +178,13 @@ export default function AttendancePage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-4">
-        <Card className="md:col-span-1 border-none shadow-md">
-          <CardHeader><CardTitle className="text-sm">Class Selection</CardTitle></CardHeader>
+        <Card className="md:col-span-1 border-none shadow-md rounded-2xl bg-white">
+          <CardHeader><CardTitle className="text-sm font-bold">Class Selection</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>Select Grade Node</Label>
               <Select onValueChange={setSelectedGrade} value={selectedGrade}>
-                <SelectTrigger><SelectValue placeholder="Grade Node" /></SelectTrigger>
+                <SelectTrigger className="rounded-xl h-11"><SelectValue placeholder="Grade Node" /></SelectTrigger>
                 <SelectContent>
                   {availableGrades.map(grade => (
                     <SelectItem key={grade} value={grade}>{grade}</SelectItem>
@@ -186,16 +195,16 @@ export default function AttendancePage() {
           </CardContent>
         </Card>
 
-        <Card className="md:col-span-3 border-none shadow-md overflow-hidden">
+        <Card className="md:col-span-3 border-none shadow-md overflow-hidden rounded-2xl bg-white">
           <CardHeader className="border-b bg-white">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Roster Attendance</CardTitle>
+                <CardTitle className="font-headline font-bold">Roster Attendance</CardTitle>
                 <CardDescription>
                   {selectedGrade ? `Enrolled students in ${selectedGrade}` : "Please select a grade node to begin."}
                 </CardDescription>
               </div>
-              <Badge variant="outline" className="font-mono text-[10px] uppercase">
+              <Badge variant="outline" className="font-mono text-[10px] uppercase font-bold tracking-tight rounded-lg">
                 {selectedDate}
               </Badge>
             </div>
@@ -217,10 +226,10 @@ export default function AttendancePage() {
               <Table>
                 <TableHeader className="bg-muted/30">
                   <TableRow>
-                    <TableHead className="w-12 text-center">Tick</TableHead>
-                    <TableHead>Student Details</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Identifier</TableHead>
+                    <TableHead className="w-12 text-center font-bold">Tick</TableHead>
+                    <TableHead className="font-bold">Student Details</TableHead>
+                    <TableHead className="font-bold">Status</TableHead>
+                    <TableHead className="text-right font-bold">Identifier</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -230,23 +239,23 @@ export default function AttendancePage() {
                         <Checkbox 
                           checked={!!presentStudents[stu.id]} 
                           onCheckedChange={(checked) => handleToggleAttendance(stu.id, !!checked)}
-                          className="size-5"
+                          className="size-5 rounded-md border-primary/20"
                         />
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <div className="size-8 rounded-full bg-muted overflow-hidden flex items-center justify-center border">
+                          <div className="size-9 rounded-full bg-muted overflow-hidden flex items-center justify-center border border-white shadow-sm">
                             {stu.photoUrl ? <img src={stu.photoUrl} className="w-full h-full object-cover" /> : <Users className="size-4 text-muted-foreground" />}
                           </div>
                           <span className="font-bold text-primary">{stu.firstName} {stu.lastName}</span>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={presentStudents[stu.id] ? "default" : "secondary"} className={`text-[10px] uppercase font-bold ${presentStudents[stu.id] ? 'bg-green-100 text-green-700 hover:bg-green-100' : 'bg-red-50 text-red-600 hover:bg-red-50'}`}>
+                        <Badge variant={presentStudents[stu.id] ? "default" : "secondary"} className={`text-[10px] uppercase font-bold rounded-lg ${presentStudents[stu.id] ? 'bg-green-500 hover:bg-green-600' : 'bg-red-50 text-red-600 border-red-100 hover:bg-red-50'}`}>
                           {presentStudents[stu.id] ? "Present" : "Absent"}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right font-mono text-[10px] text-muted-foreground">
+                      <TableCell className="text-right font-mono text-[10px] font-bold text-muted-foreground">
                         {stu.studentId}
                       </TableCell>
                     </TableRow>
@@ -262,5 +271,5 @@ export default function AttendancePage() {
 }
 
 function Label({ children }: { children: React.ReactNode }) {
-  return <label className="text-sm font-bold text-primary">{children}</label>
+  return <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{children}</label>
 }

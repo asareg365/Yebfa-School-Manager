@@ -13,6 +13,8 @@ import { useState, useEffect, useRef, useMemo } from "react"
 import { useFirestore, useDoc } from "@/firebase"
 import { doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore"
 import { toast } from "@/hooks/use-toast"
+import { errorEmitter } from "@/firebase/error-emitter"
+import { FirestorePermissionError } from "@/firebase/errors"
 
 export default function SettingsPage() {
   const db = useFirestore()
@@ -43,7 +45,7 @@ export default function SettingsPage() {
     }
   }
 
-  const handleSaveSettings = async (e: React.FormEvent) => {
+  const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault()
     if (!instRef || isSaving) return
     
@@ -59,41 +61,62 @@ export default function SettingsPage() {
       logoUrl: logoPreview
     }
 
-    try {
-      await updateDoc(instRef, data)
-      toast({
-        title: "Profile Synchronized",
-        description: "Institutional identity node updated.",
+    updateDoc(instRef, data)
+      .then(() => {
+        toast({
+          title: "Profile Synchronized",
+          description: "Institutional identity node updated.",
+        })
       })
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Update Failed", description: error.message })
-    } finally {
-      setIsSaving(false)
-    }
+      .catch(async (error: any) => {
+        const permissionError = new FirestorePermissionError({
+          path: instRef.path,
+          operation: 'update',
+          requestResourceData: data,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => {
+        setIsSaving(false)
+      })
   }
 
-  const handleAddDepartment = async () => {
+  const handleAddDepartment = () => {
     if (!instRef || !newDept.trim()) return
-    try {
-      await updateDoc(instRef, { customDepartments: arrayUnion(newDept.trim()) })
-      setNewDept("")
-      toast({ title: "Department Registered", description: `${newDept} is now active.` })
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Access Denied", description: "You must be the institution owner." })
-    }
+    const updateData = { customDepartments: arrayUnion(newDept.trim()) }
+    updateDoc(instRef, updateData)
+      .then(() => {
+        setNewDept("")
+        toast({ title: "Department Registered", description: `${newDept} is now active.` })
+      })
+      .catch(async (error: any) => {
+        const permissionError = new FirestorePermissionError({
+          path: instRef.path,
+          operation: 'update',
+          requestResourceData: updateData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      })
   }
 
-  const handleRemoveDepartment = async (dept: string) => {
+  const handleRemoveDepartment = (dept: string) => {
     if (!instRef) return
-    try {
-      await updateDoc(instRef, { customDepartments: arrayRemove(dept) })
-      toast({ title: "Department Removed", description: `${dept} has been de-provisioned.` })
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Action Failed", description: error.message })
-    }
+    const updateData = { customDepartments: arrayRemove(dept) }
+    updateDoc(instRef, updateData)
+      .then(() => {
+        toast({ title: "Department Removed", description: `${dept} has been de-provisioned.` })
+      })
+      .catch(async (error: any) => {
+        const permissionError = new FirestorePermissionError({
+          path: instRef.path,
+          operation: 'update',
+          requestResourceData: updateData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      })
   }
 
-  if (loading) return <div className="p-10 text-center animate-pulse">Establishing Node Link...</div>
+  if (loading) return <div className="p-10 text-center animate-pulse font-headline font-bold text-primary">Establishing Node Link...</div>
   if (!institutionId) return <div className="p-10 text-center font-bold text-destructive">No Active Instance Connected</div>
 
   return (
@@ -121,21 +144,21 @@ export default function SettingsPage() {
 
         <form onSubmit={handleSaveSettings}>
           <TabsContent value="profile" className="space-y-6">
-            <Card className="border-none shadow-md">
+            <Card className="border-none shadow-md bg-white rounded-2xl overflow-hidden">
               <CardHeader>
-                <CardTitle>Branding & Details</CardTitle>
+                <CardTitle className="font-headline font-bold">Branding & Details</CardTitle>
                 <CardDescription>Logo and address details will appear on ID cards and letters.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-8">
-                <div className="flex items-center gap-8 p-6 border-2 border-dashed rounded-2xl bg-muted/20">
-                  <div className="relative size-32 rounded-2xl bg-background border flex items-center justify-center overflow-hidden shadow-sm group">
+                <div className="flex items-center gap-8 p-6 border-2 border-dashed rounded-3xl bg-slate-50/50">
+                  <div className="relative size-32 rounded-2xl bg-white border flex items-center justify-center overflow-hidden shadow-sm group">
                     {logoPreview ? (
                       <img src={logoPreview} className="w-full h-full object-contain p-2" />
                     ) : (
                       <School className="size-10 text-muted-foreground/20" />
                     )}
                     {logoPreview && (
-                      <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 size-6 opacity-0 group-hover:opacity-100" onClick={() => setLogoUrl(null)}>
+                      <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 size-6 opacity-0 group-hover:opacity-100 rounded-full" onClick={() => setLogoUrl(null)}>
                         <X className="size-3" />
                       </Button>
                     )}
@@ -144,7 +167,7 @@ export default function SettingsPage() {
                     <p className="text-sm font-bold text-primary">School Logo</p>
                     <p className="text-xs text-muted-foreground">High resolution PNG or SVG recommended.</p>
                     <input type="file" ref={fileInputRef} onChange={handleLogoUpload} accept="image/*" className="hidden" />
-                    <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="gap-2 rounded-xl h-10 px-4">
                       <Upload className="size-4" /> Upload Logo
                     </Button>
                   </div>
@@ -152,27 +175,27 @@ export default function SettingsPage() {
 
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>Official School Name</Label>
-                    <Input name="schoolName" defaultValue={institution?.name} required />
+                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Official School Name</Label>
+                    <Input name="schoolName" defaultValue={institution?.name} required className="h-11 rounded-xl" />
                   </div>
                   <div className="space-y-2">
-                    <Label>Location / Region</Label>
-                    <Input name="location" defaultValue={institution?.location} required />
+                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Location / Region</Label>
+                    <Input name="location" defaultValue={institution?.location} required className="h-11 rounded-xl" />
                   </div>
                 </div>
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>Physical Address (Back of ID Card)</Label>
-                    <Input name="address" defaultValue={institution?.address} placeholder="e.g. Plot 15, Station Road, Goaso" />
+                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Physical Address (Back of ID Card)</Label>
+                    <Input name="address" defaultValue={institution?.address} placeholder="e.g. Plot 15, Station Road, Goaso" className="h-11 rounded-xl" />
                   </div>
                   <div className="space-y-2">
-                    <Label>Official Phone (Back of ID Card)</Label>
-                    <Input name="phone" defaultValue={institution?.phone} placeholder="e.g. 024-000-0000" />
+                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Official Phone (Back of ID Card)</Label>
+                    <Input name="phone" defaultValue={institution?.phone} placeholder="e.g. 024-000-0000" className="h-11 rounded-xl" />
                   </div>
                 </div>
               </CardContent>
-              <CardFooter className="border-t pt-6">
-                <Button type="submit" disabled={isSaving} className="ml-auto gap-2">
+              <CardFooter className="border-t pt-6 bg-slate-50/50">
+                <Button type="submit" disabled={isSaving} className="ml-auto gap-2 h-11 px-8 rounded-xl bg-primary font-bold shadow-lg shadow-primary/10 transition-all active:scale-95">
                   {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
                   Save Branding Node
                 </Button>
@@ -181,14 +204,17 @@ export default function SettingsPage() {
           </TabsContent>
 
           <TabsContent value="academic" className="space-y-6">
-            <Card className="border-none shadow-md">
-              <CardHeader><CardTitle>Term Cycles</CardTitle></CardHeader>
+            <Card className="border-none shadow-md bg-white rounded-2xl overflow-hidden">
+              <CardHeader><CardTitle className="font-headline font-bold">Term Cycles</CardTitle></CardHeader>
               <CardContent className="grid gap-6 md:grid-cols-2">
-                <div className="space-y-2"><Label>Academic Year</Label><Input name="academicYear" defaultValue={institution?.academicYear} /></div>
                 <div className="space-y-2">
-                  <Label>Active Term</Label>
+                  <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Academic Year</Label>
+                  <Input name="academicYear" defaultValue={institution?.academicYear} className="h-11 rounded-xl" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Active Term</Label>
                   <Select name="currentTerm" defaultValue={institution?.currentTerm || "Term 1"}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Term 1">Term 1</SelectItem>
                       <SelectItem value="Term 2">Term 2</SelectItem>
@@ -197,37 +223,51 @@ export default function SettingsPage() {
                   </Select>
                 </div>
               </CardContent>
-              <CardFooter className="border-t pt-6"><Button type="submit" className="ml-auto">Update Cycle</Button></CardFooter>
+              <CardFooter className="border-t pt-6 bg-slate-50/50">
+                <Button type="submit" disabled={isSaving} className="ml-auto h-11 px-8 rounded-xl bg-primary font-bold shadow-lg shadow-primary/10 transition-all active:scale-95">
+                  Authorize Cycle Update
+                </Button>
+              </CardFooter>
             </Card>
           </TabsContent>
         </form>
 
         <TabsContent value="departments" className="space-y-6">
-          <Card className="border-none shadow-md">
-            <CardHeader><CardTitle>Departmental Registry</CardTitle></CardHeader>
+          <Card className="border-none shadow-md bg-white rounded-2xl overflow-hidden">
+            <CardHeader><CardTitle className="font-headline font-bold">Departmental Registry</CardTitle></CardHeader>
             <CardContent className="space-y-6">
               <div className="flex gap-4">
-                <Input placeholder="e.g. Guidance & Counseling" value={newDept} onChange={e => setNewDept(e.target.value)} />
-                <Button onClick={handleAddDepartment}><Plus className="size-4 mr-2" /> Add Department</Button>
+                <Input placeholder="e.g. Guidance & Counseling" value={newDept} onChange={e => setNewDept(e.target.value)} className="h-11 rounded-xl" />
+                <Button onClick={handleAddDepartment} className="h-11 rounded-xl gap-2"><Plus className="size-4" /> Add Department</Button>
               </div>
-              <div className="grid gap-2">
+              <div className="grid gap-3">
                 {institution?.customDepartments?.map((dept: string) => (
-                  <div key={dept} className="flex items-center justify-between p-3 rounded-lg border bg-slate-50">
-                    <span className="text-sm font-semibold">{dept}</span>
-                    <Button variant="ghost" size="icon" onClick={() => handleRemoveDepartment(dept)}><Trash2 className="size-4 text-destructive" /></Button>
+                  <div key={dept} className="flex items-center justify-between p-4 rounded-xl border bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                    <span className="text-sm font-bold text-primary">{dept}</span>
+                    <Button variant="ghost" size="icon" onClick={() => handleRemoveDepartment(dept)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                      <Trash2 className="size-4" />
+                    </Button>
                   </div>
                 ))}
+                {(!institution?.customDepartments || institution.customDepartments.length === 0) && (
+                   <p className="text-center py-12 text-sm text-muted-foreground italic">No custom departments registered for this node.</p>
+                )}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="security" className="space-y-6">
-          <Card className="border-none shadow-md">
-            <CardHeader><CardTitle>Access Controls</CardTitle></CardHeader>
-            <CardContent className="p-4 border rounded-xl flex items-center justify-between">
-              <div><Label>Data Isolation Check</Label><p className="text-xs text-muted-foreground">Strict multi-tenant verification active.</p></div>
-              <Switch defaultChecked />
+          <Card className="border-none shadow-md bg-white rounded-2xl overflow-hidden">
+            <CardHeader><CardTitle className="font-headline font-bold">Access Controls</CardTitle></CardHeader>
+            <CardContent className="p-6 border-t">
+              <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50/50 border border-slate-100">
+                <div className="space-y-1">
+                  <Label className="font-bold text-primary">Data Isolation Check</Label>
+                  <p className="text-xs text-muted-foreground">Strict multi-tenant verification active across all regional clusters.</p>
+                </div>
+                <Switch defaultChecked />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

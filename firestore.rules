@@ -8,8 +8,8 @@ service cloud.firestore {
 
     function isSuperAdmin() {
       return isAuthenticated() && (
-        request.auth.token.email == 'asareg365@gmail.com' || 
-        request.auth.token.email == 'frankyeb@gmail.com'
+        request.auth.token.email.lower() == 'asareg365@gmail.com' || 
+        request.auth.token.email.lower() == 'frankyeb@gmail.com'
       );
     }
 
@@ -24,7 +24,7 @@ service cloud.firestore {
     match /institutions/{institutionId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
-      allow update, delete: if isAuthenticated() && (isSuperAdmin() || resource.data.ownerEmail == request.auth.token.email);
+      allow update, delete: if isAuthenticated() && (isSuperAdmin() || resource.data.ownerEmail.lower() == request.auth.token.email.lower());
     }
 
     match /students/{studentId} {
@@ -52,6 +52,18 @@ service cloud.firestore {
     }
 
     match /payroll_cycles/{cycleId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /attendance/{attendanceId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /approved_fees/{feeId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /student_ledger/{ledgerId} {
       allow read, write: if isAuthenticated();
     }
   }
