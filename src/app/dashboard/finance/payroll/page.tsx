@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -112,7 +113,7 @@ export default function PayrollPage() {
         <CardHeader><CardTitle>Institutional Banking Status</CardTitle></CardHeader>
         <CardContent className="p-12 text-center opacity-40">
           <Banknote className="size-16 mx-auto mb-4" />
-          <p className="text-sm">Link your merchant node to see active disbursements.</p>
+          <p className="text-sm">Connect your school payment system to see active disbursements.</p>
         </CardContent>
       </Card>
     </div>

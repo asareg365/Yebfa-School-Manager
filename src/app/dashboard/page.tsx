@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,13 +18,11 @@ export default function Dashboard() {
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [videoLoading, setVideoLoading] = useState(false)
 
-  // 1. Initial load from local storage
   useEffect(() => {
     const storedId = localStorage.getItem('selected_institution_id')
     if (storedId) setInstitutionId(storedId)
   }, [])
 
-  // 2. Query for institutions owned by the current user to auto-select if none chosen
   const myInstitutionsQuery = useMemo(() => {
     if (!db || !user?.email) return null;
     return query(collection(db, "institutions"), where("ownerEmail", "==", user.email));
@@ -31,7 +30,6 @@ export default function Dashboard() {
 
   const { data: myInstitutions, loading: instLoading } = useCollection(myInstitutionsQuery);
 
-  // 3. Auto-resolve institution if none is selected (crucial for school owners)
   useEffect(() => {
     if (!authLoading && !instLoading && !institutionId && myInstitutions && myInstitutions.length > 0) {
       const first = myInstitutions[0];
@@ -77,7 +75,7 @@ export default function Dashboard() {
   if (authLoading || (institutionId && (studentsLoading || staffLoading))) return (
     <div className="p-10 text-center space-y-4">
       <Activity className="size-10 text-primary animate-spin mx-auto" />
-      <p className="font-headline font-bold text-muted-foreground animate-pulse">Synchronizing Academic Hub...</p>
+      <p className="font-headline font-bold text-muted-foreground animate-pulse">Synchronizing Dashboard...</p>
     </div>
   )
 
@@ -160,9 +158,9 @@ export default function Dashboard() {
             <div className="w-full max-w-md text-center space-y-4">
               <Activity className="size-16 text-muted-foreground/10 mx-auto" />
               <div>
-                <p className="text-sm font-bold text-primary">Awaiting Roll Call Data</p>
+                <p className="text-sm font-bold text-primary">Awaiting Attendance Data</p>
                 <p className="text-xs text-muted-foreground leading-relaxed italic">
-                  No attendance vectors detected for the current session. Biometric and manual logs will populate here.
+                  No attendance records detected for the current session. Biometric and manual logs will populate here.
                 </p>
               </div>
               <Progress value={0} className="h-1.5 w-full bg-muted" />

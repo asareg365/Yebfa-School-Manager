@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -23,7 +24,6 @@ export default function DashboardLayout({
   const [notifications, setNotifications] = useState<any[]>([]);
   const [institutionName, setInstitutionName] = useState<string>("Institution Hub");
 
-  // Load notifications and cleared status from storage
   useEffect(() => {
     const isCleared = localStorage.getItem('notifications_cleared_v1') === 'true';
     if (!isCleared) {
@@ -67,7 +67,6 @@ export default function DashboardLayout({
     }
   }, [user, loading, router]);
 
-  // Efficient local storage polling for institution name
   useEffect(() => {
     const updateName = () => {
       const storedName = localStorage.getItem('selected_institution_name');

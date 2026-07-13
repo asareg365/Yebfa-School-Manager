@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
@@ -46,7 +47,7 @@ export default function SettingsPage() {
         toast({
           variant: "destructive",
           title: "File Too Large",
-          description: "Please upload a logo smaller than 800KB for institutional performance.",
+          description: "Please upload a logo smaller than 800KB for system performance.",
         })
         return
       }
@@ -63,7 +64,6 @@ export default function SettingsPage() {
     setIsSaving(true)
     const formData = new FormData(e.target as HTMLFormElement)
     
-    // Explicitly pull values to ensure we don't send nulls
     const data = {
       name: (formData.get("schoolName") as string) || institution?.name || "",
       location: (formData.get("location") as string) || institution?.location || "",
@@ -74,12 +74,11 @@ export default function SettingsPage() {
       logoUrl: logoPreview || ""
     }
 
-    // Non-blocking update with contextual error handling
     updateDoc(instRef, data)
       .then(() => {
         toast({
           title: "Profile Synchronized",
-          description: "Institutional identity node updated.",
+          description: "Institutional identity profile updated.",
         })
       })
       .catch(async (error: any) => {
@@ -130,8 +129,8 @@ export default function SettingsPage() {
       })
   }
 
-  if (loading) return <div className="p-10 text-center animate-pulse font-headline font-bold text-primary">Establishing Link...</div>
-  if (!institutionId) return <div className="p-10 text-center font-bold text-destructive">No Active Instance Connected</div>
+  if (loading) return <div className="p-10 text-center animate-pulse font-headline font-bold text-primary">Loading Settings...</div>
+  if (!institutionId) return <div className="p-10 text-center font-bold text-destructive">No Active Institution Connected</div>
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -179,7 +178,7 @@ export default function SettingsPage() {
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm font-bold text-primary">School Logo</p>
-                    <p className="text-xs text-muted-foreground">High resolution PNG or SVG recommended. Max 800KB.</p>
+                    <p className="text-xs text-muted-foreground">High resolution PNG or JPG recommended. Max 800KB.</p>
                     <input type="file" ref={fileInputRef} onChange={handleLogoUpload} accept="image/*" className="hidden" />
                     <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="gap-2 rounded-xl h-10 px-4">
                       <Upload className="size-4" /> Upload Logo
@@ -277,7 +276,7 @@ export default function SettingsPage() {
             <CardContent className="p-6 border-t">
               <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50/50 border border-slate-100">
                 <div className="space-y-1">
-                  <Label className="font-bold text-primary">Data Isolation Check</Label>
+                  <Label className="font-bold text-primary">Security Verification</Label>
                   <p className="text-xs text-muted-foreground">Strict multi-tenant verification active across all regional clusters.</p>
                 </div>
                 <Switch defaultChecked />

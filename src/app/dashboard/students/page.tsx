@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -30,7 +31,6 @@ export default function StudentsPage() {
   const [editingStudent, setEditingStudent] = useState<any>(null)
   const [searchQuery, setSearchQuery] = useState("")
   
-  // Camera/Photo States
   const [isCameraActive, setIsCameraActive] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -131,7 +131,7 @@ export default function StudentsPage() {
       
       const size = Math.min(video.videoWidth, video.videoHeight)
       const x = (video.videoWidth - size) / 2
-      const y = (video.videoHeight - size) / 2
+      const y = (video.videoWidth - size) / 2
       
       context?.drawImage(video, x, y, size, size, 0, 0, 400, 400)
       const dataUrl = canvas.toDataURL('image/jpeg', 0.8)
@@ -206,7 +206,7 @@ export default function StudentsPage() {
   if (dataLoading) return (
     <div className="p-24 text-center space-y-4">
       <Loader2 className="size-10 animate-spin text-primary mx-auto" />
-      <p className="font-bold text-muted-foreground uppercase tracking-widest">Synchronizing Directory...</p>
+      <p className="font-bold text-muted-foreground uppercase tracking-widest">Synchronizing Records...</p>
     </div>
   )
 
@@ -222,7 +222,7 @@ export default function StudentsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary">Student Directory</h1>
-          <p className="text-muted-foreground">Managing {students.length} enrollment nodes.</p>
+          <p className="text-muted-foreground">Managing {students.length} enrollment records.</p>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" className="gap-2 h-11 transition-all active:scale-95" asChild>
@@ -321,7 +321,6 @@ export default function StudentsPage() {
         </CardContent>
       </Card>
 
-      {/* Enrollment Dialog */}
       <Dialog open={isEnrollOpen} onOpenChange={(val) => {
         if (!val) stopCamera()
         setIsEnrollOpen(val)
@@ -430,7 +429,6 @@ export default function StudentsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Dialog */}
       <Dialog open={isEditOpen} onOpenChange={(val) => {
         if (!val) {
           stopCamera()
