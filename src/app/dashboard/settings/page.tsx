@@ -71,7 +71,7 @@ export default function SettingsPage() {
       phone: (formData.get("phone") as string) || institution?.phone || "",
       academicYear: (formData.get("academicYear") as string) || institution?.academicYear || "",
       currentTerm: (formData.get("currentTerm") as string) || institution?.currentTerm || "Term 1",
-      logoUrl: logoPreview || ""
+      logoUrl: logoPreview || institution?.logoUrl || ""
     }
 
     updateDoc(instRef, data)

@@ -6,15 +6,9 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function getEmail() {
-      return request.auth.token.get('email', '').lower();
-    }
-
     function isSuperAdmin() {
-      return isAuthenticated() && (
-        getEmail() == 'asareg365@gmail.com' || 
-        getEmail() == 'frankyeb@gmail.com'
-      );
+      return isAuthenticated() && 
+             request.auth.token.email.lower() in ['asareg365@gmail.com', 'frankyeb@gmail.com'];
     }
 
     // Global override for Super Admins - gives full access to all paths
@@ -32,7 +26,7 @@ service cloud.firestore {
       allow update, delete: if isAuthenticated() && (
         isSuperAdmin() || 
         (
-          resource.data.get('ownerEmail', '').lower() == getEmail()
+          resource.data.get('ownerEmail', '').lower() == request.auth.token.email.lower()
         )
       );
     }
