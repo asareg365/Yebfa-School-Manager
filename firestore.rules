@@ -8,11 +8,12 @@ service cloud.firestore {
 
     function isSuperAdmin() {
       return isAuthenticated() && (
-        request.auth.token.get('email', '').lower() == 'asareg365@gmail.com' || 
-        request.auth.token.get('email', '').lower() == 'frankyeb@gmail.com'
+        request.auth.token.email.lower() == 'asareg365@gmail.com' || 
+        request.auth.token.email.lower() == 'frankyeb@gmail.com'
       );
     }
 
+    // Global override for Super Admins
     match /{document=**} {
       allow read, write: if isSuperAdmin();
     }
@@ -27,8 +28,7 @@ service cloud.firestore {
       allow update, delete: if isAuthenticated() && (
         isSuperAdmin() || 
         (
-          'ownerEmail' in resource.data && 
-          resource.data.ownerEmail.lower() == request.auth.token.get('email', '').lower()
+          resource.data.get('ownerEmail', '').lower() == request.auth.token.email.lower()
         )
       );
     }

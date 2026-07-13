@@ -29,7 +29,11 @@ export default function SettingsPage() {
     setInstitutionId(storedId)
   }, [])
 
-  const instRef = useMemo(() => institutionId ? doc(db!, "institutions", institutionId) : null, [db, institutionId])
+  const instRef = useMemo(() => {
+    if (!db || !institutionId) return null;
+    return doc(db, "institutions", institutionId);
+  }, [db, institutionId])
+  
   const { data: institution, loading } = useDoc(instRef)
 
   useEffect(() => {
@@ -59,16 +63,19 @@ export default function SettingsPage() {
     
     setIsSaving(true)
     const formData = new FormData(e.target as HTMLFormElement)
+    
+    // Explicitly pull values to ensure we don't send nulls
     const data = {
-      name: formData.get("schoolName") || institution?.name,
-      location: formData.get("location") || institution?.location,
-      address: formData.get("address") || "",
-      phone: formData.get("phone") || "",
-      academicYear: formData.get("academicYear") || "",
-      currentTerm: formData.get("currentTerm") || "Term 1",
-      logoUrl: logoPreview
+      name: (formData.get("schoolName") as string) || institution?.name || "",
+      location: (formData.get("location") as string) || institution?.location || "",
+      address: (formData.get("address") as string) || institution?.address || "",
+      phone: (formData.get("phone") as string) || institution?.phone || "",
+      academicYear: (formData.get("academicYear") as string) || institution?.academicYear || "",
+      currentTerm: (formData.get("currentTerm") as string) || institution?.currentTerm || "Term 1",
+      logoUrl: logoPreview || ""
     }
 
+    // Non-blocking update with contextual error handling
     updateDoc(instRef, data)
       .then(() => {
         toast({
@@ -161,7 +168,7 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-8 p-6 border-2 border-dashed rounded-3xl bg-slate-50/50">
                   <div className="relative size-32 rounded-2xl bg-white border flex items-center justify-center overflow-hidden shadow-sm group">
                     {logoPreview ? (
-                      <img src={logoPreview} className="w-full h-full object-contain p-2" />
+                      <img src={logoPreview} className="w-full h-full object-contain p-2" alt="Logo" />
                     ) : (
                       <School className="size-10 text-muted-foreground/20" />
                     )}
