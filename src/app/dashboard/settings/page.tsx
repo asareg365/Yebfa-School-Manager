@@ -39,6 +39,14 @@ export default function SettingsPage() {
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+      if (file.size > 800000) {
+        toast({
+          variant: "destructive",
+          title: "File Too Large",
+          description: "Please upload a logo smaller than 800KB for institutional performance.",
+        })
+        return
+      }
       const reader = new FileReader()
       reader.onloadend = () => setLogoUrl(reader.result as string)
       reader.readAsDataURL(file)
@@ -52,12 +60,12 @@ export default function SettingsPage() {
     setIsSaving(true)
     const formData = new FormData(e.target as HTMLFormElement)
     const data = {
-      name: formData.get("schoolName"),
-      location: formData.get("location"),
-      address: formData.get("address"),
-      phone: formData.get("phone"),
-      academicYear: formData.get("academicYear"),
-      currentTerm: formData.get("currentTerm"),
+      name: formData.get("schoolName") || institution?.name,
+      location: formData.get("location") || institution?.location,
+      address: formData.get("address") || "",
+      phone: formData.get("phone") || "",
+      academicYear: formData.get("academicYear") || "",
+      currentTerm: formData.get("currentTerm") || "Term 1",
       logoUrl: logoPreview
     }
 
@@ -165,7 +173,7 @@ export default function SettingsPage() {
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm font-bold text-primary">School Logo</p>
-                    <p className="text-xs text-muted-foreground">High resolution PNG or SVG recommended.</p>
+                    <p className="text-xs text-muted-foreground">High resolution PNG or SVG recommended. Max 800KB.</p>
                     <input type="file" ref={fileInputRef} onChange={handleLogoUpload} accept="image/*" className="hidden" />
                     <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="gap-2 rounded-xl h-10 px-4">
                       <Upload className="size-4" /> Upload Logo
