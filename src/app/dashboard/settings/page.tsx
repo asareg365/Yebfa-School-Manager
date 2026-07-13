@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { School, User, Bell, Shield, Wallet, Save, Loader2, Globe, Building, Plus, Layers, Trash2, Camera, Upload, X } from "lucide-react"
+import { School, User, Bell, Shield, Wallet, Save, Loader2, Building, Plus, Layers, Trash2, Camera, Upload, X } from "lucide-react"
 import { useState, useEffect, useRef, useMemo } from "react"
 import { useFirestore, useDoc } from "@/firebase"
 import { doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore"
@@ -64,6 +64,7 @@ export default function SettingsPage() {
     setIsSaving(true)
     const formData = new FormData(e.target as HTMLFormElement)
     
+    // Explicitly maintain existing values to prevent null overwrites
     const data = {
       name: (formData.get("schoolName") as string) || institution?.name || "",
       location: (formData.get("location") as string) || institution?.location || "",
