@@ -1,13 +1,13 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Wallet, Search, Plus, Loader2, User, Receipt, Banknote, Trash2, ArrowUpRight, CheckCircle2 } from "lucide-react"
-import { useFirestore, useCollection, useDoc } from "@/firebase"
-import { collection, query, where, addDoc, serverTimestamp, deleteDoc, doc, getDocs } from "firebase/firestore"
+import { Wallet, Search, Plus, Loader2, User, Receipt, Banknote, Trash2, CheckCircle2 } from "lucide-react"
+import { useFirestore, useCollection } from "@/firebase"
+import { collection, query, where, addDoc, serverTimestamp, deleteDoc, doc } from "firebase/firestore"
 import { useState, useMemo, useEffect } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
@@ -122,7 +122,7 @@ export default function PersonalFeeLedgerPage() {
           </CardHeader>
           <CardContent className="p-0 min-h-[400px]">
             {!selectedStudent ? (
-              <div className="h-96 flex flex-col items-center justify-center text-muted-foreground opacity-20"><Wallet className="size-20 mb-4" /><p>Awaiting Student Authentication...</p></div>
+              <div className="h-96 flex flex-col items-center justify-center text-muted-foreground opacity-20"><Wallet className="size-20 mb-4" /><p>Awaiting Student Selection...</p></div>
             ) : ledgerLoading ? (
               <div className="h-96 flex items-center justify-center"><Loader2 className="size-10 animate-spin text-primary" /></div>
             ) : (

@@ -1,13 +1,12 @@
-
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, GraduationCap, Wallet, Clock, Activity, ArrowUpRight, TrendingUp, PlayCircle, Loader2 } from "lucide-react"
+import { Users, GraduationCap, Wallet, Clock, Activity, ArrowUpRight, PlayCircle, Loader2 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import { useUser, useFirestore, useCollection } from "@/firebase"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { collection, query, where, orderBy } from "firebase/firestore"
+import { collection, query, where } from "firebase/firestore"
 import { useEffect, useState, useMemo } from "react"
 import { generateDemoVideo } from "@/ai/flows/generate-demo-video"
 import { toast } from "@/hooks/use-toast"
@@ -86,7 +85,7 @@ export default function Dashboard() {
           <Activity className="size-10 text-muted-foreground/30" />
         </div>
         <div className="space-y-2">
-          <h2 className="text-2xl font-bold font-headline">Institutional System Offline</h2>
+          <h2 className="text-2xl font-bold font-headline">System Hub Offline</h2>
           <p className="text-muted-foreground max-w-sm mx-auto">Please visit the Admin Hub to select or provision an active school instance.</p>
         </div>
         <Button asChild className="h-11 px-8"><Link href="/admin">Visit Admin Hub</Link></Button>
@@ -149,7 +148,7 @@ export default function Dashboard() {
         <Card className="col-span-4 border-none shadow-md bg-white">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle className="text-lg">Real-time Presence Trend</CardTitle>
+              <CardTitle className="text-lg">Real-time Presence Hub</CardTitle>
               <CardDescription>Automated tracking across all grade modules.</CardDescription>
             </div>
             <Button variant="ghost" size="icon" className="shrink-0"><ArrowUpRight className="size-4" /></Button>

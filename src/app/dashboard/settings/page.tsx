@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
@@ -64,8 +63,6 @@ export default function SettingsPage() {
     setIsSaving(true)
     const formData = new FormData(e.target as HTMLFormElement)
     
-    // Explicitly maintain existing values to prevent null overwrites
-    // This ensures data integrity and satisfies security rules
     const data = {
       name: (formData.get("schoolName") as string) || institution.name || "",
       location: (formData.get("location") as string) || institution.location || "",
@@ -278,7 +275,7 @@ export default function SettingsPage() {
             <CardContent className="p-6 border-t">
               <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50/50 border border-slate-100">
                 <div className="space-y-1">
-                  <Label className="font-bold text-primary">Security Verification</Label>
+                  <Label className="font-bold text-primary">System Verification</Label>
                   <p className="text-xs text-muted-foreground">Multi-tenant verification active across all clusters.</p>
                 </div>
                 <Switch defaultChecked />
