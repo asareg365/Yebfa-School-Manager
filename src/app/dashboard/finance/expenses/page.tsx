@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -12,6 +11,10 @@ import { useEffect, useState, useMemo } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
+import { errorEmitter } from "@/firebase/error-emitter"
+import { FirestorePermissionError } from "@/firebase/errors"
 
 export default function ExpensesPage() {
   const db = useFirestore()
@@ -32,24 +35,35 @@ export default function ExpensesPage() {
 
   const { data: expenses } = useCollection(expensesQuery)
 
-  const handleRecordExpenditure = async (e: React.FormEvent) => {
+  const handleRecordExpenditure = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!db || !institutionId) return
+    if (!db || !institutionId || loading) return
+    
     setLoading(true)
-    try {
-      await addDoc(collection(db, "expenditure_vouchers"), {
-        ...voucherForm,
-        institutionId,
-        createdAt: serverTimestamp()
-      })
-      toast({ title: "Expenditure Recorded", description: "Ledger updated successfully." })
-      setIsVoucherOpen(false)
-      setVoucherForm({ category: "Utilities", amount: "", description: "" })
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Error", description: e.message })
-    } finally {
-      setLoading(false)
+    const data = {
+      ...voucherForm,
+      amount: parseFloat(voucherForm.amount) || 0,
+      institutionId,
+      createdAt: serverTimestamp()
     }
+
+    addDoc(collection(db, "expenditure_vouchers"), data)
+      .then(() => {
+        toast({ title: "Expenditure Recorded", description: "Ledger updated successfully." })
+        setIsVoucherOpen(false)
+        setVoucherForm({ category: "Utilities", amount: "", description: "" })
+      })
+      .catch(async (error: any) => {
+        const permissionError = new FirestorePermissionError({
+          path: 'expenditure_vouchers',
+          operation: 'create',
+          requestResourceData: data,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => {
+        setLoading(false)
+      })
   }
 
   const totalSpend = expenses?.reduce((acc, curr: any) => acc + (parseFloat(curr.amount) || 0), 0) || 0
@@ -97,7 +111,8 @@ export default function ExpensesPage() {
               </div>
               <DialogFooter>
                 <Button type="submit" disabled={loading} className="w-full">
-                  {loading ? <Loader2 className="animate-spin" /> : "Authorize Voucher"}
+                  {loading ? <Loader2 className="animate-spin mr-2" /> : <Receipt className="mr-2" />}
+                  Authorize Voucher
                 </Button>
               </DialogFooter>
             </form>
@@ -129,11 +144,18 @@ export default function ExpensesPage() {
             <TableBody>
               {expenses?.map((exp: any) => (
                 <TableRow key={exp.id}>
-                  <TableCell><Badge variant="outline" className="text-[10px] uppercase">{exp.category}</Badge></TableCell>
+                  <TableCell><Badge variant="outline" className="text-[10px] uppercase font-bold">{exp.category}</Badge></TableCell>
                   <TableCell className="text-sm">{exp.description}</TableCell>
                   <TableCell className="text-right font-bold">GH₵ {exp.amount}</TableCell>
                 </TableRow>
               ))}
+              {(!expenses || expenses.length === 0) && (
+                <TableRow>
+                  <TableCell colSpan={3} className="text-center py-12 text-muted-foreground italic">
+                    No expenditure vouchers recorded.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
