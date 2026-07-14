@@ -43,24 +43,24 @@ export default function StudentIDCardsPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      {/* Screen view content - Hidden during print via global CSS in layout */}
+      {/* Screen view content */}
       <div className="no-print space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" asChild>
               <Link href="/dashboard/students"><ArrowLeft className="size-4" /></Link>
             </Button>
             <div>
               <h1 className="text-3xl font-headline font-bold text-primary">ID Card Generator</h1>
-              <p className="text-muted-foreground">Preview and authorize student identification.</p>
+              <p className="text-muted-foreground">Authorize and print student identification badges.</p>
             </div>
           </div>
-          <div className="flex gap-3">
-            <div className="relative w-64">
+          <div className="flex items-center gap-3">
+            <div className="relative w-full md:w-64">
               <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-              <Input placeholder="Search system registry..." className="pl-9" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+              <Input placeholder="Search registry..." className="pl-9" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
             </div>
-            <Button className="gap-2 bg-primary shadow-lg shadow-primary/10" onClick={handlePrint}>
+            <Button className="gap-2 bg-primary shadow-lg shadow-primary/10 whitespace-nowrap" onClick={handlePrint}>
               <Printer className="size-4" /> Print Registry
             </Button>
           </div>
@@ -83,25 +83,25 @@ export default function StudentIDCardsPage() {
                     </div>
                     <div className="flex flex-col justify-between h-24 py-1">
                       <div>
-                        <h3 className="text-sm font-bold text-primary leading-tight uppercase">{stu.firstName} {stu.lastName}</h3>
+                        <h3 className="text-[12px] font-bold text-primary leading-tight uppercase truncate w-32">{stu.firstName} {stu.lastName}</h3>
                         <p className="text-[10px] text-muted-foreground font-bold">{stu.gradeLevel}</p>
                       </div>
                       <div>
                         <p className="text-[8px] uppercase tracking-widest text-muted-foreground font-bold">Registry ID</p>
-                        <p className="text-xs font-mono font-bold text-accent">{stu.studentId}</p>
+                        <p className="text-[11px] font-mono font-bold text-accent">{stu.studentId}</p>
                       </div>
                     </div>
                   </div>
                   <div className="mt-auto flex items-center justify-between border-t pt-2">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 overflow-hidden">
                       {institution?.logoUrl ? (
                         <img src={institution.logoUrl} className="size-6 object-contain" alt="Logo" />
                       ) : (
-                        <div className="size-6 bg-primary rounded flex items-center justify-center text-[8px] text-white font-bold">Y</div>
+                        <div className="size-6 bg-primary rounded flex items-center justify-center text-[8px] text-white font-bold shrink-0">Y</div>
                       )}
-                      <span className="text-[9px] font-bold text-primary uppercase">{institution?.name || "System Hub"}</span>
+                      <span className="text-[9px] font-bold text-primary uppercase truncate max-w-[120px]">{institution?.name || "System Hub"}</span>
                     </div>
-                    <div className="text-[7px] text-muted-foreground italic">Authenticated 2026</div>
+                    <div className="text-[7px] text-muted-foreground italic shrink-0">Live System 2026</div>
                   </div>
                 </div>
               ))}
@@ -116,17 +116,17 @@ export default function StudentIDCardsPage() {
                     {institution?.logoUrl ? <img src={institution.logoUrl} className="size-12" alt="Logo Watermark" /> : <SchoolIcon className="size-12" />}
                   </div>
                   <div className="space-y-3 z-10">
-                    <h4 className="text-[10px] font-bold text-primary uppercase tracking-widest border-b pb-1">Institutional Registry</h4>
+                    <h4 className="text-[10px] font-bold text-primary uppercase tracking-widest border-b pb-1">Institutional Authorization</h4>
                     <div className="space-y-1">
                       <p className="flex items-center justify-center gap-1.5 text-[9px] font-medium text-muted-foreground">
-                        <MapPin className="size-2.5 text-accent" /> {institution?.address || "System Location, Ghana"}
+                        <MapPin className="size-2.5 text-accent" /> {institution?.address || "Ahafo Region, Ghana"}
                       </p>
                       <p className="flex items-center justify-center gap-1.5 text-[9px] font-medium text-muted-foreground">
-                        <Phone className="size-2.5 text-accent" /> {institution?.phone || "Hub Authorization Required"}
+                        <Phone className="size-2.5 text-accent" /> {institution?.phone || "Registry Active"}
                       </p>
                     </div>
                     <p className="text-[7px] text-muted-foreground px-4 leading-relaxed">
-                      This document remains the property of {institution?.name}. If found, please return to the system hub.
+                      This document is the property of {institution?.name}. Return if found.
                     </p>
                   </div>
                 </div>
@@ -136,47 +136,34 @@ export default function StudentIDCardsPage() {
         </Tabs>
       </div>
 
-      {/* Dedicated Print View - Visible only when printing */}
-      <div className="print-only">
+      {/* Dedicated Print Container */}
+      <div className="print-actual-view">
         <div className="print-grid">
           {filteredStudents.map((stu: any) => (
-            <div key={stu.id + '_print_pair'} className="print-card-wrapper">
+            <div key={stu.id + '_print'} className="print-item-wrapper">
               {/* Card Front */}
-              <div className="id-card-print">
-                <div className="card-header-print">
-                  {institution?.logoUrl && <img src={institution.logoUrl} className="print-logo" alt="Logo" />}
-                  <span className="print-school-name">{institution?.name}</span>
+              <div className="print-id-card">
+                <div className="print-card-header">
+                  {institution?.logoUrl && <img src={institution.logoUrl} className="card-logo" />}
+                  <span className="card-school-name">{institution?.name}</span>
                 </div>
-                <div className="card-body-print">
-                  <div className="print-photo-container">
-                    {stu.photoUrl ? <img src={stu.photoUrl} className="print-photo" alt="Student" /> : <div className="print-photo-placeholder" />}
+                <div className="print-card-body">
+                  <div className="card-photo-box">
+                    {stu.photoUrl ? <img src={stu.photoUrl} className="card-photo" /> : <div className="card-photo-placeholder" />}
                   </div>
-                  <div className="print-info">
-                    <h3 className="print-student-name">{stu.firstName} {stu.lastName}</h3>
-                    <p className="print-student-grade">{stu.gradeLevel}</p>
-                    <div className="print-id-section">
-                      <span className="print-id-label">SYSTEM ID</span>
-                      <span className="print-id-value">{stu.studentId}</span>
+                  <div className="card-details">
+                    <h3 className="card-student-name">{stu.firstName} {stu.lastName}</h3>
+                    <p className="card-student-grade">{stu.gradeLevel}</p>
+                    <div className="card-id-block">
+                      <span className="id-label">REGISTRY ID</span>
+                      <span className="id-value">{stu.studentId}</span>
                     </div>
                   </div>
                 </div>
-                <div className="card-footer-print">
-                  <span>OFFICIAL REGISTRY</span>
+                <div className="print-card-footer">
+                  <span>OFFICIAL DOCUMENT</span>
                   <span>SESSION 2026</span>
                 </div>
-              </div>
-              
-              {/* Card Back */}
-              <div className="id-card-print back">
-                <h4 className="print-back-title">INSTITUTIONAL AUTHORIZATION</h4>
-                <div className="print-contact-info">
-                  <p>{institution?.address || "Ahafo Region, Ghana"}</p>
-                  <p>{institution?.phone}</p>
-                </div>
-                <p className="print-disclaimer">
-                  This card is the property of {institution?.name}. Return if found. Unauthorized use is prohibited.
-                </p>
-                <div className="print-version">Yebfa School Manager v2026</div>
               </div>
             </div>
           ))}
@@ -184,177 +171,155 @@ export default function StudentIDCardsPage() {
       </div>
 
       <style jsx global>{`
-        @media screen {
-          .print-only { display: none !important; }
+        /* Screen visibility */
+        .print-actual-view {
+          display: none;
         }
 
         @media print {
-          .no-print, header, aside, [data-sidebar="trigger"] {
-            display: none !important;
+          /* Hide EVERYTHING by default */
+          body * {
+            visibility: hidden;
           }
           
-          body, html {
-            background: white !important;
-            margin: 0 !important;
-            padding: 0 !important;
+          /* Show only our dedicated print view */
+          .print-actual-view, .print-actual-view * {
+            visibility: visible;
           }
 
-          .print-only {
+          .print-actual-view {
             display: block !important;
-            width: 100% !important;
-            margin: 0 !important;
-            padding: 20px !important;
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            background: white;
           }
 
           .print-grid {
-            display: grid !important;
-            grid-template-columns: 1fr 1fr !important;
-            gap: 40px !important;
+            display: grid;
+            grid-template-columns: repeat(2, 3.375in);
+            gap: 0.5in;
+            justify-content: center;
+            padding: 0.5in;
           }
 
-          .print-card-wrapper {
-            display: flex !important;
-            flex-direction: column !important;
-            gap: 20px !important;
-            break-inside: avoid !important;
-            page-break-inside: avoid !important;
+          .print-item-wrapper {
+            break-inside: avoid;
+            page-break-inside: avoid;
+            margin-bottom: 0.3in;
           }
 
-          .id-card-print {
-            width: 3.375in !important;
-            height: 2.125in !important;
-            border: 1px solid #e2e8f0 !important;
-            border-radius: 8px !important;
-            padding: 12px !important;
-            display: flex !important;
-            flex-direction: column !important;
-            position: relative !important;
-            background: white !important;
-            color: black !important;
+          .print-id-card {
+            width: 3.375in;
+            height: 2.125in;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            color: black;
+            font-family: sans-serif;
+            overflow: hidden;
+            box-sizing: border-box;
           }
 
-          .card-header-print {
-            display: flex !important;
-            align-items: center !important;
-            gap: 8px !important;
-            border-bottom: 1px solid #f1f5f9 !important;
-            padding-bottom: 6px !important;
-            margin-bottom: 8px !important;
+          .print-card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 8px;
+            margin-bottom: 10px;
           }
 
-          .print-logo {
-            height: 24px !important;
-            width: 24px !important;
-            object-fit: contain !important;
+          .card-logo {
+            height: 25px;
+            width: 25px;
+            object-fit: contain;
           }
 
-          .print-school-name {
-            font-size: 10px !important;
-            font-weight: bold !important;
-            text-transform: uppercase !important;
+          .card-school-name {
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
           }
 
-          .card-body-print {
-            display: flex !important;
-            gap: 12px !important;
-            flex: 1 !important;
+          .print-card-body {
+            display: flex;
+            gap: 15px;
+            flex: 1;
           }
 
-          .print-photo-container {
-            width: 80px !important;
-            height: 80px !important;
-            border: 1px solid #f1f5f9 !important;
-            border-radius: 4px !important;
-            overflow: hidden !important;
-            background: #f8fafc !important;
+          .card-photo-box {
+            width: 85px;
+            height: 85px;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            overflow: hidden;
+            background: #f9f9f9;
           }
 
-          .print-photo {
-            width: 100% !important;
-            height: 100% !important;
-            object-fit: cover !important;
+          .card-photo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
           }
 
-          .print-info {
-            display: flex !important;
-            flex-direction: column !important;
-            justify-content: center !important;
+          .card-photo-placeholder {
+            width: 100%;
+            height: 100%;
+            background: #eee;
           }
 
-          .print-student-name {
-            font-size: 12px !important;
-            font-weight: bold !important;
-            text-transform: uppercase !important;
-            line-height: 1.2 !important;
+          .card-details {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            flex: 1;
           }
 
-          .print-student-grade {
-            font-size: 9px !important;
-            color: #64748b !important;
-            margin-top: 2px !important;
+          .card-student-name {
+            font-size: 13px;
+            font-weight: bold;
+            text-transform: uppercase;
+            line-height: 1.2;
           }
 
-          .print-id-section {
-            margin-top: 8px !important;
+          .card-student-grade {
+            font-size: 10px;
+            color: #555;
           }
 
-          .print-id-label {
-            display: block !important;
-            font-size: 7px !important;
-            color: #94a3b8 !important;
-            font-weight: bold !important;
+          .card-id-block {
+            margin-top: 5px;
           }
 
-          .print-id-value {
-            font-size: 10px !important;
-            font-family: monospace !important;
-            font-weight: bold !important;
+          .id-label {
+            display: block;
+            font-size: 7px;
+            font-weight: bold;
+            color: #888;
           }
 
-          .card-footer-print {
-            margin-top: auto !important;
-            padding-top: 4px !important;
-            border-top: 1px solid #f1f5f9 !important;
-            display: flex !important;
-            justify-content: space-between !important;
-            font-size: 6px !important;
-            font-weight: bold !important;
-            color: #94a3b8 !important;
+          .id-value {
+            font-size: 11px;
+            font-family: monospace;
+            font-weight: bold;
           }
 
-          .id-card-print.back {
-            text-align: center !important;
-            justify-content: center !important;
-            background-color: #f8fafc !important;
-          }
-
-          .print-back-title {
-            font-size: 9px !important;
-            font-weight: bold !important;
-            letter-spacing: 0.05em !important;
-            margin-bottom: 8px !important;
-            border-bottom: 1px solid #e2e8f0 !important;
-            padding-bottom: 4px !important;
-          }
-
-          .print-contact-info {
-            font-size: 8px !important;
-            font-weight: 500 !important;
-            margin-bottom: 12px !important;
-          }
-
-          .print-disclaimer {
-            font-size: 7px !important;
-            color: #64748b !important;
-            padding: 0 12px !important;
-            line-height: 1.4 !important;
-          }
-
-          .print-version {
-            margin-top: auto !important;
-            font-size: 5px !important;
-            color: #cbd5e1 !important;
-            font-weight: bold !important;
+          .print-card-footer {
+            margin-top: auto;
+            padding-top: 5px;
+            border-top: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            font-size: 7px;
+            font-weight: bold;
+            color: #999;
           }
         }
       `}</style>

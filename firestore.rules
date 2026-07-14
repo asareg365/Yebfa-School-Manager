@@ -4,53 +4,71 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
 
-    // -----------------------------
-    // AUTHENTICATION HELPERS
-    // -----------------------------
+    // ======================
+    // AUTH HELPERS
+    // ======================
 
     function signedIn() {
       return request.auth != null;
     }
 
 
-    function userEmail() {
-      return request.auth.token.email;
-    }
-
-
     function isSuperAdmin() {
-      return signedIn() &&
+
+      return signedIn()
+      &&
       (
-        userEmail() == "asareg365@gmail.com" ||
-        userEmail() == "frankyeb@gmail.com"
+        request.auth.uid == "hyd7AluSrDcLBeViOLj9qQKDqt93"
+        ||
+        request.auth.uid == "wPZw3XHcXpVQ2f9ZkW4KKfkCzYA2"
       );
+
     }
 
 
-    function ownsInstitution() {
-      return resource.data.ownerEmail == userEmail();
+    function sameTenant(tenantId) {
+
+      return signedIn()
+      &&
+      request.auth.token.tenantId == tenantId;
+
     }
 
 
-    // -----------------------------
+
+    // ======================
     // INSTITUTIONS
-    // -----------------------------
+    // ======================
+
 
     match /institutions/{institutionId} {
 
-      allow read: if signedIn();
 
-      allow create: if signedIn();
+      allow read:
+      if signedIn();
 
-      allow update: if 
-        request.auth.token.email == "asareg365@gmail.com";
+
+      allow create:
+      if signedIn();
+
+
+      allow update, delete:
+      if signedIn()
+      &&
+      (
+        isSuperAdmin()
+        ||
+        resource.data.ownerUid == request.auth.uid
+      );
+
     }
 
 
 
-    // -----------------------------
+    // ======================
     // USERS
-    // -----------------------------
+    // ======================
+
 
     match /users/{userId} {
 
@@ -62,18 +80,21 @@ service cloud.firestore {
         ||
         isSuperAdmin()
       );
+
     }
 
 
 
-    // -----------------------------
+    // ======================
     // SCHOOL DATA
-    // -----------------------------
+    // ======================
+
 
     match /students/{studentId} {
 
       allow read, write:
       if signedIn();
+
     }
 
 
@@ -81,6 +102,7 @@ service cloud.firestore {
 
       allow read, write:
       if signedIn();
+
     }
 
 
@@ -88,6 +110,7 @@ service cloud.firestore {
 
       allow read, write:
       if signedIn();
+
     }
 
 
@@ -95,6 +118,7 @@ service cloud.firestore {
 
       allow read, write:
       if signedIn();
+
     }
 
 
@@ -102,6 +126,7 @@ service cloud.firestore {
 
       allow read, write:
       if signedIn();
+
     }
 
 
@@ -109,6 +134,7 @@ service cloud.firestore {
 
       allow read, write:
       if signedIn();
+
     }
 
 
@@ -116,6 +142,7 @@ service cloud.firestore {
 
       allow read, write:
       if signedIn();
+
     }
 
 
@@ -123,6 +150,7 @@ service cloud.firestore {
 
       allow read, write:
       if signedIn();
+
     }
 
 
@@ -130,18 +158,18 @@ service cloud.firestore {
 
       allow read, write:
       if signedIn();
+
     }
 
 
 
-    // -----------------------------
-    // SUPER ADMIN OVERRIDE
-    // -----------------------------
+    // SUPER ADMIN FALLBACK
 
     match /{document=**} {
 
       allow read, write:
       if isSuperAdmin();
+
     }
 
   }
