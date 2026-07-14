@@ -1,7 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { BookOpen, Plus, Search, Trash2, Pencil, Loader2, BookCheck, Filter, ChevronRight } from "lucide-react"
+import { BookOpen, Plus, Search, Trash2, Pencil, Loader2, BookCheck, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "@/hooks/use-toast"
@@ -9,9 +9,12 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
 import { useFirestore, useCollection, useDoc } from "@/firebase"
 import { collection, query, where, addDoc, deleteDoc, doc, updateDoc, serverTimestamp } from "firebase/firestore"
 import { useState, useMemo, useEffect } from "react"
+import { errorEmitter } from "@/firebase/error-emitter"
+import { FirestorePermissionError } from "@/firebase/errors"
 
 const SUBJECT_CATEGORIES = ["Core", "Elective", "Vocational", "Extra-Curricular"]
 
@@ -32,7 +35,7 @@ export default function AcademicPage() {
   const [subjectForm, setSubjectForm] = useState({
     name: "",
     category: "Core",
-    gradeLevel: "Primary 1",
+    gradeLevels: [] as string[],
     description: ""
   })
 
@@ -62,58 +65,93 @@ export default function AcademicPage() {
   const filteredSubjects = useMemo(() => {
     return subjectsData.filter(sub => {
       const matchesSearch = sub.name.toLowerCase().includes(searchQuery.toLowerCase())
-      const matchesGrade = filterGrade === "all" || sub.gradeLevel === filterGrade
+      // Check if filterGrade is in the gradeLevels array or matches legacy gradeLevel string
+      const matchesGrade = filterGrade === "all" || 
+                          sub.gradeLevels?.includes(filterGrade) || 
+                          sub.gradeLevel === filterGrade
       return matchesSearch && matchesGrade
     }).sort((a, b) => a.name.localeCompare(b.name))
   }, [subjectsData, searchQuery, filterGrade])
 
-  const handleAddSubject = async (e: React.FormEvent) => {
+  const handleAddSubject = (e: React.FormEvent) => {
     e.preventDefault()
     if (!db || !institutionId || loading) return
-    setLoading(true)
-
-    try {
-      await addDoc(collection(db, "subjects"), {
-        ...subjectForm,
-        institutionId,
-        createdAt: serverTimestamp()
-      })
-      toast({ title: "Subject Added", description: `${subjectForm.name} is now in the curriculum.` })
-      setIsAddOpen(false)
-      setSubjectForm({ name: "", category: "Core", gradeLevel: availableGrades[0], description: "" })
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Error", description: error.message })
-    } finally {
-      setLoading(true) // Set false after small delay or let state change do it
-      setTimeout(() => setLoading(false), 500)
+    
+    if (subjectForm.gradeLevels.length === 0) {
+      toast({ variant: "destructive", title: "Missing Grades", description: "Please select at least one target grade." })
+      return
     }
+
+    setLoading(true)
+    const data = {
+      ...subjectForm,
+      institutionId,
+      createdAt: serverTimestamp()
+    }
+
+    addDoc(collection(db, "subjects"), data)
+      .then(() => {
+        toast({ title: "Subject Added", description: `${subjectForm.name} is now in the curriculum.` })
+        setIsAddOpen(false)
+        setSubjectForm({ name: "", category: "Core", gradeLevels: [], description: "" })
+      })
+      .catch(async (error: any) => {
+        const permissionError = new FirestorePermissionError({
+          path: 'subjects',
+          operation: 'create',
+          requestResourceData: data,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => {
+        setLoading(false)
+      })
   }
 
-  const handleUpdateSubject = async (e: React.FormEvent) => {
+  const handleUpdateSubject = (e: React.FormEvent) => {
     e.preventDefault()
     if (!db || !editingSubject || loading) return
-    setLoading(true)
-
-    try {
-      await updateDoc(doc(db, "subjects", editingSubject.id), subjectForm)
-      toast({ title: "Subject Updated", description: "Academic record synchronized." })
-      setIsEditOpen(false)
-      setEditingSubject(null)
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Update Failed", description: error.message })
-    } finally {
-      setTimeout(() => setLoading(false), 500)
+    
+    if (subjectForm.gradeLevels.length === 0) {
+      toast({ variant: "destructive", title: "Missing Grades", description: "Please select at least one target grade." })
+      return
     }
+
+    setLoading(true)
+    const data = { ...subjectForm }
+
+    updateDoc(doc(db, "subjects", editingSubject.id), data)
+      .then(() => {
+        toast({ title: "Subject Updated", description: "Academic record synchronized." })
+        setIsEditOpen(false)
+        setEditingSubject(null)
+      })
+      .catch(async (error: any) => {
+        const permissionError = new FirestorePermissionError({
+          path: `subjects/${editingSubject.id}`,
+          operation: 'update',
+          requestResourceData: data,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => {
+        setLoading(false)
+      })
   }
 
-  const handleDeleteSubject = async (id: string, name: string) => {
+  const handleDeleteSubject = (id: string, name: string) => {
     if (!db) return
-    try {
-      await deleteDoc(doc(db, "subjects", id))
-      toast({ title: "Subject Removed", description: `${name} de-provisioned from syllabus.` })
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Delete Failed", description: error.message })
-    }
+    deleteDoc(doc(db, "subjects", id))
+      .then(() => {
+        toast({ title: "Subject Removed", description: `${name} de-provisioned from syllabus.` })
+      })
+      .catch(async (error: any) => {
+        const permissionError = new FirestorePermissionError({
+          path: `subjects/${id}`,
+          operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      })
   }
 
   if (!institutionId) return (
@@ -143,29 +181,40 @@ export default function AcademicPage() {
                   <DialogTitle className="text-2xl font-headline font-bold text-primary">Map Academic Subject</DialogTitle>
                   <DialogDescription>Define a new subject for the 2026 academic cycle.</DialogDescription>
                 </DialogHeader>
-                <div className="grid gap-6 py-6">
+                <div className="grid gap-6 py-6 max-h-[70vh] overflow-y-auto pr-2">
                   <div className="space-y-2">
                     <Label>Subject Name</Label>
                     <Input required value={subjectForm.name} onChange={e => setSubjectForm({...subjectForm, name: e.target.value})} placeholder="e.g. Core Mathematics" />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Category</Label>
-                      <Select onValueChange={v => setSubjectForm({...subjectForm, category: v})} defaultValue="Core">
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {SUBJECT_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Target Grade</Label>
-                      <Select onValueChange={v => setSubjectForm({...subjectForm, gradeLevel: v})} defaultValue={availableGrades[0]}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {availableGrades.map(grade => <SelectItem key={grade} value={grade}>{grade}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
+                  <div className="space-y-2">
+                    <Label>Category</Label>
+                    <Select onValueChange={v => setSubjectForm({...subjectForm, category: v})} defaultValue="Core">
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {SUBJECT_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-3">
+                    <Label>Target Grades (Multiple Select)</Label>
+                    <div className="grid grid-cols-2 gap-3 p-4 border rounded-xl bg-slate-50/50">
+                      {availableGrades.map(grade => (
+                        <div key={grade} className="flex items-center space-x-2">
+                          <Checkbox 
+                            id={`add-grade-${grade}`}
+                            checked={subjectForm.gradeLevels.includes(grade)}
+                            onCheckedChange={(checked) => {
+                              const next = checked 
+                                ? [...subjectForm.gradeLevels, grade]
+                                : subjectForm.gradeLevels.filter(g => g !== grade);
+                              setSubjectForm({...subjectForm, gradeLevels: next});
+                            }}
+                          />
+                          <label htmlFor={`add-grade-${grade}`} className="text-sm font-medium leading-none cursor-pointer">
+                            {grade}
+                          </label>
+                        </div>
+                      ))}
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -213,7 +262,7 @@ export default function AcademicPage() {
                 <Input placeholder="Search curriculum map..." className="pl-9 h-11 bg-slate-50 border-none" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
               </div>
               <Select onValueChange={setFilterGrade} defaultValue="all">
-                <SelectTrigger className="w-[180px] h-11 bg-slate-50 border-none"><SelectValue placeholder="All Grades" /></SelectTrigger>
+                <SelectTrigger className="w-[180px] h-11 bg-slate-50 border-none"><SelectValue placeholder="Filter by Grade" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Grades</SelectItem>
                   {availableGrades.map(grade => <SelectItem key={grade} value={grade}>{grade}</SelectItem>)}
@@ -253,9 +302,13 @@ export default function AcademicPage() {
                         <span className="font-bold text-primary text-lg">{sub.name}</span>
                         <Badge variant="outline" className="text-[9px] uppercase font-bold tracking-wider">{sub.category}</Badge>
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="font-bold text-accent uppercase tracking-tight">{sub.gradeLevel}</span>
-                        <ChevronRight className="size-3" />
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                        <div className="flex flex-wrap gap-1">
+                          {(sub.gradeLevels || [sub.gradeLevel || "Unmapped"]).map((gl: string) => (
+                            <span key={gl} className="font-bold text-accent uppercase tracking-tight text-[10px] bg-accent/5 px-1.5 py-0.5 rounded border border-accent/10">{gl}</span>
+                          ))}
+                        </div>
+                        <ChevronRight className="size-3 shrink-0" />
                         <span className="italic">{sub.description || "No description mapped."}</span>
                       </div>
                     </div>
@@ -263,7 +316,12 @@ export default function AcademicPage() {
                   <div className="flex items-center gap-2">
                     <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => {
                       setEditingSubject(sub);
-                      setSubjectForm({...sub});
+                      setSubjectForm({
+                        name: sub.name,
+                        category: sub.category,
+                        gradeLevels: sub.gradeLevels || (sub.gradeLevel ? [sub.gradeLevel] : []),
+                        description: sub.description || ""
+                      });
                       setIsEditOpen(true);
                     }}>
                       <Pencil className="size-4" />
@@ -279,36 +337,46 @@ export default function AcademicPage() {
         </CardContent>
       </Card>
 
-      {/* Edit Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="max-w-lg">
           <form onSubmit={handleUpdateSubject}>
             <DialogHeader>
               <DialogTitle className="text-2xl font-headline font-bold text-primary">Edit Subject Definition</DialogTitle>
             </DialogHeader>
-            <div className="grid gap-6 py-6">
+            <div className="grid gap-6 py-6 max-h-[70vh] overflow-y-auto pr-2">
               <div className="space-y-2">
                 <Label>Subject Name</Label>
                 <Input required value={subjectForm.name} onChange={e => setSubjectForm({...subjectForm, name: e.target.value})} />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Category</Label>
-                  <Select onValueChange={v => setSubjectForm({...subjectForm, category: v})} value={subjectForm.category}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {SUBJECT_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Grade Level</Label>
-                  <Select onValueChange={v => setSubjectForm({...subjectForm, gradeLevel: v})} value={subjectForm.gradeLevel}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {availableGrades.map(grade => <SelectItem key={grade} value={grade}>{grade}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+              <div className="space-y-2">
+                <Label>Category</Label>
+                <Select onValueChange={v => setSubjectForm({...subjectForm, category: v})} value={subjectForm.category}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {SUBJECT_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-3">
+                <Label>Target Grades</Label>
+                <div className="grid grid-cols-2 gap-3 p-4 border rounded-xl bg-slate-50/50">
+                  {availableGrades.map(grade => (
+                    <div key={grade} className="flex items-center space-x-2">
+                      <Checkbox 
+                        id={`edit-grade-${grade}`}
+                        checked={subjectForm.gradeLevels.includes(grade)}
+                        onCheckedChange={(checked) => {
+                          const next = checked 
+                            ? [...subjectForm.gradeLevels, grade]
+                            : subjectForm.gradeLevels.filter(g => g !== grade);
+                          setSubjectForm({...subjectForm, gradeLevels: next});
+                        }}
+                      />
+                      <label htmlFor={`edit-grade-${grade}`} className="text-sm font-medium leading-none cursor-pointer">
+                        {grade}
+                      </label>
+                    </div>
+                  ))}
                 </div>
               </div>
               <div className="space-y-2">
