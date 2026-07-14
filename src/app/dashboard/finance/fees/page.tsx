@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Wallet, Receipt, TrendingUp, Plus, Loader2, DollarSign, Send, Settings, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
+import { Badge } from "@/components/ui/badge"
 import { useFirestore, useCollection } from "@/firebase"
 import { collection, query, where, addDoc, serverTimestamp, deleteDoc, doc } from "firebase/firestore"
 import { useEffect, useState, useMemo } from "react"
@@ -96,7 +97,7 @@ export default function FeeConfigurationPage() {
           <Card key={fee.id} className="border-none shadow-md overflow-hidden bg-white">
             <CardHeader className="pb-2 bg-slate-50/50">
               <div className="flex justify-between items-start">
-                <Badge variant="outline" className="text-[9px] uppercase font-bold text-primary border-primary/20">{fee.category}</Badge>
+                <Badge variant="outline" className="text-[10px] uppercase font-bold text-primary border-primary/20">{fee.category}</Badge>
                 <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleDeleteFee(fee.id)}><Trash2 className="size-3" /></Button>
               </div>
               <CardTitle className="text-lg font-bold text-primary mt-2">{fee.name}</CardTitle>
