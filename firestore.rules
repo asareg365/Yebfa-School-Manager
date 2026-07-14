@@ -8,7 +8,7 @@ service cloud.firestore {
     }
 
     function getUserEmail() {
-      // Use the direct email accessor as requested for maximum reliability
+      // Direct accessor for maximum reliability as requested
       return request.auth.token.email.lower();
     }
 
@@ -17,13 +17,6 @@ service cloud.firestore {
       // Explicitly authorized system administrators
       let admins = ['asareg365@gmail.com', 'frankyeb@gmail.com'];
       return isAuthenticated() && (email in admins);
-    }
-
-    function isOwner(resourceData) {
-      // Check if the authenticated user matches the document ownerEmail (case-insensitive)
-      let owner = resourceData.get('ownerEmail', '').lower();
-      let userEmail = getUserEmail();
-      return isAuthenticated() && (owner == userEmail && userEmail != '');
     }
 
     // --- GLOBAL OVERRIDE ---
@@ -39,7 +32,7 @@ service cloud.firestore {
       allow read, write: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin());
     }
 
-    // TEMPORARY PERMISSIVE RULE FOR DEBUGGING INSTITUTION UPDATES
+    // TEMPORARY PERMISSIVE RULE FOR INSTITUTION UPDATES
     match /institutions/{institutionId} {
       allow read: if true;
       allow update: if request.auth != null;

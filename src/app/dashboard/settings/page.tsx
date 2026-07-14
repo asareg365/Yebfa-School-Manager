@@ -47,7 +47,7 @@ export default function SettingsPage() {
         toast({
           variant: "destructive",
           title: "File Too Large",
-          description: "Please upload a logo smaller than 800KB for system performance.",
+          description: "Please upload a logo smaller than 800KB for system stability.",
         })
         return
       }
@@ -64,7 +64,7 @@ export default function SettingsPage() {
     setIsSaving(true)
     const formData = new FormData(e.target as HTMLFormElement)
     
-    // Construct cleaned payload
+    // Construct authorized payload
     const data: any = {
       name: (formData.get("schoolName") as string) || institution.name,
       location: (formData.get("location") as string) || institution.location,
@@ -74,16 +74,16 @@ export default function SettingsPage() {
       currentTerm: (formData.get("currentTerm") as string) || institution.currentTerm || "Term 1",
     }
 
-    // Only include logoUrl if it's different from what's stored to prevent massive redundant payloads
+    // Optimization: Only transmit logo if changed to prevent oversized document errors
     if (logoPreview !== (institution.logoUrl || null)) {
       data.logoUrl = logoPreview;
     }
 
-    // Use non-blocking update with error mapping for rules debugging
+    // Direct authorized write with contextual error handling
     updateDoc(instRef, data)
       .then(() => {
         toast({
-          title: "Identity Synchronized",
+          title: "Registry Synchronized",
           description: "Institutional profile updated successfully.",
         })
       })
@@ -123,7 +123,7 @@ export default function SettingsPage() {
     const updateData = { customDepartments: arrayRemove(dept) }
     updateDoc(instRef, updateData)
       .then(() => {
-        toast({ title: "Department Removed", description: `${dept} has been removed.` })
+        toast({ title: "Department Removed", description: `${dept} has been de-registered.` })
       })
       .catch(async (error: any) => {
         const permissionError = new FirestorePermissionError({
@@ -135,14 +135,14 @@ export default function SettingsPage() {
       })
   }
 
-  if (loading) return <div className="p-10 text-center animate-pulse font-headline font-bold text-primary">Loading configuration...</div>
-  if (!institutionId) return <div className="p-10 text-center font-bold text-destructive">No active institution connected</div>
+  if (loading) return <div className="p-10 text-center animate-pulse font-headline font-bold text-primary">Synchronizing system...</div>
+  if (!institutionId) return <div className="p-10 text-center font-bold text-destructive">No active institution context found</div>
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Configuration Hub</h1>
-        <p className="text-muted-foreground">Managing {institution?.name} • Ahafo Regional System</p>
+        <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">System Configuration Hub</h1>
+        <p className="text-muted-foreground">Managing {institution?.name} • Global Ecosystem</p>
       </div>
 
       <Tabs defaultValue="profile" className="w-full">
@@ -166,7 +166,7 @@ export default function SettingsPage() {
             <Card className="border-none shadow-md bg-white rounded-2xl overflow-hidden">
               <CardHeader>
                 <CardTitle className="font-headline font-bold">Identity & Presence</CardTitle>
-                <CardDescription>Logo and system branding used for official reports and ID cards.</CardDescription>
+                <CardDescription>Logo and system branding used for official authorized reports and cards.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-8">
                 <div className="flex items-center gap-8 p-6 border-2 border-dashed rounded-3xl bg-slate-50/50">
@@ -183,18 +183,18 @@ export default function SettingsPage() {
                     )}
                   </div>
                   <div className="space-y-2">
-                    <p className="text-sm font-bold text-primary">System Logo</p>
-                    <p className="text-xs text-muted-foreground">High resolution branding. Max 800KB.</p>
+                    <p className="text-sm font-bold text-primary">System Branding</p>
+                    <p className="text-xs text-muted-foreground">High resolution logo. Max 800KB.</p>
                     <input type="file" ref={fileInputRef} onChange={handleLogoUpload} accept="image/*" className="hidden" />
                     <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="gap-2 rounded-xl h-10 px-4">
-                      <Upload className="size-4" /> Upload Branding
+                      <Upload className="size-4" /> Upload Hub Image
                     </Button>
                   </div>
                 </div>
 
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Official School Name</Label>
+                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Official Institution Name</Label>
                     <Input name="schoolName" defaultValue={institution?.name} required className="h-11 rounded-xl" />
                   </div>
                   <div className="space-y-2">
@@ -204,11 +204,11 @@ export default function SettingsPage() {
                 </div>
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Physical Address</Label>
-                    <Input name="address" defaultValue={institution?.address} placeholder="e.g. Plot 15, Goaso" className="h-11 rounded-xl" />
+                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Physical Registry Address</Label>
+                    <Input name="address" defaultValue={institution?.address} placeholder="e.g. Plot 15, System Hub" className="h-11 rounded-xl" />
                   </div>
                   <div className="space-y-2">
-                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Hub Contact Phone</Label>
+                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Hub Authorization Phone</Label>
                     <Input name="phone" defaultValue={institution?.phone} placeholder="e.g. 024-000-0000" className="h-11 rounded-xl" />
                   </div>
                 </div>
@@ -216,7 +216,7 @@ export default function SettingsPage() {
               <CardFooter className="border-t pt-6 bg-slate-50/50">
                 <Button type="submit" disabled={isSaving} className="ml-auto gap-2 h-11 px-8 rounded-xl bg-primary font-bold shadow-lg shadow-primary/10 transition-all active:scale-95">
                   {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-                  Save Identity
+                  Authorize Registry Update
                 </Button>
               </CardFooter>
             </Card>
@@ -224,10 +224,10 @@ export default function SettingsPage() {
 
           <TabsContent value="academic" className="space-y-6">
             <Card className="border-none shadow-md bg-white rounded-2xl overflow-hidden">
-              <CardHeader><CardTitle className="font-headline font-bold">Academic Cycle</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="font-headline font-bold">Academic Cycle Registry</CardTitle></CardHeader>
               <CardContent className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Academic Year</Label>
+                  <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Academic Session</Label>
                   <Input name="academicYear" defaultValue={institution?.academicYear} className="h-11 rounded-xl" />
                 </div>
                 <div className="space-y-2">
@@ -256,13 +256,13 @@ export default function SettingsPage() {
             <CardHeader><CardTitle className="font-headline font-bold">System Departments</CardTitle></CardHeader>
             <CardContent className="space-y-6">
               <div className="flex gap-4">
-                <Input placeholder="e.g. Guidance & Counseling" value={newDept} onChange={e => setNewDept(e.target.value)} className="h-11 rounded-xl" />
-                <Button onClick={handleAddDepartment} className="h-11 rounded-xl gap-2"><Plus className="size-4" /> Add System Link</Button>
+                <Input placeholder="e.g. Guidance & Counseling Hub" value={newDept} onChange={e => setNewDept(e.target.value)} className="h-11 rounded-xl" />
+                <Button onClick={handleAddDepartment} className="h-11 rounded-xl gap-2"><Plus className="size-4" /> Link Department</Button>
               </div>
               <div className="grid gap-3">
                 {institution?.customDepartments?.map((dept: string) => (
                   <div key={dept} className="flex items-center justify-between p-4 rounded-xl border bg-slate-50/50 hover:bg-slate-50 transition-colors">
-                    <span className="text-sm font-bold text-primary">{dept}</span>
+                    <span className="text-sm font-bold text-primary uppercase tracking-tight">{dept}</span>
                     <Button variant="ghost" size="icon" onClick={() => handleRemoveDepartment(dept)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
                       <Trash2 className="size-4" />
                     </Button>
@@ -275,12 +275,12 @@ export default function SettingsPage() {
 
         <TabsContent value="security" className="space-y-6">
           <Card className="border-none shadow-md bg-white rounded-2xl overflow-hidden">
-            <CardHeader><CardTitle className="font-headline font-bold">Access Registry</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="font-headline font-bold">System Access Protocols</CardTitle></CardHeader>
             <CardContent className="p-6 border-t">
               <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50/50 border border-slate-100">
                 <div className="space-y-1">
-                  <Label className="font-bold text-primary">Global Verification</Label>
-                  <p className="text-xs text-muted-foreground">Identity checks active across the system hub.</p>
+                  <Label className="font-bold text-primary">Global Identity Verification</Label>
+                  <p className="text-xs text-muted-foreground">Identity checks active across the institutional system hub.</p>
                 </div>
                 <Switch defaultChecked />
               </div>
