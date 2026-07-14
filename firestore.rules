@@ -4,14 +4,12 @@ service cloud.firestore {
     // --- AUTHENTICATION HELPERS ---
     
     function isAuthenticated() {
-      return request.auth != null;
+      return request.auth != null && request.auth.uid != null;
     }
 
     function getUserEmail() {
-      // Robust retrieval of user email from token
-      let email = request.auth.token.email != null 
-        ? request.auth.token.email 
-        : request.auth.token.get('firebase', {}).get('identities', {}).get('email', [''])[0];
+      // Safely retrieve email from top-level token or identities map
+      let email = request.auth.token.get('email', request.auth.token.get('firebase', {}).get('identities', {}).get('email', [''])[0]);
       return string(email).lower();
     }
 
@@ -23,14 +21,14 @@ service cloud.firestore {
     }
 
     function isOwner(resourceData) {
-      // Safely check if the authenticated user matches the document ownerEmail
+      // Check if the authenticated user matches the document ownerEmail (case-insensitive)
       let owner = resourceData.get('ownerEmail', '').lower();
       return isAuthenticated() && (owner == getUserEmail());
     }
 
     // --- GLOBAL OVERRIDE ---
     
-    // Grant full access to identified Super Admins across all collections
+    // Grant unconditional access to identified Super Admins
     match /{document=**} {
       allow read, write: if isSuperAdmin();
     }

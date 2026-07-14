@@ -63,14 +63,19 @@ export default function SettingsPage() {
     setIsSaving(true)
     const formData = new FormData(e.target as HTMLFormElement)
     
-    const data = {
+    const data: any = {
       name: (formData.get("schoolName") as string) || institution.name || "",
       location: (formData.get("location") as string) || institution.location || "",
-      address: (formData.get("address") as string) || institution.address || "",
-      phone: (formData.get("phone") as string) || institution.phone || "",
+      address: (formData.get("address") as string) || "",
+      phone: (formData.get("phone") as string) || "",
       academicYear: (formData.get("academicYear") as string) || institution.academicYear || "",
       currentTerm: (formData.get("currentTerm") as string) || institution.currentTerm || "Term 1",
-      logoUrl: logoPreview || institution.logoUrl || ""
+    }
+
+    // Only include logoUrl in the update if it has changed to a new base64 string
+    // This prevents re-uploading massive strings and hitting document size limits
+    if (logoPreview && logoPreview !== institution.logoUrl) {
+      data.logoUrl = logoPreview;
     }
 
     updateDoc(instRef, data)
