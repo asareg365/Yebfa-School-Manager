@@ -28,6 +28,26 @@ const prompt = ai.definePrompt({
   name: 'generateAppointmentLetterPrompt',
   input: {schema: GenerateAppointmentLetterInputSchema},
   output: {schema: GenerateAppointmentLetterOutputSchema},
+  config: {
+    safetySettings: [
+      {
+        category: 'HARM_CATEGORY_HARASSMENT',
+        threshold: 'BLOCK_NONE',
+      },
+      {
+        category: 'HARM_CATEGORY_HATE_SPEECH',
+        threshold: 'BLOCK_NONE',
+      },
+      {
+        category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+        threshold: 'BLOCK_NONE',
+      },
+      {
+        category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+        threshold: 'BLOCK_NONE',
+      },
+    ],
+  },
   prompt: `You are a professional HR manager for an educational institution in Ghana.
 Write a formal and supportive appointment letter for the following staff member.
 
