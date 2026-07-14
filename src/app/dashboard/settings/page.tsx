@@ -65,7 +65,7 @@ export default function SettingsPage() {
     const formData = new FormData(e.target as HTMLFormElement)
     
     // Explicitly construct the update payload
-    // We include current values if the input is empty to avoid overwriting with empty strings if not intended
+    // We only send fields that are different or essential to avoid massive payloads and potential rule timeouts
     const data: any = {
       name: (formData.get("schoolName") as string) || institution.name,
       location: (formData.get("location") as string) || institution.location,
@@ -77,7 +77,7 @@ export default function SettingsPage() {
 
     // Only include logoUrl if it's different from what's stored
     // This helps avoid permission issues on massive base64 payloads if nothing changed
-    if (logoPreview !== institution.logoUrl) {
+    if (logoPreview !== (institution.logoUrl || null)) {
       data.logoUrl = logoPreview;
     }
 

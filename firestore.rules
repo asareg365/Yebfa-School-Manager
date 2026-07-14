@@ -8,31 +8,29 @@ service cloud.firestore {
     }
 
     function getUserEmail() {
-      // Safely retrieve email from top-level token or identities map
-      // This lookup is hardened to work across different auth providers
-      let email = request.auth.token.get('email', request.auth.token.get('firebase', {}).get('identities', {}).get('email', [''])[0]);
-      return string(email).lower();
+      // Direct access to the email verified by the provider is most reliable
+      return request.auth.token.get('email', '').lower();
     }
 
     function isSuperAdmin() {
       let email = getUserEmail();
       // Explicitly authorized system administrators
-      // Added redundant check for the actual system administrators provided
+      // Normalizing to lowercase ensures no mismatch due to casing
       let admins = ['asareg365@gmail.com', 'frankyeb@gmail.com'];
       return isAuthenticated() && (email in admins);
     }
 
     function isOwner(resourceData) {
       // Check if the authenticated user matches the document ownerEmail (case-insensitive)
-      // Uses safe get to handle documents where ownerEmail might be missing
       let owner = resourceData.get('ownerEmail', '').lower();
-      return isAuthenticated() && (owner == getUserEmail());
+      let userEmail = getUserEmail();
+      return isAuthenticated() && (owner == userEmail && userEmail != '');
     }
 
     // --- GLOBAL OVERRIDE ---
     
     // Grant unconditional access to identified Super Admins
-    // This is evaluated alongside more specific rules
+    // This match is evaluated independently of others
     match /{document=**} {
       allow read, write: if isSuperAdmin();
     }
@@ -47,7 +45,6 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
       // Allow update if Super Admin OR the verified owner of the document
-      // resource.data represents the existing document state
       allow update, delete: if isAuthenticated() && (isSuperAdmin() || isOwner(resource.data));
     }
 
