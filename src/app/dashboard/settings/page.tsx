@@ -276,7 +276,7 @@ export default function SettingsPage() {
               <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50/50 border border-slate-100">
                 <div className="space-y-1">
                   <Label className="font-bold text-primary">System Verification</Label>
-                  <p className="text-xs text-muted-foreground">Multi-tenant verification active across all clusters.</p>
+                  <p className="text-xs text-muted-foreground">Institutional identity verification active across the network.</p>
                 </div>
                 <Switch defaultChecked />
               </div>

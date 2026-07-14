@@ -8,7 +8,7 @@ service cloud.firestore {
     }
 
     function getUserEmail() {
-      // Prioritize the direct token email, fallback to identities map
+      // Robust retrieval of user email from token
       let email = request.auth.token.email != null 
         ? request.auth.token.email 
         : request.auth.token.get('firebase', {}).get('identities', {}).get('email', [''])[0];
@@ -17,14 +17,15 @@ service cloud.firestore {
 
     function isSuperAdmin() {
       let email = getUserEmail();
+      // Explicitly authorized system administrators
       let admins = ['asareg365@gmail.com', 'frankyeb@gmail.com'];
       return isAuthenticated() && (email in admins);
     }
 
     function isOwner(resourceData) {
-      // Safely access ownerEmail field
+      // Safely check if the authenticated user matches the document ownerEmail
       let owner = resourceData.get('ownerEmail', '').lower();
-      return isAuthenticated() && (owner == getUserEmail() || isSuperAdmin());
+      return isAuthenticated() && (owner == getUserEmail());
     }
 
     // --- GLOBAL OVERRIDE ---
