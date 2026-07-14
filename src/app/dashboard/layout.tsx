@@ -104,10 +104,12 @@ export default function DashboardLayout({
   if (!user) return null;
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset className="bg-background">
-        <header className="flex h-16 shrink-0 items-center justify-between px-6 border-b border-border/40 sticky top-0 bg-background/80 backdrop-blur-md z-40">
+    <SidebarProvider className="print:block">
+      <div className="print:hidden">
+        <AppSidebar />
+      </div>
+      <SidebarInset className="bg-background print:m-0 print:shadow-none">
+        <header className="flex h-16 shrink-0 items-center justify-between px-6 border-b border-border/40 sticky top-0 bg-background/80 backdrop-blur-md z-40 print:hidden">
           <div className="flex items-center gap-4">
             <SidebarTrigger />
             <Separator orientation="vertical" className="h-4" />
@@ -192,7 +194,7 @@ export default function DashboardLayout({
             </div>
           </div>
         </header>
-        <main className="flex-1 p-6 lg:p-10 max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <main className="flex-1 p-6 lg:p-10 max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-300 print:p-0 print:max-w-none print:m-0">
           {children}
         </main>
       </SidebarInset>

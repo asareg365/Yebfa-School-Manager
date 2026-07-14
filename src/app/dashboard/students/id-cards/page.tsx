@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -43,7 +44,7 @@ export default function StudentIDCardsPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex items-center justify-between no-print">
+      <div className="flex items-center justify-between print:hidden">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
             <Link href="/dashboard/students"><ArrowLeft className="size-4" /></Link>
@@ -58,20 +59,20 @@ export default function StudentIDCardsPage() {
             <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
             <Input placeholder="Search students..." className="pl-9" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
           </div>
-          <Button className="gap-2" onClick={handlePrint}>
+          <Button className="gap-2 bg-primary shadow-lg shadow-primary/20" onClick={handlePrint}>
             <Printer className="size-4" /> Print Registry
           </Button>
         </div>
       </div>
 
-      <Tabs defaultValue="front" className="no-print">
+      <Tabs defaultValue="front" className="print:hidden">
         <TabsList className="bg-muted/50 p-1 rounded-xl mb-6">
           <TabsTrigger value="front" className="rounded-lg">Card Fronts</TabsTrigger>
           <TabsTrigger value="back" className="rounded-lg">Card Backs</TabsTrigger>
         </TabsList>
 
         <TabsContent value="front">
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3 print:grid-cols-2">
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {filteredStudents.map((stu: any) => (
               <div key={stu.id} className="w-[3.375in] h-[2.125in] bg-white rounded-xl shadow-lg border-2 border-primary/10 p-4 flex flex-col relative overflow-hidden break-inside-avoid">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -mr-12 -mt-12" />
@@ -136,7 +137,7 @@ export default function StudentIDCardsPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Actual Print View (Hidden in UI) */}
+      {/* Actual Print View (Hidden in UI, displayed on print) */}
       <div className="hidden print:block space-y-[0.5in]">
         {filteredStudents.map((stu: any) => (
           <div key={stu.id + '_print'} className="flex gap-[0.5in] justify-center break-inside-avoid h-[2.125in]">
@@ -181,14 +182,14 @@ export default function StudentIDCardsPage() {
         ))}
       </div>
 
-      <style jsx global>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @media print {
-          .no-print { display: none !important; }
-          body { background: white !important; padding: 0 !important; }
-          main { padding: 0 !important; max-width: none !important; margin: 0 !important; }
-          .hidden.print\\:block { display: block !important; }
+          .print\\:hidden { display: none !important; }
+          .print\\:block { display: block !important; }
+          body { background: white !important; padding: 0 !important; margin: 0 !important; }
+          main { padding: 0 !important; max-width: none !important; margin: 0 !important; width: 100% !important; }
         }
-      `}</style>
+      `}} />
     </div>
   )
 }
