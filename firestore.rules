@@ -1,78 +1,154 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // --- AUTHENTICATION HELPERS ---
-    
-    function isAuthenticated() {
-      return request.auth != null && request.auth.uid != null;
+
+
+    // -----------------------------
+    // AUTHENTICATION HELPERS
+    // -----------------------------
+
+    function signedIn() {
+      return request.auth != null;
     }
 
-    function getUserEmail() {
-      // Direct accessor for maximum reliability as requested
-      return request.auth.token.email.lower();
+
+    function userEmail() {
+      return request.auth.token.email;
     }
+
 
     function isSuperAdmin() {
-      let email = getUserEmail();
-      // Explicitly authorized system administrators
-      let admins = ['asareg365@gmail.com', 'frankyeb@gmail.com'];
-      return isAuthenticated() && (email in admins);
+      return signedIn() &&
+      (
+        userEmail() == "asareg365@gmail.com" ||
+        userEmail() == "frankyeb@gmail.com"
+      );
     }
 
-    // --- GLOBAL OVERRIDE ---
-    
-    // Grant unconditional access to identified Super Admins
-    match /{document=**} {
-      allow read, write: if isSuperAdmin();
+
+    function ownsInstitution() {
+      return resource.data.ownerEmail == userEmail();
     }
 
-    // --- COLLECTION SPECIFIC RULES ---
+
+    // -----------------------------
+    // INSTITUTIONS
+    // -----------------------------
+
+    match /institutions/{institutionId} {
+
+      allow read: if signedIn();
+
+      allow create: if signedIn();
+
+      allow update, delete:
+      if signedIn()
+      &&
+      (
+        isSuperAdmin()
+        ||
+        ownsInstitution()
+      );
+    }
+
+
+
+    // -----------------------------
+    // USERS
+    // -----------------------------
 
     match /users/{userId} {
-      allow read, write: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin());
+
+      allow read, write:
+      if signedIn()
+      &&
+      (
+        request.auth.uid == userId
+        ||
+        isSuperAdmin()
+      );
     }
 
-    // TEMPORARY PERMISSIVE RULE FOR INSTITUTION UPDATES
-    match /institutions/{institutionId} {
-      allow read: if true;
-      allow update: if request.auth != null;
-      allow create: if request.auth != null;
-    }
+
+
+    // -----------------------------
+    // SCHOOL DATA
+    // -----------------------------
 
     match /students/{studentId} {
-      allow read, write: if isAuthenticated();
+
+      allow read, write:
+      if signedIn();
     }
+
 
     match /staff/{staffId} {
-      allow read, write: if isAuthenticated();
+
+      allow read, write:
+      if signedIn();
     }
+
 
     match /subjects/{subjectId} {
-      allow read, write: if isAuthenticated();
+
+      allow read, write:
+      if signedIn();
     }
+
 
     match /exam_records/{recordId} {
-      allow read, write: if isAuthenticated();
+
+      allow read, write:
+      if signedIn();
     }
+
 
     match /attendance/{attendanceId} {
-      allow read, write: if isAuthenticated();
+
+      allow read, write:
+      if signedIn();
     }
+
 
     match /approved_fees/{feeId} {
-      allow read, write: if isAuthenticated();
+
+      allow read, write:
+      if signedIn();
     }
 
+
     match /student_ledger/{ledgerId} {
-      allow read, write: if isAuthenticated();
+
+      allow read, write:
+      if signedIn();
     }
-    
+
+
     match /expenditure_vouchers/{voucherId} {
-      allow read, write: if isAuthenticated();
+
+      allow read, write:
+      if signedIn();
     }
-    
+
+
     match /payroll_cycles/{cycleId} {
-      allow read, write: if isAuthenticated();
+
+      allow read, write:
+      if signedIn();
     }
+
+
+
+    // -----------------------------
+    // SUPER ADMIN OVERRIDE
+    // -----------------------------
+
+    match /{document=**} {
+
+      allow read, write:
+      if isSuperAdmin();
+    }
+
   }
 }

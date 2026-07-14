@@ -134,49 +134,49 @@ export default function StudentIDCardsPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Actual Print View (Hidden on screen, shown only on print) */}
-      <div className="hidden print:block print-registry-container">
-        <div className="flex flex-wrap justify-center gap-4">
+      {/* Actual Print View - Uses visibility for better print stability than display:none */}
+      <div className="invisible h-0 overflow-hidden print:visible print:h-auto print:block print-registry-container">
+        <div className="grid grid-cols-2 gap-y-12 gap-x-8 justify-items-center">
           {filteredStudents.map((stu: any) => (
-            <div key={stu.id + '_print_pair'} className="flex flex-col gap-4 mb-8 break-inside-avoid page-break-after-always">
+            <div key={stu.id + '_print_pair'} className="flex flex-col gap-8 break-inside-avoid">
               {/* Card Front */}
-              <div className="print-id-card border border-black/10">
-                <div className="flex items-center gap-2 border-b border-gray-100 pb-2 mb-3">
+              <div className="print-id-card border border-slate-200">
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-2 mb-3">
                   {institution?.logoUrl && <img src={institution.logoUrl} className="h-8 object-contain" alt="Logo" />}
                   <span className="text-[10px] font-bold uppercase truncate">{institution?.name}</span>
                 </div>
                 <div className="flex gap-4">
-                  <div className="size-24 rounded border border-gray-100 overflow-hidden flex items-center justify-center bg-gray-50">
+                  <div className="size-24 rounded border border-slate-100 overflow-hidden flex items-center justify-center bg-slate-50">
                     {stu.photoUrl ? <img src={stu.photoUrl} className="w-full h-full object-cover" alt="Student" /> : <User className="size-10 opacity-10" />}
                   </div>
                   <div className="flex flex-col justify-between py-1 flex-1">
                     <div>
                       <h3 className="text-sm font-bold uppercase text-primary leading-tight">{stu.firstName} {stu.lastName}</h3>
-                      <p className="text-[9px] font-bold text-gray-500 mt-1">{stu.gradeLevel}</p>
+                      <p className="text-[9px] font-bold text-slate-500 mt-1">{stu.gradeLevel}</p>
                     </div>
                     <div>
-                      <p className="text-[7px] uppercase text-gray-400 font-bold">System ID</p>
+                      <p className="text-[7px] uppercase text-slate-400 font-bold">System ID</p>
                       <p className="text-[11px] font-mono font-bold">{stu.studentId}</p>
                     </div>
                   </div>
                 </div>
-                <div className="mt-auto pt-2 border-t border-gray-100 flex justify-between items-center">
-                  <span className="text-[6px] uppercase font-bold text-gray-400">Authenticated System Registry</span>
-                  <span className="text-[6px] italic text-gray-400">Session 2026</span>
+                <div className="mt-auto pt-2 border-t border-slate-100 flex justify-between items-center">
+                  <span className="text-[6px] uppercase font-bold text-slate-400">Authenticated System Registry</span>
+                  <span className="text-[6px] italic text-slate-400">Session 2026</span>
                 </div>
               </div>
               
               {/* Card Back */}
-              <div className="print-id-card border border-black/10 flex flex-col items-center justify-center text-center p-6 bg-gray-50/30">
-                <h4 className="text-[9px] font-bold uppercase tracking-widest border-b border-gray-200 pb-1 mb-3 w-full">Institutional Authorization</h4>
+              <div className="print-id-card border border-slate-200 flex flex-col items-center justify-center text-center p-6 bg-slate-50/30">
+                <h4 className="text-[9px] font-bold uppercase tracking-widest border-b border-slate-200 pb-1 mb-3 w-full">Institutional Authorization</h4>
                 <div className="space-y-1">
                   <p className="text-[8px] font-medium">{institution?.address || "Ahafo Region, Ghana"}</p>
                   <p className="text-[8px] font-medium">{institution?.phone}</p>
                 </div>
-                <p className="text-[7px] text-gray-500 mt-4 leading-relaxed">
+                <p className="text-[7px] text-slate-500 mt-4 leading-relaxed">
                   This card is the property of {institution?.name}. Return if found. Unauthorized use is prohibited by system protocols.
                 </p>
-                <div className="mt-auto pt-2 text-[5px] text-gray-300 font-bold uppercase">Yebfa School Manager v2026</div>
+                <div className="mt-auto pt-2 text-[5px] text-slate-300 font-bold uppercase">Yebfa School Manager v2026</div>
               </div>
             </div>
           ))}
@@ -193,6 +193,15 @@ export default function StudentIDCardsPage() {
             background: white !important;
             padding: 0 !important;
             margin: 0 !important;
+          }
+          /* Hide dashboard artifacts during print */
+          header, aside, [data-sidebar="trigger"], .print\\:hidden {
+            display: none !important;
+          }
+          main {
+            padding: 0 !important;
+            margin: 0 !important;
+            max-width: none !important;
           }
           .print-id-card { 
             width: 3.375in !important; 
