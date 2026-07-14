@@ -103,12 +103,12 @@ export default function DashboardLayout({
   if (!user) return null;
 
   return (
-    <SidebarProvider className="print:block">
-      <div className="print:hidden">
+    <SidebarProvider className="print-provider">
+      <div className="no-print">
         <AppSidebar />
       </div>
-      <SidebarInset className="bg-background print:m-0 print:shadow-none print:block">
-        <header className="flex h-16 shrink-0 items-center justify-between px-6 border-b border-border/40 sticky top-0 bg-background/80 backdrop-blur-md z-40 print:hidden">
+      <SidebarInset className="bg-background print-inset">
+        <header className="no-print flex h-16 shrink-0 items-center justify-between px-6 border-b border-border/40 sticky top-0 bg-background/80 backdrop-blur-md z-40">
           <div className="flex items-center gap-4">
             <SidebarTrigger />
             <Separator orientation="vertical" className="h-4" />
@@ -193,10 +193,18 @@ export default function DashboardLayout({
             </div>
           </div>
         </header>
-        <main className="flex-1 p-6 lg:p-10 max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-300 print:p-0 print:max-w-none print:m-0 print:block">
+        <main className="flex-1 p-6 lg:p-10 max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-300 print-main">
           {children}
         </main>
       </SidebarInset>
+      <style jsx global>{`
+        @media print {
+          .no-print { display: none !important; }
+          .print-provider { display: block !important; overflow: visible !important; }
+          .print-inset { display: block !important; margin: 0 !important; padding: 0 !important; width: 100% !important; height: auto !important; overflow: visible !important; }
+          .print-main { padding: 0 !important; margin: 0 !important; max-width: none !important; overflow: visible !important; }
+        }
+      `}</style>
     </SidebarProvider>
   );
 }

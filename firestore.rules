@@ -42,14 +42,8 @@ service cloud.firestore {
 
       allow create: if signedIn();
 
-      allow update, delete:
-      if signedIn()
-      &&
-      (
-        isSuperAdmin()
-        ||
-        ownsInstitution()
-      );
+      allow update: if 
+        request.auth.token.email == "asareg365@gmail.com";
     }
 
 
