@@ -8,14 +8,14 @@ service cloud.firestore {
     }
 
     function getUserEmail() {
-      // Direct access to the email verified by the provider is most reliable
-      return request.auth.token.get('email', '').lower();
+      // Use the direct email field from the auth token as requested
+      // This is the most reliable way to identify the user across providers
+      return request.auth.token.email.lower();
     }
 
     function isSuperAdmin() {
       let email = getUserEmail();
       // Explicitly authorized system administrators
-      // Normalizing to lowercase ensures no mismatch due to casing
       let admins = ['asareg365@gmail.com', 'frankyeb@gmail.com'];
       return isAuthenticated() && (email in admins);
     }
@@ -30,7 +30,6 @@ service cloud.firestore {
     // --- GLOBAL OVERRIDE ---
     
     // Grant unconditional access to identified Super Admins
-    // This match is evaluated independently of others
     match /{document=**} {
       allow read, write: if isSuperAdmin();
     }
