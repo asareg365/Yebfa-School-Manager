@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { School, Shield, Building, Plus, Layers, Trash2, Save, Loader2, Upload, X } from "lucide-react"
 import { useState, useEffect, useRef, useMemo } from "react"
-import { useFirestore, useDoc } from "@/firebase"
+import { useFirestore, useDoc, useUser } from "@/firebase"
 import { doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore"
 import { toast } from "@/hooks/use-toast"
 import { errorEmitter } from "@/firebase/error-emitter"
@@ -17,6 +17,7 @@ import { FirestorePermissionError } from "@/firebase/errors"
 
 export default function SettingsPage() {
   const db = useFirestore()
+  const { user } = useUser()
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [newDept, setNewDept] = useState("")
@@ -63,34 +64,39 @@ export default function SettingsPage() {
     setIsSaving(true)
     const formData = new FormData(e.target as HTMLFormElement)
     
+    // Explicitly construct the update payload
+    // We include current values if the input is empty to avoid overwriting with empty strings if not intended
     const data: any = {
-      name: (formData.get("schoolName") as string) || institution.name || "",
-      location: (formData.get("location") as string) || institution.location || "",
-      address: (formData.get("address") as string) || "",
-      phone: (formData.get("phone") as string) || "",
+      name: (formData.get("schoolName") as string) || institution.name,
+      location: (formData.get("location") as string) || institution.location,
+      address: (formData.get("address") as string) || institution.address || "",
+      phone: (formData.get("phone") as string) || institution.phone || "",
       academicYear: (formData.get("academicYear") as string) || institution.academicYear || "",
       currentTerm: (formData.get("currentTerm") as string) || institution.currentTerm || "Term 1",
     }
 
-    // Only include logoUrl in the update if it has changed to a new base64 string
-    // This prevents re-uploading massive strings and hitting document size limits
-    if (logoPreview && logoPreview !== institution.logoUrl) {
+    // Only include logoUrl if it's different from what's stored
+    // This helps avoid permission issues on massive base64 payloads if nothing changed
+    if (logoPreview !== institution.logoUrl) {
       data.logoUrl = logoPreview;
     }
 
+    // Perform non-blocking write
     updateDoc(instRef, data)
       .then(() => {
         toast({
           title: "Profile Synchronized",
-          description: "Institutional identity profile updated.",
+          description: "Institutional identity updated.",
         })
       })
       .catch(async (serverError: any) => {
+        // Create contextual error for security rule debugging
         const permissionError = new FirestorePermissionError({
           path: instRef.path,
           operation: 'update',
           requestResourceData: data,
         });
+        // Emit error to surface it in development overlay
         errorEmitter.emit('permission-error', permissionError);
       })
       .finally(() => {
@@ -139,8 +145,8 @@ export default function SettingsPage() {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Configuration</h1>
-        <p className="text-muted-foreground">Managing {institution?.name} • Ahafo Regional Hub</p>
+        <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Configuration Hub</h1>
+        <p className="text-muted-foreground">Managing {institution?.name} • Ahafo Regional System</p>
       </div>
 
       <Tabs defaultValue="profile" className="w-full">
@@ -163,8 +169,8 @@ export default function SettingsPage() {
           <TabsContent value="profile" className="space-y-6">
             <Card className="border-none shadow-md bg-white rounded-2xl overflow-hidden">
               <CardHeader>
-                <CardTitle className="font-headline font-bold">Branding & Details</CardTitle>
-                <CardDescription>Logo and address details will appear on ID cards and letters.</CardDescription>
+                <CardTitle className="font-headline font-bold">Identity & Presence</CardTitle>
+                <CardDescription>Logo and system branding used for official reports and ID cards.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-8">
                 <div className="flex items-center gap-8 p-6 border-2 border-dashed rounded-3xl bg-slate-50/50">
@@ -181,11 +187,11 @@ export default function SettingsPage() {
                     )}
                   </div>
                   <div className="space-y-2">
-                    <p className="text-sm font-bold text-primary">School Logo</p>
-                    <p className="text-xs text-muted-foreground">High resolution PNG or JPG recommended. Max 800KB.</p>
+                    <p className="text-sm font-bold text-primary">System Logo</p>
+                    <p className="text-xs text-muted-foreground">High resolution branding. Max 800KB.</p>
                     <input type="file" ref={fileInputRef} onChange={handleLogoUpload} accept="image/*" className="hidden" />
                     <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="gap-2 rounded-xl h-10 px-4">
-                      <Upload className="size-4" /> Upload Logo
+                      <Upload className="size-4" /> Upload Branding
                     </Button>
                   </div>
                 </div>
@@ -196,17 +202,17 @@ export default function SettingsPage() {
                     <Input name="schoolName" defaultValue={institution?.name} required className="h-11 rounded-xl" />
                   </div>
                   <div className="space-y-2">
-                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Location / Region</Label>
+                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">System Hub Location</Label>
                     <Input name="location" defaultValue={institution?.location} required className="h-11 rounded-xl" />
                   </div>
                 </div>
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Physical Address (ID Card)</Label>
-                    <Input name="address" defaultValue={institution?.address} placeholder="e.g. Plot 15, Station Road, Goaso" className="h-11 rounded-xl" />
+                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Physical Address</Label>
+                    <Input name="address" defaultValue={institution?.address} placeholder="e.g. Plot 15, Goaso" className="h-11 rounded-xl" />
                   </div>
                   <div className="space-y-2">
-                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Official Phone (ID Card)</Label>
+                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Hub Contact Phone</Label>
                     <Input name="phone" defaultValue={institution?.phone} placeholder="e.g. 024-000-0000" className="h-11 rounded-xl" />
                   </div>
                 </div>
@@ -214,7 +220,7 @@ export default function SettingsPage() {
               <CardFooter className="border-t pt-6 bg-slate-50/50">
                 <Button type="submit" disabled={isSaving} className="ml-auto gap-2 h-11 px-8 rounded-xl bg-primary font-bold shadow-lg shadow-primary/10 transition-all active:scale-95">
                   {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-                  Save Branding
+                  Save Identity
                 </Button>
               </CardFooter>
             </Card>
@@ -229,7 +235,7 @@ export default function SettingsPage() {
                   <Input name="academicYear" defaultValue={institution?.academicYear} className="h-11 rounded-xl" />
                 </div>
                 <div className="space-y-2">
-                  <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Active Term</Label>
+                  <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">System Active Term</Label>
                   <Select name="currentTerm" defaultValue={institution?.currentTerm || "Term 1"}>
                     <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -242,7 +248,7 @@ export default function SettingsPage() {
               </CardContent>
               <CardFooter className="border-t pt-6 bg-slate-50/50">
                 <Button type="submit" disabled={isSaving} className="ml-auto h-11 px-8 rounded-xl bg-primary font-bold shadow-lg shadow-primary/10 transition-all active:scale-95">
-                  Authorize Update
+                  Authorize Updates
                 </Button>
               </CardFooter>
             </Card>
@@ -251,11 +257,11 @@ export default function SettingsPage() {
 
         <TabsContent value="departments" className="space-y-6">
           <Card className="border-none shadow-md bg-white rounded-2xl overflow-hidden">
-            <CardHeader><CardTitle className="font-headline font-bold">Departments</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="font-headline font-bold">System Departments</CardTitle></CardHeader>
             <CardContent className="space-y-6">
               <div className="flex gap-4">
                 <Input placeholder="e.g. Guidance & Counseling" value={newDept} onChange={e => setNewDept(e.target.value)} className="h-11 rounded-xl" />
-                <Button onClick={handleAddDepartment} className="h-11 rounded-xl gap-2"><Plus className="size-4" /> Add Department</Button>
+                <Button onClick={handleAddDepartment} className="h-11 rounded-xl gap-2"><Plus className="size-4" /> Add System Link</Button>
               </div>
               <div className="grid gap-3">
                 {institution?.customDepartments?.map((dept: string) => (
@@ -266,9 +272,6 @@ export default function SettingsPage() {
                     </Button>
                   </div>
                 ))}
-                {(!institution?.customDepartments || institution.customDepartments.length === 0) && (
-                   <p className="text-center py-12 text-sm text-muted-foreground italic">No custom departments registered.</p>
-                )}
               </div>
             </CardContent>
           </Card>
@@ -276,12 +279,12 @@ export default function SettingsPage() {
 
         <TabsContent value="security" className="space-y-6">
           <Card className="border-none shadow-md bg-white rounded-2xl overflow-hidden">
-            <CardHeader><CardTitle className="font-headline font-bold">Access Controls</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="font-headline font-bold">Access Registry</CardTitle></CardHeader>
             <CardContent className="p-6 border-t">
               <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50/50 border border-slate-100">
                 <div className="space-y-1">
-                  <Label className="font-bold text-primary">System Verification</Label>
-                  <p className="text-xs text-muted-foreground">Institutional identity verification active across the network.</p>
+                  <Label className="font-bold text-primary">Global Verification</Label>
+                  <p className="text-xs text-muted-foreground">Identity checks active across the system hub.</p>
                 </div>
                 <Switch defaultChecked />
               </div>
