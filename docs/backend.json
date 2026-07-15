@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -28,7 +29,6 @@
         "location": { "type": "string" },
         "address": { "type": "string" },
         "phone": { "type": "string" },
-        "logoUrl": { "type": "string" },
         "type": { "type": "string" },
         "gradeLevel": { "type": "string" },
         "specificGrades": { "type": "string" },
@@ -134,35 +134,15 @@
     "providers": ["google.com", "password"]
   },
   "firestore": {
-    "/users/{userId}": {
-      "schema": "User"
-    },
-    "/institutions/{institutionId}": {
-      "schema": "Institution"
-    },
-    "/students/{studentId}": {
-      "schema": "Student"
-    },
-    "/staff/{staffId}": {
-      "schema": "Staff"
-    },
-    "/subjects/{subjectId}": {
-      "schema": "Subject"
-    },
-    "/exam_records/{recordId}": {
-      "schema": "ExamRecord"
-    },
-    "/approved_fees/{feeId}": {
-      "schema": "FeeItem"
-    },
-    "/student_ledger/{ledgerId}": {
-      "schema": "StudentLedgerEntry"
-    },
-    "/settings/{settingId}": {
-      "description": "Global institutional settings"
-    },
-    "/departments/{departmentId}": {
-      "description": "Institutional department definitions"
-    }
+    "/users/{userId}": { "schema": "User" },
+    "/institutions/{institutionId}": { "schema": "Institution" },
+    "/students/{studentId}": { "schema": "Student" },
+    "/staff/{staffId}": { "schema": "Staff" },
+    "/subjects/{subjectId}": { "schema": "Subject" },
+    "/exam_records/{recordId}": { "schema": "ExamRecord" },
+    "/approved_fees/{feeId}": { "schema": "FeeItem" },
+    "/student_ledger/{ledgerId}": { "schema": "StudentLedgerEntry" },
+    "/settings/{settingId}": { "description": "Global institutional settings" },
+    "/departments/{departmentId}": { "description": "Institutional department definitions" }
   }
 }

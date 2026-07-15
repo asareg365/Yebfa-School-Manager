@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -55,134 +56,94 @@ export default function InstitutionRegistrationPage() {
     e.preventDefault()
 
     if (!user) {
-      toast({
-        variant: "destructive",
-        title: "Authentication Required",
-        description: "Please sign in first."
-      })
+      toast({ variant: "destructive", title: "Authentication Required", description: "Please sign in first." })
       router.push("/login")
       return
     }
 
     if (!db) {
-      toast({
-        variant: "destructive",
-        title: "System Error",
-        description: "Database connection could not be established."
-      })
+      toast({ variant: "destructive", title: "System Error", description: "Database connection could not be established." })
       return
     }
 
     setLoading(true)
 
     try {
-      // Create unique school ID
       const institutionRef = doc(collection(db, "institutions"))
       const tenantId = institutionRef.id
 
       const batch = writeBatch(db)
-
-      // Calculate trial end date (30 days from now)
       const trialDuration = 30 * 24 * 60 * 60 * 1000
       const trialEndsAt = Timestamp.fromDate(new Date(Date.now() + trialDuration))
 
       // 1. Create Institution
-      batch.set(
-        institutionRef,
-        {
-          id: tenantId,
-          tenantId,
-          name: formData.name,
-          type: formData.gradeLevel,
-          gradeLevel: formData.gradeLevel,
-          specificGrades: formData.specificGrades,
-          location: formData.location,
-          ownerUid: user.uid,
-          ownerName: formData.ownerName,
-          ownerEmail: user.email,
-          subscriptionPlan: "trial for 30days",
-          trialEndsAt: trialEndsAt,
-          status: "active",
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        }
-      )
+      batch.set(institutionRef, {
+        id: tenantId,
+        tenantId,
+        name: formData.name,
+        type: formData.gradeLevel,
+        gradeLevel: formData.gradeLevel,
+        specificGrades: formData.specificGrades,
+        location: formData.location,
+        ownerUid: user.uid,
+        ownerName: formData.ownerName,
+        ownerEmail: user.email,
+        subscriptionPlan: "trial for 30days",
+        trialEndsAt: trialEndsAt,
+        status: "active",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      })
 
       // 2. Create User Profile
-      batch.set(
-        doc(db, "users", user.uid),
-        {
-          uid: user.uid,
-          name: formData.ownerName,
-          email: user.email,
-          role: "school_owner",
-          tenantId,
-          institutionId: tenantId,
-          institutionName: formData.name,
-          status: "active",
-          createdAt: serverTimestamp()
-        }
-      )
+      batch.set(doc(db, "users", user.uid), {
+        uid: user.uid,
+        name: formData.ownerName,
+        email: user.email,
+        role: "school_owner",
+        tenantId,
+        institutionId: tenantId,
+        institutionName: formData.name,
+        status: "active",
+        createdAt: serverTimestamp()
+      })
 
       // 3. Create School Settings
-      batch.set(
-        doc(db, "settings", tenantId),
-        {
-          tenantId,
-          institutionId: tenantId,
-          schoolName: formData.name,
-          academicYear: "2026/2027",
-          currentTerm: "Term 1",
-          currency: "GHS",
-          timezone: "Africa/Accra",
-          createdAt: serverTimestamp()
-        }
-      )
+      batch.set(doc(db, "settings", tenantId), {
+        tenantId,
+        institutionId: tenantId,
+        schoolName: formData.name,
+        academicYear: "2026/2027",
+        currentTerm: "Term 1",
+        currency: "GHS",
+        timezone: "Africa/Accra",
+        createdAt: serverTimestamp()
+      })
 
       // 4. Default Departments
-      batch.set(
-        doc(db, "departments", tenantId),
-        {
-          tenantId,
-          departments: [
-            "Administration",
-            "Academics",
-            "Accounts",
-            "Library"
-          ],
-          createdAt: serverTimestamp()
-        }
-      )
+      batch.set(doc(db, "departments", tenantId), {
+        tenantId,
+        items: ["Administration", "Academics", "Accounts", "Library"],
+        createdAt: serverTimestamp()
+      })
 
       await batch.commit()
 
-      // Store selection in local storage for immediate dashboard context
       localStorage.setItem('selected_institution_id', tenantId)
       localStorage.setItem('selected_institution_name', formData.name)
 
-      toast({
-        title: "Institution Provisioned",
-        description: "Your 30-day trial workspace is ready. Welcome to Yebfa!"
-      })
-
+      toast({ title: "Institution Created", description: "Your workspace is ready. Welcome to Yebfa!" })
       router.replace("/dashboard")
 
     } catch (error: any) {
-      console.error("Provisioning error:", error)
-      
+      console.error(error)
       const permissionError = new FirestorePermissionError({
         path: "institutions/registry",
         operation: "write",
         requestResourceData: { name: formData.name }
       })
-      
       errorEmitter.emit("permission-error", permissionError)
-      
-      toast({
-        variant: "destructive",
-        title: "Provisioning Failed",
-        description: error.message || "Failed to create institution records. Please try again."
-      })
+      toast({ variant: "destructive", title: "Registration Failed", description: error.message || "Failed to create records." })
     } finally {
       setLoading(false)
     }
@@ -193,7 +154,7 @@ export default function InstitutionRegistrationPage() {
   if (authLoading) return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-muted/30">
       <Loader2 className="size-8 animate-spin text-primary" />
-      <p className="font-headline font-bold text-primary animate-pulse text-lg">Verifying Global Session...</p>
+      <p className="font-headline font-bold text-primary animate-pulse text-lg">Verifying Session...</p>
     </div>
   )
 
@@ -212,47 +173,33 @@ export default function InstitutionRegistrationPage() {
             <div className="size-8 rounded-lg bg-white/10 flex items-center justify-center">
               <ShieldCheck className="size-5" />
             </div>
-            <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Institutional Provisioning 2026</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Institutional Provisioning</span>
           </div>
           <CardTitle className="text-3xl font-headline font-bold">Register Your Institution</CardTitle>
-          <CardDescription className="text-primary-foreground/70">
-            Join the ecosystem of modern educational institutions.
-          </CardDescription>
+          <CardDescription className="text-primary-foreground/70">Enter details to build your secure workspace.</CardDescription>
         </CardHeader>
         <CardContent className="p-8">
-          {!user && (
-            <Alert variant="destructive" className="mb-6 bg-red-50 border-red-200">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle className="font-bold">Login Required</AlertTitle>
-              <AlertDescription className="text-xs">
-                You must be <Link href="/login" className="underline font-bold">signed in</Link> to submit a registration request.
-              </AlertDescription>
-            </Alert>
-          )}
-
           <form onSubmit={handleSubmit} className="space-y-8">
             <div className="space-y-6">
               <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b pb-2">Institution Details</h3>
-              <div className="grid gap-6 md:grid-cols-1">
-                <div className="space-y-2">
-                  <Label htmlFor="schoolName">Official School Name</Label>
-                  <div className="relative">
-                    <School className="absolute left-3 top-3 size-4 text-muted-foreground" />
-                    <Input 
-                      id="schoolName" 
-                      placeholder="e.g. Greenwood Academy" 
-                      className="pl-10 h-11" 
-                      required 
-                      value={formData.name}
-                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    />
-                  </div>
+              <div className="space-y-2">
+                <Label htmlFor="schoolName">Official School Name</Label>
+                <div className="relative">
+                  <School className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                  <Input 
+                    id="schoolName" 
+                    placeholder="e.g. Greenwood Academy" 
+                    className="pl-10 h-11" 
+                    required 
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  />
                 </div>
               </div>
 
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="gradeLevel">Grade Level Category</Label>
+                  <Label>Grade Category</Label>
                   <Select 
                     required 
                     value={formData.gradeLevel}
@@ -270,7 +217,7 @@ export default function InstitutionRegistrationPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="specificGrade">Specific Grade Range</Label>
+                  <Label>Grade Range</Label>
                   <Select 
                     required 
                     value={formData.specificGrades}
@@ -278,7 +225,7 @@ export default function InstitutionRegistrationPage() {
                     onValueChange={(val) => setFormData(prev => ({ ...prev, specificGrades: val }))}
                   >
                     <SelectTrigger className="h-11">
-                      <SelectValue placeholder={formData.gradeLevel ? "Select specific range..." : "Select category first"} />
+                      <SelectValue placeholder="Select range..." />
                     </SelectTrigger>
                     <SelectContent>
                       {selectedCategory?.grades.map(grade => (
@@ -290,11 +237,10 @@ export default function InstitutionRegistrationPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="location">Location / Region</Label>
+                <Label>Location / Region</Label>
                 <div className="relative">
                   <MapPin className="absolute left-3 top-3 size-4 text-muted-foreground" />
                   <Input 
-                    id="location" 
                     placeholder="e.g. Goaso, Ahafo Region" 
                     className="pl-10 h-11" 
                     required 
@@ -309,11 +255,10 @@ export default function InstitutionRegistrationPage() {
               <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b pb-2">Administrative Contact</h3>
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="adminName">Owner/Principal Name</Label>
+                  <Label>Principal Name</Label>
                   <div className="relative">
                     <User className="absolute left-3 top-3 size-4 text-muted-foreground" />
                     <Input 
-                      id="adminName" 
                       placeholder="Full Name" 
                       className="pl-10 h-11" 
                       required 
@@ -323,18 +268,15 @@ export default function InstitutionRegistrationPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="adminEmail">Contact Email</Label>
+                  <Label>Contact Email</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 size-4 text-muted-foreground" />
                     <Input 
-                      id="adminEmail" 
                       type="email" 
-                      placeholder="email@institution.com" 
                       className="pl-10 h-11 bg-slate-50" 
                       required 
                       readOnly={!!user}
                       value={formData.ownerEmail}
-                      onChange={(e) => setFormData(prev => ({ ...prev, ownerEmail: e.target.value }))}
                     />
                   </div>
                 </div>
@@ -342,44 +284,25 @@ export default function InstitutionRegistrationPage() {
             </div>
 
             <Button 
-              className="w-full h-14 text-lg font-bold shadow-lg bg-primary hover:bg-primary/90 transition-all active:scale-95" 
+              className="w-full h-14 text-lg font-bold shadow-lg bg-primary hover:bg-primary/90" 
               type="submit" 
               disabled={loading || !user}
             >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 size-5 animate-spin" />
-                  Authorize Provisioning...
-                </>
-              ) : (
-                "Authorize Provisioning"
-              )}
+              {loading ? <Loader2 className="mr-2 size-5 animate-spin" /> : "Authorize Provisioning"}
             </Button>
           </form>
         </CardContent>
         <CardFooter className="bg-muted/50 p-6 flex flex-col gap-4 border-t">
           <p className="text-xs text-center text-muted-foreground">
-            By registering, you agree to our <Link href="/terms" className="text-primary hover:underline font-bold">Terms of Service</Link> and <Link href="/privacy" className="text-primary hover:underline font-bold">Privacy Policy</Link>.
+            By registering, you agree to our Terms of Service and Privacy Policy.
           </p>
-          <div className="flex justify-center gap-6">
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/login" className="gap-2">
-                Already registered? <span className="font-bold text-primary underline">Sign In</span>
-              </Link>
-            </Button>
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/" className="gap-2">
-                <ArrowLeft className="size-4" /> Back to Home
-              </Link>
-            </Button>
-          </div>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/login" className="gap-2">
+              Already registered? <span className="font-bold text-primary underline">Sign In</span>
+            </Link>
+          </Button>
         </CardFooter>
       </Card>
-      
-      <div className="mt-8 text-center space-y-2">
-        <p className="text-sm text-muted-foreground">Need immediate assistance?</p>
-        <p className="text-xs font-bold text-primary">support@yebfa.com</p>
-      </div>
     </div>
   )
 }

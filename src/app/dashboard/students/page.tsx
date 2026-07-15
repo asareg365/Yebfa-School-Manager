@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -72,11 +73,7 @@ export default function StudentsPage() {
         `${s.firstName} ${s.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
         s.studentId?.toLowerCase().includes(searchQuery.toLowerCase())
       )
-      .sort((a, b) => {
-        const idA = a.studentId || "";
-        const idB = b.studentId || "";
-        return idB.localeCompare(idA);
-      });
+      .sort((a, b) => (b.studentId || "").localeCompare(a.studentId || ""));
   }, [rawStudentsData, searchQuery]);
 
   const availableGrades = useMemo(() => {
@@ -107,33 +104,12 @@ export default function StudentsPage() {
   }, [])
 
   const startCamera = async () => {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      toast({ variant: "destructive", title: "Incompatible Browser", description: "Your browser does not support camera access." })
-      return
-    }
-
     setIsCameraActive(true)
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          facingMode: "user",
-          width: { ideal: 640 },
-          height: { ideal: 640 }
-        } 
-      })
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        videoRef.current.onloadedmetadata = () => {
-          videoRef.current?.play()
-        }
-      }
-    } catch (err: any) {
-      console.error("Camera error:", err)
-      toast({ 
-        variant: "destructive", 
-        title: "Camera Access Denied", 
-        description: "Please check your browser permissions." 
-      })
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+      if (videoRef.current) videoRef.current.srcObject = stream
+    } catch (err) {
+      toast({ variant: "destructive", title: "Camera Failed", description: "Please check permissions." })
       setIsCameraActive(false)
     }
   }
@@ -142,26 +118,17 @@ export default function StudentsPage() {
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current
       const canvas = canvasRef.current
-      const context = canvas.getContext('2d')
-      
       canvas.width = 400
       canvas.height = 400
-      
-      const size = Math.min(video.videoWidth, video.videoHeight)
-      const x = (video.videoWidth - size) / 2
-      const y = (video.videoHeight - size) / 2
-      
-      context?.drawImage(video, x, y, size, size, 0, 0, 400, 400)
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.8)
-      setStudentForm(prev => ({ ...prev, photoUrl: dataUrl }))
+      canvas.getContext('2d')?.drawImage(video, 0, 0, 400, 400)
+      setStudentForm(prev => ({ ...prev, photoUrl: canvas.toDataURL('image/jpeg') }))
       stopCamera()
     }
   }, [])
 
   const stopCamera = useCallback(() => {
     if (videoRef.current?.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream
-      stream.getTracks().forEach(track => track.stop())
+      (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop())
       videoRef.current.srcObject = null
     }
     setIsCameraActive(false)
@@ -182,12 +149,8 @@ export default function StudentsPage() {
 
     try {
       await addDoc(collection(db, "students"), data)
-      toast({
-        title: "Student Enrolled",
-        description: `${studentForm.firstName} enrolled successfully.`,
-      })
+      toast({ title: "Student Enrolled", description: `${studentForm.firstName} joined the registry.` })
       setIsEnrollOpen(false)
-      stopCamera()
       setStudentForm({ firstName: "", lastName: "", gender: "Male", gradeLevel: availableGrades[0], studentId: "", dateOfBirth: "", parentName: "", parentPhone: "", homeAddress: "", photoUrl: "" })
     } catch (error: any) {
       toast({ variant: "destructive", title: "Enrollment Failed", description: error.message })
@@ -207,7 +170,6 @@ export default function StudentsPage() {
       })
       toast({ title: "Record Updated", description: "Student details synchronized." })
       setIsEditOpen(false)
-      stopCamera()
       setEditingStudent(null)
     } catch (error: any) {
       toast({ variant: "destructive", title: "Update Failed", description: error.message })
@@ -216,28 +178,7 @@ export default function StudentsPage() {
     }
   }
 
-  const handleDelete = async (id: string, name: string) => {
-    try {
-      await deleteDoc(doc(db!, "students", id))
-      toast({ title: "Record Deleted", description: `${name} has been removed.` })
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Delete Failed", description: error.message })
-    }
-  }
-
-  if (dataLoading) return (
-    <div className="p-24 text-center space-y-4">
-      <Loader2 className="size-10 animate-spin text-primary mx-auto" />
-      <p className="font-bold text-muted-foreground uppercase tracking-widest">Synchronizing Records...</p>
-    </div>
-  )
-
-  if (!institutionId) return (
-    <div className="p-12 text-center space-y-4">
-      <h2 className="text-xl font-bold">No Institution Selected</h2>
-      <p className="text-muted-foreground">Select a school in the Admin Hub to continue.</p>
-    </div>
-  )
+  if (dataLoading) return <div className="p-24 text-center animate-pulse font-bold text-muted-foreground">Loading Registry...</div>
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -247,12 +188,8 @@ export default function StudentsPage() {
           <p className="text-muted-foreground">Managing {students.length} enrollment records.</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" className="gap-2 h-11 transition-all active:scale-95" asChild>
-             <Link href="/dashboard/students/id-cards"><IdCard className="size-4" /> ID Card Generator</Link>
-          </Button>
-          <Button className="gap-2 bg-primary h-11 shadow-lg shadow-primary/10 transition-all active:scale-95" onClick={() => setIsEnrollOpen(true)}>
-            <UserPlus className="size-4" /> Enroll Student
-          </Button>
+          <Button variant="outline" asChild><Link href="/dashboard/students/id-cards"><IdCard className="size-4" /> ID Generator</Link></Button>
+          <Button className="gap-2 bg-primary" onClick={() => setIsEnrollOpen(true)}><UserPlus className="size-4" /> Enroll Student</Button>
         </div>
       </div>
 
@@ -260,214 +197,117 @@ export default function StudentsPage() {
         <CardHeader className="border-b pb-6 bg-white">
           <div className="relative max-w-sm">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search records..." 
-              className="pl-9 h-11 bg-slate-50 border-none transition-all focus:bg-white" 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+            <Input placeholder="Search records..." className="pl-9 h-11" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          {students.length === 0 ? (
-            <div className="p-24 text-center space-y-4">
-              <GraduationCap className="size-16 text-primary opacity-10 mx-auto" />
-              <p className="font-bold text-muted-foreground">Empty Directory</p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader className="bg-muted/30">
-                <TableRow>
-                  <TableHead className="font-bold py-4">ID / Name</TableHead>
-                  <TableHead className="font-bold py-4">Grade / Gender</TableHead>
-                  <TableHead className="font-bold py-4">Guardian</TableHead>
-                  <TableHead className="font-bold py-4">Status</TableHead>
-                  <TableHead className="text-right font-bold py-4">Actions</TableHead>
+          <Table>
+            <TableHeader className="bg-muted/30">
+              <TableRow>
+                <TableHead className="font-bold py-4">ID / Name</TableHead>
+                <TableHead className="font-bold py-4">Grade / Gender</TableHead>
+                <TableHead className="font-bold py-4">Guardian</TableHead>
+                <TableHead className="font-bold py-4">Status</TableHead>
+                <TableHead className="text-right font-bold py-4">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {students.map((stu: any) => (
+                <TableRow key={stu.id} className="hover:bg-slate-50 transition-colors group">
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <div className="size-10 rounded-full overflow-hidden bg-muted flex items-center justify-center border shrink-0">
+                        {stu.photoUrl ? <img src={stu.photoUrl} alt="" className="w-full h-full object-cover" /> : <User className="size-5 text-muted-foreground" />}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="font-mono text-[10px] font-bold text-muted-foreground uppercase">{stu.studentId}</span>
+                        <span className="font-bold text-primary">{stu.firstName} {stu.lastName}</span>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-sm font-medium">{stu.gradeLevel}</span>
+                      <Badge variant="outline" className="w-fit text-[9px] uppercase font-bold">{stu.gender}</Badge>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-xs font-bold">{stu.parentName}</span>
+                      <span className="text-[10px] text-muted-foreground">{stu.parentPhone}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell><Badge className="text-[9px] uppercase font-bold bg-green-50 text-green-600 border-green-200">{stu.status}</Badge></TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" asChild><Link href="/dashboard/exams"><FileText className="size-3.5" /></Link></Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+                        setEditingStudent(stu);
+                        setStudentForm({...stu});
+                        setIsEditOpen(true);
+                      }}><Pencil className="size-3.5" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => deleteDoc(doc(db!, "students", stu.id))} className="h-8 w-8 text-destructive"><Trash2 className="size-3.5" /></Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {students.map((stu: any) => (
-                  <TableRow key={stu.id} className="hover:bg-slate-50 transition-colors group">
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="size-10 rounded-full overflow-hidden bg-muted flex items-center justify-center border shrink-0">
-                          {stu.photoUrl ? (
-                            <img src={stu.photoUrl} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <User className="size-5 text-muted-foreground" />
-                          )}
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="font-mono text-[10px] font-bold text-muted-foreground uppercase">{stu.studentId}</span>
-                          <span className="font-bold text-primary">{stu.firstName} {stu.lastName}</span>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-sm font-medium">{stu.gradeLevel}</span>
-                        <Badge variant="outline" className="w-fit text-[9px] uppercase font-bold tracking-tight">{stu.gender}</Badge>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-xs font-bold">{stu.parentName}</span>
-                        <span className="text-[10px] text-muted-foreground">{stu.parentPhone}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className="text-[9px] uppercase font-bold bg-green-50 text-green-600 border-green-200">{stu.status}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" asChild>
-                           <Link href="/dashboard/exams"><FileText className="size-3.5" /></Link>
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
-                          setEditingStudent(stu);
-                          setStudentForm({
-                            firstName: stu.firstName || "",
-                            lastName: stu.lastName || "",
-                            gender: stu.gender || "Male",
-                            gradeLevel: stu.gradeLevel || availableGrades[0],
-                            studentId: stu.studentId || "",
-                            dateOfBirth: stu.dateOfBirth || "",
-                            parentName: stu.parentName || "",
-                            parentPhone: stu.parentPhone || "",
-                            homeAddress: stu.homeAddress || "",
-                            photoUrl: stu.photoUrl || ""
-                          });
-                          setIsEditOpen(true);
-                        }}>
-                          <Pencil className="size-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(stu.id, stu.firstName)} className="h-8 w-8 text-destructive">
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 
-      {/* Enroll Dialog */}
       <Dialog open={isEnrollOpen} onOpenChange={(val) => { if (!val) stopCamera(); setIsEnrollOpen(val); }}>
-        <DialogContent className="max-w-2xl border-none shadow-2xl rounded-2xl p-0 overflow-hidden">
-          <form onSubmit={handleEnroll}>
-            <DialogHeader className="bg-primary text-primary-foreground p-8">
-              <DialogTitle className="text-2xl">Enroll New Student</DialogTitle>
-              <DialogDescription className="text-primary-foreground/70 text-sm">Capturing record for {institution?.name}.</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-8 py-8 px-8 max-h-[70vh] overflow-y-auto">
-              {/* Media Capture Section */}
-              <div className="flex flex-col items-center gap-6 p-6 border-2 border-dashed rounded-3xl bg-muted/20">
-                <div className="relative size-40 rounded-3xl overflow-hidden bg-background border-4 border-white shadow-xl group">
-                  {studentForm.photoUrl ? (
-                    <img src={studentForm.photoUrl} alt="Preview" className="w-full h-full object-cover" />
-                  ) : isCameraActive ? (
-                    <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-slate-50">
-                      <User className="size-16 text-slate-200" />
-                    </div>
-                  )}
-                </div>
-                <div className="flex gap-3">
-                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" className="hidden" />
-                  <Button type="button" variant="outline" size="sm" className="rounded-xl h-10 px-4" onClick={() => fileInputRef.current?.click()}>Upload</Button>
-                  {!isCameraActive ? (
-                    <Button type="button" variant="outline" size="sm" className="rounded-xl h-10 px-4" onClick={startCamera}>Camera</Button>
-                  ) : (
-                    <Button type="button" variant="default" size="sm" onClick={capturePhoto} className="bg-green-600 rounded-xl h-10 px-6">Capture</Button>
-                  )}
-                </div>
+        <DialogContent className="max-w-2xl"><form onSubmit={handleEnroll}>
+          <DialogHeader><DialogTitle>Enroll Student</DialogTitle><DialogDescription>Linked to {institution?.name}.</DialogDescription></DialogHeader>
+          <div className="grid gap-6 py-6 max-h-[70vh] overflow-y-auto px-1">
+            <div className="flex flex-col items-center gap-4">
+              <div className="size-32 rounded-2xl bg-muted overflow-hidden flex items-center justify-center border-2 border-dashed">
+                {studentForm.photoUrl ? <img src={studentForm.photoUrl} className="w-full h-full object-cover" /> : isCameraActive ? <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" /> : <User className="size-12 text-muted-foreground/30" />}
               </div>
-
-              {/* Data Fields */}
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2"><Label>First Name</Label><Input required value={studentForm.firstName} onChange={e => setStudentForm({...studentForm, firstName: e.target.value})} className="h-11 rounded-xl" /></div>
-                <div className="space-y-2"><Label>Last Name</Label><Input required value={studentForm.lastName} onChange={e => setStudentForm({...studentForm, lastName: e.target.value})} className="h-11 rounded-xl" /></div>
+              <div className="flex gap-2">
+                <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" className="hidden" />
+                <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>Upload</Button>
+                {!isCameraActive ? <Button type="button" variant="outline" size="sm" onClick={startCamera}>Camera</Button> : <Button type="button" size="sm" onClick={capturePhoto} className="bg-green-600">Capture</Button>}
               </div>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label>Gender</Label>
-                  <Select onValueChange={v => setStudentForm({...studentForm, gender: v})} value={studentForm.gender}>
-                    <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
-                    <SelectContent><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem></SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2"><Label>Date of Birth</Label><Input type="date" value={studentForm.dateOfBirth} onChange={e => setStudentForm({...studentForm, dateOfBirth: e.target.value})} className="h-11 rounded-xl" /></div>
-              </div>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label>Grade Level</Label>
-                  <Select onValueChange={v => setStudentForm({...studentForm, gradeLevel: v})} value={studentForm.gradeLevel}>
-                    <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
-                    <SelectContent>{availableGrades.map(g => <SelectItem key={grade} value={g}>{g}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2"><Label>Student ID</Label><Input readOnly value={studentForm.studentId} className="h-11 rounded-xl bg-slate-50 font-bold" /></div>
-              </div>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2"><Label>Guardian Name</Label><Input required value={studentForm.parentName} onChange={e => setStudentForm({...studentForm, parentName: e.target.value})} className="h-11 rounded-xl" /></div>
-                <div className="space-y-2"><Label>Guardian Phone</Label><Input required value={studentForm.parentPhone} onChange={e => setStudentForm({...studentForm, parentPhone: e.target.value})} className="h-11 rounded-xl" /></div>
-              </div>
-              <div className="space-y-2"><Label>Home Address</Label><Input value={studentForm.homeAddress} onChange={e => setStudentForm({...studentForm, homeAddress: e.target.value})} className="h-11 rounded-xl" /></div>
             </div>
-            <div className="p-8 border-t bg-slate-50 flex justify-end">
-              <Button type="submit" disabled={loading} className="h-12 px-10 font-bold rounded-xl bg-primary">Complete Enrollment</Button>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>First Name</Label><Input required value={studentForm.firstName} onChange={e => setStudentForm({...studentForm, firstName: e.target.value})} /></div>
+              <div className="space-y-2"><Label>Last Name</Label><Input required value={studentForm.lastName} onChange={e => setStudentForm({...studentForm, lastName: e.target.value})} /></div>
             </div>
-          </form>
-        </DialogContent>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>Gender</Label><Select onValueChange={v => setStudentForm({...studentForm, gender: v})} value={studentForm.gender}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem></SelectContent></Select></div>
+              <div className="space-y-2"><Label>DOB</Label><Input type="date" value={studentForm.dateOfBirth} onChange={e => setStudentForm({...studentForm, dateOfBirth: e.target.value})} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>Grade</Label><Select onValueChange={v => setStudentForm({...studentForm, gradeLevel: v})} value={studentForm.gradeLevel}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{availableGrades.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}</SelectContent></Select></div>
+              <div className="space-y-2"><Label>ID</Label><Input readOnly value={studentForm.studentId} className="bg-slate-50 font-bold" /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>Guardian Name</Label><Input required value={studentForm.parentName} onChange={e => setStudentForm({...studentForm, parentName: e.target.value})} /></div>
+              <div className="space-y-2"><Label>Guardian Phone</Label><Input required value={studentForm.parentPhone} onChange={e => setStudentForm({...studentForm, parentPhone: e.target.value})} /></div>
+            </div>
+            <div className="space-y-2"><Label>Address</Label><Input value={studentForm.homeAddress} onChange={e => setStudentForm({...studentForm, homeAddress: e.target.value})} /></div>
+          </div>
+          <DialogFooter><Button type="submit" disabled={loading} className="w-full">Complete Enrollment</Button></DialogFooter>
+        </form></DialogContent>
       </Dialog>
 
-      {/* Edit Dialog */}
-      <Dialog open={isEditOpen} onOpenChange={(val) => { if (!val) { stopCamera(); setEditingStudent(null); } setIsEditOpen(val); }}>
-        <DialogContent className="max-w-2xl border-none shadow-2xl rounded-2xl p-0 overflow-hidden">
-          <form onSubmit={handleUpdate}>
-            <DialogHeader className="bg-accent text-accent-foreground p-8">
-              <DialogTitle className="text-2xl">Edit Student Record</DialogTitle>
-              <DialogDescription className="text-accent-foreground/70">Updating records for {studentForm.firstName}.</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-6 py-8 px-8 max-h-[70vh] overflow-y-auto">
-               <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2"><Label>First Name</Label><Input required value={studentForm.firstName} onChange={e => setStudentForm({...studentForm, firstName: e.target.value})} className="h-11 rounded-xl" /></div>
-                <div className="space-y-2"><Label>Last Name</Label><Input required value={studentForm.lastName} onChange={e => setStudentForm({...studentForm, lastName: e.target.value})} className="h-11 rounded-xl" /></div>
-              </div>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label>Gender</Label>
-                  <Select onValueChange={v => setStudentForm({...studentForm, gender: v})} value={studentForm.gender}>
-                    <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
-                    <SelectContent><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem></SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2"><Label>Date of Birth</Label><Input type="date" value={studentForm.dateOfBirth} onChange={e => setStudentForm({...studentForm, dateOfBirth: e.target.value})} className="h-11 rounded-xl" /></div>
-              </div>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label>Grade Level</Label>
-                  <Select onValueChange={v => setStudentForm({...studentForm, gradeLevel: v})} value={studentForm.gradeLevel}>
-                    <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
-                    <SelectContent>{availableGrades.map(g => <SelectItem key={grade} value={g}>{g}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2"><Label>Guardian Name</Label><Input required value={studentForm.parentName} onChange={e => setStudentForm({...studentForm, parentName: e.target.value})} className="h-11 rounded-xl" /></div>
-              </div>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2"><Label>Guardian Phone</Label><Input required value={studentForm.parentPhone} onChange={e => setStudentForm({...studentForm, parentPhone: e.target.value})} className="h-11 rounded-xl" /></div>
-                <div className="space-y-2"><Label>Home Address</Label><Input value={studentForm.homeAddress} onChange={e => setStudentForm({...studentForm, homeAddress: e.target.value})} className="h-11 rounded-xl" /></div>
-              </div>
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="max-w-2xl"><form onSubmit={handleUpdate}>
+          <DialogHeader><DialogTitle>Edit Profile</DialogTitle></DialogHeader>
+          <div className="grid gap-6 py-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>First Name</Label><Input required value={studentForm.firstName} onChange={e => setStudentForm({...studentForm, firstName: e.target.value})} /></div>
+              <div className="space-y-2"><Label>Last Name</Label><Input required value={studentForm.lastName} onChange={e => setStudentForm({...studentForm, lastName: e.target.value})} /></div>
             </div>
-            <div className="p-8 border-t bg-slate-50 flex justify-end">
-              <Button type="submit" disabled={loading} className="h-12 px-10 font-bold rounded-xl bg-primary">Authorize Updates</Button>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>Guardian Name</Label><Input required value={studentForm.parentName} onChange={e => setStudentForm({...studentForm, parentName: e.target.value})} /></div>
+              <div className="space-y-2"><Label>Guardian Phone</Label><Input required value={studentForm.parentPhone} onChange={e => setStudentForm({...studentForm, parentPhone: e.target.value})} /></div>
             </div>
-          </form>
-        </DialogContent>
+            <div className="space-y-2"><Label>Address</Label><Input value={studentForm.homeAddress} onChange={e => setStudentForm({...studentForm, homeAddress: e.target.value})} /></div>
+          </div>
+          <DialogFooter><Button type="submit" disabled={loading} className="w-full">Authorize Update</Button></DialogFooter>
+        </form></DialogContent>
       </Dialog>
     </div>
   )
