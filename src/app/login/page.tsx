@@ -46,7 +46,7 @@ export default function LoginPage() {
       return
     }
 
-    if (userData.tenantId || userData.institutionId) {
+    if (userData.tenantId) {
       router.replace("/dashboard")
       return
     }
