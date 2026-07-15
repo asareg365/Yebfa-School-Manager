@@ -163,14 +163,14 @@ service cloud.firestore {
 
     match /settings/{settingId} {
 
-      allow read, write:
+      allow create, read, write:
       if signedIn();
 
     }
 
-    match /departments/{deptId} {
+    match /departments/{departmentId} {
 
-      allow read, write:
+      allow create, read, write:
       if signedIn();
 
     }
