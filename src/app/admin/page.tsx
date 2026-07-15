@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useUser, useFirestore, useCollection, useAuth, useDoc } from "@/firebase"
 import { useRouter } from "next/navigation"
 import { useEffect, useState, useMemo } from "react"
@@ -206,6 +207,7 @@ export default function AdminPortal() {
                    Awaiting historical data for 2026...
                 </CardContent>
               </Card>
+
             </div>
 
             <Card className="border-none shadow-md bg-primary text-primary-foreground overflow-hidden">
