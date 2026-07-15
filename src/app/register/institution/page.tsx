@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -56,13 +55,21 @@ export default function InstitutionRegistrationPage() {
     e.preventDefault()
 
     if (!user) {
-      toast({ variant: "destructive", title: "Authentication Required", description: "Please sign in first." })
+      toast({
+        variant: "destructive",
+        title: "Authentication Required",
+        description: "Please sign in first."
+      })
       router.push("/login")
       return
     }
 
     if (!db) {
-      toast({ variant: "destructive", title: "System Error", description: "Database connection could not be established." })
+      toast({
+        variant: "destructive",
+        title: "System Error",
+        description: "Database connection could not be established."
+      })
       return
     }
 
@@ -73,77 +80,98 @@ export default function InstitutionRegistrationPage() {
       const tenantId = institutionRef.id
 
       const batch = writeBatch(db)
-      const trialDuration = 30 * 24 * 60 * 60 * 1000
-      const trialEndsAt = Timestamp.fromDate(new Date(Date.now() + trialDuration))
 
       // 1. Create Institution
-      batch.set(institutionRef, {
-        id: tenantId,
-        tenantId,
-        name: formData.name,
-        type: formData.gradeLevel,
-        gradeLevel: formData.gradeLevel,
-        specificGrades: formData.specificGrades,
-        location: formData.location,
-        ownerUid: user.uid,
-        ownerName: formData.ownerName,
-        ownerEmail: user.email,
-        subscriptionPlan: "trial for 30days",
-        trialEndsAt: trialEndsAt,
-        status: "active",
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      })
+      batch.set(
+        institutionRef,
+        {
+          id: tenantId,
+          tenantId,
+          name: formData.name,
+          type: formData.gradeLevel,
+          gradeLevel: formData.gradeLevel,
+          specificGrades: formData.specificGrades,
+          location: formData.location,
+          ownerUid: user.uid,
+          ownerName: formData.ownerName,
+          ownerEmail: user.email,
+          subscriptionPlan: "trial for 30days",
+          status: "active",
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        }
+      )
 
       // 2. Create User Profile
-      batch.set(doc(db, "users", user.uid), {
-        uid: user.uid,
-        name: formData.ownerName,
-        email: user.email,
-        role: "school_owner",
-        tenantId,
-        institutionId: tenantId,
-        institutionName: formData.name,
-        status: "active",
-        createdAt: serverTimestamp()
-      })
+      batch.set(
+        doc(db, "users", user.uid),
+        {
+          uid: user.uid,
+          name: formData.ownerName,
+          email: user.email,
+          role: "school_owner",
+          tenantId,
+          institutionId: tenantId,
+          status: "active",
+          createdAt: serverTimestamp()
+        }
+      )
 
       // 3. Create School Settings
-      batch.set(doc(db, "settings", tenantId), {
-        tenantId,
-        institutionId: tenantId,
-        schoolName: formData.name,
-        academicYear: "2026/2027",
-        currentTerm: "Term 1",
-        currency: "GHS",
-        timezone: "Africa/Accra",
-        createdAt: serverTimestamp()
-      })
+      batch.set(
+        doc(db, "settings", tenantId),
+        {
+          tenantId,
+          institutionId: tenantId,
+          schoolName: formData.name,
+          academicYear: "2026/2027",
+          currentTerm: "Term 1",
+          currency: "GHS",
+          timezone: "Africa/Accra",
+          createdAt: serverTimestamp()
+        }
+      )
 
       // 4. Default Departments
-      batch.set(doc(db, "departments", tenantId), {
-        tenantId,
-        items: ["Administration", "Academics", "Accounts", "Library"],
-        createdAt: serverTimestamp()
-      })
+      batch.set(
+        doc(db, "departments", tenantId),
+        {
+          tenantId,
+          departments: [
+            "Administration",
+            "Academics",
+            "Accounts",
+            "Library"
+          ],
+          createdAt: serverTimestamp()
+        }
+      )
 
       await batch.commit()
 
       localStorage.setItem('selected_institution_id', tenantId)
       localStorage.setItem('selected_institution_name', formData.name)
 
-      toast({ title: "Institution Created", description: "Your workspace is ready. Welcome to Yebfa!" })
+      toast({
+        title: "Institution Created",
+        description: "Your school workspace has been successfully created."
+      })
+
       router.replace("/dashboard")
 
     } catch (error: any) {
       console.error(error)
       const permissionError = new FirestorePermissionError({
-        path: "institutions/registry",
-        operation: "write",
+        path: "institutions",
+        operation: "create",
         requestResourceData: { name: formData.name }
       })
       errorEmitter.emit("permission-error", permissionError)
-      toast({ variant: "destructive", title: "Registration Failed", description: error.message || "Failed to create records." })
+      toast({
+        variant: "destructive",
+        title: "Registration Failed",
+        description: error.message || "An unexpected error occurred during provisioning."
+      })
     } finally {
       setLoading(false)
     }
