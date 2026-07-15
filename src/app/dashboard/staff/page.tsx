@@ -34,8 +34,15 @@ export default function StaffPage() {
   const [copied, setCopied] = useState(false)
   
   const [staffForm, setStaffForm] = useState({
-    fullName: "", role: "", department: "Administration", email: "", phoneNumber: "", staffId: "",
-    joiningDate: new Date().toISOString().split('T')[0], assignedClasses: "", assignedSubjects: ""
+    fullName: "", 
+    role: "", 
+    department: "Administration", 
+    email: "", 
+    phoneNumber: "", 
+    staffId: "",
+    joiningDate: new Date().toISOString().split('T')[0], 
+    assignedClasses: "", 
+    assignedSubjects: ""
   })
 
   useEffect(() => {
@@ -72,6 +79,7 @@ export default function StaffPage() {
       await addDoc(collection(db, "staff"), { ...staffForm, institutionId, createdAt: serverTimestamp() })
       toast({ title: "Staff Enrolled", description: `${staffForm.fullName} added successfully.` })
       setIsAddOpen(false)
+      setStaffForm({ fullName: "", role: "", department: "Administration", email: "", phoneNumber: "", staffId: "", joiningDate: new Date().toISOString().split('T')[0], assignedClasses: "", assignedSubjects: "" })
     } catch (e: any) { toast({ variant: "destructive", title: "Error", description: e.message }) } finally { setLoading(false) }
   }
 
@@ -97,7 +105,6 @@ export default function StaffPage() {
         institutionName: institution.name,
         joiningDate: selectedStaff.joiningDate
       })
-      // Add institutional branding text to the generated content
       const brandedLetter = `
 ${institution.name.toUpperCase()}
 ${institution.address || "Ghana"}
@@ -124,8 +131,29 @@ Institutional Seal Authorized 2026`;
           <DialogTrigger asChild><Button className="gap-2 bg-primary h-11 px-6 shadow-lg shadow-primary/10"><UserPlus className="size-4" /> Enroll Teacher</Button></DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto"><form onSubmit={handleAddStaff}><DialogHeader><DialogTitle>New Faculty Registration</DialogTitle></DialogHeader>
             <div className="grid gap-6 py-6">
-              <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label>Full Name</Label><Input required value={staffForm.fullName} onChange={e => setStaffForm({...staffForm, fullName: e.target.value})} /></div><div className="space-y-2"><Label>Role</Label><Input required value={staffForm.role} onChange={e => setStaffForm({...staffForm, role: e.target.value})} /></div></div>
-              <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label>Department</Label><Select onValueChange={v => setStaffForm({...staffForm, department: v})} value={staffForm.department}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{DEFAULT_DEPARTMENTS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Staff ID</Label><Input readOnly value={staffForm.staffId} className="bg-muted font-mono" /></div></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2"><Label>Full Name</Label><Input required value={staffForm.fullName} onChange={e => setStaffForm({...staffForm, fullName: e.target.value})} /></div>
+                <div className="space-y-2"><Label>Role / Position</Label><Input required value={staffForm.role} onChange={e => setStaffForm({...staffForm, role: e.target.value})} placeholder="e.g. Senior Teacher" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Department</Label>
+                  <Select onValueChange={v => setStaffForm({...staffForm, department: v})} value={staffForm.department}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{DEFAULT_DEPARTMENTS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2"><Label>Staff ID</Label><Input readOnly value={staffForm.staffId} className="bg-muted font-mono" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2"><Label>Email Address</Label><Input type="email" value={staffForm.email} onChange={e => setStaffForm({...staffForm, email: e.target.value})} /></div>
+                <div className="space-y-2"><Label>Phone Number</Label><Input value={staffForm.phoneNumber} onChange={e => setStaffForm({...staffForm, phoneNumber: e.target.value})} /></div>
+              </div>
+              <div className="space-y-2"><Label>Joining Date</Label><Input type="date" value={staffForm.joiningDate} onChange={e => setStaffForm({...staffForm, joiningDate: e.target.value})} /></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2"><Label>Assigned Classes</Label><Input value={staffForm.assignedClasses} onChange={e => setStaffForm({...staffForm, assignedClasses: e.target.value})} placeholder="e.g. SHS 1A, SHS 2B" /></div>
+                <div className="space-y-2"><Label>Assigned Subjects</Label><Input value={staffForm.assignedSubjects} onChange={e => setStaffForm({...staffForm, assignedSubjects: e.target.value})} placeholder="e.g. Core Math, Physics" /></div>
+              </div>
             </div>
             <DialogFooter><Button type="submit" disabled={loading} className="w-full">{loading ? <Loader2 className="animate-spin" /> : "Confirm Enrollment"}</Button></DialogFooter>
           </form></DialogContent>
@@ -144,7 +172,11 @@ Institutional Seal Authorized 2026`;
                     <TableCell><span className="text-[10px] font-bold text-accent block uppercase">{s.department}</span><span className="text-xs">{s.role}</span></TableCell>
                     <TableCell className="text-[10px] text-muted-foreground">{s.assignedClasses || "No Classes"} • {s.assignedSubjects || "No Subjects"}</TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-1"><Button variant="ghost" size="icon" onClick={() => { setSelectedStaff(s); setGeneratedLetter(null); setIsViewOpen(true); }}><Eye className="size-3.5" /></Button><Button variant="ghost" size="icon" onClick={() => { setEditingStaff(s); setStaffForm({...s}); setIsEditOpen(true); }}><Pencil className="size-3.5" /></Button><Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteDoc(doc(db!, "staff", s.id))}><Trash2 className="size-3.5" /></Button></div>
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => { setSelectedStaff(s); setGeneratedLetter(null); setIsViewOpen(true); }}><Eye className="size-3.5" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => { setEditingStaff(s); setStaffForm({...s}); setIsEditOpen(true); }}><Pencil className="size-3.5" /></Button>
+                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteDoc(doc(db!, "staff", s.id))}><Trash2 className="size-3.5" /></Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -170,13 +202,60 @@ Institutional Seal Authorized 2026`;
                   </div>
                 ) : <p className="text-xs text-center italic text-muted-foreground">Click to generate an AI-powered appointment letter with school branding.</p>}
              </div>
+             <div className="grid grid-cols-2 gap-8 mt-8">
+               <div className="space-y-4">
+                 <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Contact & Personnel</h4>
+                 <div className="space-y-2">
+                   <div className="flex items-center gap-3 text-sm"><Mail className="size-4 text-primary" /> {selectedStaff?.email || "No email"}</div>
+                   <div className="flex items-center gap-3 text-sm"><Phone className="size-4 text-primary" /> {selectedStaff?.phoneNumber || "No phone"}</div>
+                   <div className="flex items-center gap-3 text-sm"><CalendarIcon className="size-4 text-primary" /> Joined: {selectedStaff?.joiningDate || "N/A"}</div>
+                 </div>
+               </div>
+               <div className="space-y-4">
+                 <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Academic Assignments</h4>
+                 <div className="space-y-2">
+                   <div className="flex items-center gap-3 text-sm"><School className="size-4 text-primary" /> Classes: {selectedStaff?.assignedClasses || "None"}</div>
+                   <div className="flex items-center gap-3 text-sm"><BookOpen className="size-4 text-primary" /> Subjects: {selectedStaff?.assignedSubjects || "None"}</div>
+                 </div>
+               </div>
+             </div>
           </ScrollArea>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}><DialogContent><form onSubmit={handleUpdateStaff}><DialogHeader><DialogTitle>Edit Profile</DialogTitle></DialogHeader>
-        <div className="grid gap-4 py-4"><div className="space-y-2"><Label>Full Name</Label><Input value={staffForm.fullName} onChange={e => setStaffForm({...staffForm, fullName: e.target.value})} /></div><div className="space-y-2"><Label>Role</Label><Input value={staffForm.role} onChange={e => setStaffForm({...staffForm, role: e.target.value})} /></div></div>
-        <DialogFooter><Button type="submit" disabled={loading} className="w-full">Authorize Update</Button></DialogFooter></form></DialogContent></Dialog>
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <form onSubmit={handleUpdateStaff}>
+            <DialogHeader><DialogTitle>Edit Faculty Profile</DialogTitle></DialogHeader>
+            <div className="grid gap-6 py-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2"><Label>Full Name</Label><Input value={staffForm.fullName} onChange={e => setStaffForm({...staffForm, fullName: e.target.value})} /></div>
+                <div className="space-y-2"><Label>Role / Position</Label><Input value={staffForm.role} onChange={e => setStaffForm({...staffForm, role: e.target.value})} /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Department</Label>
+                  <Select onValueChange={v => setStaffForm({...staffForm, department: v})} value={staffForm.department}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{DEFAULT_DEPARTMENTS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2"><Label>Staff ID</Label><Input readOnly value={staffForm.staffId} className="bg-muted font-mono" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2"><Label>Email Address</Label><Input type="email" value={staffForm.email} onChange={e => setStaffForm({...staffForm, email: e.target.value})} /></div>
+                <div className="space-y-2"><Label>Phone Number</Label><Input value={staffForm.phoneNumber} onChange={e => setStaffForm({...staffForm, phoneNumber: e.target.value})} /></div>
+              </div>
+              <div className="space-y-2"><Label>Joining Date</Label><Input type="date" value={staffForm.joiningDate} onChange={e => setStaffForm({...staffForm, joiningDate: e.target.value})} /></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2"><Label>Assigned Classes</Label><Input value={staffForm.assignedClasses} onChange={e => setStaffForm({...staffForm, assignedClasses: e.target.value})} /></div>
+                <div className="space-y-2"><Label>Assigned Subjects</Label><Input value={staffForm.assignedSubjects} onChange={e => setStaffForm({...staffForm, assignedSubjects: e.target.value})} /></div>
+              </div>
+            </div>
+            <DialogFooter><Button type="submit" disabled={loading} className="w-full">Authorize Synchronized Update</Button></DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

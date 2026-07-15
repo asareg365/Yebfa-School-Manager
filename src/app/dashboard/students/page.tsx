@@ -321,7 +321,18 @@ export default function StudentsPage() {
                         </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
                           setEditingStudent(stu);
-                          setStudentForm(stu);
+                          setStudentForm({
+                            firstName: stu.firstName || "",
+                            lastName: stu.lastName || "",
+                            gender: stu.gender || "Male",
+                            gradeLevel: stu.gradeLevel || availableGrades[0],
+                            studentId: stu.studentId || "",
+                            dateOfBirth: stu.dateOfBirth || "",
+                            parentName: stu.parentName || "",
+                            parentPhone: stu.parentPhone || "",
+                            homeAddress: stu.homeAddress || "",
+                            photoUrl: stu.photoUrl || ""
+                          });
                           setIsEditOpen(true);
                         }}>
                           <Pencil className="size-3.5" />
@@ -417,6 +428,23 @@ export default function StudentsPage() {
               </div>
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
+                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Gender</Label>
+                  <Select onValueChange={v => setStudentForm({...studentForm, gender: v})} value={studentForm.gender}>
+                    <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Male">Male</SelectItem>
+                      <SelectItem value="Female">Female</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Date of Birth</Label>
+                  <Input type="date" value={studentForm.dateOfBirth} onChange={e => setStudentForm({...studentForm, dateOfBirth: e.target.value})} className="h-11 rounded-xl" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
                   <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Grade Level</Label>
                   <Select onValueChange={v => setStudentForm({...studentForm, gradeLevel: v})} value={studentForm.gradeLevel}>
                     <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
@@ -442,6 +470,10 @@ export default function StudentsPage() {
                   <Input required value={studentForm.parentPhone} onChange={e => setStudentForm({...studentForm, parentPhone: e.target.value})} className="h-11 rounded-xl" />
                 </div>
               </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Home Address</Label>
+                <Input value={studentForm.homeAddress} onChange={e => setStudentForm({...studentForm, homeAddress: e.target.value})} className="h-11 rounded-xl" />
+              </div>
             </div>
             <div className="p-8 border-t bg-slate-50 flex justify-end">
               <Button type="submit" disabled={loading} className="h-12 px-10 gap-2 bg-primary font-bold rounded-xl shadow-lg transition-all active:scale-95">
@@ -464,7 +496,7 @@ export default function StudentsPage() {
           <form onSubmit={handleUpdate}>
             <DialogHeader className="bg-accent text-accent-foreground p-8">
               <DialogTitle className="text-2xl">Edit Student Record</DialogTitle>
-              <DialogDescription className="text-accent-foreground/70">Updating records for {editingStudent?.firstName}.</DialogDescription>
+              <DialogDescription className="text-accent-foreground/70">Updating records for {studentForm.firstName}.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-6 py-8 px-8 max-h-[70vh] overflow-y-auto">
                <div className="flex flex-col items-center gap-6 p-6 border-2 border-dashed rounded-3xl bg-muted/20">
@@ -509,6 +541,23 @@ export default function StudentsPage() {
               </div>
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
+                  <Label className="text-xs font-bold uppercase text-muted-foreground">Gender</Label>
+                  <Select onValueChange={v => setStudentForm({...studentForm, gender: v})} value={studentForm.gender}>
+                    <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Male">Male</SelectItem>
+                      <SelectItem value="Female">Female</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold uppercase text-muted-foreground">Date of Birth</Label>
+                  <Input type="date" value={studentForm.dateOfBirth} onChange={e => setStudentForm({...studentForm, dateOfBirth: e.target.value})} className="h-11 rounded-xl" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
                   <Label className="text-xs font-bold uppercase text-muted-foreground">Grade Level</Label>
                   <Select onValueChange={v => setStudentForm({...studentForm, gradeLevel: v})} value={studentForm.gradeLevel}>
                     <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
@@ -524,10 +573,20 @@ export default function StudentsPage() {
                   <Input required value={studentForm.parentName} onChange={e => setStudentForm({...studentForm, parentName: e.target.value})} className="h-11 rounded-xl" />
                 </div>
               </div>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold uppercase text-muted-foreground">Guardian Phone</Label>
+                  <Input required value={studentForm.parentPhone} onChange={e => setStudentForm({...studentForm, parentPhone: e.target.value})} className="h-11 rounded-xl" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold uppercase text-muted-foreground">Home Address</Label>
+                  <Input value={studentForm.homeAddress} onChange={e => setStudentForm({...studentForm, homeAddress: e.target.value})} className="h-11 rounded-xl" />
+                </div>
+              </div>
             </div>
             <div className="p-8 border-t bg-slate-50 flex justify-end">
               <Button type="submit" disabled={loading} className="h-12 px-10 font-bold rounded-xl bg-primary shadow-lg transition-all active:scale-95">
-                {loading ? <Loader2 className="size-4 animate-spin" /> : "Authorize Change"}
+                {loading ? <Loader2 className="size-4 animate-spin" /> : "Authorize Profile Update"}
               </Button>
             </div>
           </form>

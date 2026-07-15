@@ -48,7 +48,10 @@ export default function AdminPortal() {
   const [editSchoolForm, setEditSchoolForm] = useState({
     name: "",
     gradeLevel: "",
-    location: ""
+    specificGrades: "",
+    location: "",
+    subscriptionPlan: "trial",
+    status: "active"
   })
 
   const isSuperAdmin = user?.email === 'asareg365@gmail.com' || user?.email === 'frankyeb@gmail.com'
@@ -173,9 +176,12 @@ export default function AdminPortal() {
   const handleEditClick = (inst: any) => {
     setSelectedInstForEdit(inst)
     setEditSchoolForm({
-      name: inst.name,
+      name: inst.name || "",
       gradeLevel: inst.gradeLevel || inst.type || "",
-      location: inst.location || ""
+      specificGrades: inst.specificGrades || "",
+      location: inst.location || "",
+      subscriptionPlan: inst.subscriptionPlan || "trial",
+      status: inst.status || "active"
     })
     setIsEditDialogOpen(true)
   }
@@ -569,7 +575,7 @@ export default function AdminPortal() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Grade Level / Category</Label>
+                  <Label>Grade Category</Label>
                   <Input 
                     required 
                     value={editSchoolForm.gradeLevel} 
@@ -578,11 +584,31 @@ export default function AdminPortal() {
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label>Specific Grades</Label>
+                  <Input 
+                    required 
+                    value={editSchoolForm.specificGrades} 
+                    onChange={(e) => setEditSchoolForm({...editSchoolForm, specificGrades: e.target.value})} 
+                    className="h-11 rounded-xl" 
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
                   <Label>Primary Location</Label>
                   <Input 
                     required 
                     value={editSchoolForm.location} 
                     onChange={(e) => setEditSchoolForm({...editSchoolForm, location: e.target.value})} 
+                    className="h-11 rounded-xl" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Subscription Plan</Label>
+                  <Input 
+                    required 
+                    value={editSchoolForm.subscriptionPlan} 
+                    onChange={(e) => setEditSchoolForm({...editSchoolForm, subscriptionPlan: e.target.value})} 
                     className="h-11 rounded-xl" 
                   />
                 </div>
