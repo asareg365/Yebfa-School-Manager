@@ -9,10 +9,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { School, ArrowLeft, Loader2, MapPin, Mail, User, ShieldCheck, AlertCircle, Layers } from "lucide-react"
+import { School, ArrowLeft, Loader2, MapPin, Mail, User, ShieldCheck, AlertCircle } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useUser } from "@/firebase"
-import { collection, addDoc, serverTimestamp } from "firebase/firestore"
+import { collection, doc, setDoc, serverTimestamp } from "firebase/firestore"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -62,31 +62,53 @@ export default function InstitutionRegistrationPage() {
 
     setLoading(true)
     
-    const data = {
-      name: formData.name,
-      type: formData.gradeLevel, // Use category as type for legacy compatibility
-      gradeLevel: formData.gradeLevel,
-      specificGrades: formData.specificGrades,
+    const institutionRef = doc(collection(db, "institutions"));
+    const institutionData = { 
+      id: institutionRef.id, 
+      tenantId: institutionRef.id,
+      name: formData.name, 
+      type: formData.gradeLevel, 
+      gradeLevel: formData.gradeLevel, 
+      specificGrades: formData.specificGrades, 
       location: formData.location,
-      ownerName: formData.ownerName,
-      ownerEmail: formData.ownerEmail,
-      subscriptionPlan: "basic",
-      status: "pending_review",
-      createdAt: serverTimestamp()
-    }
+      ownerUid: user.uid, 
+      ownerName: formData.ownerName, 
+      ownerEmail: user.email,
+      subscriptionPlan: "trial", 
+      status: "active",
+      createdAt: serverTimestamp(), 
+      updatedAt: serverTimestamp() 
+    };
 
     try {
-      await addDoc(collection(db, "institutions"), data)
+      // 1. Create the institution document
+      await setDoc(institutionRef, institutionData);
+
+      // 2. Link the current user as the owner of this institution in their profile
+      const userRef = doc(db, "users", user.uid);
+      await setDoc(userRef, {
+        tenantId: institutionRef.id,
+        institutionId: institutionRef.id,
+        role: "owner",
+        email: user.email,
+        displayName: formData.ownerName
+      }, { merge: true });
+
       toast({
-        title: "Registration Submitted",
-        description: "Your institution has been logged. An administrator will review your application.",
+        title: "System Provisioned",
+        description: `${formData.name} is now live in the 2026 ecosystem.`,
       })
+      
+      // Force local identification update
+      localStorage.setItem('selected_institution_id', institutionRef.id);
+      localStorage.setItem('selected_institution_name', formData.name);
+
       router.push("/dashboard")
     } catch (error: any) {
       const permissionError = new FirestorePermissionError({
         path: 'institutions',
         operation: 'create',
-        requestResourceData: data,
+        requestResourceData: institutionData,
       });
       errorEmitter.emit('permission-error', permissionError);
     } finally {
@@ -244,10 +266,10 @@ export default function InstitutionRegistrationPage() {
               {loading ? (
                 <>
                   <Loader2 className="mr-2 size-5 animate-spin" />
-                  Provisioning Request...
+                  Provisioning Hub...
                 </>
               ) : (
-                "Request Provisioning"
+                "Authorize Provisioning"
               )}
             </Button>
           </form>
