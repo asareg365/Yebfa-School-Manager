@@ -16,7 +16,8 @@ import {
   Package,
   TrendingUp,
   FileText,
-  CheckCircle2
+  CheckCircle2,
+  ShieldCheck
 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import { useUser, useFirestore, useCollection } from "@/firebase"
