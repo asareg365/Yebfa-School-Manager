@@ -8,9 +8,9 @@ import { Label } from "@/components/ui/label"
 import { School, Loader2, AlertCircle, Info, ArrowRight, ShieldCheck } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth"
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail } from "firebase/auth"
 import { doc, getDoc } from "firebase/firestore"
-import { useAuth, useUser, useFirestore } from "@/firebase"
+import { auth, db, useUser } from "@/firebase"
 import { firebaseConfig } from "@/firebase/config"
 import { toast } from "@/hooks/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -22,8 +22,6 @@ export default function LoginPage() {
   const [resetLoading, setResetLoading] = useState(false)
   const [configError, setConfigError] = useState(false)
   const router = useRouter()
-  const auth = useAuth()
-  const db = useFirestore()
   const { user, loading: authLoading } = useUser()
 
   const redirectUser = async (firebaseUser: any) => {
@@ -72,7 +70,6 @@ export default function LoginPage() {
       const credential = await signInWithEmailAndPassword(auth, email, password)
       await redirectUser(credential.user)
     } catch (error: any) {
-      // Handle login failures
       toast({
         variant: "destructive",
         title: "Login Failed",

@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -108,14 +107,33 @@ export default function StudentsPage() {
   }, [])
 
   const startCamera = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      toast({ variant: "destructive", title: "Incompatible Browser", description: "Your browser does not support camera access." })
+      return
+    }
+
     setIsCameraActive(true)
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          facingMode: "user",
+          width: { ideal: 640 },
+          height: { ideal: 640 }
+        } 
+      })
       if (videoRef.current) {
         videoRef.current.srcObject = stream
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current?.play()
+        }
       }
-    } catch (err) {
-      toast({ variant: "destructive", title: "Camera Error", description: "Could not access camera device." })
+    } catch (err: any) {
+      console.error("Camera error:", err)
+      toast({ 
+        variant: "destructive", 
+        title: "Camera Access Denied", 
+        description: "Please check your browser permissions and ensure no other app is using the camera." 
+      })
       setIsCameraActive(false)
     }
   }
@@ -131,7 +149,7 @@ export default function StudentsPage() {
       
       const size = Math.min(video.videoWidth, video.videoHeight)
       const x = (video.videoWidth - size) / 2
-      const y = (video.videoWidth - size) / 2
+      const y = (video.videoHeight - size) / 2
       
       context?.drawImage(video, x, y, size, size, 0, 0, 400, 400)
       const dataUrl = canvas.toDataURL('image/jpeg', 0.8)
@@ -337,7 +355,13 @@ export default function StudentsPage() {
                   {studentForm.photoUrl ? (
                     <img src={studentForm.photoUrl} alt="Preview" className="w-full h-full object-cover" />
                   ) : isCameraActive ? (
-                    <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover scale-x-[-1]" />
+                    <video 
+                      ref={videoRef} 
+                      autoPlay 
+                      playsInline 
+                      muted 
+                      className="w-full h-full object-cover scale-x-[-1]" 
+                    />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-slate-50">
                       <User className="size-16 text-slate-200" />
@@ -448,7 +472,7 @@ export default function StudentsPage() {
                   {studentForm.photoUrl ? (
                     <img src={studentForm.photoUrl} alt="Preview" className="w-full h-full object-cover" />
                   ) : isCameraActive ? (
-                    <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover scale-x-[-1]" />
+                    <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-slate-50">
                       <User className="size-14 text-slate-200" />
