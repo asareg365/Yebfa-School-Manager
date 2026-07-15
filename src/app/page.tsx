@@ -1,14 +1,20 @@
-
 "use client"
 
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { School, ArrowRight, Zap } from "lucide-react"
-import { useUser } from "@/firebase"
+import { School, ArrowRight, Zap, Loader2 } from "lucide-react"
+import { useUser, useFirestore, useDoc } from "@/firebase"
+import { useMemo } from "react"
+import { doc } from "firebase/firestore"
 
 export default function LandingPage() {
-  const { user } = useUser()
-  const isSuperAdmin = user?.email === 'asareg365@gmail.com' || user?.email === 'frankyeb@gmail.com'
+  const { user, loading: authLoading } = useUser()
+  const db = useFirestore()
+  
+  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
+  const { data: profile, loading: profileLoading } = useDoc(userProfileRef)
+  
+  const isSuperAdmin = profile?.role === 'super_admin'
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -23,12 +29,14 @@ export default function LandingPage() {
           <Link href="/about" className="text-sm font-medium hover:text-accent transition-colors">About</Link>
           <Link href="/pricing" className="text-sm font-medium hover:text-accent transition-colors">Pricing</Link>
           <Link href="/contact" className="text-sm font-medium hover:text-accent transition-colors">Contact</Link>
-          {isSuperAdmin && (
+          {!authLoading && !profileLoading && isSuperAdmin && (
             <Link href="/admin" className="text-sm font-bold text-accent animate-pulse">Admin Portal</Link>
           )}
         </nav>
         <div className="flex items-center gap-4">
-          {user ? (
+          {authLoading || profileLoading ? (
+            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+          ) : user ? (
             <Button className="bg-primary hover:bg-primary/90" asChild>
               <Link href="/dashboard">Dashboard</Link>
             </Button>

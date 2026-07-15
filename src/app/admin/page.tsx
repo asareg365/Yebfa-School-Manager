@@ -1,7 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Pencil, Loader2, CheckCircle2, ArrowRight, Layers, LogOut, KeyRound, AlertTriangle, Info, X } from "lucide-react"
+import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Pencil, Loader2, CheckCircle2, ArrowRight, LogOut, KeyRound, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -10,8 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
-import Link from "next/link"
-import { useUser, useFirestore, useCollection, useAuth } from "@/firebase"
+import { useUser, useFirestore, useCollection, useAuth, useDoc } from "@/firebase"
 import { useRouter } from "next/navigation"
 import { useEffect, useState, useMemo } from "react"
 import { toast } from "@/hooks/use-toast"
@@ -28,6 +27,11 @@ export default function AdminPortal() {
   const db = useFirestore()
   const router = useRouter()
   
+  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
+  const { data: profile, loading: profileLoading } = useDoc(userProfileRef)
+  
+  const isSuperAdmin = profile?.role === 'super_admin'
+
   const [provisioning, setProvisioning] = useState(false)
   const [isProvisionDialogOpen, setIsProvisionDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
@@ -54,8 +58,6 @@ export default function AdminPortal() {
     status: "active"
   })
 
-  const isSuperAdmin = user?.email === 'asareg365@gmail.com' || user?.email === 'frankyeb@gmail.com'
-
   const institutionsQuery = useMemo(() => {
     if (!db || authLoading || !isSuperAdmin) return null;
     return query(collection(db, "institutions"));
@@ -72,10 +74,10 @@ export default function AdminPortal() {
   }, [rawInstitutions]);
 
   useEffect(() => {
-    if (!authLoading && !isSuperAdmin) {
+    if (!authLoading && !profileLoading && user && !isSuperAdmin) {
       router.replace("/dashboard")
     }
-  }, [user, authLoading, isSuperAdmin, router])
+  }, [user, authLoading, profileLoading, isSuperAdmin, router])
 
   const handleLogout = async () => {
     if (auth) {
@@ -126,9 +128,10 @@ export default function AdminPortal() {
     setProvisioning(true)
     const data = {
       ...newSchool,
-      subscriptionPlan: "premium",
+      subscriptionPlan: "trial for 30days",
       status: "active",
-      createdAt: serverTimestamp()
+      createdAt: serverTimestamp(),
+      tenantId: doc(collection(db, "institutions")).id // Generate ID for tenantId mapping
     }
 
     addDoc(collection(db, "institutions"), data)
@@ -238,7 +241,7 @@ export default function AdminPortal() {
     router.push("/dashboard")
   }
 
-  if (authLoading) return <div className="p-12 text-center font-headline font-bold text-primary animate-pulse">Synchronizing Global Credentials...</div>
+  if (authLoading || profileLoading) return <div className="p-12 text-center font-headline font-bold text-primary animate-pulse">Synchronizing Global Credentials...</div>
   if (!isSuperAdmin) return null
 
   const activeInstitutions = institutions.filter(i => i.status === 'active')

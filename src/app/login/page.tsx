@@ -120,9 +120,7 @@ export default function LoginPage() {
     } catch (error: any) {
       console.error("Google Auth Error:", error)
       
-      // Graceful handling for user cancellation or common domain errors
       if (error.code === 'auth/popup-closed-by-user') {
-        // No toast needed, user manually closed the popup
         return
       } else if (error.code === 'auth/unauthorized-domain') {
         toast({
