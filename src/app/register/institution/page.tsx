@@ -14,9 +14,9 @@ import { useFirestore, useUser } from "@/firebase"
 import { 
   doc,
   collection,
-  setDoc,
   serverTimestamp,
-  writeBatch
+  writeBatch,
+  Timestamp
 } from "firebase/firestore"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
@@ -34,7 +34,6 @@ export default function InstitutionRegistrationPage() {
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
-    type: "",
     gradeLevel: "",
     specificGrades: "",
     location: "",
@@ -65,6 +64,15 @@ export default function InstitutionRegistrationPage() {
       return
     }
 
+    if (!db) {
+      toast({
+        variant: "destructive",
+        title: "System Error",
+        description: "Database connection could not be established."
+      })
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -73,6 +81,10 @@ export default function InstitutionRegistrationPage() {
       const tenantId = institutionRef.id
 
       const batch = writeBatch(db)
+
+      // Calculate trial end date (30 days from now)
+      const trialDuration = 30 * 24 * 60 * 60 * 1000
+      const trialEndsAt = Timestamp.fromDate(new Date(Date.now() + trialDuration))
 
       // 1. Create Institution
       batch.set(
@@ -88,7 +100,8 @@ export default function InstitutionRegistrationPage() {
           ownerUid: user.uid,
           ownerName: formData.ownerName,
           ownerEmail: user.email,
-          subscriptionPlan: "trial",
+          subscriptionPlan: "trial for 30days",
+          trialEndsAt: trialEndsAt,
           status: "active",
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
@@ -105,6 +118,7 @@ export default function InstitutionRegistrationPage() {
           role: "school_owner",
           tenantId,
           institutionId: tenantId,
+          institutionName: formData.name,
           status: "active",
           createdAt: serverTimestamp()
         }
@@ -142,21 +156,33 @@ export default function InstitutionRegistrationPage() {
 
       await batch.commit()
 
+      // Store selection in local storage for the dashboard to pick up immediately
+      localStorage.setItem('selected_institution_id', tenantId)
+      localStorage.setItem('selected_institution_name', formData.name)
+
       toast({
-        title: "Institution Created",
-        description: "Your school workspace has been successfully created."
+        title: "Institution Provisioned",
+        description: "Your 30-day trial is now active. Welcome to Yebfa!"
       })
 
       router.replace("/dashboard")
 
     } catch (error: any) {
-      console.error(error)
+      console.error("Provisioning error:", error)
+      
       const permissionError = new FirestorePermissionError({
-        path: "institutions",
-        operation: "create",
-        requestResourceData: {}
+        path: "institutions/registry",
+        operation: "write",
+        requestResourceData: { name: formData.name }
       })
+      
       errorEmitter.emit("permission-error", permissionError)
+      
+      toast({
+        variant: "destructive",
+        title: "Provisioning Failed",
+        description: error.message || "Failed to create institution records. Please try again."
+      })
     } finally {
       setLoading(false)
     }

@@ -25,31 +25,41 @@ export default function LoginPage() {
   const { user, loading: authLoading } = useUser()
 
   const redirectUser = async (firebaseUser: any) => {
-    const userRef = doc(db, "users", firebaseUser.uid)
-    const userSnap = await getDoc(userRef)
+    try {
+      const userRef = doc(db, "users", firebaseUser.uid)
+      const userSnap = await getDoc(userRef)
 
-    if (!userSnap.exists()) {
-      toast({
-        variant: "destructive",
-        title: "Account Setup Required",
-        description: "Your account is not linked to a school."
-      })
-      return
+      if (!userSnap.exists()) {
+        toast({
+          variant: "destructive",
+          title: "Account Setup Required",
+          description: "Your account is not linked to a school. Please register your institution."
+        })
+        router.push("/register/institution")
+        return
+      }
+
+      const userData = userSnap.data()
+
+      // Role-based routing
+      if (userData.role === "super_admin") {
+        router.replace("/admin")
+        return
+      }
+
+      if (userData.tenantId) {
+        // Store context for fast retrieval
+        localStorage.setItem('selected_institution_id', userData.tenantId)
+        localStorage.setItem('selected_institution_name', userData.institutionName || 'My School')
+        router.replace("/dashboard")
+        return
+      }
+
+      router.replace("/register/institution")
+    } catch (error) {
+      console.error("Redirection error:", error)
+      router.replace("/register/institution")
     }
-
-    const userData = userSnap.data()
-
-    if (userData.role === "super_admin") {
-      router.replace("/admin")
-      return
-    }
-
-    if (userData.tenantId) {
-      router.replace("/dashboard")
-      return
-    }
-
-    router.replace("/register/institution")
   }
 
   useEffect(() => {
@@ -115,11 +125,21 @@ export default function LoginPage() {
       const credential = await signInWithPopup(auth, provider)
       await redirectUser(credential.user)
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Google Login Failed",
-        description: error.message,
-      })
+      console.error("Google Auth Error:", error)
+      
+      if (error.code === 'auth/unauthorized-domain') {
+        toast({
+          variant: "destructive",
+          title: "Domain Not Authorized",
+          description: "Please add this domain to the 'Authorized domains' list in your Firebase Console (Authentication > Settings).",
+        })
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Google Login Failed",
+          description: error.message || "An unexpected authentication error occurred.",
+        })
+      }
     } finally {
       setLoading(false)
     }
@@ -127,7 +147,10 @@ export default function LoginPage() {
 
   if (authLoading) return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30">
-      <Loader2 className="size-8 animate-spin text-primary" />
+      <div className="flex flex-col items-center gap-4">
+        <Loader2 className="size-8 animate-spin text-primary" />
+        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Synchronizing Global Identity...</p>
+      </div>
     </div>
   )
 
@@ -158,7 +181,7 @@ export default function LoginPage() {
               <AlertCircle className="h-4 w-4" />
               <AlertTitle className="font-bold">Configuration Required</AlertTitle>
               <AlertDescription className="text-xs">
-                Firebase is not configured. Please link a project in the sidebar.
+                Firebase is not configured. Please link a project in the sidebar to activate the login systems.
               </AlertDescription>
             </Alert>
           ) : (
@@ -166,7 +189,7 @@ export default function LoginPage() {
               <Info className="h-4 w-4" />
               <AlertTitle className="text-xs font-bold uppercase tracking-wider">Secure Access</AlertTitle>
               <AlertDescription className="text-xs">
-                Enter your credentials to access the 2026 academic systems.
+                Enter your credentials to access the 2026 academic management tools.
               </AlertDescription>
             </Alert>
           )}
@@ -222,7 +245,7 @@ export default function LoginPage() {
             </div>
           </div>
           
-          <Button variant="outline" className="w-full h-11" onClick={handleGoogleLogin} disabled={loading || configError}>
+          <Button variant="outline" className="w-full h-11 transition-all active:scale-95" onClick={handleGoogleLogin} disabled={loading || configError}>
             Continue with Google
           </Button>
         </CardContent>
