@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { School, ArrowLeft, Loader2, MapPin, Mail, User, ShieldCheck, AlertCircle } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useUser } from "@/firebase"
-import { collection, doc, setDoc, serverTimestamp } from "firebase/firestore"
+import { collection, doc, setDoc, serverTimestamp, Timestamp } from "firebase/firestore"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -62,6 +62,11 @@ export default function InstitutionRegistrationPage() {
     setLoading(true)
     
     const institutionRef = doc(collection(db, "institutions"));
+    
+    // Trial logic: 30 days from now
+    const trialDays = 30;
+    const trialEndsAtDate = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000);
+
     const institutionData = { 
       id: institutionRef.id, 
       tenantId: institutionRef.id,
@@ -73,8 +78,9 @@ export default function InstitutionRegistrationPage() {
       ownerUid: user.uid, 
       ownerName: formData.ownerName, 
       ownerEmail: user.email,
-      subscriptionPlan: "trial", 
+      subscriptionPlan: "trial for 30days", 
       status: "active",
+      trialEndsAt: Timestamp.fromDate(trialEndsAtDate),
       createdAt: serverTimestamp(), 
       updatedAt: serverTimestamp() 
     };
@@ -120,14 +126,15 @@ export default function InstitutionRegistrationPage() {
 
       toast({
         title: "System Provisioned",
-        description: `${formData.name} is now live in the ecosystem.`,
+        description: `${formData.name} is now live with a 30-day trial.`,
       })
       
       // Update local context for the current session
       localStorage.setItem('selected_institution_id', institutionRef.id);
       localStorage.setItem('selected_institution_name', formData.name);
 
-      router.push("/dashboard")
+      // Use replace to prevent back-navigation to the registration form
+      router.replace("/dashboard")
     } catch (error: any) {
       const permissionError = new FirestorePermissionError({
         path: 'institutions',
@@ -142,7 +149,7 @@ export default function InstitutionRegistrationPage() {
 
   const selectedCategory = GRADE_LEVEL_CATEGORIES.find(c => c.label === formData.gradeLevel)
 
-  if (authLoading) return <div className="min-h-screen flex items-center justify-center font-headline font-bold">Verifying Session...</div>
+  if (authLoading) return <div className="min-h-screen flex items-center justify-center font-headline font-bold text-primary animate-pulse">Verifying Global Session...</div>
 
   return (
     <div className="min-h-screen bg-muted/30 flex flex-col items-center py-12 px-6">
@@ -286,7 +293,7 @@ export default function InstitutionRegistrationPage() {
               </div>
             </div>
 
-            <Button className="w-full h-14 text-lg font-bold shadow-lg" type="submit" disabled={loading || !user}>
+            <Button className="w-full h-14 text-lg font-bold shadow-lg bg-primary hover:bg-primary/90" type="submit" disabled={loading || !user}>
               {loading ? (
                 <>
                   <Loader2 className="mr-2 size-5 animate-spin" />
