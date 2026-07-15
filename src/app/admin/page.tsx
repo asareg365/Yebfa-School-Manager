@@ -1,14 +1,14 @@
+
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Pencil, Loader2, CheckCircle2, ArrowRight, LogOut, KeyRound, AlertTriangle, BarChart3, LineChart, Server, Globe, Megaphone, Zap, ShieldAlert, Terminal, Save } from "lucide-react"
+import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Pencil, Loader2, LogOut, Zap, ShieldAlert, Terminal, Save, Megaphone, Server, Globe } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useUser, useFirestore, useCollection, useAuth, useDoc } from "@/firebase"
 import { useRouter } from "next/navigation"
@@ -17,7 +17,6 @@ import { toast } from "@/hooks/use-toast"
 import { collection, addDoc, serverTimestamp, query, deleteDoc, doc, updateDoc } from "firebase/firestore"
 import { signOut } from "firebase/auth"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar } from "recharts"
 
 export default function AdminPortal() {
   const { user, loading: authLoading } = useUser()
@@ -45,9 +44,10 @@ export default function AdminPortal() {
   })
 
   const institutionsQuery = useMemo(() => {
-    if (!db || authLoading || !isSuperAdmin) return null;
+    // CRITICAL: Ensure we don't query until profile is loaded and confirmed super_admin
+    if (!db || authLoading || profileLoading || !isSuperAdmin) return null;
     return query(collection(db, "institutions"));
-  }, [db, isSuperAdmin, authLoading]);
+  }, [db, isSuperAdmin, authLoading, profileLoading]);
 
   const { data: rawInstitutions = [] } = useCollection(institutionsQuery)
 

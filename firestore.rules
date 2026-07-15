@@ -12,16 +12,20 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function hasProfile() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
     function userProfile() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
     function userTenant() {
-      return userProfile().tenantId;
+      return hasProfile() ? userProfile().tenantId : "NONE";
     }
 
     function userRole() {
-      return userProfile().role;
+      return hasProfile() ? userProfile().role : "GUEST";
     }
 
     // ======================
@@ -57,7 +61,7 @@ service cloud.firestore {
     // ======================
 
     match /users/{userId} {
-      allow read: if signedIn() && (request.auth.uid == userId || isSuperAdmin());
+      allow read: if signedIn() && (request.auth.uid == userId || isSuperAdmin() || belongsToUserTenant(resource.data));
       allow create: if signedIn();
       allow update: if signedIn() && (request.auth.uid == userId || isSuperAdmin());
       allow delete: if isSuperAdmin();
