@@ -28,7 +28,12 @@ import {
   BarChart3,
   Calendar,
   Layers,
-  UserCheck
+  UserCheck,
+  Clock,
+  ClipboardList,
+  Bed,
+  MapPin,
+  ClipboardCheck
 } from "lucide-react"
 
 import {
@@ -46,7 +51,7 @@ import {
   SidebarGroupLabel,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { useUser, useAuth, useFirestore, useDoc } from "@/firebase"
 import { signOut } from "firebase/auth"
@@ -95,69 +100,69 @@ export function AppSidebar() {
 
     return [
       { title: "Overview", url: "/dashboard", icon: LayoutDashboard, visible: true },
-      { title: "Strategic Analytics", url: "/dashboard/analytics", icon: BarChart3, visible: isOwner || isAdmin || isAccountant },
       {
-        title: "Academic Hub",
+        title: "Academic Foundation",
         url: "#",
-        icon: BookOpen,
+        icon: School,
         visible: isOwner || isAdmin || isTeacher,
         items: [
-          { title: "Structure", url: "/dashboard/academic", visible: isOwner || isAdmin },
-          { title: "Lesson Plans", url: "/dashboard/academic?tab=plans", visible: true },
-          { title: "Tasks & HW", url: "/dashboard/academic?tab=tasks", visible: true },
+          { title: "Academic Year", url: "/dashboard/academic?tab=cycle", visible: isOwner || isAdmin },
+          { title: "Terms & Sessions", url: "/dashboard/academic?tab=cycle", visible: isOwner || isAdmin },
+          { title: "Classes & Sections", url: "/dashboard/academic?tab=classes", visible: isOwner || isAdmin },
+          { title: "Subjects", url: "/dashboard/academic?tab=curriculum", visible: true },
+          { title: "Timetable", url: "/dashboard/timetable", visible: true },
         ].filter(i => i.visible),
       },
       {
-        title: "Students",
+        title: "Registry Hub",
+        url: "#",
+        icon: Users,
+        visible: isOwner || isAdmin || isAccountant,
+        items: [
+          { title: "Students", url: "/dashboard/students", visible: true },
+          { title: "Parents", url: "/dashboard/students/parents", visible: true },
+          { title: "Teachers (Staff)", url: "/dashboard/staff", visible: true },
+        ].filter(i => i.visible),
+      },
+      {
+        title: "Academic Performance",
         url: "#",
         icon: GraduationCap,
-        visible: isOwner || isAdmin || isTeacher || isAccountant,
+        visible: isOwner || isAdmin || isTeacher,
         items: [
-          { title: "Directory", url: "/dashboard/students", visible: true },
-          { title: "Exams & Grading", url: "/dashboard/exams", visible: isOwner || isAdmin || isTeacher },
-          { title: "Ledgers", url: "/dashboard/students/accounts", visible: isOwner || isAccountant },
+          { title: "Attendance", url: "/dashboard/attendance", visible: true },
+          { title: "Exams & Results", url: "/dashboard/exams", visible: true },
+          { title: "Report Cards", url: "/dashboard/reports", visible: true },
         ].filter(i => i.visible),
       },
       {
-        title: "Logistics Hub",
-        url: "#",
-        icon: Package,
-        visible: isOwner || isAdmin,
-        items: [
-          { title: "Hostel Registry", url: "/dashboard/hostels", visible: true },
-          { title: "Transport Hub", url: "/dashboard/transport", visible: true },
-          { title: "Asset Inventory", url: "/dashboard/inventory", visible: true },
-        ].filter(i => i.visible),
-      },
-      {
-        title: "Library Hub",
-        url: "#",
-        icon: Library,
-        visible: isOwner || isAdmin || isLibrarian,
-        items: [
-          { title: "Catalog", url: "/dashboard/library/books", visible: true },
-          { title: "Transactions", url: "/dashboard/library/transactions", visible: true },
-        ].filter(i => i.visible),
-      },
-      {
-        title: "Financial Hub",
+        title: "Finance & Payroll",
         url: "#",
         icon: Wallet,
         visible: isOwner || isAccountant,
         items: [
-          { title: "Fee Items", url: "/dashboard/finance/fees", visible: true },
+          { title: "Fees Management", url: "/dashboard/finance/fees", visible: true },
           { title: "Invoicing", url: "/dashboard/finance/invoices", visible: true },
           { title: "Payments", url: "/dashboard/finance/payments", visible: true },
-          { title: "Expenses", url: "/dashboard/finance/expenses", visible: true },
-          { title: "Payroll", url: "/dashboard/finance/payroll", visible: true },
+          { title: "Payroll Processor", url: "/dashboard/finance/payroll", visible: true },
           { title: "Profit & Loss", url: "/dashboard/finance/p-and-l", visible: true },
-          { title: "AI Forecast", url: "/dashboard/finance/forecast", visible: true },
         ].filter(i => i.visible),
       },
-      { title: "Communication", url: "/dashboard/communication", icon: MessageSquare, visible: isOwner || isAdmin || isTeacher },
-      { title: "Human Resources", url: "/dashboard/staff", icon: Users, visible: isOwner || isAdmin },
-      { title: "Attendance", url: "/dashboard/attendance", icon: CheckCircle, visible: isOwner || isAdmin || isTeacher },
-      { title: "Configuration", url: "/dashboard/settings", icon: Settings, visible: isOwner || isAdmin },
+      {
+        title: "Logistics & Operations",
+        url: "#",
+        icon: Package,
+        visible: isOwner || isAdmin || isLibrarian,
+        items: [
+          { title: "Inventory", url: "/dashboard/inventory", visible: isOwner || isAdmin },
+          { title: "Library", url: "/dashboard/library/books", visible: true },
+          { title: "Transport", url: "/dashboard/transport", visible: isOwner || isAdmin },
+          { title: "Hostel", url: "/dashboard/hostels", visible: isOwner || isAdmin },
+        ].filter(i => i.visible),
+      },
+      { title: "Communication", url: "/dashboard/communication", icon: MessageSquare, visible: true },
+      { title: "Institutional Reports", url: "/dashboard/analytics", icon: BarChart3, visible: isOwner || isAdmin || isAccountant },
+      { title: "Settings", url: "/dashboard/settings", icon: Settings, visible: isOwner || isAdmin },
     ].filter(item => item.visible)
   }, [userRole, isOwner, isAdmin, isAccountant, isTeacher, isParent, isLibrarian])
 
@@ -186,7 +191,7 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Core Ecosystem</SidebarGroupLabel>
+          <SidebarGroupLabel className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Core Operations</SidebarGroupLabel>
           <SidebarMenu>
             {navigation.map((item) => (
               <SidebarMenuItem key={item.title}>

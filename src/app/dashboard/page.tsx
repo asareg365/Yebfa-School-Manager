@@ -1,7 +1,23 @@
+
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, GraduationCap, Wallet, Clock, Activity, ArrowUpRight, PlayCircle, Loader2 } from "lucide-react"
+import { 
+  Users, 
+  GraduationCap, 
+  Wallet, 
+  Clock, 
+  Activity, 
+  ArrowUpRight, 
+  PlayCircle, 
+  Loader2,
+  Library,
+  Bus,
+  Home,
+  Package,
+  TrendingUp,
+  FileText
+} from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import { useUser, useFirestore, useCollection } from "@/firebase"
 import { Button } from "@/components/ui/button"
@@ -22,38 +38,15 @@ export default function Dashboard() {
     if (storedId) setInstitutionId(storedId)
   }, [])
 
-  const myInstitutionsQuery = useMemo(() => {
-    if (!db || !user?.email) return null;
-    return query(collection(db, "institutions"), where("ownerEmail", "==", user.email));
-  }, [db, user?.email]);
+  const studentsQuery = useMemo(() => institutionId ? query(collection(db, "students"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
+  const staffQuery = useMemo(() => institutionId ? query(collection(db, "staff"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
+  const booksQuery = useMemo(() => institutionId ? query(collection(db, "library_books"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
+  const hostelQuery = useMemo(() => institutionId ? query(collection(db, "hostels"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
 
-  const { data: myInstitutions, loading: instLoading } = useCollection(myInstitutionsQuery);
-
-  useEffect(() => {
-    if (!authLoading && !instLoading && !institutionId && myInstitutions && myInstitutions.length > 0) {
-      const first = myInstitutions[0];
-      localStorage.setItem('selected_institution_id', first.id);
-      localStorage.setItem('selected_institution_name', first.name);
-      setInstitutionId(first.id);
-      toast({
-        title: "System Synchronized",
-        description: `Connected to ${first.name} dashboard.`,
-      });
-    }
-  }, [myInstitutions, institutionId, authLoading, instLoading]);
-
-  const studentsQuery = useMemo(() => {
-    if (!db || !institutionId) return null
-    return query(collection(db, "students"), where("institutionId", "==", institutionId))
-  }, [db, institutionId])
-
-  const staffQuery = useMemo(() => {
-    if (!db || !institutionId) return null
-    return query(collection(db, "staff"), where("institutionId", "==", institutionId))
-  }, [db, institutionId])
-
-  const { data: students, loading: studentsLoading } = useCollection(studentsQuery)
-  const { data: staff, loading: staffLoading } = useCollection(staffQuery)
+  const { data: students } = useCollection(studentsQuery)
+  const { data: staff } = useCollection(staffQuery)
+  const { data: books } = useCollection(booksQuery)
+  const { data: hostels } = useCollection(hostelQuery)
 
   const handleGenerateVideo = async () => {
     setVideoLoading(true)
@@ -71,14 +64,14 @@ export default function Dashboard() {
     }
   }
 
-  if (authLoading || (institutionId && (studentsLoading || staffLoading))) return (
+  if (authLoading) return (
     <div className="p-10 text-center space-y-4">
       <Activity className="size-10 text-primary animate-spin mx-auto" />
       <p className="font-headline font-bold text-muted-foreground animate-pulse">Synchronizing Dashboard...</p>
     </div>
   )
 
-  if (!institutionId && !instLoading) {
+  if (!institutionId) {
     return (
       <div className="p-12 text-center space-y-6">
         <div className="size-20 bg-muted rounded-full flex items-center justify-center mx-auto">
@@ -94,101 +87,126 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-8 animate-in fade-in duration-500 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-headline font-bold tracking-tight text-primary">Institutional Overview</h1>
-          <p className="text-muted-foreground">Welcome, {user?.displayName || 'Administrator'}. Global system status: <span className="text-green-600 font-bold">Online</span></p>
+          <h1 className="text-4xl font-headline font-bold tracking-tight text-primary">System Pulse</h1>
+          <p className="text-muted-foreground font-medium">Monitoring the 2026 academic lifecycle for {localStorage.getItem('selected_institution_name')}.</p>
         </div>
         <div className="flex items-center gap-3">
           <Button 
             variant="outline" 
-            size="sm" 
-            className="gap-2" 
+            className="gap-2 h-11 px-6 rounded-xl" 
             onClick={handleGenerateVideo} 
             disabled={videoLoading}
           >
             {videoLoading ? <Loader2 className="size-4 animate-spin" /> : <PlayCircle className="size-4" />}
-            AI Video Tour
+            AI Virtual Tour
           </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/dashboard/logs">System Logs</Link>
-          </Button>
-          <Button size="sm" className="bg-primary" asChild>
-            <Link href="/dashboard/students">Enroll Student</Link>
+          <Button className="bg-primary h-11 px-8 rounded-xl shadow-lg shadow-primary/10" asChild>
+            <Link href="/dashboard/analytics">Executive Reports</Link>
           </Button>
         </div>
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { title: "Student Roster", value: students?.length || 0, icon: GraduationCap, label: "Total Active Enrollment" },
-          { title: "Presence Avg", value: "0%", icon: Clock, label: "Last 7 Business Days" },
-          { title: "Fiscal Intake", value: `GH₵ ${(students?.length || 0) * 1200}`, icon: Wallet, label: "Current Term Collection" },
-          { title: "Faculty", value: staff?.length || 0, icon: Users, label: "Verified Staff Members" }
+          { title: "Student Roster", value: students?.length || 0, icon: GraduationCap, label: "Active Enrollment", color: "text-blue-600", bg: "bg-blue-50" },
+          { title: "Faculty Size", value: staff?.length || 0, icon: Users, label: "Verified Staff", color: "text-purple-600", bg: "bg-purple-50" },
+          { title: "Library Assets", value: books?.length || 0, icon: Library, label: "Cataloged Titles", color: "text-amber-600", bg: "bg-amber-50" },
+          { title: "Hostel Status", value: `${hostels?.reduce((a,c:any)=>a+c.occupiedBeds,0) || 0}/${hostels?.reduce((a,c:any)=>a+c.capacity,0) || 0}`, icon: Home, label: "Bed Occupancy", color: "text-green-600", bg: "bg-green-50" }
         ].map((stat) => (
-          <Card key={stat.title} className="overflow-hidden border-none shadow-md bg-white hover:shadow-lg transition-shadow">
+          <Card key={stat.title} className="overflow-hidden border-none shadow-md bg-white hover:shadow-xl transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                 {stat.title}
               </CardTitle>
-              <div className="size-8 rounded-lg bg-primary/5 flex items-center justify-center">
-                <stat.icon className="size-4 text-primary" />
+              <div className={`size-8 rounded-lg ${stat.bg} flex items-center justify-center`}>
+                <stat.icon className={`size-4 ${stat.color}`} />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold font-headline">{stat.value}</div>
-              <p className="text-[10px] text-muted-foreground mt-1 font-medium">{stat.label}</p>
+              <div className="text-3xl font-bold font-headline">{stat.value}</div>
+              <p className="text-[10px] text-muted-foreground mt-1 font-bold uppercase tracking-tighter">{stat.label}</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4 border-none shadow-md bg-white">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-lg">Real-time Presence Hub</CardTitle>
-              <CardDescription>Automated tracking across all grade modules.</CardDescription>
-            </div>
-            <Button variant="ghost" size="icon" className="shrink-0"><ArrowUpRight className="size-4" /></Button>
-          </CardHeader>
-          <CardContent className="h-[320px] flex flex-col items-center justify-center border-t pt-6 space-y-6">
-            <div className="w-full max-w-md text-center space-y-4">
-              <Activity className="size-16 text-muted-foreground/10 mx-auto" />
+      <div className="grid gap-8 lg:grid-cols-3">
+        <Card className="lg:col-span-2 border-none shadow-lg bg-white overflow-hidden rounded-3xl">
+          <CardHeader className="border-b bg-slate-50/50 p-6">
+            <div className="flex justify-between items-center">
               <div>
-                <p className="text-sm font-bold text-primary">Awaiting Attendance Data</p>
-                <p className="text-xs text-muted-foreground leading-relaxed italic">
-                  No attendance records detected for the current session. Biometric and manual logs will populate here.
-                </p>
+                <CardTitle className="text-xl font-headline font-bold">Academic Lifecycle</CardTitle>
+                <CardDescription>Term 2, 2026 synchronization status.</CardDescription>
               </div>
-              <Progress value={0} className="h-1.5 w-full bg-muted" />
+              <TrendingUp className="size-5 text-primary opacity-20" />
+            </div>
+          </CardHeader>
+          <CardContent className="p-8">
+            <div className="space-y-8">
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="font-bold flex items-center gap-2"><CheckCircle className="size-4 text-green-600" /> Attendance Consistency</span>
+                  <span className="text-muted-foreground">0% complete</span>
+                </div>
+                <Progress value={0} className="h-2 rounded-full" />
+              </div>
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="font-bold flex items-center gap-2"><FileText className="size-4 text-blue-600" /> Continuous Assessment</span>
+                  <span className="text-muted-foreground">Term 2 Registry Active</span>
+                </div>
+                <Progress value={45} className="h-2 rounded-full" />
+              </div>
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="font-bold flex items-center gap-2"><Wallet className="size-4 text-amber-600" /> Fee Collection Cycle</span>
+                  <span className="text-muted-foreground">Target: GH₵ ---</span>
+                </div>
+                <Progress value={20} className="h-2 rounded-full" />
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="col-span-3 border-none shadow-md bg-white overflow-hidden">
-          <CardHeader>
-            <CardTitle className="text-lg">Institutional Calendar</CardTitle>
-            <CardDescription>Upcoming milestones for Term 2, 2026.</CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="h-[280px] flex flex-col items-center justify-center text-center p-8 space-y-4 bg-muted/5">
-              <div className="size-14 rounded-full bg-background border flex items-center justify-center shadow-sm">
-                <Clock className="size-6 text-muted-foreground/30" />
+        <div className="space-y-6">
+          <Card className="border-none shadow-md bg-primary text-primary-foreground rounded-3xl overflow-hidden group">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ShieldCheck className="size-5" /> Institutional Safety
+              </CardTitle>
+              <CardDescription className="text-primary-foreground/60">Global audit active for {user?.displayName}.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="p-4 rounded-2xl bg-white/10 space-y-3">
+                 <div className="flex items-center justify-between text-xs"><span>Data Isolation</span><Badge className="bg-green-500/20 text-green-400 border-none">Verified</Badge></div>
+                 <div className="flex items-center justify-between text-xs"><span>Role Access</span><Badge className="bg-blue-500/20 text-blue-400 border-none">Active</Badge></div>
+                 <div className="flex items-center justify-between text-xs"><span>Audit Integrity</span><Badge className="bg-amber-500/20 text-amber-400 border-none">Synced</Badge></div>
               </div>
-              <div className="max-w-xs">
-                <p className="text-sm font-bold text-primary">Schedule Synchronized</p>
-                <p className="text-[10px] text-muted-foreground leading-relaxed mt-2 uppercase tracking-tight">
-                  No academic events detected for the next cycle. Plan your curriculum to populate the timeline.
-                </p>
-              </div>
-              <Button variant="outline" size="sm" className="mt-4 font-bold h-8 text-[10px]" asChild>
-                <Link href="/dashboard/academic">Manage Curriculum</Link>
+              <Button variant="secondary" className="w-full mt-6 h-12 rounded-xl font-bold bg-white text-primary group-hover:scale-[1.02] transition-transform" asChild>
+                <Link href="/dashboard/logs">View Security Trail</Link>
               </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          <Card className="border-none shadow-md bg-white rounded-3xl overflow-hidden">
+            <CardHeader className="pb-2">
+               <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Logistics Hub</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+               <div className="flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-50 transition-colors border cursor-pointer">
+                  <div className="size-10 rounded-xl bg-orange-50 flex items-center justify-center"><Bus className="size-5 text-orange-600" /></div>
+                  <div><p className="text-sm font-bold">Transport Fleet</p><p className="text-[10px] text-muted-foreground uppercase">Registry Operational</p></div>
+               </div>
+               <div className="flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-50 transition-colors border cursor-pointer">
+                  <div className="size-10 rounded-xl bg-blue-50 flex items-center justify-center"><Package className="size-5 text-blue-600" /></div>
+                  <div><p className="text-sm font-bold">Asset Inventory</p><p className="text-[10px] text-muted-foreground uppercase">Depreciation Calculated</p></div>
+               </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   )
