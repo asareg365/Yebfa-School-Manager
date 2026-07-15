@@ -49,7 +49,7 @@ export default function InstitutionRegistrationPage() {
     if (user && !formData.ownerEmail) {
       setFormData(prev => ({ ...prev, ownerEmail: user.email || "" }))
     }
-  }, [user])
+  }, [user, formData.ownerEmail])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -58,9 +58,18 @@ export default function InstitutionRegistrationPage() {
       toast({
         variant: "destructive",
         title: "Authentication Required",
-        description: "Please sign in first."
+        description: "Please sign in first to provision an institution."
       })
       router.push("/login")
+      return
+    }
+
+    if (!db) {
+      toast({
+        variant: "destructive",
+        title: "Connection Error",
+        description: "Database not initialized. Please refresh and try again."
+      })
       return
     }
 
@@ -142,23 +151,27 @@ export default function InstitutionRegistrationPage() {
       await batch.commit()
 
       toast({
-        title: "Institution Created",
-        description: "Your school workspace has been successfully created."
+        title: "Provisioning Complete",
+        description: `${formData.name} is now live in the ecosystem.`
       })
 
       router.replace("/dashboard")
 
     } catch (error: any) {
-      console.error(error)
+      console.error("Provisioning Error:", error)
+      
+      toast({
+        variant: "destructive",
+        title: "Authorization Failed",
+        description: error.message || "The system could not authorize this provisioning request."
+      })
+
       const permissionError = new FirestorePermissionError({
         path: "institutions",
         operation: "create",
         requestResourceData: {}
       })
-      errorEmitter.emit(
-        "permission-error",
-        permissionError
-      )
+      errorEmitter.emit("permission-error", permissionError)
     } finally {
       setLoading(false)
     }
@@ -166,7 +179,12 @@ export default function InstitutionRegistrationPage() {
 
   const selectedCategory = GRADE_LEVEL_CATEGORIES.find(c => c.label === formData.gradeLevel)
 
-  if (authLoading) return <div className="min-h-screen flex items-center justify-center font-headline font-bold text-primary animate-pulse">Verifying Global Session...</div>
+  if (authLoading) return (
+    <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-muted/30">
+      <Loader2 className="size-8 animate-spin text-primary" />
+      <p className="font-headline font-bold text-primary animate-pulse text-lg">Verifying Global Session...</p>
+    </div>
+  )
 
   return (
     <div className="min-h-screen bg-muted/30 flex flex-col items-center py-12 px-6">
@@ -226,6 +244,7 @@ export default function InstitutionRegistrationPage() {
                   <Label htmlFor="gradeLevel">Grade Level Category</Label>
                   <Select 
                     required 
+                    value={formData.gradeLevel}
                     onValueChange={(val) => setFormData(prev => ({ ...prev, gradeLevel: val, specificGrades: "" }))}
                   >
                     <SelectTrigger className="h-11">
@@ -243,6 +262,7 @@ export default function InstitutionRegistrationPage() {
                   <Label htmlFor="specificGrade">Specific Grade Range</Label>
                   <Select 
                     required 
+                    value={formData.specificGrades}
                     disabled={!formData.gradeLevel}
                     onValueChange={(val) => setFormData(prev => ({ ...prev, specificGrades: val }))}
                   >
@@ -299,7 +319,7 @@ export default function InstitutionRegistrationPage() {
                       id="adminEmail" 
                       type="email" 
                       placeholder="email@institution.com" 
-                      className="pl-10 h-11" 
+                      className="pl-10 h-11 bg-slate-50" 
                       required 
                       readOnly={!!user}
                       value={formData.ownerEmail}
@@ -310,7 +330,11 @@ export default function InstitutionRegistrationPage() {
               </div>
             </div>
 
-            <Button className="w-full h-14 text-lg font-bold shadow-lg bg-primary hover:bg-primary/90" type="submit" disabled={loading || !user}>
+            <Button 
+              className="w-full h-14 text-lg font-bold shadow-lg bg-primary hover:bg-primary/90 transition-all active:scale-95" 
+              type="submit" 
+              disabled={loading || !user}
+            >
               {loading ? (
                 <>
                   <Loader2 className="mr-2 size-5 animate-spin" />
