@@ -6,11 +6,12 @@ import { useUser } from "@/firebase";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/dashboard/app-sidebar";
 import { Separator } from "@/components/ui/separator";
-import { Bell, Search, Loader2, Info, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Bell, Search, Loader2, Info, AlertTriangle, CheckCircle2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import Link from 'next/link';
 
 export default function DashboardLayout({
   children,
@@ -24,7 +25,7 @@ export default function DashboardLayout({
   const [institutionName, setInstitutionName] = useState<string>("Institution Hub");
 
   useEffect(() => {
-    const isCleared = localStorage.getItem('notifications_cleared_v1') === 'true';
+    const isCleared = localStorage.getItem('notifications_cleared_v2') === 'true';
     if (!isCleared) {
       const initial = [
         {
@@ -86,8 +87,16 @@ export default function DashboardLayout({
   const handleClearAll = useCallback(() => {
     setNotifications([]);
     setHasNotifications(false);
-    localStorage.setItem('notifications_cleared_v1', 'true');
+    localStorage.setItem('notifications_cleared_v2', 'true');
   }, []);
+
+  const removeNotification = (id: string) => {
+    setNotifications(prev => {
+      const filtered = prev.filter(n => n.id !== id);
+      if (filtered.length === 0) setHasNotifications(false);
+      return filtered;
+    });
+  };
 
   if (loading) {
     return (
@@ -151,7 +160,7 @@ export default function DashboardLayout({
                           className="text-[10px] h-6 px-2 text-destructive hover:bg-destructive/10" 
                           onClick={handleClearAll}
                         >
-                          Clear
+                          Clear all
                         </Button>
                       </>
                     )}
@@ -163,27 +172,35 @@ export default function DashboardLayout({
                       <div className="size-12 rounded-full bg-muted flex items-center justify-center mx-auto">
                         <Bell className="size-6 text-muted-foreground/30" />
                       </div>
-                      <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">No notifications</p>
+                      <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">No active alerts</p>
                     </div>
                   ) : (
                     <div className="divide-y">
                       {notifications.map((notif) => (
-                        <div key={notif.id} className="p-4 flex gap-3 hover:bg-muted/50 transition-colors">
+                        <div key={notif.id} className="p-4 flex gap-3 hover:bg-muted/50 transition-colors group relative">
                           <div className={`size-8 rounded-full ${notif.color} flex items-center justify-center shrink-0`}>
                             <notif.icon className="size-4" />
                           </div>
-                          <div className="space-y-1">
+                          <div className="space-y-1 pr-4">
                             <p className="text-xs font-bold">{notif.title}</p>
-                            <p className="text-[10px] text-muted-foreground">{notif.description}</p>
+                            <p className="text-[10px] text-muted-foreground leading-snug">{notif.description}</p>
                             <p className="text-[9px] font-medium text-primary">{notif.time}</p>
                           </div>
+                          <button 
+                            onClick={() => removeNotification(notif.id)}
+                            className="absolute right-2 top-2 size-5 rounded-full hover:bg-muted flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="size-3 text-muted-foreground" />
+                          </button>
                         </div>
                       ))}
                     </div>
                   )}
                 </ScrollArea>
                 <div className="p-2 border-t text-center">
-                  <Button variant="ghost" size="sm" className="w-full text-[10px]">View all activity</Button>
+                  <Button variant="ghost" size="sm" className="w-full text-[10px] font-bold" asChild>
+                    <Link href="/dashboard/logs">View All Activity</Link>
+                  </Button>
                 </div>
               </PopoverContent>
             </Popover>
