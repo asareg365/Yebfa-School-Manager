@@ -32,55 +32,50 @@ service cloud.firestore {
     function isTeacher() { return signedIn() && userRole() == "teacher"; }
     function isParent() { return signedIn() && userRole() == "parent"; }
     function isLibrarian() { return signedIn() && userRole() == "librarian"; }
-    function isStaff() { return isOwner() || isAdmin() || isAccountant() || isTeacher() || isLibrarian(); }
-
+    
     function belongsToTenant(data) {
       return data.tenantId == userTenant();
     }
 
     // ======================
-    // USERS & PROFILES
+    // SECURITY RULES
     // ======================
 
     match /users/{userId} {
       allow read, write: if signedIn() && (request.auth.uid == userId || isSuperAdmin());
     }
 
-    // ======================
-    // MODULE ACCESS
-    // ======================
-
-    match /inventory/{itemId} {
+    match /institutions/{instId} {
       allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
-      allow write: if signedIn() && (isSuperAdmin() || (belongsToTenant(request.resource.data) && (isOwner() || isAdmin())));
+      allow write: if signedIn() && (isSuperAdmin() || isOwner());
     }
 
-    match /library_books/{bookId} {
+    match /students/{studentId} {
+      allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data) || (isParent() && resource.data.parentUid == request.auth.uid));
+      allow write: if signedIn() && (isSuperAdmin() || (isOwner() || isAdmin() || isTeacher()));
+    }
+
+    match /staff/{staffId} {
       allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
-      allow write: if signedIn() && (isSuperAdmin() || (belongsToTenant(request.resource.data) && (isOwner() || isLibrarian() || isAdmin())));
+      allow write: if signedIn() && (isSuperAdmin() || (isOwner() || isAdmin()));
     }
 
-    match /library_transactions/{txnId} {
+    match /hostels/{roomId} {
       allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
-      allow write: if signedIn() && (isSuperAdmin() || (belongsToTenant(request.resource.data) && (isOwner() || isLibrarian() || isAdmin())));
+      allow write: if signedIn() && (isSuperAdmin() || (isOwner() || isAdmin()));
     }
 
-    // INSTITUTIONAL CONFIG
-    match /institutions/{institutionId} {
-      allow create: if signedIn();
+    match /vehicles/{vId} {
       allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
-      allow update: if signedIn() && (isSuperAdmin() || (belongsToTenant(resource.data) && isOwner()));
+      allow write: if signedIn() && (isSuperAdmin() || (isOwner() || isAdmin()));
     }
 
-    match /settings/{settingId} {
-      allow create, read, write: if signedIn() && (isSuperAdmin() || settingId == userTenant());
+    match /announcements/{annId} {
+      allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
+      allow write: if signedIn() && (isSuperAdmin() || (isOwner() || isAdmin()));
     }
 
-    match /departments/{departmentId} {
-      allow create, read, write: if signedIn() && (isSuperAdmin() || departmentId == userTenant());
-    }
-
-    // CATCH ALL FOR STRUCTURE
+    // CATCH ALL
     match /{document=**} {
       allow read: if signedIn() && (isSuperAdmin() || (resource.data != null && belongsToTenant(resource.data)));
       allow write: if signedIn() && (isSuperAdmin() || (request.resource.data != null && belongsToTenant(request.resource.data) && (isOwner() || isAdmin())));

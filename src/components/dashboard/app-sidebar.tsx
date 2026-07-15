@@ -21,7 +21,11 @@ import {
   Library,
   Box,
   Monitor,
-  Package
+  Package,
+  Building2,
+  Bus,
+  MessageSquare,
+  BarChart3
 } from "lucide-react"
 
 import {
@@ -88,6 +92,7 @@ export function AppSidebar() {
 
     return [
       { title: "Overview", url: "/dashboard", icon: LayoutDashboard, visible: true },
+      { title: "Strategic Analytics", url: "/dashboard/analytics", icon: BarChart3, visible: isOwner || isAdmin || isAccountant },
       {
         title: "Academic Hub",
         url: "#",
@@ -111,6 +116,17 @@ export function AppSidebar() {
         ].filter(i => i.visible),
       },
       {
+        title: "Logistics Hub",
+        url: "#",
+        icon: Package,
+        visible: isOwner || isAdmin,
+        items: [
+          { title: "Hostel Registry", url: "/dashboard/hostels", visible: true },
+          { title: "Transport Hub", url: "/dashboard/transport", visible: true },
+          { title: "Asset Inventory", url: "/dashboard/inventory", visible: true },
+        ].filter(i => i.visible),
+      },
+      {
         title: "Library Hub",
         url: "#",
         icon: Library,
@@ -119,12 +135,6 @@ export function AppSidebar() {
           { title: "Catalog", url: "/dashboard/library/books", visible: true },
           { title: "Transactions", url: "/dashboard/library/transactions", visible: true },
         ].filter(i => i.visible),
-      },
-      {
-        title: "Inventory Hub",
-        url: "/dashboard/inventory",
-        icon: Package,
-        visible: isOwner || isAdmin,
       },
       {
         title: "Financial Hub",
@@ -141,24 +151,10 @@ export function AppSidebar() {
           { title: "AI Forecast", url: "/dashboard/finance/forecast", visible: true },
         ].filter(i => i.visible),
       },
-      {
-        title: "Faculty",
-        url: "/dashboard/staff",
-        icon: Users,
-        visible: isOwner || isAdmin,
-      },
-      {
-        title: "Operations",
-        url: "/dashboard/attendance",
-        icon: CheckCircle,
-        visible: isOwner || isAdmin || isTeacher,
-      },
-      {
-        title: "Configuration",
-        url: "/dashboard/settings",
-        icon: Settings,
-        visible: isOwner || isAdmin,
-      },
+      { title: "Communication", url: "/dashboard/communication", icon: MessageSquare, visible: isOwner || isAdmin || isTeacher },
+      { title: "Human Resources", url: "/dashboard/staff", icon: Users, visible: isOwner || isAdmin },
+      { title: "Attendance", url: "/dashboard/attendance", icon: CheckCircle, visible: isOwner || isAdmin || isTeacher },
+      { title: "Configuration", url: "/dashboard/settings", icon: Settings, visible: isOwner || isAdmin },
     ].filter(item => item.visible)
   }, [userRole, isOwner, isAdmin, isAccountant, isTeacher, isParent, isLibrarian])
 
@@ -187,7 +183,7 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="px-4 py-2">General</SidebarGroupLabel>
+          <SidebarGroupLabel className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Core Ecosystem</SidebarGroupLabel>
           <SidebarMenu>
             {navigation.map((item) => (
               <SidebarMenuItem key={item.title}>
@@ -197,7 +193,7 @@ export function AppSidebar() {
                       <CollapsibleTrigger asChild>
                         <SidebarMenuButton tooltip={item.title}>
                           {item.icon && <item.icon />}
-                          <span>{item.title}</span>
+                          <span className="font-medium">{item.title}</span>
                           <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                         </SidebarMenuButton>
                       </CollapsibleTrigger>
@@ -218,7 +214,7 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild isActive={pathname === item.url} tooltip={item.title}>
                     <Link href={item.url}>
                       {item.icon && <item.icon />}
-                      <span>{item.title}</span>
+                      <span className="font-medium">{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
                 )}

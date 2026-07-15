@@ -31,58 +31,76 @@
       },
       "required": ["name", "tenantId"]
     },
-    "InventoryItem": {
-      "title": "Inventory Item",
-      "description": "An asset owned by the institution.",
+    "HostelRoom": {
+      "title": "Hostel Room",
+      "description": "A room within a school hostel.",
       "type": "object",
       "properties": {
         "tenantId": { "type": "string" },
         "name": { "type": "string" },
-        "category": { "type": "string", "enum": ["Furniture", "Computers", "Printers", "Projectors", "Sports Equipment", "Science Lab", "Office Supplies"] },
-        "purchaseDate": { "type": "string", "format": "date" },
-        "purchasePrice": { "type": "number" },
-        "warrantyExpiry": { "type": "string", "format": "date" },
-        "condition": { "type": "string", "enum": ["New", "Good", "Fair", "Poor", "Broken"] },
-        "depreciationRate": { "type": "number", "description": "Annual percentage" },
-        "assignedTo": { "type": "string", "description": "Staff name or Department" },
-        "serialNumber": { "type": "string" }
+        "gender": { "type": "string", "enum": ["Male", "Female"] },
+        "capacity": { "type": "number" },
+        "occupiedBeds": { "type": "number" }
       },
-      "required": ["tenantId", "name", "category", "condition"]
+      "required": ["tenantId", "name", "gender", "capacity"]
     },
-    "LibraryBook": {
-      "title": "Library Book",
-      "description": "A book in the institutional library collection.",
+    "HostelCheckIn": {
+      "title": "Hostel Check In",
+      "description": "Log of a student checked into a bed.",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "roomId": { "type": "string" },
+        "roomName": { "type": "string" },
+        "bedNumber": { "type": "string" },
+        "checkInDate": { "type": "string", "format": "date" },
+        "checkOutDate": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["Active", "Checked Out"] }
+      },
+      "required": ["tenantId", "studentId", "roomId", "checkInDate"]
+    },
+    "Vehicle": {
+      "title": "Vehicle",
+      "description": "Transport vehicle details.",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "plateNumber": { "type": "string" },
+        "model": { "type": "string" },
+        "driverId": { "type": "string" },
+        "driverName": { "type": "string" },
+        "capacity": { "type": "number" },
+        "status": { "type": "string" }
+      },
+      "required": ["tenantId", "plateNumber"]
+    },
+    "TransportRoute": {
+      "title": "Transport Route",
+      "description": "A bus route for student pick-up/drop-off.",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "name": { "type": "string" },
+        "vehicleId": { "type": "string" },
+        "stops": { "type": "array", "items": { "type": "string" } },
+        "monthlyFee": { "type": "number" }
+      },
+      "required": ["tenantId", "name"]
+    },
+    "Announcement": {
+      "title": "Announcement",
+      "description": "School-wide broadcast messages.",
       "type": "object",
       "properties": {
         "tenantId": { "type": "string" },
         "title": { "type": "string" },
-        "author": { "type": "string" },
-        "isbn": { "type": "string" },
-        "barcode": { "type": "string" },
-        "category": { "type": "string" },
-        "totalCopies": { "type": "number" },
-        "availableCopies": { "type": "number" },
-        "shelfLocation": { "type": "string" }
+        "content": { "type": "string" },
+        "target": { "type": "string", "enum": ["All", "Teachers", "Parents", "Students"] },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["tenantId", "title", "author", "barcode"]
-    },
-    "LibraryTransaction": {
-      "title": "Library Transaction",
-      "description": "Record of a book being borrowed or returned.",
-      "type": "object",
-      "properties": {
-        "tenantId": { "type": "string" },
-        "bookId": { "type": "string" },
-        "bookTitle": { "type": "string" },
-        "borrowerId": { "type": "string" },
-        "borrowerName": { "type": "string" },
-        "borrowDate": { "type": "string", "format": "date" },
-        "dueDate": { "type": "string", "format": "date" },
-        "returnDate": { "type": "string", "format": "date" },
-        "status": { "type": "string", "enum": ["Borrowed", "Returned", "Overdue"] },
-        "fineAmount": { "type": "number" }
-      },
-      "required": ["tenantId", "bookId", "borrowerId", "borrowDate", "dueDate"]
+      "required": ["tenantId", "title", "content"]
     }
   },
   "auth": {
@@ -91,8 +109,10 @@
   "firestore": {
     "/users/{userId}": { "schema": "User" },
     "/institutions/{institutionId}": { "schema": "Institution" },
-    "/inventory/{itemId}": { "schema": "InventoryItem" },
-    "/library_books/{bookId}": { "schema": "LibraryBook" },
-    "/library_transactions/{txnId}": { "schema": "LibraryTransaction" }
+    "/hostels/{roomId}": { "schema": "HostelRoom" },
+    "/hostel_logs/{logId}": { "schema": "HostelCheckIn" },
+    "/vehicles/{vehicleId}": { "schema": "Vehicle" },
+    "/routes/{routeId}": { "schema": "TransportRoute" },
+    "/announcements/{annId}": { "schema": "Announcement" }
   }
 }
