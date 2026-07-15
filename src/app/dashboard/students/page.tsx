@@ -60,7 +60,7 @@ export default function StudentsPage() {
     if (!db || !institutionId) return null;
     return query(
       collection(db, "students"), 
-      where("institutionId", "==", institutionId)
+      where("tenantId", "==", institutionId)
     );
   }, [db, institutionId]);
 
@@ -175,6 +175,7 @@ export default function StudentsPage() {
     const data = {
       ...studentForm,
       status: "active",
+      tenantId: institutionId,
       institutionId: institutionId,
       createdAt: serverTimestamp()
     }

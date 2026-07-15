@@ -1,4 +1,3 @@
-
 {
   "entities": {
     "User": {
@@ -6,22 +5,26 @@
       "description": "Information about users and their roles within the system.",
       "type": "object",
       "properties": {
+        "uid": { "type": "string" },
         "email": { "type": "string", "format": "email" },
-        "role": { "type": "string", "enum": ["super_admin", "school_owner", "staff", "student"] },
-        "institutionId": { "type": "string", "description": "Reference to the school/institution this user belongs to." },
+        "role": { "type": "string", "enum": ["super_admin", "school_owner", "administrator", "teacher", "accountant", "librarian", "student", "parent"] },
+        "institutionId": { "type": "string" },
         "tenantId": { "type": "string" },
         "name": { "type": "string" },
         "status": { "type": "string" }
       },
-      "required": ["email", "role"]
+      "required": ["uid", "email", "role"]
     },
     "Institution": {
       "title": "Institution",
       "description": "Educational institution details.",
       "type": "object",
       "properties": {
+        "id": { "type": "string" },
+        "tenantId": { "type": "string" },
         "name": { "type": "string" },
         "ownerEmail": { "type": "string" },
+        "ownerUid": { "type": "string" },
         "location": { "type": "string" },
         "address": { "type": "string" },
         "phone": { "type": "string" },
@@ -29,64 +32,69 @@
         "type": { "type": "string" },
         "gradeLevel": { "type": "string" },
         "specificGrades": { "type": "string" },
-        "subscriptionPlan": { "type": "string", "enum": ["trial", "basic", "premium", "enterprise"] },
+        "subscriptionPlan": { "type": "string" },
+        "status": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" },
-        "status": { "type": "string", "enum": ["active", "pending_review", "suspended"] },
-        "academicYear": { "type": "string" },
-        "currentTerm": { "type": "string" },
-        "customDepartments": { "type": "array", "items": { "type": "string" } },
-        "ownerUid": { "type": "string" }
+        "trialEndsAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["name", "ownerEmail"]
+      "required": ["name", "tenantId"]
     },
     "Student": {
       "title": "Student",
       "description": "Comprehensive student enrollment record.",
       "type": "object",
       "properties": {
+        "tenantId": { "type": "string" },
         "firstName": { "type": "string" },
         "lastName": { "type": "string" },
         "gender": { "type": "string" },
         "gradeLevel": { "type": "string" },
         "studentId": { "type": "string" },
-        "status": { "type": "string", "enum": ["active", "suspended", "graduated"] },
+        "status": { "type": "string" },
         "institutionId": { "type": "string" },
-        "dateOfBirth": { "type": "string", "format": "date" },
+        "dateOfBirth": { "type": "string" },
         "parentName": { "type": "string" },
         "parentPhone": { "type": "string" },
-        "homeAddress": { "type": "string" },
         "photoUrl": { "type": "string" }
       },
-      "required": ["firstName", "lastName", "gradeLevel", "institutionId", "studentId"]
+      "required": ["tenantId", "firstName", "lastName", "studentId"]
     },
     "Staff": {
       "title": "Staff Member",
       "description": "Institutional employee record.",
       "type": "object",
       "properties": {
+        "tenantId": { "type": "string" },
         "fullName": { "type": "string" },
         "role": { "type": "string" },
         "department": { "type": "string" },
-        "email": { "type": "string", "format": "email" },
+        "email": { "type": "string" },
         "phoneNumber": { "type": "string" },
         "staffId": { "type": "string" },
-        "joiningDate": { "type": "string", "format": "date" },
-        "institutionId": { "type": "string" },
-        "assignedClasses": { "type": "string" },
-        "assignedSubjects": { "type": "string" }
+        "joiningDate": { "type": "string" },
+        "institutionId": { "type": "string" }
       },
-      "required": ["fullName", "role", "institutionId", "staffId"]
+      "required": ["tenantId", "fullName", "role"]
+    },
+    "Subject": {
+      "title": "Academic Subject",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "gradeLevels": { "type": "array", "items": { "type": "string" } },
+        "institutionId": { "type": "string" }
+      },
+      "required": ["tenantId", "name"]
     },
     "ExamRecord": {
       "title": "Examination Record",
-      "description": "Records of student performance in exams and class assessments.",
       "type": "object",
       "properties": {
+        "tenantId": { "type": "string" },
         "studentId": { "type": "string" },
-        "studentName": { "type": "string" },
         "subjectId": { "type": "string" },
-        "subjectName": { "type": "string" },
-        "gradeLevel": { "type": "string" },
         "classScore": { "type": "number" },
         "examScore": { "type": "number" },
         "totalScore": { "type": "number" },
@@ -94,54 +102,32 @@
         "academicYear": { "type": "string" },
         "institutionId": { "type": "string" }
       },
-      "required": ["studentId", "subjectId", "institutionId"]
+      "required": ["tenantId", "studentId", "subjectId"]
     },
     "FeeItem": {
       "title": "Approved Fee Item",
-      "description": "Standardized charges like Books, Tuition, etc.",
       "type": "object",
       "properties": {
+        "tenantId": { "type": "string" },
         "name": { "type": "string" },
         "defaultAmount": { "type": "number" },
         "category": { "type": "string" },
         "institutionId": { "type": "string" }
-      }
+      },
+      "required": ["tenantId", "name"]
     },
     "StudentLedgerEntry": {
       "title": "Student Ledger Entry",
-      "description": "Individual charges or credits on a student account.",
       "type": "object",
       "properties": {
+        "tenantId": { "type": "string" },
         "studentId": { "type": "string" },
         "type": { "type": "string", "enum": ["charge", "payment"] },
         "item": { "type": "string" },
         "amount": { "type": "number" },
-        "date": { "type": "string" },
-        "institutionId": { "type": "string" }
-      }
-    },
-    "SchoolSettings": {
-      "title": "School Settings",
-      "description": "Global configuration for a specific school.",
-      "type": "object",
-      "properties": {
-        "tenantId": { "type": "string" },
-        "institutionId": { "type": "string" },
-        "schoolName": { "type": "string" },
-        "currentTerm": { "type": "string" },
-        "academicYear": { "type": "string" },
-        "currency": { "type": "string" },
-        "timezone": { "type": "string" }
-      }
-    },
-    "DepartmentList": {
-      "title": "Department List",
-      "description": "List of functional departments for a school.",
-      "type": "object",
-      "properties": {
-        "tenantId": { "type": "string" },
-        "items": { "type": "array", "items": { "type": "string" } }
-      }
+        "date": { "type": "string" }
+      },
+      "required": ["tenantId", "studentId", "amount"]
     }
   },
   "auth": {
@@ -149,40 +135,28 @@
   },
   "firestore": {
     "/users/{userId}": {
-      "schema": "User",
-      "description": "User profiles."
+      "schema": "User"
     },
     "/institutions/{institutionId}": {
-      "schema": "Institution",
-      "description": "Details for each school instance."
+      "schema": "Institution"
     },
     "/students/{studentId}": {
-      "schema": "Student",
-      "description": "Global student records."
+      "schema": "Student"
     },
     "/staff/{staffId}": {
-      "schema": "Staff",
-      "description": "Global staff records."
+      "schema": "Staff"
+    },
+    "/subjects/{subjectId}": {
+      "schema": "Subject"
     },
     "/exam_records/{recordId}": {
-      "schema": "ExamRecord",
-      "description": "Examination scores."
+      "schema": "ExamRecord"
     },
     "/approved_fees/{feeId}": {
-      "schema": "FeeItem",
-      "description": "Global approved fee list per school."
+      "schema": "FeeItem"
     },
     "/student_ledger/{ledgerId}": {
-      "schema": "StudentLedgerEntry",
-      "description": "Individual student account records."
-    },
-    "/settings/{institutionId}": {
-      "schema": "SchoolSettings",
-      "description": "Global settings for a school."
-    },
-    "/departments/{institutionId}": {
-      "schema": "DepartmentList",
-      "description": "Department list for a school."
+      "schema": "StudentLedgerEntry"
     }
   }
 }
