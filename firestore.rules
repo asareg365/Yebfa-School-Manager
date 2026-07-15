@@ -12,14 +12,8 @@ service cloud.firestore {
     }
 
     function isSuperAdmin() {
-      // Direct UID checks for system owners
-      return signedIn()
-      &&
-      (
-        request.auth.uid == "hyd7AluSrDcLBeViOLj9qQKDqt93"
-        ||
-        request.auth.uid == "wPZw3XHcXpVQ2f9ZkW4KKfkCzYA2"
-      );
+      // Role-based check from user profile
+      return signedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "super_admin";
     }
 
     // ======================
@@ -69,7 +63,7 @@ service cloud.firestore {
     // ======================
 
     // These rules allow general signed-in access for the MVP.
-    // In production, these should check request.auth.token.tenantId == resource.data.tenantId
+    // In production, these should strictly check request.auth.token.tenantId == resource.data.tenantId
 
     match /students/{studentId} {
       allow read, write: if signedIn();

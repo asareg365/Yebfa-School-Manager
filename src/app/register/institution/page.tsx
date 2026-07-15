@@ -156,13 +156,13 @@ export default function InstitutionRegistrationPage() {
 
       await batch.commit()
 
-      // Store selection in local storage for the dashboard to pick up immediately
+      // Store selection in local storage for immediate dashboard context
       localStorage.setItem('selected_institution_id', tenantId)
       localStorage.setItem('selected_institution_name', formData.name)
 
       toast({
         title: "Institution Provisioned",
-        description: "Your 30-day trial is now active. Welcome to Yebfa!"
+        description: "Your 30-day trial workspace is ready. Welcome to Yebfa!"
       })
 
       router.replace("/dashboard")

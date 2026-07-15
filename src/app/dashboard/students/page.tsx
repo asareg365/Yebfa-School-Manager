@@ -132,7 +132,7 @@ export default function StudentsPage() {
       toast({ 
         variant: "destructive", 
         title: "Camera Access Denied", 
-        description: "Please check your browser permissions and ensure no other app is using the camera." 
+        description: "Please check your browser permissions." 
       })
       setIsCameraActive(false)
     }
@@ -201,7 +201,10 @@ export default function StudentsPage() {
     if (!db || !editingStudent || loading) return
     setLoading(true)
     try {
-      await updateDoc(doc(db, "students", editingStudent.id), studentForm)
+      await updateDoc(doc(db, "students", editingStudent.id), {
+        ...studentForm,
+        updatedAt: serverTimestamp()
+      })
       toast({ title: "Record Updated", description: "Student details synchronized." })
       setIsEditOpen(false)
       stopCamera()
@@ -351,10 +354,8 @@ export default function StudentsPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={isEnrollOpen} onOpenChange={(val) => {
-        if (!val) stopCamera()
-        setIsEnrollOpen(val)
-      }}>
+      {/* Enroll Dialog */}
+      <Dialog open={isEnrollOpen} onOpenChange={(val) => { if (!val) stopCamera(); setIsEnrollOpen(val); }}>
         <DialogContent className="max-w-2xl border-none shadow-2xl rounded-2xl p-0 overflow-hidden">
           <form onSubmit={handleEnroll}>
             <DialogHeader className="bg-primary text-primary-foreground p-8">
@@ -362,137 +363,70 @@ export default function StudentsPage() {
               <DialogDescription className="text-primary-foreground/70 text-sm">Capturing record for {institution?.name}.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-8 py-8 px-8 max-h-[70vh] overflow-y-auto">
+              {/* Media Capture Section */}
               <div className="flex flex-col items-center gap-6 p-6 border-2 border-dashed rounded-3xl bg-muted/20">
                 <div className="relative size-40 rounded-3xl overflow-hidden bg-background border-4 border-white shadow-xl group">
                   {studentForm.photoUrl ? (
                     <img src={studentForm.photoUrl} alt="Preview" className="w-full h-full object-cover" />
                   ) : isCameraActive ? (
-                    <video 
-                      ref={videoRef} 
-                      autoPlay 
-                      playsInline 
-                      muted 
-                      className="w-full h-full object-cover scale-x-[-1]" 
-                    />
+                    <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-slate-50">
                       <User className="size-16 text-slate-200" />
                     </div>
                   )}
-                  {studentForm.photoUrl && (
-                    <Button 
-                      type="button" 
-                      variant="destructive" 
-                      size="icon" 
-                      className="absolute top-2 right-2 size-7 rounded-full"
-                      onClick={() => setStudentForm(prev => ({ ...prev, photoUrl: "" }))}
-                    >
-                      <X className="size-4" />
-                    </Button>
-                  )}
                 </div>
-                
-                <canvas ref={canvasRef} className="hidden" />
-                
                 <div className="flex gap-3">
                   <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" className="hidden" />
-                  <Button type="button" variant="outline" size="sm" className="gap-2 h-10 px-4 rounded-xl" onClick={() => fileInputRef.current?.click()}>
-                    <Upload className="size-4" /> Device Upload
-                  </Button>
-                  
+                  <Button type="button" variant="outline" size="sm" className="rounded-xl h-10 px-4" onClick={() => fileInputRef.current?.click()}>Upload</Button>
                   {!isCameraActive ? (
-                    <Button type="button" variant="outline" size="sm" className="gap-2 h-10 px-4 rounded-xl" onClick={startCamera}>
-                      <Camera className="size-4" /> Use Camera
-                    </Button>
+                    <Button type="button" variant="outline" size="sm" className="rounded-xl h-10 px-4" onClick={startCamera}>Camera</Button>
                   ) : (
-                    <div className="flex gap-2">
-                      <Button type="button" variant="default" size="sm" onClick={capturePhoto} className="bg-green-600 hover:bg-green-700 h-10 px-6 rounded-xl">
-                        <Check className="size-4 mr-2" /> Capture
-                      </Button>
-                      <Button type="button" variant="destructive" size="sm" onClick={stopCamera} className="h-10 px-4 rounded-xl">
-                        Cancel
-                      </Button>
-                    </div>
+                    <Button type="button" variant="default" size="sm" onClick={capturePhoto} className="bg-green-600 rounded-xl h-10 px-6">Capture</Button>
                   )}
                 </div>
               </div>
 
+              {/* Data Fields */}
               <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">First Name</Label>
-                  <Input required value={studentForm.firstName} onChange={e => setStudentForm({...studentForm, firstName: e.target.value})} className="h-11 rounded-xl" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Last Name</Label>
-                  <Input required value={studentForm.lastName} onChange={e => setStudentForm({...studentForm, lastName: e.target.value})} className="h-11 rounded-xl" />
-                </div>
+                <div className="space-y-2"><Label>First Name</Label><Input required value={studentForm.firstName} onChange={e => setStudentForm({...studentForm, firstName: e.target.value})} className="h-11 rounded-xl" /></div>
+                <div className="space-y-2"><Label>Last Name</Label><Input required value={studentForm.lastName} onChange={e => setStudentForm({...studentForm, lastName: e.target.value})} className="h-11 rounded-xl" /></div>
               </div>
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Gender</Label>
+                  <Label>Gender</Label>
                   <Select onValueChange={v => setStudentForm({...studentForm, gender: v})} value={studentForm.gender}>
                     <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Male">Male</SelectItem>
-                      <SelectItem value="Female">Female</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
+                    <SelectContent><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem></SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Date of Birth</Label>
-                  <Input type="date" value={studentForm.dateOfBirth} onChange={e => setStudentForm({...studentForm, dateOfBirth: e.target.value})} className="h-11 rounded-xl" />
-                </div>
+                <div className="space-y-2"><Label>Date of Birth</Label><Input type="date" value={studentForm.dateOfBirth} onChange={e => setStudentForm({...studentForm, dateOfBirth: e.target.value})} className="h-11 rounded-xl" /></div>
               </div>
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Grade Level</Label>
+                  <Label>Grade Level</Label>
                   <Select onValueChange={v => setStudentForm({...studentForm, gradeLevel: v})} value={studentForm.gradeLevel}>
                     <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {availableGrades.map(grade => (
-                        <SelectItem key={grade} value={grade}>{grade}</SelectItem>
-                      ))}
-                    </SelectContent>
+                    <SelectContent>{availableGrades.map(g => <SelectItem key={grade} value={g}>{g}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Student ID</Label>
-                  <Input required readOnly value={studentForm.studentId} className="bg-slate-50 font-mono font-bold h-11 rounded-xl border-none" />
-                </div>
+                <div className="space-y-2"><Label>Student ID</Label><Input readOnly value={studentForm.studentId} className="h-11 rounded-xl bg-slate-50 font-bold" /></div>
               </div>
               <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Guardian Name</Label>
-                  <Input required value={studentForm.parentName} onChange={e => setStudentForm({...studentForm, parentName: e.target.value})} className="h-11 rounded-xl" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Guardian Phone</Label>
-                  <Input required value={studentForm.parentPhone} onChange={e => setStudentForm({...studentForm, parentPhone: e.target.value})} className="h-11 rounded-xl" />
-                </div>
+                <div className="space-y-2"><Label>Guardian Name</Label><Input required value={studentForm.parentName} onChange={e => setStudentForm({...studentForm, parentName: e.target.value})} className="h-11 rounded-xl" /></div>
+                <div className="space-y-2"><Label>Guardian Phone</Label><Input required value={studentForm.parentPhone} onChange={e => setStudentForm({...studentForm, parentPhone: e.target.value})} className="h-11 rounded-xl" /></div>
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Home Address</Label>
-                <Input value={studentForm.homeAddress} onChange={e => setStudentForm({...studentForm, homeAddress: e.target.value})} className="h-11 rounded-xl" />
-              </div>
+              <div className="space-y-2"><Label>Home Address</Label><Input value={studentForm.homeAddress} onChange={e => setStudentForm({...studentForm, homeAddress: e.target.value})} className="h-11 rounded-xl" /></div>
             </div>
             <div className="p-8 border-t bg-slate-50 flex justify-end">
-              <Button type="submit" disabled={loading} className="h-12 px-10 gap-2 bg-primary font-bold rounded-xl shadow-lg transition-all active:scale-95">
-                {loading ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
-                Complete Enrollment
-              </Button>
+              <Button type="submit" disabled={loading} className="h-12 px-10 font-bold rounded-xl bg-primary">Complete Enrollment</Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isEditOpen} onOpenChange={(val) => {
-        if (!val) {
-          stopCamera()
-          setEditingStudent(null)
-        }
-        setIsEditOpen(val)
-      }}>
+      {/* Edit Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={(val) => { if (!val) { stopCamera(); setEditingStudent(null); } setIsEditOpen(val); }}>
         <DialogContent className="max-w-2xl border-none shadow-2xl rounded-2xl p-0 overflow-hidden">
           <form onSubmit={handleUpdate}>
             <DialogHeader className="bg-accent text-accent-foreground p-8">
@@ -500,95 +434,37 @@ export default function StudentsPage() {
               <DialogDescription className="text-accent-foreground/70">Updating records for {studentForm.firstName}.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-6 py-8 px-8 max-h-[70vh] overflow-y-auto">
-               <div className="flex flex-col items-center gap-6 p-6 border-2 border-dashed rounded-3xl bg-muted/20">
-                <div className="relative size-36 rounded-3xl overflow-hidden bg-background border shadow-sm group">
-                  {studentForm.photoUrl ? (
-                    <img src={studentForm.photoUrl} alt="Preview" className="w-full h-full object-cover" />
-                  ) : isCameraActive ? (
-                    <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-slate-50">
-                      <User className="size-14 text-slate-200" />
-                    </div>
-                  )}
-                </div>
-                
-                <div className="flex gap-2">
-                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" className="hidden" />
-                  <Button type="button" variant="outline" size="sm" className="rounded-xl h-10 px-4" onClick={() => fileInputRef.current?.click()}>
-                    Update Photo
-                  </Button>
-                  {!isCameraActive ? (
-                    <Button type="button" variant="outline" size="sm" className="rounded-xl h-10 px-4" onClick={startCamera}>
-                      Snap Photo
-                    </Button>
-                  ) : (
-                    <Button type="button" variant="default" size="sm" onClick={capturePhoto} className="bg-green-600 rounded-xl h-10 px-6">
-                      Capture
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase text-muted-foreground">First Name</Label>
-                  <Input required value={studentForm.firstName} onChange={e => setStudentForm({...studentForm, firstName: e.target.value})} className="h-11 rounded-xl" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase text-muted-foreground">Last Name</Label>
-                  <Input required value={studentForm.lastName} onChange={e => setStudentForm({...studentForm, lastName: e.target.value})} className="h-11 rounded-xl" />
-                </div>
+               <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2"><Label>First Name</Label><Input required value={studentForm.firstName} onChange={e => setStudentForm({...studentForm, firstName: e.target.value})} className="h-11 rounded-xl" /></div>
+                <div className="space-y-2"><Label>Last Name</Label><Input required value={studentForm.lastName} onChange={e => setStudentForm({...studentForm, lastName: e.target.value})} className="h-11 rounded-xl" /></div>
               </div>
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase text-muted-foreground">Gender</Label>
+                  <Label>Gender</Label>
                   <Select onValueChange={v => setStudentForm({...studentForm, gender: v})} value={studentForm.gender}>
                     <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Male">Male</SelectItem>
-                      <SelectItem value="Female">Female</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
+                    <SelectContent><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem></SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase text-muted-foreground">Date of Birth</Label>
-                  <Input type="date" value={studentForm.dateOfBirth} onChange={e => setStudentForm({...studentForm, dateOfBirth: e.target.value})} className="h-11 rounded-xl" />
-                </div>
+                <div className="space-y-2"><Label>Date of Birth</Label><Input type="date" value={studentForm.dateOfBirth} onChange={e => setStudentForm({...studentForm, dateOfBirth: e.target.value})} className="h-11 rounded-xl" /></div>
               </div>
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase text-muted-foreground">Grade Level</Label>
+                  <Label>Grade Level</Label>
                   <Select onValueChange={v => setStudentForm({...studentForm, gradeLevel: v})} value={studentForm.gradeLevel}>
                     <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {availableGrades.map(grade => (
-                        <SelectItem key={grade} value={grade}>{grade}</SelectItem>
-                      ))}
-                    </SelectContent>
+                    <SelectContent>{availableGrades.map(g => <SelectItem key={grade} value={g}>{g}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase text-muted-foreground">Guardian Name</Label>
-                  <Input required value={studentForm.parentName} onChange={e => setStudentForm({...studentForm, parentName: e.target.value})} className="h-11 rounded-xl" />
-                </div>
+                <div className="space-y-2"><Label>Guardian Name</Label><Input required value={studentForm.parentName} onChange={e => setStudentForm({...studentForm, parentName: e.target.value})} className="h-11 rounded-xl" /></div>
               </div>
               <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase text-muted-foreground">Guardian Phone</Label>
-                  <Input required value={studentForm.parentPhone} onChange={e => setStudentForm({...studentForm, parentPhone: e.target.value})} className="h-11 rounded-xl" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase text-muted-foreground">Home Address</Label>
-                  <Input value={studentForm.homeAddress} onChange={e => setStudentForm({...studentForm, homeAddress: e.target.value})} className="h-11 rounded-xl" />
-                </div>
+                <div className="space-y-2"><Label>Guardian Phone</Label><Input required value={studentForm.parentPhone} onChange={e => setStudentForm({...studentForm, parentPhone: e.target.value})} className="h-11 rounded-xl" /></div>
+                <div className="space-y-2"><Label>Home Address</Label><Input value={studentForm.homeAddress} onChange={e => setStudentForm({...studentForm, homeAddress: e.target.value})} className="h-11 rounded-xl" /></div>
               </div>
             </div>
             <div className="p-8 border-t bg-slate-50 flex justify-end">
-              <Button type="submit" disabled={loading} className="h-12 px-10 font-bold rounded-xl bg-primary shadow-lg transition-all active:scale-95">
-                {loading ? <Loader2 className="size-4 animate-spin" /> : "Authorize Profile Update"}
-              </Button>
+              <Button type="submit" disabled={loading} className="h-12 px-10 font-bold rounded-xl bg-primary">Authorize Updates</Button>
             </div>
           </form>
         </DialogContent>

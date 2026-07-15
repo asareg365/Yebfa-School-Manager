@@ -93,7 +93,10 @@ export default function StaffPage() {
     if (!db || !editingStaff) return
     setLoading(true)
     try {
-      await updateDoc(doc(db, "staff", editingStaff.id), staffForm)
+      await updateDoc(doc(db, "staff", editingStaff.id), {
+        ...staffForm,
+        updatedAt: serverTimestamp()
+      })
       toast({ title: "Profile Synchronized", description: "Teacher details updated." })
       setIsEditOpen(false)
     } catch (e: any) { toast({ variant: "destructive", title: "Error", description: e.message }) } finally { setLoading(false) }
@@ -125,7 +128,7 @@ Institutional Seal Authorized 2026`;
     } catch (e: any) { toast({ variant: "destructive", title: "AI Error", description: e.message }) } finally { setLetterLoading(false) }
   }
 
-  if (authLoading) return <div className="p-12 text-center animate-pulse">Synchronizing...</div>
+  if (authLoading) return <div className="p-12 text-center animate-pulse">Synchronizing Faculty Data...</div>
   if (!institutionId) return <div className="p-12 text-center"><Button asChild><Link href="/admin">Visit Admin Hub</Link></Button></div>
 
   return (
@@ -186,7 +189,7 @@ Institutional Seal Authorized 2026`;
                   <TableRow key={s.id}>
                     <TableCell><div className="flex flex-col"><span className="text-[10px] font-mono text-muted-foreground">{s.staffId}</span><span className="font-bold text-primary">{s.fullName}</span></div></TableCell>
                     <TableCell><span className="text-[10px] font-bold text-accent block uppercase">{s.department}</span><span className="text-xs uppercase">{s.role}</span></TableCell>
-                    <TableCell className="text-[10px] text-muted-foreground">{s.assignedClasses || "No Classes"} • {s.assignedSubjects || "No Subjects"}</TableCell>
+                    <TableCell><div className="text-[10px] text-muted-foreground max-w-[200px] truncate">{s.assignedClasses || "No Classes"} • {s.assignedSubjects || "No Subjects"}</div></TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
                         <Button variant="ghost" size="icon" onClick={() => { setSelectedStaff(s); setGeneratedLetter(null); setIsViewOpen(true); }}><Eye className="size-3.5" /></Button>
@@ -205,7 +208,7 @@ Institutional Seal Authorized 2026`;
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <form onSubmit={handleUpdateStaff}>
-            <DialogHeader><DialogTitle>Edit Faculty Profile</DialogTitle><DialogDescription>Update metadata for {staffForm.fullName}</DialogDescription></DialogHeader>
+            <DialogHeader><DialogTitle>Edit Faculty Profile</DialogTitle><DialogDescription>Update comprehensive metadata for {staffForm.fullName}</DialogDescription></DialogHeader>
             <div className="grid gap-6 py-6">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2"><Label>Full Name</Label><Input required value={staffForm.fullName} onChange={e => setStaffForm({...staffForm, fullName: e.target.value})} /></div>

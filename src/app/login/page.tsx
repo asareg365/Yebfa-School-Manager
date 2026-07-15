@@ -120,11 +120,15 @@ export default function LoginPage() {
     } catch (error: any) {
       console.error("Google Auth Error:", error)
       
-      if (error.code === 'auth/unauthorized-domain') {
+      // Graceful handling for user cancellation or common domain errors
+      if (error.code === 'auth/popup-closed-by-user') {
+        // No toast needed, user manually closed the popup
+        return
+      } else if (error.code === 'auth/unauthorized-domain') {
         toast({
           variant: "destructive",
           title: "Domain Not Authorized",
-          description: "Please add this domain to the 'Authorized domains' list in your Firebase Console (Authentication > Settings).",
+          description: "Please add this domain to the 'Authorized domains' list in your Firebase Console.",
         })
       } else {
         toast({
@@ -174,7 +178,7 @@ export default function LoginPage() {
               <AlertCircle className="h-4 w-4" />
               <AlertTitle className="font-bold">Configuration Required</AlertTitle>
               <AlertDescription className="text-xs">
-                Firebase is not configured. Please link a project in the sidebar to activate the login systems.
+                Firebase is not configured. Please link a project to activate login.
               </AlertDescription>
             </Alert>
           ) : (
