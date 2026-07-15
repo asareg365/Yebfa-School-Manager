@@ -42,8 +42,8 @@ export default function PayrollProcessorPage() {
   const staffQuery = useMemo(() => institutionId ? query(collection(db, "staff"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   const payrollQuery = useMemo(() => institutionId ? query(collection(db, "payroll_records"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
 
-  const { data: staff } = useCollection(staffQuery)
-  const { data: payrollRecords } = useCollection(payrollQuery)
+  const { data: staff = [] } = useCollection(staffQuery)
+  const { data: payrollRecords = [] } = useCollection(payrollQuery)
 
   const handleRunPayroll = async () => {
     if (!db || !institutionId || staff.length === 0) return
@@ -105,31 +105,33 @@ export default function PayrollProcessorPage() {
             <Button className="bg-primary h-11 rounded-xl shadow-lg gap-2"><Calendar className="size-4" /> Run Monthly Cycle</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Authorize Payroll Disbursement</DialogTitle>
-              <DialogDescription>This will generate salary records and expenditure vouchers for all active faculty.</DialogDescription>
-            </DialogHeader>
-            <div className="py-6 space-y-4">
-              <div className="space-y-2">
-                <Label>Select Disbursement Month</Label>
-                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                  <SelectTrigger className="h-12 rounded-xl"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {["June", "July", "August", "September"].map(m => <SelectItem key={m} value={m}>{m} 2026</SelectItem>)}
-                  </SelectContent>
-                </Select>
+            <form onSubmit={(e) => { e.preventDefault(); handleRunPayroll(); }}>
+              <DialogHeader>
+                <DialogTitle>Authorize Payroll Disbursement</DialogTitle>
+                <DialogDescription>This will generate salary records and expenditure vouchers for all active faculty.</DialogDescription>
+              </DialogHeader>
+              <div className="py-6 space-y-4">
+                <div className="space-y-2">
+                  <Label>Select Disbursement Month</Label>
+                  <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                    <SelectTrigger className="h-12 rounded-xl"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {["June", "July", "August", "September"].map(m => <SelectItem key={m} value={m}>{m} 2026</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="p-4 rounded-xl bg-orange-50 border border-orange-100 text-orange-800 text-xs flex gap-3">
+                  <ShieldCheck className="size-5 shrink-0" />
+                  <p>By authorizing, you confirm that banking registry details are correct and salary amounts are pre-verified.</p>
+                </div>
               </div>
-              <div className="p-4 rounded-xl bg-orange-50 border border-orange-100 text-orange-800 text-xs flex gap-3">
-                <ShieldCheck className="size-5 shrink-0" />
-                <p>By authorizing, you confirm that banking registry details are correct and salary amounts are pre-verified.</p>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button className="w-full h-14 rounded-2xl font-bold bg-primary shadow-xl" onClick={handleRunPayroll} disabled={loading}>
-                {loading ? <Loader2 className="animate-spin mr-2" /> : <Banknote className="mr-2" />} Confirm Disbursement
-              </Button>
-            </DialogFooter>
-          </form></DialogContent>
+              <DialogFooter>
+                <Button type="submit" className="w-full h-14 rounded-2xl font-bold bg-primary shadow-xl" disabled={loading}>
+                  {loading ? <Loader2 className="animate-spin mr-2" /> : <Banknote className="mr-2" />} Confirm Disbursement
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
         </Dialog>
       </div>
 
