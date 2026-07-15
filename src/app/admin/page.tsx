@@ -1,7 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Pencil, Loader2, CheckCircle2, ArrowRight, Layers, LogOut, KeyRound, AlertTriangle, Info } from "lucide-react"
+import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Pencil, Loader2, CheckCircle2, ArrowRight, Layers, LogOut, KeyRound, AlertTriangle, Info, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import Link from "next/link"
 import { useUser, useFirestore, useCollection, useAuth } from "@/firebase"
 import { useRouter } from "next/navigation"
@@ -29,9 +30,12 @@ export default function AdminPortal() {
   
   const [provisioning, setProvisioning] = useState(false)
   const [isProvisionDialogOpen, setIsProvisionDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isSelectDialogOpen, setIsSelectDialogOpen] = useState(false)
   const [updatingPass, setUpdatingPass] = useState(false)
   const [newPass, setNewPass] = useState("")
+  const [selectedInstForEdit, setSelectedInstForEdit] = useState<any>(null)
+  
   const [newSchool, setNewSchool] = useState({
     name: "",
     ownerEmail: "",
@@ -39,6 +43,12 @@ export default function AdminPortal() {
     gradeLevel: "Secondary",
     specificGrades: "SHS 1-3",
     location: "Goaso, Ahafo"
+  })
+
+  const [editSchoolForm, setEditSchoolForm] = useState({
+    name: "",
+    gradeLevel: "",
+    location: ""
   })
 
   const isSuperAdmin = user?.email === 'asareg365@gmail.com' || user?.email === 'frankyeb@gmail.com'
@@ -92,13 +102,13 @@ export default function AdminPortal() {
         toast({
           variant: "destructive",
           title: "Security Verification Required",
-          description: "For security, you must have signed in recently to change your password. Please sign out and sign back in, then try again.",
+          description: "For security, you must have signed in recently to change your password.",
         })
       } else {
         toast({
           variant: "destructive",
           title: "Update Failed",
-          description: error.message || "An unexpected error occurred. Please try again.",
+          description: error.message || "An unexpected error occurred.",
         })
       }
     } finally {
@@ -109,16 +119,6 @@ export default function AdminPortal() {
   const handleManualProvision = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!db || provisioning) return
-
-    const existing = institutions.find(inst => inst.ownerEmail.toLowerCase() === newSchool.ownerEmail.toLowerCase())
-    if (existing) {
-      toast({
-        variant: "destructive",
-        title: "Duplicate Found",
-        description: `An institution with the owner email ${newSchool.ownerEmail} already exists.`,
-      })
-      return
-    }
 
     setProvisioning(true)
     const data = {
@@ -170,6 +170,39 @@ export default function AdminPortal() {
       });
   }
 
+  const handleEditClick = (inst: any) => {
+    setSelectedInstForEdit(inst)
+    setEditSchoolForm({
+      name: inst.name,
+      gradeLevel: inst.gradeLevel || inst.type || "",
+      location: inst.location || ""
+    })
+    setIsEditDialogOpen(true)
+  }
+
+  const handleUpdateInstitution = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!db || !selectedInstForEdit) return
+    
+    const docRef = doc(db, "institutions", selectedInstForEdit.id)
+    updateDoc(docRef, { ...editSchoolForm, updatedAt: serverTimestamp() })
+      .then(() => {
+        toast({
+          title: "Record Updated",
+          description: `${editSchoolForm.name} registry details saved.`,
+        })
+        setIsEditDialogOpen(false)
+      })
+      .catch((error) => {
+        console.error(error)
+        toast({
+          variant: "destructive",
+          title: "Update Failed",
+          description: "Insufficient permissions to update this registry."
+        })
+      })
+  }
+
   const handleDeleteSchool = (id: string, name: string) => {
     if (!db) return
     const docRef = doc(db, "institutions", id);
@@ -177,7 +210,7 @@ export default function AdminPortal() {
       .then(() => {
         toast({
           title: "Instance Deprovisioned",
-          description: `${name} has been removed.`,
+          description: `${name} has been removed from the ecosystem.`,
         })
       })
       .catch(async (error) => {
@@ -420,14 +453,44 @@ export default function AdminPortal() {
                                   Approve
                                 </button>
                               )}
+                              
                               <Button 
                                 variant="ghost" 
                                 size="icon" 
-                                className="text-muted-foreground hover:text-destructive h-8 w-8"
-                                onClick={() => handleDeleteSchool(inst.id, inst.name)}
+                                className="text-muted-foreground hover:text-primary h-8 w-8"
+                                onClick={() => handleEditClick(inst)}
                               >
-                                <Trash2 className="size-3.5" />
+                                <Pencil className="size-3.5" />
                               </Button>
+
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="text-muted-foreground hover:text-destructive h-8 w-8"
+                                  >
+                                    <Trash2 className="size-3.5" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent className="rounded-2xl border-none shadow-2xl">
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle className="text-xl font-headline font-bold text-primary">Authorize Deprovisioning?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This action will permanently remove <strong>{inst.name}</strong> from the global registry. This cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel className="rounded-xl h-11">Reject Delete</AlertDialogCancel>
+                                    <AlertDialogAction 
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl h-11"
+                                      onClick={() => handleDeleteSchool(inst.id, inst.name)}
+                                    >
+                                      Accept Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -486,6 +549,53 @@ export default function AdminPortal() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="rounded-2xl border-none shadow-2xl">
+          <form onSubmit={handleUpdateInstitution}>
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-headline font-bold text-primary">Edit Institution Registry</DialogTitle>
+              <DialogDescription>Modify global metadata for this tenant instance.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-6 py-6">
+              <div className="space-y-2">
+                <Label>School Name</Label>
+                <Input 
+                  required 
+                  value={editSchoolForm.name} 
+                  onChange={(e) => setEditSchoolForm({...editSchoolForm, name: e.target.value})} 
+                  className="h-11 rounded-xl" 
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Grade Level / Category</Label>
+                  <Input 
+                    required 
+                    value={editSchoolForm.gradeLevel} 
+                    onChange={(e) => setEditSchoolForm({...editSchoolForm, gradeLevel: e.target.value})} 
+                    className="h-11 rounded-xl" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Primary Location</Label>
+                  <Input 
+                    required 
+                    value={editSchoolForm.location} 
+                    onChange={(e) => setEditSchoolForm({...editSchoolForm, location: e.target.value})} 
+                    className="h-11 rounded-xl" 
+                  />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit" className="h-11 px-8 rounded-xl font-bold bg-primary shadow-lg shadow-primary/10">
+                Authorize Update
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
