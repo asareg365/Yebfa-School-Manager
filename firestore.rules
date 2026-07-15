@@ -5,7 +5,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // ======================
-    // AUTH HELPERS
+    // AUTH & PROFILE HELPERS
     // ======================
 
     function signedIn() {
@@ -24,7 +24,10 @@ service cloud.firestore {
       return userProfile().role;
     }
 
+    // ======================
     // ROLE DEFINITIONS
+    // ======================
+    
     function isSuperAdmin() { return signedIn() && userRole() == "super_admin"; }
     function isOwner() { return signedIn() && userRole() == "school_owner"; }
     function isAdmin() { return signedIn() && userRole() == "administrator"; }
@@ -33,58 +36,90 @@ service cloud.firestore {
     function isParent() { return signedIn() && userRole() == "parent"; }
     function isLibrarian() { return signedIn() && userRole() == "librarian"; }
     
-    function belongsToTenant(data) {
-      return data.tenantId == userTenant();
+    // ======================
+    // TENANT ISOLATION LOGIC
+    // ======================
+
+    // Checks if the document belongs to the user's authorized tenant
+    function belongsToUserTenant(data) {
+      return signedIn() && data.tenantId == userTenant();
+    }
+
+    // Validates that a new document or update maintains correct tenant ownership
+    function isValidTenantLock() {
+      return signedIn() && (
+        isSuperAdmin() || 
+        (request.resource.data.tenantId == userTenant() && 
+        (resource == null || request.resource.data.tenantId == resource.data.tenantId))
+      );
     }
 
     // ======================
-    // SECURITY RULES
+    // COLLECTION RULES
     // ======================
 
+    // User Profiles
     match /users/{userId} {
-      allow read, write: if signedIn() && (request.auth.uid == userId || isSuperAdmin());
+      allow read: if signedIn() && (request.auth.uid == userId || isSuperAdmin());
+      allow create: if signedIn();
+      allow update: if signedIn() && (request.auth.uid == userId || isSuperAdmin());
+      allow delete: if isSuperAdmin();
     }
 
+    // Institutions
     match /institutions/{instId} {
-      allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
-      allow write: if signedIn() && (isSuperAdmin() || isOwner());
+      allow read: if signedIn() && (isSuperAdmin() || instId == userTenant());
+      allow write: if isSuperAdmin() || (signedIn() && instId == userTenant() && (isOwner() || isAdmin()));
     }
 
-    // ACADEMIC FOUNDATION
-    match /academic_years/{id} {
-      allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
-      allow write: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
+    // Standard Multi-Tenant Collections Pattern
+    // Applies to: students, staff, academic_years, terms, classes, sections, subjects, 
+    // assignments, attendance, exams, fees, ledger, payroll, inventory, library, transport
+    
+    match /{collectionName}/{docId} {
+      
+      // Role-based Read Access
+      allow read: if signedIn() && (
+        isSuperAdmin() || 
+        belongsToUserTenant(resource.data)
+      );
+
+      // Role-based Write Access with Tenant Locking
+      allow create: if signedIn() && isValidTenantLock() && (
+        isSuperAdmin() || isOwner() || isAdmin() || 
+        (collectionName == 'attendance' && isTeacher()) ||
+        (collectionName == 'exam_records' && isTeacher()) ||
+        ((collectionName == 'expenditure_vouchers' || collectionName == 'transactions') && isAccountant())
+      );
+
+      allow update: if signedIn() && isValidTenantLock() && (
+        isSuperAdmin() || isOwner() || isAdmin() || 
+        (collectionName == 'attendance' && isTeacher()) ||
+        (collectionName == 'exam_records' && isTeacher()) ||
+        ((collectionName == 'expenditure_vouchers' || collectionName == 'transactions') && isAccountant())
+      );
+
+      allow delete: if signedIn() && (
+        isSuperAdmin() || 
+        (belongsToUserTenant(resource.data) && (isOwner() || isAdmin()))
+      );
     }
 
-    match /terms/{id} {
-      allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
-      allow write: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
+    // Specific Parent Portal Privacy
+    match /students/{studentId} {
+      allow read: if signedIn() && (
+        isSuperAdmin() || 
+        belongsToUserTenant(resource.data) || 
+        (isParent() && resource.data.parentUid == request.auth.uid)
+      );
     }
 
-    match /classes/{id} {
-      allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
-      allow write: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
-    }
-
-    match /sections/{id} {
-      allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
-      allow write: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
-    }
-
-    match /subjects/{id} {
-      allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
-      allow write: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
-    }
-
-    match /teacher_assignments/{id} {
-      allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
-      allow write: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
-    }
-
-    // CATCH ALL
-    match /{document=**} {
-      allow read: if signedIn() && (isSuperAdmin() || (resource.data != null && belongsToTenant(resource.data)));
-      allow write: if signedIn() && (isSuperAdmin() || (request.resource.data != null && belongsToTenant(request.resource.data) && (isOwner() || isAdmin())));
+    match /exam_records/{examId} {
+      allow read: if signedIn() && (
+        isSuperAdmin() || 
+        belongsToUserTenant(resource.data) || 
+        (isParent() && get(/databases/$(database)/documents/students/$(resource.data.studentId)).data.parentUid == request.auth.uid)
+      );
     }
   }
 }
