@@ -39,6 +39,32 @@
       },
       "required": ["name", "tenantId"]
     },
+    "Staff": {
+      "title": "Staff Record",
+      "description": "Comprehensive HR record for school employees.",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "staffId": { "type": "string" },
+        "fullName": { "type": "string" },
+        "role": { "type": "string", "enum": ["teacher", "accountant", "librarian", "receptionist", "cleaner", "security", "ict", "headmaster", "administrator"] },
+        "department": { "type": "string" },
+        "qualification": { "type": "string" },
+        "salary": { "type": "number" },
+        "bankName": { "type": "string" },
+        "accountNumber": { "type": "string" },
+        "ssnitNumber": { "type": "string" },
+        "nssfNumber": { "type": "string" },
+        "nextOfKinName": { "type": "string" },
+        "nextOfKinPhone": { "type": "string" },
+        "email": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "joiningDate": { "type": "string", "format": "date" },
+        "contractType": { "type": "string", "enum": ["Full-time", "Part-time", "Contract"] },
+        "photoUrl": { "type": "string" }
+      },
+      "required": ["tenantId", "staffId", "fullName", "role"]
+    },
     "Student": {
       "title": "Student",
       "description": "Comprehensive enterprise student enrollment record.",
@@ -47,30 +73,13 @@
         "tenantId": { "type": "string" },
         "admissionNumber": { "type": "string" },
         "studentId": { "type": "string" },
-        "parentUid": { "type": "string", "description": "UID of the linked parent user account." },
+        "parentUid": { "type": "string" },
         "firstName": { "type": "string" },
-        "middleName": { "type": "string" },
         "lastName": { "type": "string" },
         "gender": { "type": "string", "enum": ["Male", "Female", "Other"] },
-        "dateOfBirth": { "type": "string", "format": "date" },
-        "parentName": { "type": "string" },
-        "parentPhone": { "type": "string" },
-        "status": { "type": "string", "enum": ["active", "suspended", "graduated", "withdrawn"] }
+        "status": { "type": "string" }
       },
       "required": ["tenantId", "firstName", "lastName", "admissionNumber"]
-    },
-    "ExamRecord": {
-      "title": "Exam Record",
-      "type": "object",
-      "properties": {
-        "tenantId": { "type": "string" },
-        "studentId": { "type": "string" },
-        "parentUid": { "type": "string" },
-        "subjectId": { "type": "string" },
-        "examScore": { "type": "number" },
-        "classScore": { "type": "number" },
-        "totalScore": { "type": "number" }
-      }
     }
   },
   "auth": {
@@ -79,9 +88,12 @@
   "firestore": {
     "/users/{userId}": { "schema": "User" },
     "/institutions/{institutionId}": { "schema": "Institution" },
+    "/staff/{staffId}": { "schema": "Staff" },
     "/students/{studentId}": { "schema": "Student" },
-    "/exam_records/{recordId}": { "schema": "ExamRecord" },
-    "/attendance/{attendanceId}": { "description": "Attendance logs" },
-    "/student_ledger/{ledgerId}": { "description": "Financial ledger" }
+    "/exam_records/{recordId}": { "description": "Academic scores" },
+    "/attendance/{attendanceId}": { "description": "Presence logs" },
+    "/student_ledger/{ledgerId}": { "description": "Fees history" },
+    "/settings/{settingId}": { "description": "School settings" },
+    "/departments/{departmentId}": { "description": "School departments" }
   }
 }

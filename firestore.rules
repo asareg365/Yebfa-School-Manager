@@ -58,6 +58,11 @@ service cloud.firestore {
       allow delete: if isSuperAdmin() || (signedIn() && resource.data.tenantId == userTenant() && isOwner());
     }
 
+    match /staff/{staffId} {
+      allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
+      allow write: if signedIn() && (isSuperAdmin() || (belongsToTenant(request.resource.data) && (isOwner() || isAdmin())));
+    }
+
     match /exam_records/{recordId} {
       allow read: if signedIn() && (
         isSuperAdmin() || 
@@ -80,6 +85,41 @@ service cloud.firestore {
         (belongsToTenant(resource.data) && (isStaff() || resource.data.parentUid == request.auth.uid))
       );
       allow write: if signedIn() && (isSuperAdmin() || (belongsToTenant(request.resource.data) && (isOwner() || isAccountant())));
+    }
+
+    match /expenditure_vouchers/{voucherId} {
+      allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
+      allow write: if signedIn() && (isSuperAdmin() || (belongsToTenant(request.resource.data) && (isOwner() || isAccountant())));
+    }
+
+    match /academic_years/{yearId} {
+      allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
+      allow write: if signedIn() && (isSuperAdmin() || (belongsToTenant(request.resource.data) && (isOwner() || isAdmin())));
+    }
+
+    match /terms/{termId} {
+      allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
+      allow write: if signedIn() && (isSuperAdmin() || (belongsToTenant(request.resource.data) && (isOwner() || isAdmin())));
+    }
+
+    match /classes/{classId} {
+      allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
+      allow write: if signedIn() && (isSuperAdmin() || (belongsToTenant(request.resource.data) && (isOwner() || isAdmin())));
+    }
+
+    match /sections/{sectionId} {
+      allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
+      allow write: if signedIn() && (isSuperAdmin() || (belongsToTenant(request.resource.data) && (isOwner() || isAdmin())));
+    }
+
+    match /subjects/{subjectId} {
+      allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
+      allow write: if signedIn() && (isSuperAdmin() || (belongsToTenant(request.resource.data) && (isOwner() || isAdmin())));
+    }
+
+    match /teacher_assignments/{assignId} {
+      allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
+      allow write: if signedIn() && (isSuperAdmin() || (belongsToTenant(request.resource.data) && (isOwner() || isAdmin())));
     }
 
     // INSTITUTIONAL CONFIG
