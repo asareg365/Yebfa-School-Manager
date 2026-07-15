@@ -30,25 +30,18 @@ export default function LoginPage() {
       const userSnap = await getDoc(userRef)
 
       if (!userSnap.exists()) {
-        toast({
-          variant: "destructive",
-          title: "Account Setup Required",
-          description: "Your account is not linked to a school. Please register your institution."
-        })
         router.push("/register/institution")
         return
       }
 
       const userData = userSnap.data()
 
-      // Role-based routing
       if (userData.role === "super_admin") {
         router.replace("/admin")
         return
       }
 
       if (userData.tenantId) {
-        // Store context for fast retrieval
         localStorage.setItem('selected_institution_id', userData.tenantId)
         localStorage.setItem('selected_institution_name', userData.institutionName || 'My School')
         router.replace("/dashboard")

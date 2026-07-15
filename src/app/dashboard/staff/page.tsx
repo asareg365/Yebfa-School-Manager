@@ -201,7 +201,51 @@ Institutional Seal Authorized 2026`;
           )}
         </CardContent>
       </Card>
-      {/* View and Edit dialogs omitted for brevity but they now support tenantId internally */}
+
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <form onSubmit={handleUpdateStaff}>
+            <DialogHeader><DialogTitle>Edit Faculty Profile</DialogTitle><DialogDescription>Update metadata for {staffForm.fullName}</DialogDescription></DialogHeader>
+            <div className="grid gap-6 py-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2"><Label>Full Name</Label><Input required value={staffForm.fullName} onChange={e => setStaffForm({...staffForm, fullName: e.target.value})} /></div>
+                <div className="space-y-2">
+                  <Label>System Role</Label>
+                  <Select onValueChange={v => setStaffForm({...staffForm, role: v})} value={staffForm.role}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="teacher">Teacher</SelectItem>
+                      <SelectItem value="administrator">Administrator</SelectItem>
+                      <SelectItem value="accountant">Accountant</SelectItem>
+                      <SelectItem value="librarian">Librarian</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Department</Label>
+                  <Select onValueChange={v => setStaffForm({...staffForm, department: v})} value={staffForm.department}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{DEFAULT_DEPARTMENTS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2"><Label>Staff ID</Label><Input readOnly value={staffForm.staffId} className="bg-muted font-mono" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2"><Label>Email Address</Label><Input type="email" value={staffForm.email} onChange={e => setStaffForm({...staffForm, email: e.target.value})} /></div>
+                <div className="space-y-2"><Label>Phone Number</Label><Input value={staffForm.phoneNumber} onChange={e => setStaffForm({...staffForm, phoneNumber: e.target.value})} /></div>
+              </div>
+              <div className="space-y-2"><Label>Joining Date</Label><Input type="date" value={staffForm.joiningDate} onChange={e => setStaffForm({...staffForm, joiningDate: e.target.value})} /></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2"><Label>Assigned Classes</Label><Input value={staffForm.assignedClasses} onChange={e => setStaffForm({...staffForm, assignedClasses: e.target.value})} /></div>
+                <div className="space-y-2"><Label>Assigned Subjects</Label><Input value={staffForm.assignedSubjects} onChange={e => setStaffForm({...staffForm, assignedSubjects: e.target.value})} /></div>
+              </div>
+            </div>
+            <DialogFooter><Button type="submit" disabled={loading} className="w-full">Authorize Profile Update</Button></DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
