@@ -17,10 +17,7 @@ import {
   ShieldCheck,
   Users,
   GraduationCap,
-  Banknote,
-  Receipt,
-  ClipboardList,
-  Layers
+  Baby
 } from "lucide-react"
 
 import {
@@ -44,6 +41,7 @@ import { useUser, useAuth, useFirestore, useDoc } from "@/firebase"
 import { signOut } from "firebase/auth"
 import { useRouter } from "next/navigation"
 import { doc } from "firebase/firestore"
+import { Badge } from "@/components/ui/badge"
 
 export function AppSidebar() {
   const pathname = usePathname()
@@ -74,8 +72,21 @@ export function AppSidebar() {
   const isAdmin = userRole === "administrator"
   const isAccountant = userRole === "accountant"
   const isTeacher = userRole === "teacher"
+  const isParent = userRole === "parent"
 
   const navigation = React.useMemo(() => {
+    // Parent Navigation
+    if (isParent) {
+      return [
+        {
+          title: "My Children",
+          url: "/dashboard/parent",
+          icon: Baby,
+        }
+      ]
+    }
+
+    // Staff/Admin Navigation
     const items = [
       {
         title: "Overview",
@@ -91,7 +102,6 @@ export function AppSidebar() {
         items: [
           { title: "Academic Structure", url: "/dashboard/academic", visible: isOwner || isAdmin },
           { title: "Curriculum", url: "/dashboard/academic", visible: true },
-          { title: "Assignments", url: "/dashboard/academic", visible: isOwner || isAdmin },
         ].filter(i => i.visible),
       },
       {
@@ -103,7 +113,6 @@ export function AppSidebar() {
           { title: "Directory", url: "/dashboard/students", visible: true },
           { title: "Exams", url: "/dashboard/exams", visible: isOwner || isAdmin || isTeacher },
           { title: "Personal Ledgers", url: "/dashboard/students/accounts", visible: isOwner || isAccountant },
-          { title: "ID Cards", url: "/dashboard/students/id-cards", visible: isOwner || isAdmin },
         ].filter(i => i.visible),
       },
       {
@@ -122,7 +131,6 @@ export function AppSidebar() {
         visible: isOwner || isAdmin || isTeacher,
         items: [
           { title: "Attendance", url: "/dashboard/attendance", visible: true },
-          { title: "Activity Logs", url: "/dashboard/logs", visible: isOwner },
         ].filter(i => i.visible),
       },
       {
@@ -134,14 +142,7 @@ export function AppSidebar() {
           { title: "Fee Setup", url: "/dashboard/finance/fees", visible: true },
           { title: "Payroll", url: "/dashboard/finance/payroll", visible: true },
           { title: "Expenses", url: "/dashboard/finance/expenses", visible: true },
-          { title: "AI Forecasts", url: "/dashboard/finance/forecast", visible: isOwner },
         ].filter(i => i.visible),
-      },
-      {
-        title: "AI Narratives",
-        url: "/dashboard/reports",
-        icon: FileText,
-        visible: isOwner || isAdmin || isTeacher,
       },
       {
         title: "Configuration",
@@ -151,7 +152,7 @@ export function AppSidebar() {
       },
     ]
     return items.filter(item => item.visible)
-  }, [userRole, isOwner, isAdmin, isAccountant, isTeacher])
+  }, [userRole, isOwner, isAdmin, isAccountant, isTeacher, isParent])
 
   if (!mounted) return (
     <Sidebar collapsible="icon" className="border-r border-border/40">
@@ -170,7 +171,7 @@ export function AppSidebar() {
           </div>
           {state === "expanded" && (
             <div className="flex flex-col gap-0.5 leading-none">
-              <span className="font-headline font-bold text-lg tracking-tight">Yebfa School Manager</span>
+              <span className="font-headline font-bold text-lg tracking-tight">Yebfa Manager</span>
               <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">System 2026</span>
             </div>
           )}
@@ -239,7 +240,6 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" className="hover:bg-accent/10 transition-colors" onClick={handleLogout}>
               <Avatar className="size-8 rounded-lg">
-                <AvatarImage src={user?.photoURL || ""} />
                 <AvatarFallback className="rounded-lg bg-primary text-primary-foreground font-bold">
                   {user?.email?.charAt(0).toUpperCase() || "U"}
                 </AvatarFallback>

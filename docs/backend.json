@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -40,79 +41,36 @@
     },
     "Student": {
       "title": "Student",
-      "description": "Comprehensive enterprise student enrollment record with 80+ potential fields.",
+      "description": "Comprehensive enterprise student enrollment record.",
       "type": "object",
       "properties": {
         "tenantId": { "type": "string" },
-        "admissionNumber": { "type": "string", "description": "Permanent Unique ID: e.g., APS-2026-000001" },
-        "studentId": { "type": "string", "description": "Short system ID" },
+        "admissionNumber": { "type": "string" },
+        "studentId": { "type": "string" },
+        "parentUid": { "type": "string", "description": "UID of the linked parent user account." },
         "firstName": { "type": "string" },
         "middleName": { "type": "string" },
         "lastName": { "type": "string" },
         "gender": { "type": "string", "enum": ["Male", "Female", "Other"] },
         "dateOfBirth": { "type": "string", "format": "date" },
-        "nationality": { "type": "string" },
-        "religion": { "type": "string" },
-        "bloodGroup": { "type": "string" },
-        "nhisNumber": { "type": "string" },
-        "gpsAddress": { "type": "string" },
-        "residentialAddress": { "type": "string" },
         "parentName": { "type": "string" },
         "parentPhone": { "type": "string" },
-        "parentEmail": { "type": "string" },
-        "guardianName": { "type": "string" },
-        "emergencyContact": { "type": "string" },
-        "medicalHistory": { "type": "string" },
-        "allergies": { "type": "string" },
-        "house": { "type": "string" },
-        "busRoute": { "type": "string" },
-        "hostel": { "type": "string" },
-        "previousSchool": { "type": "string" },
-        "admissionDate": { "type": "string", "format": "date" },
-        "gradeLevel": { "type": "string" },
-        "status": { "type": "string", "enum": ["active", "suspended", "graduated", "withdrawn"] },
-        "photoUrl": { "type": "string" },
-        "qrCodeData": { "type": "string" }
+        "status": { "type": "string", "enum": ["active", "suspended", "graduated", "withdrawn"] }
       },
       "required": ["tenantId", "firstName", "lastName", "admissionNumber"]
     },
-    "Staff": {
-      "title": "Staff Member",
-      "description": "Institutional employee record.",
+    "ExamRecord": {
+      "title": "Exam Record",
       "type": "object",
       "properties": {
         "tenantId": { "type": "string" },
-        "fullName": { "type": "string" },
-        "role": { "type": "string" },
-        "department": { "type": "string" },
-        "email": { "type": "string" },
-        "phoneNumber": { "type": "string" },
-        "staffId": { "type": "string" },
-        "joiningDate": { "type": "string" },
-        "institutionId": { "type": "string" }
-      },
-      "required": ["tenantId", "fullName", "role"]
-    },
-    "AcademicYear": {
-      "title": "Academic Year",
-      "type": "object",
-      "properties": {
-        "tenantId": { "type": "string" },
-        "year": { "type": "string" },
-        "status": { "type": "string", "enum": ["active", "archived"] }
-      },
-      "required": ["tenantId", "year"]
-    },
-    "Term": {
-      "title": "Academic Term",
-      "type": "object",
-      "properties": {
-        "tenantId": { "type": "string" },
-        "academicYearId": { "type": "string" },
-        "name": { "type": "string" },
-        "status": { "type": "string", "enum": ["active", "upcoming", "completed"] }
-      },
-      "required": ["tenantId", "academicYearId", "name"]
+        "studentId": { "type": "string" },
+        "parentUid": { "type": "string" },
+        "subjectId": { "type": "string" },
+        "examScore": { "type": "number" },
+        "classScore": { "type": "number" },
+        "totalScore": { "type": "number" }
+      }
     }
   },
   "auth": {
@@ -121,18 +79,9 @@
   "firestore": {
     "/users/{userId}": { "schema": "User" },
     "/institutions/{institutionId}": { "schema": "Institution" },
-    "/academic_years/{yearId}": { "schema": "AcademicYear" },
-    "/terms/{termId}": { "schema": "Term" },
-    "/classes/{classId}": { "schema": "Class" },
-    "/sections/{sectionId}": { "schema": "Section" },
     "/students/{studentId}": { "schema": "Student" },
-    "/staff/{staffId}": { "schema": "Staff" },
-    "/subjects/{subjectId}": { "schema": "Subject" },
-    "/teacher_assignments/{assignId}": { "schema": "TeacherAssignment" },
     "/exam_records/{recordId}": { "schema": "ExamRecord" },
-    "/approved_fees/{feeId}": { "schema": "FeeItem" },
-    "/student_ledger/{ledgerId}": { "schema": "StudentLedgerEntry" },
-    "/settings/{settingId}": { "description": "Global institutional settings" },
-    "/departments/{departmentId}": { "description": "Institutional department definitions" }
+    "/attendance/{attendanceId}": { "description": "Attendance logs" },
+    "/student_ledger/{ledgerId}": { "description": "Financial ledger" }
   }
 }
