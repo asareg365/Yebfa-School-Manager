@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,7 +15,8 @@ import {
   Home,
   Package,
   TrendingUp,
-  FileText
+  FileText,
+  CheckCircle2
 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import { useUser, useFirestore, useCollection } from "@/firebase"
@@ -26,6 +26,7 @@ import { collection, query, where } from "firebase/firestore"
 import { useEffect, useState, useMemo } from "react"
 import { generateDemoVideo } from "@/ai/flows/generate-demo-video"
 import { toast } from "@/hooks/use-toast"
+import { Badge } from "@/components/ui/badge"
 
 export default function Dashboard() {
   const { user, loading: authLoading } = useUser()
@@ -148,7 +149,7 @@ export default function Dashboard() {
             <div className="space-y-8">
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
-                  <span className="font-bold flex items-center gap-2"><CheckCircle className="size-4 text-green-600" /> Attendance Consistency</span>
+                  <span className="font-bold flex items-center gap-2"><CheckCircle2 className="size-4 text-green-600" /> Attendance Consistency</span>
                   <span className="text-muted-foreground">0% complete</span>
                 </div>
                 <Progress value={0} className="h-2 rounded-full" />
