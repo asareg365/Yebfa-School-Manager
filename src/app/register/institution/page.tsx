@@ -107,6 +107,17 @@ export default function InstitutionRegistrationPage() {
         createdAt: serverTimestamp()
       });
 
+      // 4. Create Default Departments
+      await setDoc(doc(db, "departments", institutionRef.id), {
+        tenantId: institutionRef.id,
+        items: [
+            "Administration",
+            "Academics",
+            "Accounts",
+            "Library"
+        ]
+      });
+
       toast({
         title: "System Provisioned",
         description: `${formData.name} is now live in the ecosystem.`,

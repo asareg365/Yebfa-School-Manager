@@ -168,6 +168,13 @@ service cloud.firestore {
 
     }
 
+    match /departments/{deptId} {
+
+      allow read, write:
+      if signedIn();
+
+    }
+
 
     // SUPER ADMIN FALLBACK
 

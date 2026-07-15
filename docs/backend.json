@@ -7,9 +7,11 @@
       "type": "object",
       "properties": {
         "email": { "type": "string", "format": "email" },
-        "role": { "type": "string", "enum": ["super_admin", "owner", "staff", "student"] },
+        "role": { "type": "string", "enum": ["super_admin", "school_owner", "staff", "student"] },
         "institutionId": { "type": "string", "description": "Reference to the school/institution this user belongs to." },
-        "displayName": { "type": "string" }
+        "tenantId": { "type": "string" },
+        "name": { "type": "string" },
+        "status": { "type": "string" }
       },
       "required": ["email", "role"]
     },
@@ -27,12 +29,13 @@
         "type": { "type": "string" },
         "gradeLevel": { "type": "string" },
         "specificGrades": { "type": "string" },
-        "subscriptionPlan": { "type": "string", "enum": ["basic", "premium", "enterprise"] },
+        "subscriptionPlan": { "type": "string", "enum": ["trial", "basic", "premium", "enterprise"] },
         "createdAt": { "type": "string", "format": "date-time" },
         "status": { "type": "string", "enum": ["active", "pending_review", "suspended"] },
         "academicYear": { "type": "string" },
         "currentTerm": { "type": "string" },
-        "customDepartments": { "type": "array", "items": { "type": "string" } }
+        "customDepartments": { "type": "array", "items": { "type": "string" } },
+        "ownerUid": { "type": "string" }
       },
       "required": ["name", "ownerEmail"]
     },
@@ -116,6 +119,29 @@
         "date": { "type": "string" },
         "institutionId": { "type": "string" }
       }
+    },
+    "SchoolSettings": {
+      "title": "School Settings",
+      "description": "Global configuration for a specific school.",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "institutionId": { "type": "string" },
+        "schoolName": { "type": "string" },
+        "currentTerm": { "type": "string" },
+        "academicYear": { "type": "string" },
+        "currency": { "type": "string" },
+        "timezone": { "type": "string" }
+      }
+    },
+    "DepartmentList": {
+      "title": "Department List",
+      "description": "List of functional departments for a school.",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "items": { "type": "array", "items": { "type": "string" } }
+      }
     }
   },
   "auth": {
@@ -149,6 +175,14 @@
     "/student_ledger/{ledgerId}": {
       "schema": "StudentLedgerEntry",
       "description": "Individual student account records."
+    },
+    "/settings/{institutionId}": {
+      "schema": "SchoolSettings",
+      "description": "Global settings for a school."
+    },
+    "/departments/{institutionId}": {
+      "schema": "DepartmentList",
+      "description": "Department list for a school."
     }
   }
 }
