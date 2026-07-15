@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { School, Loader2, AlertCircle, Info, ArrowRight, ShieldCheck, KeyRound } from "lucide-react"
+import { School, Loader2, AlertCircle, Info, ArrowRight, ShieldCheck } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth"
-import { useAuth, useUser } from "@/firebase"
+import { doc, getDoc } from "firebase/firestore"
+import { useAuth, useUser, useFirestore } from "@/firebase"
 import { firebaseConfig } from "@/firebase/config"
 import { toast } from "@/hooks/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -22,20 +23,45 @@ export default function LoginPage() {
   const [configError, setConfigError] = useState(false)
   const router = useRouter()
   const auth = useAuth()
+  const db = useFirestore()
   const { user, loading: authLoading } = useUser()
 
-  const isSuperAdminEmail = (email: string | null) => 
-    email === 'asareg365@gmail.com' || email === 'frankyeb@gmail.com'
+  const redirectUser = async (firebaseUser: any) => {
+    const userRef = doc(db, "users", firebaseUser.uid)
+    const userSnap = await getDoc(userRef)
+
+    if (!userSnap.exists()) {
+      toast({
+        variant: "destructive",
+        title: "Account Setup Required",
+        description: "Your account is not linked to a school."
+      })
+      return
+    }
+
+    const userData = userSnap.data()
+
+    if (userData.role === "super_admin") {
+      router.replace("/admin")
+      return
+    }
+
+    if (userData.tenantId || userData.institutionId) {
+      router.replace("/dashboard")
+      return
+    }
+
+    router.replace("/register/institution")
+  }
 
   useEffect(() => {
     if (firebaseConfig.apiKey === "REPLACEME" || !firebaseConfig.apiKey) {
       setConfigError(true)
     }
     if (!authLoading && user) {
-      const destination = isSuperAdminEmail(user.email) ? "/admin" : "/dashboard"
-      router.replace(destination)
+      redirectUser(user)
     }
-  }, [user, authLoading, router])
+  }, [user, authLoading])
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -44,26 +70,9 @@ export default function LoginPage() {
     
     try {
       const credential = await signInWithEmailAndPassword(auth, email, password)
-      const destination = isSuperAdminEmail(credential.user.email) ? "/admin" : "/dashboard"
-      router.replace(destination)
+      await redirectUser(credential.user)
     } catch (error: any) {
-      // Logic to auto-provision super admin on first attempt if account doesn't exist
-      if (error.code === 'auth/user-not-found' && isSuperAdminEmail(email)) {
-        try {
-          await createUserWithEmailAndPassword(auth, email, password)
-          router.replace("/admin")
-          return
-        } catch (regError: any) {
-          toast({
-            variant: "destructive",
-            title: "Provisioning Error",
-            description: regError.message,
-          })
-          setLoading(false)
-          return
-        }
-      }
-      
+      // Handle login failures
       toast({
         variant: "destructive",
         title: "Login Failed",
@@ -107,8 +116,7 @@ export default function LoginPage() {
     try {
       const provider = new GoogleAuthProvider()
       const credential = await signInWithPopup(auth, provider)
-      const destination = isSuperAdminEmail(credential.user.email) ? "/admin" : "/dashboard"
-      router.replace(destination)
+      await redirectUser(credential.user)
     } catch (error: any) {
       toast({
         variant: "destructive",
