@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -17,7 +16,12 @@ import {
   ShieldCheck,
   Users,
   GraduationCap,
-  Baby
+  Baby,
+  CreditCard,
+  Banknote,
+  Receipt,
+  TrendingUp,
+  BarChart3
 } from "lucide-react"
 
 import {
@@ -75,62 +79,34 @@ export function AppSidebar() {
   const isParent = userRole === "parent"
 
   const navigation = React.useMemo(() => {
-    // Parent Navigation
     if (isParent) {
       return [
-        {
-          title: "My Children",
-          url: "/dashboard/parent",
-          icon: Baby,
-        }
+        { title: "My Children", url: "/dashboard/parent", icon: Baby }
       ]
     }
 
-    // Staff/Admin Navigation
-    const items = [
-      {
-        title: "Overview",
-        url: "/dashboard",
-        icon: LayoutDashboard,
-        visible: true
-      },
+    return [
+      { title: "Overview", url: "/dashboard", icon: LayoutDashboard, visible: true },
       {
         title: "Academic Hub",
         url: "#",
         icon: BookOpen,
         visible: isOwner || isAdmin || isTeacher,
         items: [
-          { title: "Academic Structure", url: "/dashboard/academic", visible: isOwner || isAdmin },
-          { title: "Curriculum", url: "/dashboard/academic", visible: true },
+          { title: "Structure", url: "/dashboard/academic", visible: isOwner || isAdmin },
+          { title: "Lesson Plans", url: "/dashboard/academic?tab=plans", visible: true },
+          { title: "Tasks & HW", url: "/dashboard/academic?tab=tasks", visible: true },
         ].filter(i => i.visible),
       },
       {
-        title: "Student Management",
+        title: "Students",
         url: "#",
         icon: GraduationCap,
         visible: isOwner || isAdmin || isTeacher || isAccountant,
         items: [
           { title: "Directory", url: "/dashboard/students", visible: true },
-          { title: "Exams", url: "/dashboard/exams", visible: isOwner || isAdmin || isTeacher },
-          { title: "Personal Ledgers", url: "/dashboard/students/accounts", visible: isOwner || isAccountant },
-        ].filter(i => i.visible),
-      },
-      {
-        title: "Faculty Hub",
-        url: "#",
-        icon: Users,
-        visible: isOwner || isAdmin,
-        items: [
-          { title: "Staff Roster", url: "/dashboard/staff", visible: isOwner || isAdmin },
-        ].filter(i => i.visible),
-      },
-      {
-        title: "Operations",
-        url: "#",
-        icon: CheckCircle,
-        visible: isOwner || isAdmin || isTeacher,
-        items: [
-          { title: "Attendance", url: "/dashboard/attendance", visible: true },
+          { title: "Exams & Grading", url: "/dashboard/exams", visible: isOwner || isAdmin || isTeacher },
+          { title: "Ledgers", url: "/dashboard/students/accounts", visible: isOwner || isAccountant },
         ].filter(i => i.visible),
       },
       {
@@ -139,10 +115,26 @@ export function AppSidebar() {
         icon: Wallet,
         visible: isOwner || isAccountant,
         items: [
-          { title: "Fee Setup", url: "/dashboard/finance/fees", visible: true },
-          { title: "Payroll", url: "/dashboard/finance/payroll", visible: true },
+          { title: "Fee Items", url: "/dashboard/finance/fees", visible: true },
+          { title: "Invoicing", url: "/dashboard/finance/invoices", visible: true },
+          { title: "Payments", url: "/dashboard/finance/payments", visible: true },
           { title: "Expenses", url: "/dashboard/finance/expenses", visible: true },
+          { title: "Payroll", url: "/dashboard/finance/payroll", visible: true },
+          { title: "Profit & Loss", url: "/dashboard/finance/p-and-l", visible: true },
+          { title: "AI Forecast", url: "/dashboard/finance/forecast", visible: true },
         ].filter(i => i.visible),
+      },
+      {
+        title: "Faculty",
+        url: "/dashboard/staff",
+        icon: Users,
+        visible: isOwner || isAdmin,
+      },
+      {
+        title: "Operations",
+        url: "/dashboard/attendance",
+        icon: CheckCircle,
+        visible: isOwner || isAdmin || isTeacher,
       },
       {
         title: "Configuration",
@@ -150,8 +142,7 @@ export function AppSidebar() {
         icon: Settings,
         visible: isOwner || isAdmin,
       },
-    ]
-    return items.filter(item => item.visible)
+    ].filter(item => item.visible)
   }, [userRole, isOwner, isAdmin, isAccountant, isTeacher, isParent])
 
   if (!mounted) return (

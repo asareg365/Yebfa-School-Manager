@@ -1,4 +1,3 @@
-
 {
   "entities": {
     "User": {
@@ -9,7 +8,6 @@
         "uid": { "type": "string" },
         "email": { "type": "string", "format": "email" },
         "role": { "type": "string", "enum": ["super_admin", "school_owner", "administrator", "teacher", "accountant", "librarian", "student", "parent"] },
-        "institutionId": { "type": "string" },
         "tenantId": { "type": "string" },
         "name": { "type": "string" },
         "status": { "type": "string" }
@@ -27,90 +25,103 @@
         "ownerEmail": { "type": "string" },
         "ownerUid": { "type": "string" },
         "location": { "type": "string" },
-        "address": { "type": "string" },
-        "phone": { "type": "string" },
-        "type": { "type": "string" },
-        "gradeLevel": { "type": "string" },
-        "specificGrades": { "type": "string" },
         "subscriptionPlan": { "type": "string" },
-        "status": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "trialEndsAt": { "type": "string", "format": "date-time" }
+        "status": { "type": "string" }
       },
       "required": ["name", "tenantId"]
     },
-    "LessonPlan": {
-      "title": "Lesson Plan",
-      "description": "Teacher instructional blueprint.",
-      "type": "object",
-      "properties": {
-        "tenantId": { "type": "string" },
-        "staffId": { "type": "string" },
-        "subjectId": { "type": "string" },
-        "classId": { "type": "string" },
-        "topic": { "type": "string" },
-        "objectives": { "type": "string" },
-        "date": { "type": "string", "format": "date" },
-        "status": { "type": "string", "enum": ["draft", "approved", "completed"] }
-      },
-      "required": ["tenantId", "staffId", "subjectId", "topic"]
-    },
-    "AcademicTask": {
-      "title": "Academic Task",
-      "description": "Assignments and Homework entries.",
-      "type": "object",
-      "properties": {
-        "tenantId": { "type": "string" },
-        "subjectId": { "type": "string" },
-        "classId": { "type": "string" },
-        "title": { "type": "string" },
-        "type": { "type": "string", "enum": ["Assignment", "Homework", "Project"] },
-        "dueDate": { "type": "string", "format": "date" },
-        "maxPoints": { "type": "number" }
-      },
-      "required": ["tenantId", "title", "type"]
-    },
-    "Staff": {
-      "title": "Staff Record",
-      "description": "Comprehensive HR record for school employees.",
-      "type": "object",
-      "properties": {
-        "tenantId": { "type": "string" },
-        "staffId": { "type": "string" },
-        "fullName": { "type": "string" },
-        "role": { "type": "string", "enum": ["teacher", "accountant", "librarian", "receptionist", "cleaner", "security", "ict", "headmaster", "administrator"] },
-        "department": { "type": "string" },
-        "qualification": { "type": "string" },
-        "salary": { "type": "number" },
-        "bankName": { "type": "string" },
-        "accountNumber": { "type": "string" },
-        "ssnitNumber": { "type": "string" },
-        "nssfNumber": { "type": "string" },
-        "nextOfKinName": { "type": "string" },
-        "nextOfKinPhone": { "type": "string" },
-        "email": { "type": "string" },
-        "phoneNumber": { "type": "string" },
-        "joiningDate": { "type": "string", "format": "date" },
-        "contractType": { "type": "string", "enum": ["Full-time", "Part-time", "Contract"] },
-        "photoUrl": { "type": "string" }
-      },
-      "required": ["tenantId", "staffId", "fullName", "role"]
-    },
     "Student": {
       "title": "Student",
-      "description": "Comprehensive enterprise student enrollment record.",
+      "description": "Comprehensive student record.",
       "type": "object",
       "properties": {
         "tenantId": { "type": "string" },
         "admissionNumber": { "type": "string" },
         "studentId": { "type": "string" },
-        "parentUid": { "type": "string" },
         "firstName": { "type": "string" },
         "lastName": { "type": "string" },
-        "gender": { "type": "string", "enum": ["Male", "Female", "Other"] },
-        "status": { "type": "string" }
+        "gradeLevel": { "type": "string" },
+        "parentUid": { "type": "string" }
       },
       "required": ["tenantId", "firstName", "lastName", "admissionNumber"]
+    },
+    "FeeItem": {
+      "title": "Fee Item",
+      "description": "Definition of a specific charge (e.g., Tuition, Uniform).",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "name": { "type": "string" },
+        "amount": { "type": "number" },
+        "category": { "type": "string", "enum": ["Mandatory", "Optional", "One-time"] }
+      },
+      "required": ["tenantId", "name", "amount"]
+    },
+    "Invoice": {
+      "title": "Student Invoice",
+      "description": "Bill generated for a student for a specific term.",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "invoiceNumber": { "type": "string" },
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "items": { "type": "array" },
+        "totalAmount": { "type": "number" },
+        "discount": { "type": "number" },
+        "scholarship": { "type": "number" },
+        "amountDue": { "type": "number" },
+        "status": { "type": "string", "enum": ["Unpaid", "Partial", "Paid"] },
+        "term": { "type": "string" },
+        "academicYear": { "type": "string" }
+      },
+      "required": ["tenantId", "studentId", "totalAmount"]
+    },
+    "Transaction": {
+      "title": "Payment Transaction",
+      "description": "Record of cash, MoMo, or Card payment.",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "invoiceId": { "type": "string" },
+        "amount": { "type": "number" },
+        "paymentMethod": { "type": "string", "enum": ["Cash", "MTN MoMo", "Telecel Cash", "AirtelTigo Money", "Card", "Bank Transfer"] },
+        "reference": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" }
+      },
+      "required": ["tenantId", "amount", "paymentMethod"]
+    },
+    "ExpenseVoucher": {
+      "title": "Expenditure Voucher",
+      "description": "Record of operational spending.",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string", "format": "date" }
+      },
+      "required": ["tenantId", "amount", "category"]
+    },
+    "PayrollRecord": {
+      "title": "Payroll Disbursement",
+      "description": "Salary record for a staff member.",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "staffId": { "type": "string" },
+        "staffName": { "type": "string" },
+        "baseSalary": { "type": "number" },
+        "allowances": { "type": "number" },
+        "deductions": { "type": "number" },
+        "netSalary": { "type": "number" },
+        "status": { "type": "string", "enum": ["Pending", "Paid"] },
+        "month": { "type": "string" },
+        "year": { "type": "string" }
+      },
+      "required": ["tenantId", "staffId", "netSalary"]
     }
   },
   "auth": {
@@ -119,14 +130,11 @@
   "firestore": {
     "/users/{userId}": { "schema": "User" },
     "/institutions/{institutionId}": { "schema": "Institution" },
-    "/staff/{staffId}": { "schema": "Staff" },
     "/students/{studentId}": { "schema": "Student" },
-    "/lesson_plans/{planId}": { "schema": "LessonPlan" },
-    "/academic_tasks/{taskId}": { "schema": "AcademicTask" },
-    "/exam_records/{recordId}": { "description": "Academic scores" },
-    "/attendance/{attendanceId}": { "description": "Presence logs" },
-    "/student_ledger/{ledgerId}": { "description": "Fees history" },
-    "/settings/{settingId}": { "description": "School settings" },
-    "/departments/{departmentId}": { "description": "School departments" }
+    "/approved_fees/{feeId}": { "schema": "FeeItem" },
+    "/invoices/{invoiceId}": { "schema": "Invoice" },
+    "/transactions/{txnId}": { "schema": "Transaction" },
+    "/expenditure_vouchers/{voucherId}": { "schema": "ExpenseVoucher" },
+    "/payroll_records/{payrollId}": { "schema": "PayrollRecord" }
   }
 }
