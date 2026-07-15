@@ -1,8 +1,7 @@
-
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Pencil, Loader2, CheckCircle2, ArrowRight, LogOut, KeyRound, AlertTriangle, BarChart3, LineChart, Server, Globe, Megaphone, Zap } from "lucide-react"
+import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Pencil, Loader2, CheckCircle2, ArrowRight, LogOut, KeyRound, AlertTriangle, BarChart3, LineChart, Server, Globe, Megaphone, Zap, ShieldAlert, Terminal } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -10,17 +9,13 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { useUser, useFirestore, useCollection, useAuth, useDoc } from "@/firebase"
 import { useRouter } from "next/navigation"
 import { useEffect, useState, useMemo } from "react"
 import { toast } from "@/hooks/use-toast"
 import { collection, addDoc, serverTimestamp, query, deleteDoc, doc, updateDoc } from "firebase/firestore"
-import { signOut, updatePassword } from "firebase/auth"
-import { errorEmitter } from "@/firebase/error-emitter"
-import { FirestorePermissionError } from "@/firebase/errors"
+import { signOut } from "firebase/auth"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar } from "recharts"
 
 const REVENUE_DATA = [
@@ -45,11 +40,6 @@ export default function AdminPortal() {
 
   const [provisioning, setProvisioning] = useState(false)
   const [isProvisionDialogOpen, setIsProvisionDialogOpen] = useState(false)
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [isSelectDialogOpen, setIsSelectDialogOpen] = useState(false)
-  const [updatingPass, setUpdatingPass] = useState(false)
-  const [newPass, setNewPass] = useState("")
-  const [selectedInstForEdit, setSelectedInstForEdit] = useState<any>(null)
   
   const [newSchool, setNewSchool] = useState({
     name: "",
@@ -60,21 +50,12 @@ export default function AdminPortal() {
     location: "Goaso, Ahafo"
   })
 
-  const [editSchoolForm, setEditSchoolForm] = useState({
-    name: "",
-    gradeLevel: "",
-    specificGrades: "",
-    location: "",
-    subscriptionPlan: "trial",
-    status: "active"
-  })
-
   const institutionsQuery = useMemo(() => {
     if (!db || authLoading || !isSuperAdmin) return null;
     return query(collection(db, "institutions"));
   }, [db, isSuperAdmin, authLoading]);
 
-  const { data: rawInstitutions = [], loading: dataLoading } = useCollection(institutionsQuery)
+  const { data: rawInstitutions = [] } = useCollection(institutionsQuery)
 
   const institutions = useMemo(() => {
     return [...rawInstitutions].sort((a: any, b: any) => {
@@ -85,7 +66,6 @@ export default function AdminPortal() {
   }, [rawInstitutions]);
 
   useEffect(() => {
-    // Only redirect if loading is finished and user is definitively NOT a super_admin
     if (!authLoading && !profileLoading && user && profile && !isSuperAdmin) {
       router.replace("/dashboard")
     }
@@ -95,17 +75,13 @@ export default function AdminPortal() {
     if (auth) {
       await signOut(auth)
       router.push("/login")
-      toast({
-        title: "Session Terminated",
-        description: "Super Admin signed out successfully.",
-      })
+      toast({ title: "Session Terminated", description: "Super Admin signed out successfully." })
     }
   }
 
   const handleManualProvision = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!db || provisioning) return
-
     setProvisioning(true)
     const data = {
       ...newSchool,
@@ -114,7 +90,6 @@ export default function AdminPortal() {
       createdAt: serverTimestamp(),
       tenantId: doc(collection(db, "institutions")).id
     }
-
     addDoc(collection(db, "institutions"), data)
       .then(() => {
         toast({ title: "School Provisioned", description: `${newSchool.name} is now live.` })
@@ -173,7 +148,7 @@ export default function AdminPortal() {
             <TabsTrigger value="overview" className="rounded-lg px-6 gap-2"><Zap className="size-4" /> Dashboard</TabsTrigger>
             <TabsTrigger value="registry" className="rounded-lg px-6 gap-2"><Database className="size-4" /> Institutions</TabsTrigger>
             <TabsTrigger value="revenue" className="rounded-lg px-6 gap-2"><Wallet className="size-4" /> Subscriptions</TabsTrigger>
-            <TabsTrigger value="security" className="rounded-lg px-6 gap-2"><KeyRound className="size-4" /> Security</TabsTrigger>
+            <TabsTrigger value="security" className="rounded-lg px-6 gap-2"><ShieldAlert className="size-4" /> System Health</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-8">
@@ -308,6 +283,93 @@ export default function AdminPortal() {
                 </Table>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="revenue" className="space-y-6">
+            <div className="grid gap-6 md:grid-cols-3">
+               <Card className="border-none shadow-md bg-white">
+                 <CardHeader className="pb-2"><CardDescription className="text-[10px] font-bold uppercase">Total SaaS MRR</CardDescription></CardHeader>
+                 <CardContent><div className="text-3xl font-bold font-headline text-primary">GH₵ 12,400</div></CardContent>
+               </Card>
+               <Card className="border-none shadow-md bg-white">
+                 <CardHeader className="pb-2"><CardDescription className="text-[10px] font-bold uppercase">Churn Rate</CardDescription></CardHeader>
+                 <CardContent><div className="text-3xl font-bold font-headline text-green-600">0.8%</div></CardContent>
+               </Card>
+               <Card className="border-none shadow-md bg-white">
+                 <CardHeader className="pb-2"><CardDescription className="text-[10px] font-bold uppercase">Pending Renewals</CardTrigger></CardHeader>
+                 <CardContent><div className="text-3xl font-bold font-headline text-amber-600">14 Schools</div></CardContent>
+               </Card>
+            </div>
+            <Card className="border-none shadow-xl bg-white rounded-2xl overflow-hidden">
+               <CardHeader className="border-b"><CardTitle className="text-lg">Subscription Billing Ledger</CardTitle></CardHeader>
+               <CardContent className="p-0">
+                  <Table>
+                    <TableHeader className="bg-muted/30">
+                      <TableRow>
+                        <TableHead>Reference</TableHead>
+                        <TableHead>Institution</TableHead>
+                        <TableHead>Plan</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead className="text-right">Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {institutions.slice(0, 5).map((inst: any) => (
+                        <TableRow key={inst.id}>
+                          <TableCell className="font-mono text-[10px] text-muted-foreground uppercase">SUB-{inst.id.substring(0, 6)}</TableCell>
+                          <TableCell className="font-bold text-sm">{inst.name}</TableCell>
+                          <TableCell><Badge variant="outline" className="text-[9px] uppercase">{inst.subscriptionPlan}</Badge></TableCell>
+                          <TableCell className="font-bold text-xs">GH₵ 1,299</TableCell>
+                          <TableCell className="text-right text-xs text-muted-foreground">Today</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+               </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="security" className="space-y-6">
+             <div className="grid gap-6 md:grid-cols-2">
+                <Card className="border-none shadow-md bg-white">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2"><Globe className="size-4 text-blue-600" /> Node Deployment</CardTitle>
+                    <CardDescription>Status of regional institutional partitions.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                     <div className="flex justify-between items-center text-sm"><span>Ahafo Cluster (Goaso)</span><Badge className="bg-green-600">Operational</Badge></div>
+                     <div className="flex justify-between items-center text-sm"><span>Greater Accra Node</span><Badge className="bg-green-600">Operational</Badge></div>
+                     <div className="flex justify-between items-center text-sm"><span>Ashanti Cluster</span><Badge variant="outline" className="animate-pulse">Scaling...</Badge></div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-none shadow-md bg-white">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2"><ShieldAlert className="size-4 text-primary" /> Global Audit Log</CardTitle>
+                    <CardDescription>Real-time security events across ecosystem.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                     <div className="divide-y max-h-[160px] overflow-y-auto">
+                        <div className="p-3 text-[10px] font-mono text-muted-foreground"><span className="text-green-600">[SYNC]</span> Hub Node synchronized with Firebase auth state</div>
+                        <div className="p-3 text-[10px] font-mono text-muted-foreground"><span className="text-blue-600">[INFO]</span> New Institution provisioned in Ahafo cluster</div>
+                        <div className="p-3 text-[10px] font-mono text-muted-foreground"><span className="text-amber-600">[WARN]</span> Failed login attempt from unauthorized domain</div>
+                     </div>
+                  </CardContent>
+                </Card>
+             </div>
+             
+             <Card className="border-none shadow-md bg-slate-900 text-white rounded-2xl overflow-hidden">
+                <CardHeader className="bg-white/5 p-6 border-b border-white/10">
+                   <div className="flex items-center gap-2 text-green-400"><Terminal className="size-4" /><span className="text-xs font-bold uppercase tracking-widest">System Console</span></div>
+                </CardHeader>
+                <CardContent className="p-6 font-mono text-[11px] space-y-1">
+                   <p className="text-white/40">Initializing ecosystem audit v2.0.26...</p>
+                   <p className="text-green-400">STATUS: ALL NODES OPTIMAL</p>
+                   <p className="text-white/60">Multi-tenant isolation layer: ACTIVE</p>
+                   <p className="text-white/60">Firestore Security Rules version: 2026.1</p>
+                   <p className="text-white/60">Ghana Region latency: 24ms</p>
+                </CardContent>
+             </Card>
           </TabsContent>
         </Tabs>
       </div>

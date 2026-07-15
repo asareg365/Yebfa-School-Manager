@@ -5,9 +5,7 @@ import {
   Users, 
   GraduationCap, 
   Wallet, 
-  Clock, 
   Activity, 
-  ArrowUpRight, 
   PlayCircle, 
   Loader2,
   Library,
@@ -40,15 +38,50 @@ export default function Dashboard() {
     if (storedId) setInstitutionId(storedId)
   }, [])
 
+  // Core Data Queries
   const studentsQuery = useMemo(() => institutionId ? query(collection(db, "students"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   const staffQuery = useMemo(() => institutionId ? query(collection(db, "staff"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   const booksQuery = useMemo(() => institutionId ? query(collection(db, "library_books"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   const hostelQuery = useMemo(() => institutionId ? query(collection(db, "hostels"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
 
-  const { data: students } = useCollection(studentsQuery)
-  const { data: staff } = useCollection(staffQuery)
-  const { data: books } = useCollection(booksQuery)
-  const { data: hostels } = useCollection(hostelQuery)
+  // Lifecycle Data Queries
+  const attQuery = useMemo(() => institutionId ? query(collection(db, "attendance"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
+  const examQuery = useMemo(() => institutionId ? query(collection(db, "exam_records"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
+  const invQuery = useMemo(() => institutionId ? query(collection(db, "invoices"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
+
+  const { data: students = [] } = useCollection(studentsQuery)
+  const { data: staff = [] } = useCollection(staffQuery)
+  const { data: books = [] } = useCollection(booksQuery)
+  const { data: hostels = [] } = useCollection(hostelQuery)
+  
+  const { data: attendanceDocs = [] } = useCollection(attQuery)
+  const { data: examDocs = [] } = useCollection(examQuery)
+  const { data: invoiceDocs = [] } = useCollection(invQuery)
+
+  // Real-time Lifecycle Calculations
+  const attendanceProgress = useMemo(() => {
+    if (students.length === 0 || attendanceDocs.length === 0) return 0;
+    const uniqueStudentsToday = new Set(attendanceDocs.map((a: any) => a.studentId)).size;
+    return Math.min(100, Math.round((uniqueStudentsToday / students.length) * 100));
+  }, [students, attendanceDocs]);
+
+  const assessmentProgress = useMemo(() => {
+    if (students.length === 0 || examDocs.length === 0) return 0;
+    const uniqueStudentsAssessed = new Set(examDocs.map((e: any) => e.studentId)).size;
+    return Math.min(100, Math.round((uniqueStudentsAssessed / students.length) * 100));
+  }, [students, examDocs]);
+
+  const feeCycleProgress = useMemo(() => {
+    if (invoiceDocs.length === 0) return 0;
+    const totalBilled = invoiceDocs.reduce((a, c: any) => a + (c.totalAmount || 0), 0);
+    const totalPaid = invoiceDocs.reduce((a, c: any) => a + (c.amountPaid || 0), 0);
+    if (totalBilled === 0) return 0;
+    return Math.min(100, Math.round((totalPaid / totalBilled) * 100));
+  }, [invoiceDocs]);
+
+  const totalBilledValue = useMemo(() => {
+    return invoiceDocs.reduce((a, c: any) => a + (c.totalAmount || 0), 0);
+  }, [invoiceDocs]);
 
   const handleGenerateVideo = async () => {
     setVideoLoading(true)
@@ -113,10 +146,10 @@ export default function Dashboard() {
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { title: "Student Roster", value: students?.length || 0, icon: GraduationCap, label: "Active Enrollment", color: "text-blue-600", bg: "bg-blue-50" },
-          { title: "Faculty Size", value: staff?.length || 0, icon: Users, label: "Verified Staff", color: "text-purple-600", bg: "bg-purple-50" },
-          { title: "Library Assets", value: books?.length || 0, icon: Library, label: "Cataloged Titles", color: "text-amber-600", bg: "bg-amber-50" },
-          { title: "Hostel Status", value: `${hostels?.reduce((a,c:any)=>a+c.occupiedBeds,0) || 0}/${hostels?.reduce((a,c:any)=>a+c.capacity,0) || 0}`, icon: Home, label: "Bed Occupancy", color: "text-green-600", bg: "bg-green-50" }
+          { title: "Student Roster", value: students.length, icon: GraduationCap, label: "Active Enrollment", color: "text-blue-600", bg: "bg-blue-50" },
+          { title: "Faculty Size", value: staff.length, icon: Users, label: "Verified Staff", color: "text-purple-600", bg: "bg-purple-50" },
+          { title: "Library Assets", value: books.length, icon: Library, label: "Cataloged Titles", color: "text-amber-600", bg: "bg-amber-50" },
+          { title: "Hostel Status", value: `${hostels.reduce((a,c:any)=>a+(c.occupiedBeds || 0),0)}/${hostels.reduce((a,c:any)=>a+(c.capacity || 0),0)}`, icon: Home, label: "Bed Occupancy", color: "text-green-600", bg: "bg-green-50" }
         ].map((stat) => (
           <Card key={stat.title} className="overflow-hidden border-none shadow-md bg-white hover:shadow-xl transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -141,7 +174,7 @@ export default function Dashboard() {
             <div className="flex justify-between items-center">
               <div>
                 <CardTitle className="text-xl font-headline font-bold">Academic Lifecycle</CardTitle>
-                <CardDescription>Term 2, 2026 synchronization status.</CardDescription>
+                <CardDescription>Termly synchronization and task completion tracking.</CardDescription>
               </div>
               <TrendingUp className="size-5 text-primary opacity-20" />
             </div>
@@ -151,23 +184,23 @@ export default function Dashboard() {
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="font-bold flex items-center gap-2"><CheckCircle2 className="size-4 text-green-600" /> Attendance Consistency</span>
-                  <span className="text-muted-foreground">0% complete</span>
+                  <span className="text-muted-foreground">{attendanceProgress}% complete</span>
                 </div>
-                <Progress value={0} className="h-2 rounded-full" />
+                <Progress value={attendanceProgress} className="h-2 rounded-full" />
               </div>
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="font-bold flex items-center gap-2"><FileText className="size-4 text-blue-600" /> Continuous Assessment</span>
-                  <span className="text-muted-foreground">Term 2 Registry Active</span>
+                  <span className="text-muted-foreground">{assessmentProgress}% entries finalized</span>
                 </div>
-                <Progress value={45} className="h-2 rounded-full" />
+                <Progress value={assessmentProgress} className="h-2 rounded-full" />
               </div>
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="font-bold flex items-center gap-2"><Wallet className="size-4 text-amber-600" /> Fee Collection Cycle</span>
-                  <span className="text-muted-foreground">Target: GH₵ ---</span>
+                  <span className="text-muted-foreground">Target: GH₵ {totalBilledValue.toLocaleString()}</span>
                 </div>
-                <Progress value={20} className="h-2 rounded-full" />
+                <Progress value={feeCycleProgress} className="h-2 rounded-full" />
               </div>
             </div>
           </CardContent>
@@ -179,7 +212,7 @@ export default function Dashboard() {
               <CardTitle className="flex items-center gap-2">
                 <ShieldCheck className="size-5" /> Institutional Safety
               </CardTitle>
-              <CardDescription className="text-primary-foreground/60">Global audit active for {user?.displayName}.</CardDescription>
+              <CardDescription className="text-primary-foreground/60">Global audit active for system credentials.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="p-4 rounded-2xl bg-white/10 space-y-3">
