@@ -16,7 +16,9 @@ import {
   ShieldCheck,
   Users,
   GraduationCap,
-  Banknote
+  Banknote,
+  Receipt,
+  ClipboardList
 } from "lucide-react"
 
 import {
@@ -36,67 +38,10 @@ import {
 } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { useUser, useAuth } from "@/firebase"
+import { useUser, useAuth, useFirestore, useDoc } from "@/firebase"
 import { signOut } from "firebase/auth"
 import { useRouter } from "next/navigation"
-
-const navigation = [
-  {
-    title: "Overview",
-    url: "/dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    title: "Student Management",
-    url: "#",
-    icon: GraduationCap,
-    items: [
-      { title: "Directory & Enrollment", url: "/dashboard/students" },
-      { title: "Examination Center", url: "/dashboard/exams" },
-      { title: "Personal Fee Ledger", url: "/dashboard/students/accounts" },
-      { title: "ID Card Generator", url: "/dashboard/students/id-cards" },
-    ],
-  },
-  {
-    title: "Teachers Management",
-    url: "#",
-    icon: Users,
-    items: [
-      { title: "Staff Roster", url: "/dashboard/staff" },
-      { title: "Departmental Links", url: "/dashboard/academic" },
-    ],
-  },
-  {
-    title: "Daily Operations",
-    url: "#",
-    icon: CheckCircle,
-    items: [
-      { title: "Daily Attendance", url: "/dashboard/attendance" },
-      { title: "Activity Logs", url: "/dashboard/logs" },
-    ],
-  },
-  {
-    title: "Financial Hub",
-    url: "#",
-    icon: Wallet,
-    items: [
-      { title: "Approved Fee Setup", url: "/dashboard/finance/fees" },
-      { title: "Payroll Processor", url: "/dashboard/finance/payroll" },
-      { title: "Expense Tracker", url: "/dashboard/finance/expenses" },
-      { title: "AI Forecasts", url: "/dashboard/finance/forecast" },
-    ],
-  },
-  {
-    title: "AI Narratives",
-    url: "/dashboard/reports",
-    icon: FileText,
-  },
-  {
-    title: "Configuration",
-    url: "/dashboard/settings",
-    icon: Settings,
-  },
-]
+import { doc } from "firebase/firestore"
 
 export function AppSidebar() {
   const pathname = usePathname()
@@ -104,7 +49,12 @@ export function AppSidebar() {
   const [mounted, setMounted] = React.useState(false)
   const { user } = useUser()
   const auth = useAuth()
+  const db = useFirestore()
   const router = useRouter()
+
+  const userProfileRef = React.useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
+  const { data: profile } = useDoc(userProfileRef)
+  const userRole = profile?.role || "guest"
 
   React.useEffect(() => {
     setMounted(true)
@@ -117,7 +67,79 @@ export function AppSidebar() {
     }
   }
 
-  const isSuperAdmin = user?.email === 'asareg365@gmail.com' || user?.email === 'frankyeb@gmail.com'
+  const isSuperAdmin = userRole === "super_admin"
+  const isOwner = userRole === "school_owner"
+  const isAdmin = userRole === "administrator"
+  const isAccountant = userRole === "accountant"
+  const isTeacher = userRole === "teacher"
+
+  const navigation = React.useMemo(() => {
+    const items = [
+      {
+        title: "Overview",
+        url: "/dashboard",
+        icon: LayoutDashboard,
+        visible: true
+      },
+      {
+        title: "Student Management",
+        url: "#",
+        icon: GraduationCap,
+        visible: isOwner || isAdmin || isTeacher || isAccountant,
+        items: [
+          { title: "Directory", url: "/dashboard/students", visible: true },
+          { title: "Exams", url: "/dashboard/exams", visible: isOwner || isAdmin || isTeacher },
+          { title: "Personal Ledgers", url: "/dashboard/students/accounts", visible: isOwner || isAccountant },
+          { title: "ID Cards", url: "/dashboard/students/id-cards", visible: isOwner || isAdmin },
+        ].filter(i => i.visible),
+      },
+      {
+        title: "Faculty Hub",
+        url: "#",
+        icon: Users,
+        visible: isOwner || isAdmin,
+        items: [
+          { title: "Staff Roster", url: "/dashboard/staff", visible: isOwner || isAdmin },
+          { title: "Academic Setup", url: "/dashboard/academic", visible: isOwner || isAdmin },
+        ].filter(i => i.visible),
+      },
+      {
+        title: "Operations",
+        url: "#",
+        icon: CheckCircle,
+        visible: isOwner || isAdmin || isTeacher,
+        items: [
+          { title: "Attendance", url: "/dashboard/attendance", visible: true },
+          { title: "Activity Logs", url: "/dashboard/logs", visible: isOwner },
+        ].filter(i => i.visible),
+      },
+      {
+        title: "Financial Hub",
+        url: "#",
+        icon: Wallet,
+        visible: isOwner || isAccountant,
+        items: [
+          { title: "Fee Setup", url: "/dashboard/finance/fees", visible: true },
+          { title: "Payroll", url: "/dashboard/finance/payroll", visible: true },
+          { title: "Expenses", url: "/dashboard/finance/expenses", visible: true },
+          { title: "AI Forecasts", url: "/dashboard/finance/forecast", visible: isOwner },
+        ].filter(i => i.visible),
+      },
+      {
+        title: "AI Narratives",
+        url: "/dashboard/reports",
+        icon: FileText,
+        visible: isOwner || isAdmin || isTeacher,
+      },
+      {
+        title: "Configuration",
+        url: "/dashboard/settings",
+        icon: Settings,
+        visible: isOwner || isAdmin,
+      },
+    ]
+    return items.filter(item => item.visible)
+  }, [userRole, isOwner, isAdmin, isAccountant, isTeacher])
 
   if (!mounted) return (
     <Sidebar collapsible="icon" className="border-r border-border/40">
@@ -211,8 +233,10 @@ export function AppSidebar() {
                 </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight ml-2">
-                <span className="truncate font-semibold">{user?.displayName || "Administrator"}</span>
-                <span className="truncate text-xs text-muted-foreground">{user?.email}</span>
+                <div className="flex flex-col">
+                   <span className="truncate font-semibold">{user?.displayName || "Administrator"}</span>
+                   <Badge variant="secondary" className="text-[8px] h-3 px-1 w-fit uppercase bg-primary/10 text-primary border-none">{userRole.replace('_', ' ')}</Badge>
+                </div>
               </div>
               <LogOut className="ml-auto size-4 opacity-50" />
             </SidebarMenuButton>
