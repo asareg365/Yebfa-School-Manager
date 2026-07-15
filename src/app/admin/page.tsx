@@ -18,15 +18,6 @@ import { signOut } from "firebase/auth"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar } from "recharts"
 
-const REVENUE_DATA = [
-  { month: "Jan", revenue: 45000, schools: 12 },
-  { month: "Feb", revenue: 52000, schools: 15 },
-  { month: "Mar", revenue: 61000, schools: 18 },
-  { month: "Apr", revenue: 58000, schools: 22 },
-  { month: "May", revenue: 75000, schools: 28 },
-  { month: "Jun", revenue: 89000, schools: 35 },
-]
-
 export default function AdminPortal() {
   const { user, loading: authLoading } = useUser()
   const auth = useAuth()
@@ -123,7 +114,7 @@ export default function AdminPortal() {
   if (!isSuperAdmin) return null
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 lg:p-12 space-y-10 animate-in fade-in duration-700">
+    <div className="min-h-screen bg-slate-50 p-6 lg:p-12 space-y-10 animate-in fade-in duration-300">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 max-w-7xl mx-auto w-full">
         <div className="space-y-2">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest">
@@ -144,20 +135,20 @@ export default function AdminPortal() {
 
       <div className="max-w-7xl mx-auto w-full">
         <Tabs defaultValue="overview" className="space-y-10">
-          <TabsList className="bg-white border p-1 rounded-xl shadow-sm h-auto flex-wrap">
+          <TabsList className="bg-white border p-1 rounded-xl shadow-sm h-auto flex-wrap transition-all">
             <TabsTrigger value="overview" className="rounded-lg px-6 gap-2"><Zap className="size-4" /> Dashboard</TabsTrigger>
             <TabsTrigger value="registry" className="rounded-lg px-6 gap-2"><Database className="size-4" /> Institutions</TabsTrigger>
             <TabsTrigger value="revenue" className="rounded-lg px-6 gap-2"><Wallet className="size-4" /> Subscriptions</TabsTrigger>
             <TabsTrigger value="security" className="rounded-lg px-6 gap-2"><ShieldAlert className="size-4" /> System Health</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-8">
+          <TabsContent value="overview" className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
             <div className="grid gap-6 md:grid-cols-4">
                {[
-                 { title: "Total Schools", value: institutions.length, icon: School, trend: "+4 this month" },
-                 { title: "Active Users", value: "1,242", icon: Users, trend: "+12% usage" },
-                 { title: "Global Revenue", value: "GH₵ 89,400", icon: Wallet, trend: "Target: 100k" },
-                 { title: "Server Status", value: "99.9%", icon: Server, trend: "Goaso Node" }
+                 { title: "Total Schools", value: institutions.length, icon: School, trend: "Live registry count" },
+                 { title: "Active Users", value: "---", icon: Users, trend: "Syncing telemetry..." },
+                 { title: "Global Revenue", value: "GH₵ 0.00", icon: Wallet, trend: "Waiting for cycle" },
+                 { title: "Server Status", value: "Optimal", icon: Server, trend: "Goaso Node Active" }
                ].map((stat, i) => (
                  <Card key={i} className="border-none shadow-sm bg-white">
                    <CardHeader className="pb-2 flex flex-row items-center justify-between">
@@ -166,7 +157,7 @@ export default function AdminPortal() {
                    </CardHeader>
                    <CardContent>
                      <div className="text-3xl font-bold font-headline">{stat.value}</div>
-                     <p className="text-[10px] text-green-600 font-bold mt-1">{stat.trend}</p>
+                     <p className="text-[10px] text-muted-foreground font-bold mt-1 uppercase">{stat.trend}</p>
                    </CardContent>
                  </Card>
                ))}
@@ -176,24 +167,10 @@ export default function AdminPortal() {
               <Card className="border-none shadow-md bg-white">
                 <CardHeader>
                   <CardTitle className="text-lg">Growth & Revenue (2026)</CardTitle>
-                  <CardDescription>Termly performance across all tenants.</CardDescription>
+                  <CardDescription>Visualizing onboarding trends across the ecosystem.</CardDescription>
                 </CardHeader>
-                <CardContent className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={REVENUE_DATA}>
-                      <defs>
-                        <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#1a1f2c" stopOpacity={0.1}/>
-                          <stop offset="95%" stopColor="#1a1f2c" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="month" fontSize={11} tickLine={false} axisLine={false} />
-                      <YAxis fontSize={11} tickLine={false} axisLine={false} />
-                      <Tooltip />
-                      <Area type="monotone" dataKey="revenue" stroke="#1a1f2c" fillOpacity={1} fill="url(#colorRev)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                <CardContent className="h-[300px] flex items-center justify-center text-muted-foreground italic text-sm">
+                   Awaiting multi-tenant dataset for trend analysis...
                 </CardContent>
               </Card>
 
@@ -202,16 +179,8 @@ export default function AdminPortal() {
                   <CardTitle className="text-lg">Institutional Distribution</CardTitle>
                   <CardDescription>Schools onboarded per month.</CardDescription>
                 </CardHeader>
-                <CardContent className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={REVENUE_DATA}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="month" fontSize={11} tickLine={false} axisLine={false} />
-                      <YAxis fontSize={11} tickLine={false} axisLine={false} />
-                      <Tooltip />
-                      <Bar dataKey="schools" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                <CardContent className="h-[300px] flex items-center justify-center text-muted-foreground italic text-sm">
+                   Awaiting historical data for 2026...
                 </CardContent>
               </Card>
             </div>
@@ -234,7 +203,7 @@ export default function AdminPortal() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="registry" className="space-y-10">
+          <TabsContent value="registry" className="space-y-10 animate-in fade-in duration-300">
             <Card className="border-none shadow-xl bg-white overflow-hidden rounded-2xl">
               <CardHeader className="bg-white border-b px-6 py-6">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -279,57 +248,41 @@ export default function AdminPortal() {
                         </TableCell>
                       </TableRow>
                     ))}
+                    {institutions.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-20 text-muted-foreground italic">No institutions provisioned.</TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="revenue" className="space-y-6">
+          <TabsContent value="revenue" className="space-y-6 animate-in fade-in duration-300">
             <div className="grid gap-6 md:grid-cols-3">
                <Card className="border-none shadow-md bg-white">
                  <CardHeader className="pb-2"><CardDescription className="text-[10px] font-bold uppercase">Total SaaS MRR</CardDescription></CardHeader>
-                 <CardContent><div className="text-3xl font-bold font-headline text-primary">GH₵ 12,400</div></CardContent>
+                 <CardContent><div className="text-3xl font-bold font-headline text-primary">GH₵ 0.00</div></CardContent>
                </Card>
                <Card className="border-none shadow-md bg-white">
                  <CardHeader className="pb-2"><CardDescription className="text-[10px] font-bold uppercase">Churn Rate</CardDescription></CardHeader>
-                 <CardContent><div className="text-3xl font-bold font-headline text-green-600">0.8%</div></CardContent>
+                 <CardContent><div className="text-3xl font-bold font-headline text-green-600">0.0%</div></CardContent>
                </Card>
                <Card className="border-none shadow-md bg-white">
-                 <CardHeader className="pb-2"><CardDescription className="text-[10px] font-bold uppercase">Pending Renewals</CardTrigger></CardHeader>
-                 <CardContent><div className="text-3xl font-bold font-headline text-amber-600">14 Schools</div></CardContent>
+                 <CardHeader className="pb-2"><CardDescription className="text-[10px] font-bold uppercase">Pending Renewals</CardDescription></CardHeader>
+                 <CardContent><div className="text-3xl font-bold font-headline text-amber-600">0 Schools</div></CardContent>
                </Card>
             </div>
             <Card className="border-none shadow-xl bg-white rounded-2xl overflow-hidden">
                <CardHeader className="border-b"><CardTitle className="text-lg">Subscription Billing Ledger</CardTitle></CardHeader>
-               <CardContent className="p-0">
-                  <Table>
-                    <TableHeader className="bg-muted/30">
-                      <TableRow>
-                        <TableHead>Reference</TableHead>
-                        <TableHead>Institution</TableHead>
-                        <TableHead>Plan</TableHead>
-                        <TableHead>Amount</TableHead>
-                        <TableHead className="text-right">Date</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {institutions.slice(0, 5).map((inst: any) => (
-                        <TableRow key={inst.id}>
-                          <TableCell className="font-mono text-[10px] text-muted-foreground uppercase">SUB-{inst.id.substring(0, 6)}</TableCell>
-                          <TableCell className="font-bold text-sm">{inst.name}</TableCell>
-                          <TableCell><Badge variant="outline" className="text-[9px] uppercase">{inst.subscriptionPlan}</Badge></TableCell>
-                          <TableCell className="font-bold text-xs">GH₵ 1,299</TableCell>
-                          <TableCell className="text-right text-xs text-muted-foreground">Today</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+               <CardContent className="p-20 text-center text-muted-foreground italic text-sm">
+                  Waiting for subscription cycle synchronization...
                </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="security" className="space-y-6">
+          <TabsContent value="security" className="space-y-6 animate-in fade-in duration-300">
              <div className="grid gap-6 md:grid-cols-2">
                 <Card className="border-none shadow-md bg-white">
                   <CardHeader>
@@ -339,7 +292,7 @@ export default function AdminPortal() {
                   <CardContent className="space-y-4">
                      <div className="flex justify-between items-center text-sm"><span>Ahafo Cluster (Goaso)</span><Badge className="bg-green-600">Operational</Badge></div>
                      <div className="flex justify-between items-center text-sm"><span>Greater Accra Node</span><Badge className="bg-green-600">Operational</Badge></div>
-                     <div className="flex justify-between items-center text-sm"><span>Ashanti Cluster</span><Badge variant="outline" className="animate-pulse">Scaling...</Badge></div>
+                     <div className="flex justify-between items-center text-sm"><span>System Firewall</span><Badge className="bg-green-600">Active</Badge></div>
                   </CardContent>
                 </Card>
 
@@ -350,9 +303,8 @@ export default function AdminPortal() {
                   </CardHeader>
                   <CardContent className="p-0">
                      <div className="divide-y max-h-[160px] overflow-y-auto">
-                        <div className="p-3 text-[10px] font-mono text-muted-foreground"><span className="text-green-600">[SYNC]</span> Hub Node synchronized with Firebase auth state</div>
-                        <div className="p-3 text-[10px] font-mono text-muted-foreground"><span className="text-blue-600">[INFO]</span> New Institution provisioned in Ahafo cluster</div>
-                        <div className="p-3 text-[10px] font-mono text-muted-foreground"><span className="text-amber-600">[WARN]</span> Failed login attempt from unauthorized domain</div>
+                        <div className="p-3 text-[10px] font-mono text-muted-foreground"><span className="text-green-600">[AUTH]</span> Super Admin identity verified</div>
+                        <div className="p-3 text-[10px] font-mono text-muted-foreground"><span className="text-blue-600">[SYNC]</span> Multi-tenant isolation layer active</div>
                      </div>
                   </CardContent>
                 </Card>
@@ -366,8 +318,8 @@ export default function AdminPortal() {
                    <p className="text-white/40">Initializing ecosystem audit v2.0.26...</p>
                    <p className="text-green-400">STATUS: ALL NODES OPTIMAL</p>
                    <p className="text-white/60">Multi-tenant isolation layer: ACTIVE</p>
-                   <p className="text-white/60">Firestore Security Rules version: 2026.1</p>
-                   <p className="text-white/60">Ghana Region latency: 24ms</p>
+                   <p className="text-white/60">Firestore Security Rules version: 2026.2</p>
+                   <p className="text-white/60">Ghana Region latency: 18ms</p>
                 </CardContent>
              </Card>
           </TabsContent>

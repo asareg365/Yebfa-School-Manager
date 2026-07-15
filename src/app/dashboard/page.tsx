@@ -38,7 +38,7 @@ export default function Dashboard() {
     if (storedId) setInstitutionId(storedId)
   }, [])
 
-  // Core Data Queries
+  // Core Data Queries - Optimized with useMemo
   const studentsQuery = useMemo(() => institutionId ? query(collection(db, "students"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   const staffQuery = useMemo(() => institutionId ? query(collection(db, "staff"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   const booksQuery = useMemo(() => institutionId ? query(collection(db, "library_books"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
@@ -122,23 +122,23 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-20">
+    <div className="space-y-8 animate-in fade-in duration-300 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-4xl font-headline font-bold tracking-tight text-primary">System Pulse</h1>
-          <p className="text-muted-foreground font-medium">Monitoring the 2026 academic lifecycle for {localStorage.getItem('selected_institution_name')}.</p>
+          <p className="text-muted-foreground font-medium">Monitoring real-time academic records for {localStorage.getItem('selected_institution_name')}.</p>
         </div>
         <div className="flex items-center gap-3">
           <Button 
             variant="outline" 
-            className="gap-2 h-11 px-6 rounded-xl" 
+            className="gap-2 h-11 px-6 rounded-xl transition-all active:scale-95" 
             onClick={handleGenerateVideo} 
             disabled={videoLoading}
           >
             {videoLoading ? <Loader2 className="size-4 animate-spin" /> : <PlayCircle className="size-4" />}
             AI Virtual Tour
           </Button>
-          <Button className="bg-primary h-11 px-8 rounded-xl shadow-lg shadow-primary/10" asChild>
+          <Button className="bg-primary h-11 px-8 rounded-xl shadow-lg shadow-primary/10 transition-all active:scale-95" asChild>
             <Link href="/dashboard/analytics">Executive Reports</Link>
           </Button>
         </div>
@@ -174,7 +174,7 @@ export default function Dashboard() {
             <div className="flex justify-between items-center">
               <div>
                 <CardTitle className="text-xl font-headline font-bold">Academic Lifecycle</CardTitle>
-                <CardDescription>Termly synchronization and task completion tracking.</CardDescription>
+                <CardDescription>Real-time synchronization across institutional modules.</CardDescription>
               </div>
               <TrendingUp className="size-5 text-primary opacity-20" />
             </div>
@@ -212,7 +212,7 @@ export default function Dashboard() {
               <CardTitle className="flex items-center gap-2">
                 <ShieldCheck className="size-5" /> Institutional Safety
               </CardTitle>
-              <CardDescription className="text-primary-foreground/60">Global audit active for system credentials.</CardDescription>
+              <CardDescription className="text-primary-foreground/60">Global audit active for partitioned data.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="p-4 rounded-2xl bg-white/10 space-y-3">
@@ -220,7 +220,7 @@ export default function Dashboard() {
                  <div className="flex items-center justify-between text-xs"><span>Role Access</span><Badge className="bg-blue-500/20 text-blue-400 border-none">Active</Badge></div>
                  <div className="flex items-center justify-between text-xs"><span>Audit Integrity</span><Badge className="bg-amber-500/20 text-amber-400 border-none">Synced</Badge></div>
               </div>
-              <Button variant="secondary" className="w-full mt-6 h-12 rounded-xl font-bold bg-white text-primary group-hover:scale-[1.02] transition-transform" asChild>
+              <Button variant="secondary" className="w-full mt-6 h-12 rounded-xl font-bold bg-white text-primary group-hover:scale-[1.02] transition-transform active:scale-95" asChild>
                 <Link href="/dashboard/logs">View Security Trail</Link>
               </Button>
             </CardContent>
@@ -237,7 +237,7 @@ export default function Dashboard() {
                </div>
                <div className="flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-50 transition-colors border cursor-pointer">
                   <div className="size-10 rounded-xl bg-blue-50 flex items-center justify-center"><Package className="size-5 text-blue-600" /></div>
-                  <div><p className="text-sm font-bold">Asset Inventory</p><p className="text-[10px] text-muted-foreground uppercase">Depreciation Calculated</p></div>
+                  <div><p className="text-sm font-bold">Asset Inventory</p><p className="text-[10px] text-muted-foreground uppercase">Registry Active</p></div>
                </div>
             </CardContent>
           </Card>
