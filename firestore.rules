@@ -62,14 +62,27 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if signedIn() && (request.auth.uid == userId || isSuperAdmin() || belongsToUserTenant(resource.data));
-      allow create: if signedIn();
+      allow create: if signedIn() && request.auth.uid == userId;
       allow update: if signedIn() && (request.auth.uid == userId || isSuperAdmin());
       allow delete: if isSuperAdmin();
     }
 
     match /institutions/{instId} {
       allow read: if signedIn() && (isSuperAdmin() || instId == userTenant());
-      allow write: if isSuperAdmin() || (signedIn() && instId == userTenant() && (isOwner() || isAdmin()));
+      // Allow creation of first institution
+      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow update, delete: if isSuperAdmin() || (signedIn() && instId == userTenant() && (isOwner() || isAdmin()));
+    }
+
+    // Setup Collections (Settings & Departments)
+    match /settings/{tenantId} {
+      allow read: if signedIn() && (isSuperAdmin() || tenantId == userTenant());
+      allow write: if signedIn() && (isSuperAdmin() || tenantId == userTenant() || (request.method == 'create' && !hasProfile()));
+    }
+
+    match /departments/{tenantId} {
+      allow read: if signedIn() && (isSuperAdmin() || tenantId == userTenant());
+      allow write: if signedIn() && (isSuperAdmin() || tenantId == userTenant() || (request.method == 'create' && !hasProfile()));
     }
 
     // Standard Multi-Tenant Rule Pattern
@@ -81,12 +94,16 @@ service cloud.firestore {
         (isParent() && collectionName == 'students' && resource.data.parentUid == request.auth.uid)
       );
 
-      allow create: if signedIn() && isValidTenantLock() && (
-        isSuperAdmin() || isOwner() || isAdmin() || 
-        (collectionName == 'attendance' && isTeacher()) ||
-        (collectionName == 'exam_records' && isTeacher()) ||
-        (collectionName == 'library_transactions' && isLibrarian()) ||
-        ((collectionName == 'expenditure_vouchers' || collectionName == 'transactions' || collectionName == 'student_ledger') && isAccountant())
+      allow create: if signedIn() && (
+        isValidTenantLock() && (
+          isSuperAdmin() || isOwner() || isAdmin() || 
+          (collectionName == 'attendance' && isTeacher()) ||
+          (collectionName == 'exam_records' && isTeacher()) ||
+          (collectionName == 'library_transactions' && isLibrarian()) ||
+          ((collectionName == 'expenditure_vouchers' || collectionName == 'transactions' || collectionName == 'student_ledger') && isAccountant())
+        )
+        // Bootstrap exception: allow creating first tenant data
+        || (request.resource.data.tenantId != null && !hasProfile())
       );
 
       allow update: if signedIn() && isValidTenantLock() && (

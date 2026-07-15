@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -15,8 +16,7 @@ import {
   doc,
   collection,
   serverTimestamp,
-  writeBatch,
-  Timestamp
+  writeBatch
 } from "firebase/firestore"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
@@ -61,6 +61,15 @@ export default function InstitutionRegistrationPage() {
         description: "Please sign in first."
       })
       router.push("/login")
+      return
+    }
+
+    if (!formData.gradeLevel || !formData.specificGrades) {
+      toast({
+        variant: "destructive",
+        title: "Missing Selections",
+        description: "Please select both a Grade Category and a Grade Range."
+      })
       return
     }
 
@@ -112,6 +121,7 @@ export default function InstitutionRegistrationPage() {
           role: "school_owner",
           tenantId,
           institutionId: tenantId,
+          institutionName: formData.name,
           status: "active",
           createdAt: serverTimestamp()
         }
@@ -149,6 +159,7 @@ export default function InstitutionRegistrationPage() {
 
       await batch.commit()
 
+      // Explicitly set context for first-time session
       localStorage.setItem('selected_institution_id', tenantId)
       localStorage.setItem('selected_institution_name', formData.name)
 
@@ -157,10 +168,11 @@ export default function InstitutionRegistrationPage() {
         description: "Your school workspace has been successfully created."
       })
 
+      // Use replace to prevent back-button loop
       router.replace("/dashboard")
 
     } catch (error: any) {
-      console.error(error)
+      console.error("Provisioning Error:", error)
       const permissionError = new FirestorePermissionError({
         path: "institutions",
         operation: "create",
@@ -229,7 +241,6 @@ export default function InstitutionRegistrationPage() {
                 <div className="space-y-2">
                   <Label>Grade Category</Label>
                   <Select 
-                    required 
                     value={formData.gradeLevel}
                     onValueChange={(val) => setFormData(prev => ({ ...prev, gradeLevel: val, specificGrades: "" }))}
                   >
@@ -247,7 +258,6 @@ export default function InstitutionRegistrationPage() {
                 <div className="space-y-2">
                   <Label>Grade Range</Label>
                   <Select 
-                    required 
                     value={formData.specificGrades}
                     disabled={!formData.gradeLevel}
                     onValueChange={(val) => setFormData(prev => ({ ...prev, specificGrades: val }))}
@@ -313,11 +323,18 @@ export default function InstitutionRegistrationPage() {
             </div>
 
             <Button 
-              className="w-full h-14 text-lg font-bold shadow-lg bg-primary hover:bg-primary/90" 
+              className="w-full h-14 text-lg font-bold shadow-lg bg-primary hover:bg-primary/90 transition-all active:scale-[0.98]" 
               type="submit" 
               disabled={loading || !user}
             >
-              {loading ? <Loader2 className="mr-2 size-5 animate-spin" /> : "Authorize Provisioning"}
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 size-5 animate-spin" />
+                  Provisioning Workspace...
+                </>
+              ) : (
+                "Authorize Provisioning"
+              )}
             </Button>
           </form>
         </CardContent>
