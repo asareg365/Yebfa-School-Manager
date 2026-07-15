@@ -38,7 +38,6 @@ import {
   deleteDoc, 
   doc, 
   serverTimestamp,
-  orderBy,
   updateDoc
 } from "firebase/firestore"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -61,22 +60,28 @@ export default function AcademicFoundationPage() {
     setInstitutionId(localStorage.getItem('selected_institution_id'))
   }, [])
 
-  // Foundation Queries
-  const yearsQuery = useMemo(() => institutionId ? query(collection(db, "academic_years"), where("tenantId", "==", institutionId), orderBy("year", "desc")) : null, [db, institutionId])
-  const termsQuery = useMemo(() => institutionId ? query(collection(db, "terms"), where("tenantId", "==", institutionId), orderBy("name", "asc")) : null, [db, institutionId])
-  const classesQuery = useMemo(() => institutionId ? query(collection(db, "classes"), where("tenantId", "==", institutionId), orderBy("name", "asc")) : null, [db, institutionId])
-  const sectionsQuery = useMemo(() => institutionId ? query(collection(db, "sections"), where("tenantId", "==", institutionId), orderBy("name", "asc")) : null, [db, institutionId])
-  const subjectsQuery = useMemo(() => institutionId ? query(collection(db, "subjects"), where("tenantId", "==", institutionId), orderBy("name", "asc")) : null, [db, institutionId])
+  // Foundation Queries - Removed orderBy to prevent index errors
+  const yearsQuery = useMemo(() => institutionId ? query(collection(db, "academic_years"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
+  const termsQuery = useMemo(() => institutionId ? query(collection(db, "terms"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
+  const classesQuery = useMemo(() => institutionId ? query(collection(db, "classes"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
+  const sectionsQuery = useMemo(() => institutionId ? query(collection(db, "sections"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
+  const subjectsQuery = useMemo(() => institutionId ? query(collection(db, "subjects"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   const staffQuery = useMemo(() => institutionId ? query(collection(db, "staff"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   const assignmentsQuery = useMemo(() => institutionId ? query(collection(db, "teacher_assignments"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
 
-  const { data: years = [] } = useCollection(yearsQuery)
-  const { data: terms = [] } = useCollection(termsQuery)
-  const { data: classes = [] } = useCollection(classesQuery)
+  const { data: rawYears = [] } = useCollection(yearsQuery)
+  const { data: rawTerms = [] } = useCollection(termsQuery)
+  const { data: rawClasses = [] } = useCollection(classesQuery)
   const { data: sections = [] } = useCollection(sectionsQuery)
-  const { data: subjects = [] } = useCollection(subjectsQuery)
+  const { data: rawSubjects = [] } = useCollection(subjectsQuery)
   const { data: staff = [] } = useCollection(staffQuery)
   const { data: assignments = [] } = useCollection(assignmentsQuery)
+
+  // In-memory sorting for stability
+  const years = useMemo(() => [...rawYears].sort((a, b) => b.year.localeCompare(a.year)), [rawYears])
+  const terms = useMemo(() => [...rawTerms].sort((a, b) => a.name.localeCompare(b.name)), [rawTerms])
+  const classes = useMemo(() => [...rawClasses].sort((a, b) => a.name.localeCompare(b.name)), [rawClasses])
+  const subjects = useMemo(() => [...rawSubjects].sort((a, b) => a.name.localeCompare(b.name)), [rawSubjects])
 
   const handleCreate = async (coll: string, data: any, reset: () => void) => {
     if (!institutionId) return
@@ -158,9 +163,19 @@ export default function AcademicFoundationPage() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid gap-4">
-                   <Select onValueChange={v => setTermForm({...termForm, academicYearId: v})} value={termForm.academicYearId}>
+                   <Select 
+                    key={years.length} // Force re-render when years list updates
+                    onValueChange={v => setTermForm({...termForm, academicYearId: v})} 
+                    value={termForm.academicYearId}
+                   >
                      <SelectTrigger><SelectValue placeholder="Select Academic Year" /></SelectTrigger>
-                     <SelectContent>{years.map(y => <SelectItem key={y.id} value={y.id}>{y.year}</SelectItem>)}</SelectContent>
+                     <SelectContent>
+                        {years.length > 0 ? (
+                          years.map(y => <SelectItem key={y.id} value={y.id}>{y.year}</SelectItem>)
+                        ) : (
+                          <div className="p-2 text-center text-xs text-muted-foreground">No years found</div>
+                        )}
+                     </SelectContent>
                    </Select>
                    <Input placeholder="Term Name (e.g. Term 1)" value={termForm.name} onChange={e => setTermForm({...termForm, name: e.target.value})} />
                    <Button className="w-full" onClick={() => handleCreate("terms", {...termForm, status: "Active"}, () => setTermForm({name: "", academicYearId: "", startDate: "", endDate: ""}))} disabled={loading || !termForm.academicYearId}>
@@ -172,7 +187,7 @@ export default function AcademicFoundationPage() {
                     <div key={t.id} className="flex items-center justify-between p-4 rounded-xl border bg-white">
                       <div>
                         <p className="font-bold text-sm">{t.name}</p>
-                        <p className="text-[10px] text-muted-foreground uppercase font-bold">{years.find(y => y.id === t.academicYearId)?.year}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold">{years.find(y => y.id === t.academicYearId)?.year || "Registry ID: " + t.academicYearId.substring(0, 5)}</p>
                       </div>
                       <Button variant="ghost" size="icon" onClick={() => handleDelete("terms", t.id)} className="h-8 w-8 text-destructive"><Trash2 className="size-4" /></Button>
                     </div>
@@ -290,30 +305,55 @@ export default function AcademicFoundationPage() {
                 <div className="grid gap-4 md:grid-cols-5">
                    <div className="space-y-2">
                      <Label>Teacher</Label>
-                     <Select onValueChange={v => setAssignForm({...assignForm, teacherId: v})}>
+                     <Select 
+                      key={staff.length}
+                      onValueChange={v => setAssignForm({...assignForm, teacherId: v})}
+                     >
                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                       <SelectContent>{staff.filter(s => s.role === 'teacher').map(s => <SelectItem key={s.id} value={s.id}>{s.fullName}</SelectItem>)}</SelectContent>
+                       <SelectContent>
+                        {staff.filter(s => s.role === 'teacher').length > 0 ? (
+                          staff.filter(s => s.role === 'teacher').map(s => <SelectItem key={s.id} value={s.id}>{s.fullName}</SelectItem>)
+                        ) : (
+                          <div className="p-2 text-center text-xs">No teachers found</div>
+                        )}
+                       </SelectContent>
                      </Select>
                    </div>
                    <div className="space-y-2">
                      <Label>Grade</Label>
-                     <Select onValueChange={v => setAssignForm({...assignForm, classId: v})}>
+                     <Select 
+                      key={classes.length}
+                      onValueChange={v => setAssignForm({...assignForm, classId: v})}
+                     >
                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                       <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                       <SelectContent>
+                        {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                       </SelectContent>
                      </Select>
                    </div>
                    <div className="space-y-2">
                      <Label>Section</Label>
-                     <Select onValueChange={v => setAssignForm({...assignForm, sectionId: v})} disabled={!assignForm.classId}>
+                     <Select 
+                      key={assignForm.classId + sections.length}
+                      onValueChange={v => setAssignForm({...assignForm, sectionId: v})} 
+                      disabled={!assignForm.classId}
+                     >
                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                       <SelectContent>{sections.filter(s => s.classId === assignForm.classId).map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                       <SelectContent>
+                        {sections.filter(s => s.classId === assignForm.classId).map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                       </SelectContent>
                      </Select>
                    </div>
                    <div className="space-y-2">
                      <Label>Subject</Label>
-                     <Select onValueChange={v => setAssignForm({...assignForm, subjectId: v})}>
+                     <Select 
+                      key={subjects.length}
+                      onValueChange={v => setAssignForm({...assignForm, subjectId: v})}
+                     >
                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                       <SelectContent>{subjects.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                       <SelectContent>
+                        {subjects.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                       </SelectContent>
                      </Select>
                    </div>
                    <div className="flex items-end">
