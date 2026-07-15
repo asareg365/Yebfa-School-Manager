@@ -305,6 +305,7 @@ export default function InstitutionRegistrationPage() {
                       required 
                       readOnly={!!user}
                       value={formData.ownerEmail}
+                      onChange={(e) => setFormData(prev => ({ ...prev, ownerEmail: e.target.value }))}
                     />
                   </div>
                 </div>
