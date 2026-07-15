@@ -95,6 +95,18 @@ export default function InstitutionRegistrationPage() {
         createdAt: serverTimestamp()
       });
 
+      // 3. Create School Settings
+      await setDoc(doc(db, "settings", institutionRef.id), {
+        tenantId: institutionRef.id,
+        institutionId: institutionRef.id,
+        schoolName: formData.name,
+        currentTerm: "Term 1",
+        academicYear: "",
+        currency: "GHS",
+        timezone: "Africa/Accra",
+        createdAt: serverTimestamp()
+      });
+
       toast({
         title: "System Provisioned",
         description: `${formData.name} is now live in the ecosystem.`,

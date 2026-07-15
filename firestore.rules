@@ -161,6 +161,12 @@ service cloud.firestore {
 
     }
 
+    match /settings/{settingId} {
+
+      allow read, write:
+      if signedIn();
+
+    }
 
 
     // SUPER ADMIN FALLBACK
