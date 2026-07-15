@@ -13,7 +13,7 @@
         "name": { "type": "string" },
         "status": { "type": "string" }
       },
-      "required": ["uid", "email", "role"]
+      "required": ["uid", "email", "role", "tenantId"]
     },
     "Institution": {
       "title": "Institution",
@@ -157,6 +157,12 @@
     },
     "/student_ledger/{ledgerId}": {
       "schema": "StudentLedgerEntry"
+    },
+    "/settings/{settingId}": {
+      "description": "Global institutional settings"
+    },
+    "/departments/{departmentId}": {
+      "description": "Institutional department definitions"
     }
   }
 }

@@ -12,10 +12,11 @@ import { School, ArrowLeft, Loader2, MapPin, Mail, User, ShieldCheck, AlertCircl
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useUser } from "@/firebase"
 import { 
-  doc, 
-  serverTimestamp, 
-  collection, 
-  writeBatch 
+  doc,
+  collection,
+  setDoc,
+  serverTimestamp,
+  writeBatch
 } from "firebase/firestore"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
@@ -58,18 +59,9 @@ export default function InstitutionRegistrationPage() {
       toast({
         variant: "destructive",
         title: "Authentication Required",
-        description: "Please sign in first to provision an institution."
+        description: "Please sign in first."
       })
       router.push("/login")
-      return
-    }
-
-    if (!db) {
-      toast({
-        variant: "destructive",
-        title: "Connection Error",
-        description: "Database not initialized. Please refresh and try again."
-      })
       return
     }
 
@@ -151,21 +143,14 @@ export default function InstitutionRegistrationPage() {
       await batch.commit()
 
       toast({
-        title: "Provisioning Complete",
-        description: `${formData.name} is now live in the ecosystem.`
+        title: "Institution Created",
+        description: "Your school workspace has been successfully created."
       })
 
       router.replace("/dashboard")
 
     } catch (error: any) {
-      console.error("Provisioning Error:", error)
-      
-      toast({
-        variant: "destructive",
-        title: "Authorization Failed",
-        description: error.message || "The system could not authorize this provisioning request."
-      })
-
+      console.error(error)
       const permissionError = new FirestorePermissionError({
         path: "institutions",
         operation: "create",
@@ -338,7 +323,7 @@ export default function InstitutionRegistrationPage() {
               {loading ? (
                 <>
                   <Loader2 className="mr-2 size-5 animate-spin" />
-                  Provisioning Hub...
+                  Authorize Provisioning...
                 </>
               ) : (
                 "Authorize Provisioning"
