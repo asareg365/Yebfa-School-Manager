@@ -63,6 +63,16 @@ service cloud.firestore {
       allow write: if signedIn() && (isSuperAdmin() || (belongsToTenant(request.resource.data) && (isOwner() || isAdmin())));
     }
 
+    match /lesson_plans/{planId} {
+      allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
+      allow write: if signedIn() && (isSuperAdmin() || (belongsToTenant(request.resource.data) && (isOwner() || isAdmin() || isTeacher())));
+    }
+
+    match /academic_tasks/{taskId} {
+      allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
+      allow write: if signedIn() && (isSuperAdmin() || (belongsToTenant(request.resource.data) && (isOwner() || isAdmin() || isTeacher())));
+    }
+
     match /exam_records/{recordId} {
       allow read: if signedIn() && (
         isSuperAdmin() || 
@@ -84,11 +94,6 @@ service cloud.firestore {
         isSuperAdmin() || 
         (belongsToTenant(resource.data) && (isStaff() || resource.data.parentUid == request.auth.uid))
       );
-      allow write: if signedIn() && (isSuperAdmin() || (belongsToTenant(request.resource.data) && (isOwner() || isAccountant())));
-    }
-
-    match /expenditure_vouchers/{voucherId} {
-      allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
       allow write: if signedIn() && (isSuperAdmin() || (belongsToTenant(request.resource.data) && (isOwner() || isAccountant())));
     }
 
@@ -125,9 +130,8 @@ service cloud.firestore {
     // INSTITUTIONAL CONFIG
     match /institutions/{institutionId} {
       allow create: if signedIn();
-      allow read: if signedIn() && (isSuperAdmin() || resource.data.tenantId == userTenant());
-      allow update: if signedIn() && (isSuperAdmin() || (resource.data.tenantId == userTenant() && isOwner()));
-      allow delete: if isSuperAdmin();
+      allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
+      allow update: if signedIn() && (isSuperAdmin() || (belongsToTenant(resource.data) && isOwner()));
     }
 
     match /settings/{settingId} {

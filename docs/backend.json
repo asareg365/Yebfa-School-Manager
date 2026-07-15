@@ -39,6 +39,37 @@
       },
       "required": ["name", "tenantId"]
     },
+    "LessonPlan": {
+      "title": "Lesson Plan",
+      "description": "Teacher instructional blueprint.",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "staffId": { "type": "string" },
+        "subjectId": { "type": "string" },
+        "classId": { "type": "string" },
+        "topic": { "type": "string" },
+        "objectives": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["draft", "approved", "completed"] }
+      },
+      "required": ["tenantId", "staffId", "subjectId", "topic"]
+    },
+    "AcademicTask": {
+      "title": "Academic Task",
+      "description": "Assignments and Homework entries.",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "subjectId": { "type": "string" },
+        "classId": { "type": "string" },
+        "title": { "type": "string" },
+        "type": { "type": "string", "enum": ["Assignment", "Homework", "Project"] },
+        "dueDate": { "type": "string", "format": "date" },
+        "maxPoints": { "type": "number" }
+      },
+      "required": ["tenantId", "title", "type"]
+    },
     "Staff": {
       "title": "Staff Record",
       "description": "Comprehensive HR record for school employees.",
@@ -90,6 +121,8 @@
     "/institutions/{institutionId}": { "schema": "Institution" },
     "/staff/{staffId}": { "schema": "Staff" },
     "/students/{studentId}": { "schema": "Student" },
+    "/lesson_plans/{planId}": { "schema": "LessonPlan" },
+    "/academic_tasks/{taskId}": { "schema": "AcademicTask" },
     "/exam_records/{recordId}": { "description": "Academic scores" },
     "/attendance/{attendanceId}": { "description": "Presence logs" },
     "/student_ledger/{ledgerId}": { "description": "Fees history" },
