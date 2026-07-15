@@ -11,7 +11,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { School, ArrowLeft, Loader2, MapPin, Mail, User, ShieldCheck, AlertCircle } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useUser } from "@/firebase"
-import { collection, doc, setDoc, serverTimestamp, Timestamp } from "firebase/firestore"
+import { 
+  doc, 
+  setDoc, 
+  serverTimestamp, 
+  Timestamp, 
+  collection, 
+  writeBatch 
+} from "firebase/firestore"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -49,27 +56,28 @@ export default function InstitutionRegistrationPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!user) {
+    if (!user || !db) {
       toast({
         variant: "destructive",
-        title: "Authentication Required",
-        description: "Please sign in to register your institution.",
+        title: "Configuration Error",
+        description: "Please ensure you are signed in to provision a school.",
       })
-      router.push("/login")
       return
     }
 
     setLoading(true)
     
+    // Initialize atomic batch
+    const batch = writeBatch(db);
     const institutionRef = doc(collection(db, "institutions"));
-    
+    const tenantId = institutionRef.id;
+
     // Trial logic: 30 days from now
-    const trialDays = 30;
-    const trialEndsAtDate = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000);
+    const trialEndsAtDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
     const institutionData = { 
-      id: institutionRef.id, 
-      tenantId: institutionRef.id,
+      id: tenantId, 
+      tenantId: tenantId,
       name: formData.name, 
       type: formData.gradeLevel, 
       gradeLevel: formData.gradeLevel, 
@@ -85,61 +93,68 @@ export default function InstitutionRegistrationPage() {
       updatedAt: serverTimestamp() 
     };
 
+    // 1. Queue Institution Creation
+    batch.set(institutionRef, institutionData);
+
+    // 2. Queue User Profile Creation (Linking user to tenant)
+    const userRef = doc(db, "users", user.uid);
+    batch.set(userRef, {
+      uid: user.uid,
+      email: user.email,
+      name: formData.ownerName,
+      role: "school_owner",
+      tenantId: tenantId,
+      institutionId: tenantId,
+      status: "active",
+      createdAt: serverTimestamp()
+    });
+
+    // 3. Queue Initial Settings
+    const settingsRef = doc(db, "settings", tenantId);
+    batch.set(settingsRef, {
+      tenantId: tenantId,
+      institutionId: tenantId,
+      schoolName: formData.name,
+      currentTerm: "Term 1",
+      academicYear: "2026",
+      currency: "GHS",
+      timezone: "Africa/Accra",
+      createdAt: serverTimestamp()
+    });
+
+    // 4. Queue Default Departments
+    const deptRef = doc(db, "departments", tenantId);
+    batch.set(deptRef, {
+      tenantId: tenantId,
+      items: [
+          "Administration",
+          "Academics",
+          "Accounts",
+          "Library"
+      ]
+    });
+
     try {
-      // 1. Create the institution document
-      await setDoc(institutionRef, institutionData);
-
-      // 2. Create the User Profile
-      await setDoc(doc(db, "users", user.uid), {
-        uid: user.uid,
-        email: user.email,
-        name: formData.ownerName,
-        role: "school_owner",
-        tenantId: institutionRef.id,
-        institutionId: institutionRef.id,
-        status: "active",
-        createdAt: serverTimestamp()
-      });
-
-      // 3. Create School Settings
-      await setDoc(doc(db, "settings", institutionRef.id), {
-        tenantId: institutionRef.id,
-        institutionId: institutionRef.id,
-        schoolName: formData.name,
-        currentTerm: "Term 1",
-        academicYear: "",
-        currency: "GHS",
-        timezone: "Africa/Accra",
-        createdAt: serverTimestamp()
-      });
-
-      // 4. Create Default Departments
-      await setDoc(doc(db, "departments", institutionRef.id), {
-        tenantId: institutionRef.id,
-        items: [
-            "Administration",
-            "Academics",
-            "Accounts",
-            "Library"
-        ]
-      });
+      // Execute all operations atomically
+      await batch.commit();
 
       toast({
         title: "System Provisioned",
         description: `${formData.name} is now live with a 30-day trial.`,
       })
       
-      // Update local context for the current session
-      localStorage.setItem('selected_institution_id', institutionRef.id);
+      // Update local storage context for current session
+      localStorage.setItem('selected_institution_id', tenantId);
       localStorage.setItem('selected_institution_name', formData.name);
 
-      // Use replace to prevent back-navigation to the registration form
+      // Secure redirection
       router.replace("/dashboard")
     } catch (error: any) {
+      console.error("Batch commit failed:", error);
       const permissionError = new FirestorePermissionError({
-        path: 'institutions',
-        operation: 'create',
-        requestResourceData: institutionData,
+        path: 'batch/provisioning',
+        operation: 'write',
+        requestResourceData: { institution: formData.name },
       });
       errorEmitter.emit('permission-error', permissionError);
     } finally {
