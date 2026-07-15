@@ -1,7 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Pencil, Loader2, CheckCircle2, ArrowRight, LogOut, KeyRound, AlertTriangle, BarChart3, LineChart, Server, Globe, Megaphone, Zap, ShieldAlert, Terminal } from "lucide-react"
+import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Pencil, Loader2, CheckCircle2, ArrowRight, LogOut, KeyRound, AlertTriangle, BarChart3, LineChart, Server, Globe, Megaphone, Zap, ShieldAlert, Terminal, Save } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -31,6 +31,8 @@ export default function AdminPortal() {
 
   const [provisioning, setProvisioning] = useState(false)
   const [isProvisionDialogOpen, setIsProvisionDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [editingSchool, setEditingSchool] = useState<any>(null)
   
   const [newSchool, setNewSchool] = useState({
     name: "",
@@ -90,8 +92,29 @@ export default function AdminPortal() {
       .finally(() => setProvisioning(false))
   }
 
+  const handleEditSchoolSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!db || !editingSchool || provisioning) return
+    setProvisioning(true)
+    
+    updateDoc(doc(db, "institutions", editingSchool.id), {
+      name: editingSchool.name,
+      ownerEmail: editingSchool.ownerEmail,
+      location: editingSchool.location,
+      status: editingSchool.status,
+      updatedAt: serverTimestamp()
+    })
+      .then(() => {
+        toast({ title: "Registry Updated", description: "Institutional profile synchronized." })
+        setIsEditDialogOpen(false)
+        setEditingSchool(null)
+      })
+      .finally(() => setProvisioning(false))
+  }
+
   const handleDeleteSchool = (id: string, name: string) => {
     if (!db) return
+    if (!confirm(`Are you sure you want to de-provision ${name}?`)) return
     deleteDoc(doc(db, "institutions", id))
       .then(() => toast({ title: "Instance Deprovisioned", description: `${name} removed.` }))
   }
@@ -230,7 +253,7 @@ export default function AdminPortal() {
                   </TableHeader>
                   <TableBody>
                     {institutions.map((inst: any) => (
-                      <TableRow key={inst.id}>
+                      <TableRow key={inst.id} className="hover:bg-slate-50 transition-colors group">
                         <TableCell className="font-bold text-primary">
                           <div className="flex flex-col">
                             <span>{inst.name}</span>
@@ -241,9 +264,17 @@ export default function AdminPortal() {
                         <TableCell><Badge variant="outline" className="text-[9px] uppercase font-bold">{inst.status}</Badge></TableCell>
                         <TableCell><Badge className="bg-primary/5 text-primary border-none text-[9px] font-bold">{inst.subscriptionPlan}</Badge></TableCell>
                         <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                              <Button variant="ghost" size="sm" className="h-8 text-[10px] font-bold uppercase" onClick={() => handleSelectInstitution(inst.id, inst.name)}>Enter</Button>
-                             <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteSchool(inst.id, inst.name)}><Trash2 className="size-3.5" /></Button>
+                             <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => {
+                               setEditingSchool(inst);
+                               setIsEditDialogOpen(true);
+                             }}>
+                               <Pencil className="size-3.5" />
+                             </Button>
+                             <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteSchool(inst.id, inst.name)}>
+                               <Trash2 className="size-3.5" />
+                             </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -343,6 +374,51 @@ export default function AdminPortal() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="rounded-3xl border-none shadow-2xl p-8">
+          {editingSchool && (
+            <form onSubmit={handleEditSchoolSubmit}>
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-headline font-bold">Edit Institutional Node</DialogTitle>
+                <DialogDescription>Update master registry records for this institution.</DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-6 py-6">
+                <div className="space-y-2">
+                  <Label>Institution Name</Label>
+                  <Input required value={editingSchool.name} onChange={e => setEditingSchool({...editingSchool, name: e.target.value})} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Owner / Principal Email</Label>
+                  <Input type="email" required value={editingSchool.ownerEmail} onChange={e => setEditingSchool({...editingSchool, ownerEmail: e.target.value})} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Physical Location</Label>
+                  <Input required value={editingSchool.location} onChange={e => setEditingSchool({...editingSchool, location: e.target.value})} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Operational Status</Label>
+                  <Select value={editingSchool.status} onValueChange={v => setEditingSchool({...editingSchool, status: v})}>
+                    <SelectTrigger className="h-10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="suspended">Suspended</SelectItem>
+                      <SelectItem value="maintenance">Maintenance</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="submit" disabled={provisioning} className="w-full h-12 bg-primary font-bold gap-2">
+                  {provisioning ? <Loader2 className="animate-spin size-4" /> : <Save className="size-4" />} Authorize Registry Update
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
     </div>
