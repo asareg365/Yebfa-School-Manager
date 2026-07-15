@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -84,22 +83,24 @@ export default function InstitutionRegistrationPage() {
       // 1. Create the institution document
       await setDoc(institutionRef, institutionData);
 
-      // 2. Link the current user as the owner of this institution in their profile
-      const userRef = doc(db, "users", user.uid);
-      await setDoc(userRef, {
+      // 2. Create the User Profile
+      await setDoc(doc(db, "users", user.uid), {
+        uid: user.uid,
+        email: user.email,
+        name: formData.ownerName,
+        role: "school_owner",
         tenantId: institutionRef.id,
         institutionId: institutionRef.id,
-        role: "owner",
-        email: user.email,
-        displayName: formData.ownerName
-      }, { merge: true });
+        status: "active",
+        createdAt: serverTimestamp()
+      });
 
       toast({
         title: "System Provisioned",
-        description: `${formData.name} is now live in the 2026 ecosystem.`,
+        description: `${formData.name} is now live in the ecosystem.`,
       })
       
-      // Force local identification update
+      // Update local context for the current session
       localStorage.setItem('selected_institution_id', institutionRef.id);
       localStorage.setItem('selected_institution_name', formData.name);
 
@@ -139,7 +140,7 @@ export default function InstitutionRegistrationPage() {
           </div>
           <CardTitle className="text-3xl font-headline font-bold">Register Your Institution</CardTitle>
           <CardDescription className="text-primary-foreground/70">
-            Join the ecosystem of modern educational institutions across West Africa.
+            Join the ecosystem of modern educational institutions.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-8">
@@ -295,8 +296,7 @@ export default function InstitutionRegistrationPage() {
       
       <div className="mt-8 text-center space-y-2">
         <p className="text-sm text-muted-foreground">Need immediate assistance?</p>
-        <p className="text-xs font-bold text-primary">asareg365@gmail.com | frankyeb@gmail.com</p>
-        <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Ahafo Region Headquarters</p>
+        <p className="text-xs font-bold text-primary">support@yebfa.com</p>
       </div>
     </div>
   )
