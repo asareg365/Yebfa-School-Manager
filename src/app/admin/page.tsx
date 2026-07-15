@@ -74,10 +74,10 @@ export default function AdminPortal() {
     return query(collection(db, "institutions"));
   }, [db, isSuperAdmin, authLoading]);
 
-  const { data: rawInstitutions, loading: dataLoading } = useCollection(institutionsQuery)
+  const { data: rawInstitutions = [], loading: dataLoading } = useCollection(institutionsQuery)
 
   const institutions = useMemo(() => {
-    return [...rawInstitutions].sort((a, b) => {
+    return [...rawInstitutions].sort((a: any, b: any) => {
       const dateA = a.createdAt?.toMillis?.() || Date.now();
       const dateB = b.createdAt?.toMillis?.() || Date.now();
       return dateB - dateA;
@@ -85,10 +85,11 @@ export default function AdminPortal() {
   }, [rawInstitutions]);
 
   useEffect(() => {
-    if (!authLoading && !profileLoading && user && !isSuperAdmin) {
+    // Only redirect if loading is finished and user is definitively NOT a super_admin
+    if (!authLoading && !profileLoading && user && profile && !isSuperAdmin) {
       router.replace("/dashboard")
     }
-  }, [user, authLoading, profileLoading, isSuperAdmin, router])
+  }, [user, authLoading, profileLoading, profile, isSuperAdmin, router])
 
   const handleLogout = async () => {
     if (auth) {
@@ -135,7 +136,15 @@ export default function AdminPortal() {
     router.push("/dashboard")
   }
 
-  if (authLoading || profileLoading) return <div className="p-12 text-center font-headline font-bold text-primary animate-pulse">Synchronizing Global SaaS Hub...</div>
+  if (authLoading || profileLoading) return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="flex flex-col items-center gap-4">
+        <Loader2 className="size-8 animate-spin text-primary" />
+        <p className="font-headline font-bold text-primary animate-pulse uppercase tracking-widest text-xs">Synchronizing Global SaaS Hub...</p>
+      </div>
+    </div>
+  )
+
   if (!isSuperAdmin) return null
 
   return (
@@ -300,8 +309,6 @@ export default function AdminPortal() {
               </CardContent>
             </Card>
           </TabsContent>
-
-          {/* Security and Revenue tabs omitted for brevity but following the same standard */}
         </Tabs>
       </div>
 

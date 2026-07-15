@@ -104,11 +104,11 @@ export function AppSidebar() {
         title: "Academic Foundation",
         url: "#",
         icon: School,
-        visible: isOwner || isAdmin || isTeacher,
+        visible: isSuperAdmin || isOwner || isAdmin || isTeacher,
         items: [
-          { title: "Academic Year", url: "/dashboard/academic?tab=cycle", visible: isOwner || isAdmin },
-          { title: "Terms & Sessions", url: "/dashboard/academic?tab=cycle", visible: isOwner || isAdmin },
-          { title: "Classes & Sections", url: "/dashboard/academic?tab=classes", visible: isOwner || isAdmin },
+          { title: "Academic Year", url: "/dashboard/academic?tab=cycle", visible: isSuperAdmin || isOwner || isAdmin },
+          { title: "Terms & Sessions", url: "/dashboard/academic?tab=cycle", visible: isSuperAdmin || isOwner || isAdmin },
+          { title: "Classes & Sections", url: "/dashboard/academic?tab=classes", visible: isSuperAdmin || isOwner || isAdmin },
           { title: "Subjects", url: "/dashboard/academic?tab=curriculum", visible: true },
           { title: "Timetable", url: "/dashboard/timetable", visible: true },
         ].filter(i => i.visible),
@@ -117,10 +117,10 @@ export function AppSidebar() {
         title: "Registry Hub",
         url: "#",
         icon: Users,
-        visible: isOwner || isAdmin || isAccountant,
+        visible: isSuperAdmin || isOwner || isAdmin || isAccountant,
         items: [
           { title: "Students", url: "/dashboard/students", visible: true },
-          { title: "Parents", url: "/dashboard/students/parents", visible: true },
+          { title: "Parents", url: "/dashboard/parents", visible: true },
           { title: "Teachers (Staff)", url: "/dashboard/staff", visible: true },
         ].filter(i => i.visible),
       },
@@ -128,7 +128,7 @@ export function AppSidebar() {
         title: "Academic Performance",
         url: "#",
         icon: GraduationCap,
-        visible: isOwner || isAdmin || isTeacher,
+        visible: isSuperAdmin || isOwner || isAdmin || isTeacher,
         items: [
           { title: "Attendance", url: "/dashboard/attendance", visible: true },
           { title: "Exams & Results", url: "/dashboard/exams", visible: true },
@@ -139,7 +139,7 @@ export function AppSidebar() {
         title: "Finance & Payroll",
         url: "#",
         icon: Wallet,
-        visible: isOwner || isAccountant,
+        visible: isSuperAdmin || isOwner || isAccountant,
         items: [
           { title: "Fees Management", url: "/dashboard/finance/fees", visible: true },
           { title: "Invoicing", url: "/dashboard/finance/invoices", visible: true },
@@ -152,19 +152,19 @@ export function AppSidebar() {
         title: "Logistics & Operations",
         url: "#",
         icon: Package,
-        visible: isOwner || isAdmin || isLibrarian,
+        visible: isSuperAdmin || isOwner || isAdmin || isLibrarian,
         items: [
-          { title: "Inventory", url: "/dashboard/inventory", visible: isOwner || isAdmin },
+          { title: "Inventory", url: "/dashboard/inventory", visible: isSuperAdmin || isOwner || isAdmin },
           { title: "Library", url: "/dashboard/library/books", visible: true },
-          { title: "Transport", url: "/dashboard/transport", visible: isOwner || isAdmin },
-          { title: "Hostel", url: "/dashboard/hostels", visible: isOwner || isAdmin },
+          { title: "Transport", url: "/dashboard/transport", visible: isSuperAdmin || isOwner || isAdmin },
+          { title: "Hostel", url: "/dashboard/hostels", visible: isSuperAdmin || isOwner || isAdmin },
         ].filter(i => i.visible),
       },
       { title: "Communication", url: "/dashboard/communication", icon: MessageSquare, visible: true },
-      { title: "Institutional Reports", url: "/dashboard/analytics", icon: BarChart3, visible: isOwner || isAdmin || isAccountant },
-      { title: "Settings", url: "/dashboard/settings", icon: Settings, visible: isOwner || isAdmin },
+      { title: "Institutional Reports", url: "/dashboard/analytics", icon: BarChart3, visible: isSuperAdmin || isOwner || isAdmin || isAccountant },
+      { title: "Settings", url: "/dashboard/settings", icon: Settings, visible: isSuperAdmin || isOwner || isAdmin },
     ].filter(item => item.visible)
-  }, [userRole, isOwner, isAdmin, isAccountant, isTeacher, isParent, isLibrarian])
+  }, [userRole, isSuperAdmin, isOwner, isAdmin, isAccountant, isTeacher, isParent, isLibrarian])
 
   if (!mounted) return (
     <Sidebar collapsible="icon" className="border-r border-border/40">
@@ -233,7 +233,7 @@ export function AppSidebar() {
 
         {isSuperAdmin && (
           <SidebarGroup>
-            <SidebarGroupLabel className="px-4 py-2">System Management</SidebarGroupLabel>
+            <SidebarGroupLabel className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">System Management</SidebarGroupLabel>
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={pathname === "/admin"} tooltip="Global Hub" className="text-accent hover:text-accent font-bold">
