@@ -9,6 +9,7 @@ import {
   TrendingDown, 
   ArrowUpRight, 
   ArrowDownRight, 
+  ArrowDownLeft,
   Calendar, 
   Printer, 
   Download,
