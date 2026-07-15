@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -18,7 +19,8 @@ import {
   GraduationCap,
   Banknote,
   Receipt,
-  ClipboardList
+  ClipboardList,
+  Layers
 } from "lucide-react"
 
 import {
@@ -82,6 +84,17 @@ export function AppSidebar() {
         visible: true
       },
       {
+        title: "Academic Hub",
+        url: "#",
+        icon: BookOpen,
+        visible: isOwner || isAdmin || isTeacher,
+        items: [
+          { title: "Academic Structure", url: "/dashboard/academic", visible: isOwner || isAdmin },
+          { title: "Curriculum", url: "/dashboard/academic", visible: true },
+          { title: "Assignments", url: "/dashboard/academic", visible: isOwner || isAdmin },
+        ].filter(i => i.visible),
+      },
+      {
         title: "Student Management",
         url: "#",
         icon: GraduationCap,
@@ -100,7 +113,6 @@ export function AppSidebar() {
         visible: isOwner || isAdmin,
         items: [
           { title: "Staff Roster", url: "/dashboard/staff", visible: isOwner || isAdmin },
-          { title: "Academic Setup", url: "/dashboard/academic", visible: isOwner || isAdmin },
         ].filter(i => i.visible),
       },
       {

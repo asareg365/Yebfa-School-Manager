@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -37,6 +38,47 @@
         "trialEndsAt": { "type": "string", "format": "date-time" }
       },
       "required": ["name", "tenantId"]
+    },
+    "AcademicYear": {
+      "title": "Academic Year",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "year": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "archived"] }
+      },
+      "required": ["tenantId", "year"]
+    },
+    "Term": {
+      "title": "Academic Term",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "academicYearId": { "type": "string" },
+        "name": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "upcoming", "completed"] }
+      },
+      "required": ["tenantId", "academicYearId", "name"]
+    },
+    "Class": {
+      "title": "Classroom Definition",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "name": { "type": "string" },
+        "gradeLevel": { "type": "string" }
+      },
+      "required": ["tenantId", "name"]
+    },
+    "Section": {
+      "title": "Class Stream/Section",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "classId": { "type": "string" },
+        "name": { "type": "string" }
+      },
+      "required": ["tenantId", "classId", "name"]
     },
     "Student": {
       "title": "Student",
@@ -87,46 +129,18 @@
       },
       "required": ["tenantId", "name"]
     },
-    "ExamRecord": {
-      "title": "Examination Record",
+    "TeacherAssignment": {
+      "title": "Teacher Assignment",
       "type": "object",
       "properties": {
         "tenantId": { "type": "string" },
-        "studentId": { "type": "string" },
+        "staffId": { "type": "string" },
+        "classId": { "type": "string" },
+        "sectionId": { "type": "string" },
         "subjectId": { "type": "string" },
-        "classScore": { "type": "number" },
-        "examScore": { "type": "number" },
-        "totalScore": { "type": "number" },
-        "term": { "type": "string" },
-        "academicYear": { "type": "string" },
-        "institutionId": { "type": "string" }
+        "academicYearId": { "type": "string" }
       },
-      "required": ["tenantId", "studentId", "subjectId"]
-    },
-    "FeeItem": {
-      "title": "Approved Fee Item",
-      "type": "object",
-      "properties": {
-        "tenantId": { "type": "string" },
-        "name": { "type": "string" },
-        "defaultAmount": { "type": "number" },
-        "category": { "type": "string" },
-        "institutionId": { "type": "string" }
-      },
-      "required": ["tenantId", "name"]
-    },
-    "StudentLedgerEntry": {
-      "title": "Student Ledger Entry",
-      "type": "object",
-      "properties": {
-        "tenantId": { "type": "string" },
-        "studentId": { "type": "string" },
-        "type": { "type": "string", "enum": ["charge", "payment"] },
-        "item": { "type": "string" },
-        "amount": { "type": "number" },
-        "date": { "type": "string" }
-      },
-      "required": ["tenantId", "studentId", "amount"]
+      "required": ["tenantId", "staffId", "subjectId"]
     }
   },
   "auth": {
@@ -135,9 +149,14 @@
   "firestore": {
     "/users/{userId}": { "schema": "User" },
     "/institutions/{institutionId}": { "schema": "Institution" },
+    "/academic_years/{yearId}": { "schema": "AcademicYear" },
+    "/terms/{termId}": { "schema": "Term" },
+    "/classes/{classId}": { "schema": "Class" },
+    "/sections/{sectionId}": { "schema": "Section" },
     "/students/{studentId}": { "schema": "Student" },
     "/staff/{staffId}": { "schema": "Staff" },
     "/subjects/{subjectId}": { "schema": "Subject" },
+    "/teacher_assignments/{assignId}": { "schema": "TeacherAssignment" },
     "/exam_records/{recordId}": { "schema": "ExamRecord" },
     "/approved_fees/{feeId}": { "schema": "FeeItem" },
     "/student_ledger/{ledgerId}": { "schema": "StudentLedgerEntry" },
