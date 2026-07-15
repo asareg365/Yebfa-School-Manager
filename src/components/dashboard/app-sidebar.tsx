@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -17,11 +18,10 @@ import {
   Users,
   GraduationCap,
   Baby,
-  CreditCard,
-  Banknote,
-  Receipt,
-  TrendingUp,
-  BarChart3
+  Library,
+  Book,
+  History,
+  AlertCircle
 } from "lucide-react"
 
 import {
@@ -77,6 +77,7 @@ export function AppSidebar() {
   const isAccountant = userRole === "accountant"
   const isTeacher = userRole === "teacher"
   const isParent = userRole === "parent"
+  const isLibrarian = userRole === "librarian"
 
   const navigation = React.useMemo(() => {
     if (isParent) {
@@ -107,6 +108,16 @@ export function AppSidebar() {
           { title: "Directory", url: "/dashboard/students", visible: true },
           { title: "Exams & Grading", url: "/dashboard/exams", visible: isOwner || isAdmin || isTeacher },
           { title: "Ledgers", url: "/dashboard/students/accounts", visible: isOwner || isAccountant },
+        ].filter(i => i.visible),
+      },
+      {
+        title: "Library Hub",
+        url: "#",
+        icon: Library,
+        visible: isOwner || isAdmin || isLibrarian,
+        items: [
+          { title: "Catalog", url: "/dashboard/library/books", visible: true },
+          { title: "Transactions", url: "/dashboard/library/transactions", visible: true },
         ].filter(i => i.visible),
       },
       {
@@ -143,7 +154,7 @@ export function AppSidebar() {
         visible: isOwner || isAdmin,
       },
     ].filter(item => item.visible)
-  }, [userRole, isOwner, isAdmin, isAccountant, isTeacher, isParent])
+  }, [userRole, isOwner, isAdmin, isAccountant, isTeacher, isParent, isLibrarian])
 
   if (!mounted) return (
     <Sidebar collapsible="icon" className="border-r border-border/40">

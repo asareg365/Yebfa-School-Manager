@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -30,98 +31,40 @@
       },
       "required": ["name", "tenantId"]
     },
-    "Student": {
-      "title": "Student",
-      "description": "Comprehensive student record.",
+    "LibraryBook": {
+      "title": "Library Book",
+      "description": "A book in the institutional library collection.",
       "type": "object",
       "properties": {
         "tenantId": { "type": "string" },
-        "admissionNumber": { "type": "string" },
-        "studentId": { "type": "string" },
-        "firstName": { "type": "string" },
-        "lastName": { "type": "string" },
-        "gradeLevel": { "type": "string" },
-        "parentUid": { "type": "string" }
-      },
-      "required": ["tenantId", "firstName", "lastName", "admissionNumber"]
-    },
-    "FeeItem": {
-      "title": "Fee Item",
-      "description": "Definition of a specific charge (e.g., Tuition, Uniform).",
-      "type": "object",
-      "properties": {
-        "tenantId": { "type": "string" },
-        "name": { "type": "string" },
-        "amount": { "type": "number" },
-        "category": { "type": "string", "enum": ["Mandatory", "Optional", "One-time"] }
-      },
-      "required": ["tenantId", "name", "amount"]
-    },
-    "Invoice": {
-      "title": "Student Invoice",
-      "description": "Bill generated for a student for a specific term.",
-      "type": "object",
-      "properties": {
-        "tenantId": { "type": "string" },
-        "invoiceNumber": { "type": "string" },
-        "studentId": { "type": "string" },
-        "studentName": { "type": "string" },
-        "items": { "type": "array" },
-        "totalAmount": { "type": "number" },
-        "discount": { "type": "number" },
-        "scholarship": { "type": "number" },
-        "amountDue": { "type": "number" },
-        "status": { "type": "string", "enum": ["Unpaid", "Partial", "Paid"] },
-        "term": { "type": "string" },
-        "academicYear": { "type": "string" }
-      },
-      "required": ["tenantId", "studentId", "totalAmount"]
-    },
-    "Transaction": {
-      "title": "Payment Transaction",
-      "description": "Record of cash, MoMo, or Card payment.",
-      "type": "object",
-      "properties": {
-        "tenantId": { "type": "string" },
-        "studentId": { "type": "string" },
-        "invoiceId": { "type": "string" },
-        "amount": { "type": "number" },
-        "paymentMethod": { "type": "string", "enum": ["Cash", "MTN MoMo", "Telecel Cash", "AirtelTigo Money", "Card", "Bank Transfer"] },
-        "reference": { "type": "string" },
-        "date": { "type": "string", "format": "date-time" }
-      },
-      "required": ["tenantId", "amount", "paymentMethod"]
-    },
-    "ExpenseVoucher": {
-      "title": "Expenditure Voucher",
-      "description": "Record of operational spending.",
-      "type": "object",
-      "properties": {
-        "tenantId": { "type": "string" },
+        "title": { "type": "string" },
+        "author": { "type": "string" },
+        "isbn": { "type": "string" },
+        "barcode": { "type": "string" },
         "category": { "type": "string" },
-        "description": { "type": "string" },
-        "amount": { "type": "number" },
-        "date": { "type": "string", "format": "date" }
+        "totalCopies": { "type": "number" },
+        "availableCopies": { "type": "number" },
+        "shelfLocation": { "type": "string" }
       },
-      "required": ["tenantId", "amount", "category"]
+      "required": ["tenantId", "title", "author", "barcode"]
     },
-    "PayrollRecord": {
-      "title": "Payroll Disbursement",
-      "description": "Salary record for a staff member.",
+    "LibraryTransaction": {
+      "title": "Library Transaction",
+      "description": "Record of a book being borrowed or returned.",
       "type": "object",
       "properties": {
         "tenantId": { "type": "string" },
-        "staffId": { "type": "string" },
-        "staffName": { "type": "string" },
-        "baseSalary": { "type": "number" },
-        "allowances": { "type": "number" },
-        "deductions": { "type": "number" },
-        "netSalary": { "type": "number" },
-        "status": { "type": "string", "enum": ["Pending", "Paid"] },
-        "month": { "type": "string" },
-        "year": { "type": "string" }
+        "bookId": { "type": "string" },
+        "bookTitle": { "type": "string" },
+        "borrowerId": { "type": "string" },
+        "borrowerName": { "type": "string" },
+        "borrowDate": { "type": "string", "format": "date" },
+        "dueDate": { "type": "string", "format": "date" },
+        "returnDate": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["Borrowed", "Returned", "Overdue"] },
+        "fineAmount": { "type": "number" }
       },
-      "required": ["tenantId", "staffId", "netSalary"]
+      "required": ["tenantId", "bookId", "borrowerId", "borrowDate", "dueDate"]
     }
   },
   "auth": {
@@ -130,11 +73,7 @@
   "firestore": {
     "/users/{userId}": { "schema": "User" },
     "/institutions/{institutionId}": { "schema": "Institution" },
-    "/students/{studentId}": { "schema": "Student" },
-    "/approved_fees/{feeId}": { "schema": "FeeItem" },
-    "/invoices/{invoiceId}": { "schema": "Invoice" },
-    "/transactions/{txnId}": { "schema": "Transaction" },
-    "/expenditure_vouchers/{voucherId}": { "schema": "ExpenseVoucher" },
-    "/payroll_records/{payrollId}": { "schema": "PayrollRecord" }
+    "/library_books/{bookId}": { "schema": "LibraryBook" },
+    "/library_transactions/{txnId}": { "schema": "LibraryTransaction" }
   }
 }

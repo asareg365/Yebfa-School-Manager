@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -30,7 +31,8 @@ service cloud.firestore {
     function isAccountant() { return signedIn() && userRole() == "accountant"; }
     function isTeacher() { return signedIn() && userRole() == "teacher"; }
     function isParent() { return signedIn() && userRole() == "parent"; }
-    function isStaff() { return isOwner() || isAdmin() || isAccountant() || isTeacher(); }
+    function isLibrarian() { return signedIn() && userRole() == "librarian"; }
+    function isStaff() { return isOwner() || isAdmin() || isAccountant() || isTeacher() || isLibrarian(); }
 
     function belongsToTenant(data) {
       return data.tenantId == userTenant();
@@ -45,43 +47,17 @@ service cloud.firestore {
     }
 
     // ======================
-    // MULTI-TENANT COLLECTIONS
+    // LIBRARY COLLECTIONS
     // ======================
 
-    match /students/{studentId} {
-      allow read: if signedIn() && (isSuperAdmin() || (belongsToTenant(resource.data) && (isStaff() || resource.data.parentUid == request.auth.uid)));
-      allow write: if signedIn() && (isSuperAdmin() || (belongsToTenant(request.resource.data) && (isOwner() || isAdmin())));
-    }
-
-    match /staff/{staffId} {
+    match /library_books/{bookId} {
       allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
-      allow write: if signedIn() && (isSuperAdmin() || (belongsToTenant(request.resource.data) && (isOwner() || isAdmin())));
+      allow write: if signedIn() && (isSuperAdmin() || (belongsToTenant(request.resource.data) && (isOwner() || isLibrarian() || isAdmin())));
     }
 
-    // FINANCIAL ACCESS
-    match /approved_fees/{feeId} {
+    match /library_transactions/{txnId} {
       allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
-      allow write: if signedIn() && (isSuperAdmin() || (belongsToTenant(request.resource.data) && (isOwner() || isAccountant())));
-    }
-
-    match /invoices/{invoiceId} {
-      allow read: if signedIn() && (isSuperAdmin() || (belongsToTenant(resource.data) && (isStaff() || resource.data.parentUid == request.auth.uid)));
-      allow write: if signedIn() && (isSuperAdmin() || (belongsToTenant(request.resource.data) && (isOwner() || isAccountant())));
-    }
-
-    match /transactions/{txnId} {
-      allow read: if signedIn() && (isSuperAdmin() || (belongsToTenant(resource.data) && (isStaff() || resource.data.parentUid == request.auth.uid)));
-      allow write: if signedIn() && (isSuperAdmin() || (belongsToTenant(request.resource.data) && (isOwner() || isAccountant())));
-    }
-
-    match /expenditure_vouchers/{voucherId} {
-      allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
-      allow write: if signedIn() && (isSuperAdmin() || (belongsToTenant(request.resource.data) && (isOwner() || isAccountant())));
-    }
-
-    match /payroll_records/{payrollId} {
-      allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
-      allow write: if signedIn() && (isSuperAdmin() || (belongsToTenant(request.resource.data) && (isOwner() || isAccountant())));
+      allow write: if signedIn() && (isSuperAdmin() || (belongsToTenant(request.resource.data) && (isOwner() || isLibrarian() || isAdmin())));
     }
 
     // INSTITUTIONAL CONFIG
