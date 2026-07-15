@@ -1,4 +1,3 @@
-
 {
   "entities": {
     "User": {
@@ -39,6 +38,61 @@
       },
       "required": ["name", "tenantId"]
     },
+    "Student": {
+      "title": "Student",
+      "description": "Comprehensive enterprise student enrollment record with 80+ potential fields.",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "admissionNumber": { "type": "string", "description": "Permanent Unique ID: e.g., APS-2026-000001" },
+        "studentId": { "type": "string", "description": "Short system ID" },
+        "firstName": { "type": "string" },
+        "middleName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "gender": { "type": "string", "enum": ["Male", "Female", "Other"] },
+        "dateOfBirth": { "type": "string", "format": "date" },
+        "nationality": { "type": "string" },
+        "religion": { "type": "string" },
+        "bloodGroup": { "type": "string" },
+        "nhisNumber": { "type": "string" },
+        "gpsAddress": { "type": "string" },
+        "residentialAddress": { "type": "string" },
+        "parentName": { "type": "string" },
+        "parentPhone": { "type": "string" },
+        "parentEmail": { "type": "string" },
+        "guardianName": { "type": "string" },
+        "emergencyContact": { "type": "string" },
+        "medicalHistory": { "type": "string" },
+        "allergies": { "type": "string" },
+        "house": { "type": "string" },
+        "busRoute": { "type": "string" },
+        "hostel": { "type": "string" },
+        "previousSchool": { "type": "string" },
+        "admissionDate": { "type": "string", "format": "date" },
+        "gradeLevel": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "suspended", "graduated", "withdrawn"] },
+        "photoUrl": { "type": "string" },
+        "qrCodeData": { "type": "string" }
+      },
+      "required": ["tenantId", "firstName", "lastName", "admissionNumber"]
+    },
+    "Staff": {
+      "title": "Staff Member",
+      "description": "Institutional employee record.",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "fullName": { "type": "string" },
+        "role": { "type": "string" },
+        "department": { "type": "string" },
+        "email": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "staffId": { "type": "string" },
+        "joiningDate": { "type": "string" },
+        "institutionId": { "type": "string" }
+      },
+      "required": ["tenantId", "fullName", "role"]
+    },
     "AcademicYear": {
       "title": "Academic Year",
       "type": "object",
@@ -59,88 +113,6 @@
         "status": { "type": "string", "enum": ["active", "upcoming", "completed"] }
       },
       "required": ["tenantId", "academicYearId", "name"]
-    },
-    "Class": {
-      "title": "Classroom Definition",
-      "type": "object",
-      "properties": {
-        "tenantId": { "type": "string" },
-        "name": { "type": "string" },
-        "gradeLevel": { "type": "string" }
-      },
-      "required": ["tenantId", "name"]
-    },
-    "Section": {
-      "title": "Class Stream/Section",
-      "type": "object",
-      "properties": {
-        "tenantId": { "type": "string" },
-        "classId": { "type": "string" },
-        "name": { "type": "string" }
-      },
-      "required": ["tenantId", "classId", "name"]
-    },
-    "Student": {
-      "title": "Student",
-      "description": "Comprehensive student enrollment record.",
-      "type": "object",
-      "properties": {
-        "tenantId": { "type": "string" },
-        "firstName": { "type": "string" },
-        "lastName": { "type": "string" },
-        "gender": { "type": "string" },
-        "gradeLevel": { "type": "string" },
-        "studentId": { "type": "string" },
-        "status": { "type": "string" },
-        "institutionId": { "type": "string" },
-        "dateOfBirth": { "type": "string" },
-        "parentName": { "type": "string" },
-        "parentPhone": { "type": "string" },
-        "photoUrl": { "type": "string" }
-      },
-      "required": ["tenantId", "firstName", "lastName", "studentId"]
-    },
-    "Staff": {
-      "title": "Staff Member",
-      "description": "Institutional employee record.",
-      "type": "object",
-      "properties": {
-        "tenantId": { "type": "string" },
-        "fullName": { "type": "string" },
-        "role": { "type": "string" },
-        "department": { "type": "string" },
-        "email": { "type": "string" },
-        "phoneNumber": { "type": "string" },
-        "staffId": { "type": "string" },
-        "joiningDate": { "type": "string" },
-        "institutionId": { "type": "string" }
-      },
-      "required": ["tenantId", "fullName", "role"]
-    },
-    "Subject": {
-      "title": "Academic Subject",
-      "type": "object",
-      "properties": {
-        "tenantId": { "type": "string" },
-        "name": { "type": "string" },
-        "category": { "type": "string" },
-        "gradeLevels": { "type": "array", "items": { "type": "string" } },
-        "institutionId": { "type": "string" }
-      },
-      "required": ["tenantId", "name"]
-    },
-    "TeacherAssignment": {
-      "title": "Teacher Assignment",
-      "type": "object",
-      "properties": {
-        "tenantId": { "type": "string" },
-        "staffId": { "type": "string" },
-        "classId": { "type": "string" },
-        "sectionId": { "type": "string" },
-        "subjectId": { "type": "string" },
-        "academicYearId": { "type": "string" }
-      },
-      "required": ["tenantId", "staffId", "subjectId"]
     }
   },
   "auth": {
