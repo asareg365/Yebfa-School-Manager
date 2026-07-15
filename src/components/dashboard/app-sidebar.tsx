@@ -25,7 +25,10 @@ import {
   Building2,
   Bus,
   MessageSquare,
-  BarChart3
+  BarChart3,
+  Calendar,
+  Layers,
+  UserCheck
 } from "lucide-react"
 
 import {

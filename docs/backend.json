@@ -10,6 +10,7 @@
         "email": { "type": "string", "format": "email" },
         "role": { "type": "string", "enum": ["super_admin", "school_owner", "administrator", "teacher", "accountant", "librarian", "student", "parent"] },
         "tenantId": { "type": "string" },
+        "institutionId": { "type": "string" },
         "name": { "type": "string" },
         "status": { "type": "string" }
       },
@@ -27,80 +28,102 @@
         "ownerUid": { "type": "string" },
         "location": { "type": "string" },
         "subscriptionPlan": { "type": "string" },
-        "status": { "type": "string" }
+        "status": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["name", "tenantId"]
     },
-    "HostelRoom": {
-      "title": "Hostel Room",
-      "description": "A room within a school hostel.",
+    "AcademicYear": {
+      "title": "Academic Year",
+      "description": "Definition of an academic session (e.g. 2026/2027).",
       "type": "object",
       "properties": {
         "tenantId": { "type": "string" },
+        "institutionId": { "type": "string" },
+        "year": { "type": "string" },
+        "status": { "type": "string", "enum": ["Active", "Inactive"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["tenantId", "institutionId", "year", "status"]
+    },
+    "Term": {
+      "title": "Term / Semester",
+      "description": "Sub-division of an academic year.",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "institutionId": { "type": "string" },
+        "academicYearId": { "type": "string" },
         "name": { "type": "string" },
-        "gender": { "type": "string", "enum": ["Male", "Female"] },
-        "capacity": { "type": "number" },
-        "occupiedBeds": { "type": "number" }
+        "startDate": { "type": "string", "format": "date" },
+        "endDate": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["Active", "Inactive"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["tenantId", "name", "gender", "capacity"]
+      "required": ["tenantId", "institutionId", "academicYearId", "name"]
     },
-    "HostelCheckIn": {
-      "title": "Hostel Check In",
-      "description": "Log of a student checked into a bed.",
+    "Class": {
+      "title": "Class",
+      "description": "Definition of a grade level.",
       "type": "object",
       "properties": {
         "tenantId": { "type": "string" },
-        "studentId": { "type": "string" },
-        "studentName": { "type": "string" },
-        "roomId": { "type": "string" },
-        "roomName": { "type": "string" },
-        "bedNumber": { "type": "string" },
-        "checkInDate": { "type": "string", "format": "date" },
-        "checkOutDate": { "type": "string", "format": "date" },
-        "status": { "type": "string", "enum": ["Active", "Checked Out"] }
-      },
-      "required": ["tenantId", "studentId", "roomId", "checkInDate"]
-    },
-    "Vehicle": {
-      "title": "Vehicle",
-      "description": "Transport vehicle details.",
-      "type": "object",
-      "properties": {
-        "tenantId": { "type": "string" },
-        "plateNumber": { "type": "string" },
-        "model": { "type": "string" },
-        "driverId": { "type": "string" },
-        "driverName": { "type": "string" },
-        "capacity": { "type": "number" },
-        "status": { "type": "string" }
-      },
-      "required": ["tenantId", "plateNumber"]
-    },
-    "TransportRoute": {
-      "title": "Transport Route",
-      "description": "A bus route for student pick-up/drop-off.",
-      "type": "object",
-      "properties": {
-        "tenantId": { "type": "string" },
+        "institutionId": { "type": "string" },
         "name": { "type": "string" },
-        "vehicleId": { "type": "string" },
-        "stops": { "type": "array", "items": { "type": "string" } },
-        "monthlyFee": { "type": "number" }
+        "level": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["tenantId", "name"]
+      "required": ["tenantId", "institutionId", "name"]
     },
-    "Announcement": {
-      "title": "Announcement",
-      "description": "School-wide broadcast messages.",
+    "Section": {
+      "title": "Section / Stream",
+      "description": "Sub-division of a class (e.g. Section A).",
       "type": "object",
       "properties": {
         "tenantId": { "type": "string" },
-        "title": { "type": "string" },
-        "content": { "type": "string" },
-        "target": { "type": "string", "enum": ["All", "Teachers", "Parents", "Students"] },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "institutionId": { "type": "string" },
+        "classId": { "type": "string" },
+        "name": { "type": "string" },
+        "capacity": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["tenantId", "title", "content"]
+      "required": ["tenantId", "institutionId", "classId", "name"]
+    },
+    "Subject": {
+      "title": "Subject",
+      "description": "Academic subject definition.",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "institutionId": { "type": "string" },
+        "name": { "type": "string" },
+        "code": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["tenantId", "institutionId", "name"]
+    },
+    "TeacherAssignment": {
+      "title": "Teacher Assignment",
+      "description": "Mapping a teacher to a class, section, and subject.",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "institutionId": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "classId": { "type": "string" },
+        "sectionId": { "type": "string" },
+        "subjectId": { "type": "string" },
+        "termId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["tenantId", "institutionId", "teacherId", "classId", "subjectId"]
     }
   },
   "auth": {
@@ -109,10 +132,11 @@
   "firestore": {
     "/users/{userId}": { "schema": "User" },
     "/institutions/{institutionId}": { "schema": "Institution" },
-    "/hostels/{roomId}": { "schema": "HostelRoom" },
-    "/hostel_logs/{logId}": { "schema": "HostelCheckIn" },
-    "/vehicles/{vehicleId}": { "schema": "Vehicle" },
-    "/routes/{routeId}": { "schema": "TransportRoute" },
-    "/announcements/{annId}": { "schema": "Announcement" }
+    "/academic_years/{id}": { "schema": "AcademicYear" },
+    "/terms/{id}": { "schema": "Term" },
+    "/classes/{id}": { "schema": "Class" },
+    "/sections/{id}": { "schema": "Section" },
+    "/subjects/{id}": { "schema": "Subject" },
+    "/teacher_assignments/{id}": { "schema": "TeacherAssignment" }
   }
 }

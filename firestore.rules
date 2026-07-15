@@ -50,29 +50,35 @@ service cloud.firestore {
       allow write: if signedIn() && (isSuperAdmin() || isOwner());
     }
 
-    match /students/{studentId} {
-      allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data) || (isParent() && resource.data.parentUid == request.auth.uid));
-      allow write: if signedIn() && (isSuperAdmin() || (isOwner() || isAdmin() || isTeacher()));
+    // ACADEMIC FOUNDATION
+    match /academic_years/{id} {
+      allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
+      allow write: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
     }
 
-    match /staff/{staffId} {
+    match /terms/{id} {
       allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
-      allow write: if signedIn() && (isSuperAdmin() || (isOwner() || isAdmin()));
+      allow write: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
     }
 
-    match /hostels/{roomId} {
+    match /classes/{id} {
       allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
-      allow write: if signedIn() && (isSuperAdmin() || (isOwner() || isAdmin()));
+      allow write: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
     }
 
-    match /vehicles/{vId} {
+    match /sections/{id} {
       allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
-      allow write: if signedIn() && (isSuperAdmin() || (isOwner() || isAdmin()));
+      allow write: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
     }
 
-    match /announcements/{annId} {
+    match /subjects/{id} {
       allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
-      allow write: if signedIn() && (isSuperAdmin() || (isOwner() || isAdmin()));
+      allow write: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
+    }
+
+    match /teacher_assignments/{id} {
+      allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
+      allow write: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
     }
 
     // CATCH ALL
