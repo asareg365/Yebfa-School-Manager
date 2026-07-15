@@ -31,6 +31,24 @@
       },
       "required": ["name", "tenantId"]
     },
+    "InventoryItem": {
+      "title": "Inventory Item",
+      "description": "An asset owned by the institution.",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string", "enum": ["Furniture", "Computers", "Printers", "Projectors", "Sports Equipment", "Science Lab", "Office Supplies"] },
+        "purchaseDate": { "type": "string", "format": "date" },
+        "purchasePrice": { "type": "number" },
+        "warrantyExpiry": { "type": "string", "format": "date" },
+        "condition": { "type": "string", "enum": ["New", "Good", "Fair", "Poor", "Broken"] },
+        "depreciationRate": { "type": "number", "description": "Annual percentage" },
+        "assignedTo": { "type": "string", "description": "Staff name or Department" },
+        "serialNumber": { "type": "string" }
+      },
+      "required": ["tenantId", "name", "category", "condition"]
+    },
     "LibraryBook": {
       "title": "Library Book",
       "description": "A book in the institutional library collection.",
@@ -73,6 +91,7 @@
   "firestore": {
     "/users/{userId}": { "schema": "User" },
     "/institutions/{institutionId}": { "schema": "Institution" },
+    "/inventory/{itemId}": { "schema": "InventoryItem" },
     "/library_books/{bookId}": { "schema": "LibraryBook" },
     "/library_transactions/{txnId}": { "schema": "LibraryTransaction" }
   }

@@ -47,8 +47,13 @@ service cloud.firestore {
     }
 
     // ======================
-    // LIBRARY COLLECTIONS
+    // MODULE ACCESS
     // ======================
+
+    match /inventory/{itemId} {
+      allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));
+      allow write: if signedIn() && (isSuperAdmin() || (belongsToTenant(request.resource.data) && (isOwner() || isAdmin())));
+    }
 
     match /library_books/{bookId} {
       allow read: if signedIn() && (isSuperAdmin() || belongsToTenant(resource.data));

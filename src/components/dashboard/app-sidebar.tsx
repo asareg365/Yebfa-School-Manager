@@ -19,9 +19,9 @@ import {
   GraduationCap,
   Baby,
   Library,
-  Book,
-  History,
-  AlertCircle
+  Box,
+  Monitor,
+  Package
 } from "lucide-react"
 
 import {
@@ -119,6 +119,12 @@ export function AppSidebar() {
           { title: "Catalog", url: "/dashboard/library/books", visible: true },
           { title: "Transactions", url: "/dashboard/library/transactions", visible: true },
         ].filter(i => i.visible),
+      },
+      {
+        title: "Inventory Hub",
+        url: "/dashboard/inventory",
+        icon: Package,
+        visible: isOwner || isAdmin,
       },
       {
         title: "Financial Hub",
