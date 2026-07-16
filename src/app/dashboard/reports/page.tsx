@@ -53,17 +53,22 @@ export default function ReportsPage() {
     institutionId && selectedGrade ? query(collection(db, "students"), where("tenantId", "==", institutionId), where("gradeLevel", "==", selectedGrade)) : null, 
     [db, institutionId, selectedGrade]
   )
+  const subjectsQuery = useMemo(() => 
+    institutionId ? query(collection(db, "subjects"), where("tenantId", "==", institutionId)) : null, 
+    [db, institutionId]
+  )
   const examsQuery = useMemo(() => 
     institutionId && selectedStudentId ? query(collection(db, "exam_records"), where("studentId", "==", selectedStudentId)) : null, 
-    [db, selectedStudentId]
+    [db, institutionId, selectedStudentId]
   )
   const attendanceQuery = useMemo(() => 
     institutionId && selectedStudentId ? query(collection(db, "attendance"), where("studentId", "==", selectedStudentId)) : null, 
-    [db, selectedStudentId]
+    [db, institutionId, selectedStudentId]
   )
 
   const { data: classes = [] } = useCollection(classesQuery)
   const { data: students = [] } = useCollection(studentsQuery)
+  const { data: subjects = [] } = useCollection(subjectsQuery)
   const { data: examRecords = [] } = useCollection(examsQuery)
   const { data: attendanceDocs = [] } = useCollection(attendanceQuery)
 
@@ -75,16 +80,20 @@ export default function ReportsPage() {
     const daysPresent = attendanceDocs.filter((a: any) => a.status === 'present').length
     const attendancePercent = totalDays > 0 ? Math.round((daysPresent / totalDays) * 100) : 100
 
-    const examScores = examRecords.map((e: any) => ({
-      name: e.subjectId, // Usually subject name or ID
-      score: e.totalScore || 0
-    }))
+    const examScores = examRecords.map((e: any) => {
+      // Find subject name from ID
+      const subjectName = subjects.find(s => s.id === e.subjectId)?.name || "Academic Subject"
+      return {
+        name: subjectName,
+        score: typeof e.totalScore === 'number' ? e.totalScore : 0
+      }
+    })
 
     return {
       attendancePercent,
       examScores
     }
-  }, [attendanceDocs, examRecords])
+  }, [attendanceDocs, examRecords, subjects])
 
   const [behaviorNotes, setBehaviorNotes] = useState("")
 
@@ -102,14 +111,21 @@ export default function ReportsPage() {
         gradeLevel: selectedGrade,
         examScores: aggregatedMetrics.examScores,
         attendancePercentage: aggregatedMetrics.attendancePercent,
-        behaviorNotes: behaviorNotes
+        behaviorNotes: behaviorNotes || "Good overall participation and conduct."
       }
 
       const output = await generateStudentReportComments(payload)
+      if (!output) throw new Error("Empty AI response")
+      
       setResult(output)
       toast({ title: "Report Generated", description: "Data-synced performance narrative is ready." })
-    } catch (error) {
-      toast({ variant: "destructive", title: "Analysis Failed", description: "Could not process registry data." })
+    } catch (error: any) {
+      console.error("AI Generation Error:", error)
+      toast({ 
+        variant: "destructive", 
+        title: "Generation Failed", 
+        description: error.message?.includes('API key') ? "AI configuration error. Please check system keys." : "Could not process registry data at this time." 
+      })
     } finally {
       setLoading(false)
     }
@@ -149,6 +165,7 @@ export default function ReportsPage() {
                     <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Select Grade" /></SelectTrigger>
                     <SelectContent>
                       {classes.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                      {classes.length === 0 && <div className="p-2 text-center text-xs italic">No classes registered</div>}
                     </SelectContent>
                   </Select>
                 </div>
@@ -158,6 +175,7 @@ export default function ReportsPage() {
                     <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Choose Student" /></SelectTrigger>
                     <SelectContent>
                       {students.map(s => <SelectItem key={s.id} value={s.id}>{s.firstName} {s.lastName}</SelectItem>)}
+                      {students.length === 0 && selectedGrade && <div className="p-2 text-center text-xs italic">No students in this grade</div>}
                     </SelectContent>
                   </Select>
                 </div>
@@ -224,7 +242,7 @@ export default function ReportsPage() {
                         <Check className="size-3" /> Official Assessment
                       </div>
                       <CardTitle className="text-2xl font-headline">{selectedStudent?.firstName} {selectedStudent?.lastName}</CardTitle>
-                      <CardDescription className="text-primary-foreground/70">{selectedGrade} • Term 2 Report Draft</CardDescription>
+                      <CardDescription className="text-primary-foreground/70">{selectedGrade} • Performance Report Draft</CardDescription>
                     </div>
                     <Button variant="secondary" size="icon" onClick={handleCopy} className="bg-white/10 hover:bg-white/20 border-none text-white rounded-xl">
                       {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
