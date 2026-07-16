@@ -288,7 +288,3 @@ export default function ExaminationCenterPage() {
     </div>
   )
 }
-
-function Label({ children, className }: { children: React.ReactNode, className?: string }) {
-  return <label className={`text-xs font-bold uppercase tracking-wider text-muted-foreground ${className}`}>{children}</label>
-}
