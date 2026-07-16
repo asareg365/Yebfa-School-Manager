@@ -44,6 +44,26 @@ const generateStudentReportCommentsPrompt = ai.definePrompt({
   name: 'generateStudentReportCommentsPrompt',
   input: {schema: GenerateStudentReportCommentsInputSchema},
   output: {schema: GenerateStudentReportCommentsOutputSchema},
+  config: {
+    safetySettings: [
+      {
+        category: 'HARM_CATEGORY_HARASSMENT',
+        threshold: 'BLOCK_NONE',
+      },
+      {
+        category: 'HARM_CATEGORY_HATE_SPEECH',
+        threshold: 'BLOCK_NONE',
+      },
+      {
+        category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+        threshold: 'BLOCK_NONE',
+      },
+      {
+        category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+        threshold: 'BLOCK_NONE',
+      },
+    ],
+  },
   prompt: `You are an expert educator crafting professional, detailed academic reports.
 Analyze the student's data and provide a comprehensive, well-organized report.
 
@@ -75,7 +95,17 @@ const generateStudentReportCommentsFlow = ai.defineFlow(
     outputSchema: GenerateStudentReportCommentsOutputSchema,
   },
   async (input) => {
-    const {output} = await generateStudentReportCommentsPrompt(input);
-    return output!;
+    try {
+      const {output} = await generateStudentReportCommentsPrompt(input);
+      if (!output) {
+        throw new Error("The AI model failed to return a structured performance narrative.");
+      }
+      return output;
+    } catch (err: any) {
+      if (err.message?.includes('403') || err.message?.includes('blocked')) {
+        throw new Error("AI access is blocked by your service provider. Please enable the 'Generative Language API' in your Google Cloud Console.");
+      }
+      throw err;
+    }
   }
 );

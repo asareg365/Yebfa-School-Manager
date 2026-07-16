@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -22,12 +21,14 @@ import {
   ListChecks, 
   Database,
   Search,
-  RefreshCw
+  RefreshCw,
+  AlertCircle
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection } from "@/firebase"
 import { collection, query, where } from "firebase/firestore"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export default function ReportsPage() {
   const db = useFirestore()
@@ -35,6 +36,7 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<GenerateStudentReportCommentsOutput | null>(null)
   const [copied, setCopied] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   // Selection states
   const [selectedGrade, setSelectedGrade] = useState("")
@@ -104,6 +106,7 @@ export default function ReportsPage() {
     }
 
     setLoading(true)
+    setErrorMessage(null)
     try {
       const payload = {
         studentName: `${selectedStudent.firstName} ${selectedStudent.lastName}`,
@@ -115,16 +118,18 @@ export default function ReportsPage() {
       }
 
       const output = await generateStudentReportComments(payload)
-      if (!output) throw new Error("Empty AI response")
-      
       setResult(output)
       toast({ title: "Report Generated", description: "Data-synced performance narrative is ready." })
     } catch (error: any) {
       console.error("AI Generation Error:", error)
+      const msg = error.message || "An unexpected error occurred."
+      setErrorMessage(msg)
       toast({ 
         variant: "destructive", 
         title: "Generation Failed", 
-        description: error.message?.includes('API key') ? "AI configuration error. Please check system keys." : "Could not process registry data at this time." 
+        description: msg.includes('403') || msg.includes('Access is blocked') 
+          ? "Institutional AI access is restricted. Please check your API configuration." 
+          : "Could not process registry data at this time." 
       })
     } finally {
       setLoading(false)
@@ -141,11 +146,30 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-8 animate-in fade-in duration-500 overflow-y-auto max-h-full pb-20">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-headline font-bold tracking-tight text-primary">Academic Narratives</h1>
         <p className="text-muted-foreground">Generating comprehensive reports synced with live attendance and exam records.</p>
       </div>
+
+      {errorMessage && (
+        <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-800 rounded-2xl animate-in slide-in-from-top-2">
+          <AlertCircle className="size-4" />
+          <AlertTitle className="font-bold">System Configuration Required</AlertTitle>
+          <AlertDescription className="text-sm">
+            {errorMessage.includes('403') || errorMessage.includes('blocked') ? (
+              <div className="space-y-2">
+                <p>The AI service returned a "403 Forbidden" error. This usually means the <strong>Generative Language API</strong> is not enabled for your project.</p>
+                <ol className="list-decimal ml-4 space-y-1 mt-2 font-medium">
+                  <li>Go to the Google Cloud Console.</li>
+                  <li>Enable the <strong>Generative Language API</strong>.</li>
+                  <li>Ensure your API Key has permission to access this service.</li>
+                </ol>
+              </div>
+            ) : errorMessage}
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid gap-8 lg:grid-cols-2">
         <div className="space-y-6">
