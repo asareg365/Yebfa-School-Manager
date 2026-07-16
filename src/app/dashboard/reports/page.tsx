@@ -1,7 +1,8 @@
+
 "use client"
 
 import * as React from "react"
-import { useState } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { generateStudentReportComments, GenerateStudentReportCommentsOutput } from "@/ai/flows/generate-student-report-comments"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,55 +10,114 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, Sparkles, User, GraduationCap, Copy, Check, Target, Lightbulb, ListChecks } from "lucide-react"
+import { 
+  Loader2, 
+  Sparkles, 
+  User, 
+  GraduationCap, 
+  Copy, 
+  Check, 
+  Target, 
+  Lightbulb, 
+  ListChecks, 
+  Database,
+  Search,
+  RefreshCw
+} from "lucide-react"
 import { toast } from "@/hooks/use-toast"
+import { useFirestore, useCollection } from "@/firebase"
+import { collection, query, where } from "firebase/firestore"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export default function ReportsPage() {
+  const db = useFirestore()
+  const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<GenerateStudentReportCommentsOutput | null>(null)
   const [copied, setCopied] = useState(false)
 
-  const [formData, setFormData] = useState({
-    studentName: "",
-    subject: "",
-    gradeLevel: "",
-    examScores: [] as {name: string, score: number}[],
-    attendancePercentage: 100,
-    behaviorNotes: ""
-  })
+  // Selection states
+  const [selectedGrade, setSelectedGrade] = useState("")
+  const [selectedStudentId, setSelectedStudentId] = useState("")
+
+  useEffect(() => {
+    setInstitutionId(localStorage.getItem('selected_institution_id'))
+  }, [])
+
+  // Queries
+  const classesQuery = useMemo(() => 
+    institutionId ? query(collection(db, "classes"), where("tenantId", "==", institutionId)) : null, 
+    [db, institutionId]
+  )
+  const studentsQuery = useMemo(() => 
+    institutionId && selectedGrade ? query(collection(db, "students"), where("tenantId", "==", institutionId), where("gradeLevel", "==", selectedGrade)) : null, 
+    [db, institutionId, selectedGrade]
+  )
+  const examsQuery = useMemo(() => 
+    institutionId && selectedStudentId ? query(collection(db, "exam_records"), where("studentId", "==", selectedStudentId)) : null, 
+    [db, selectedStudentId]
+  )
+  const attendanceQuery = useMemo(() => 
+    institutionId && selectedStudentId ? query(collection(db, "attendance"), where("studentId", "==", selectedStudentId)) : null, 
+    [db, selectedStudentId]
+  )
+
+  const { data: classes = [] } = useCollection(classesQuery)
+  const { data: students = [] } = useCollection(studentsQuery)
+  const { data: examRecords = [] } = useCollection(examsQuery)
+  const { data: attendanceDocs = [] } = useCollection(attendanceQuery)
+
+  const selectedStudent = useMemo(() => students.find(s => s.id === selectedStudentId), [students, selectedStudentId])
+
+  // Calculated Metrics for AI
+  const aggregatedMetrics = useMemo(() => {
+    const totalDays = attendanceDocs.length
+    const daysPresent = attendanceDocs.filter((a: any) => a.status === 'present').length
+    const attendancePercent = totalDays > 0 ? Math.round((daysPresent / totalDays) * 100) : 100
+
+    const examScores = examRecords.map((e: any) => ({
+      name: e.subjectId, // Usually subject name or ID
+      score: e.totalScore || 0
+    }))
+
+    return {
+      attendancePercent,
+      examScores
+    }
+  }, [attendanceDocs, examRecords])
+
+  const [behaviorNotes, setBehaviorNotes] = useState("")
 
   const handleGenerate = async () => {
-    if (!formData.studentName || !formData.subject) {
-      toast({
-        variant: "destructive",
-        title: "Missing Info",
-        description: "Please enter a student name and subject."
-      })
+    if (!selectedStudent) {
+      toast({ variant: "destructive", title: "Selection Required", description: "Please select a student from the registry." })
       return
     }
 
     setLoading(true)
     try {
-      const output = await generateStudentReportComments(formData)
+      const payload = {
+        studentName: `${selectedStudent.firstName} ${selectedStudent.lastName}`,
+        subject: "General Academic Performance",
+        gradeLevel: selectedGrade,
+        examScores: aggregatedMetrics.examScores,
+        attendancePercentage: aggregatedMetrics.attendancePercent,
+        behaviorNotes: behaviorNotes
+      }
+
+      const output = await generateStudentReportComments(payload)
       setResult(output)
-      toast({
-        title: "Report Detailed",
-        description: "Comprehensive performance narrative generated."
-      })
+      toast({ title: "Report Generated", description: "Data-synced performance narrative is ready." })
     } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to generate report narrative."
-      })
+      toast({ variant: "destructive", title: "Analysis Failed", description: "Could not process registry data." })
     } finally {
       setLoading(false)
     }
   }
 
   const handleCopy = () => {
-    if (result) {
-      const text = `Report for ${formData.studentName}\n\nSummary: ${result.executiveSummary}\n\nKey Strengths:\n${result.keyStrengths.join('\n')}`
+    if (result && selectedStudent) {
+      const text = `Official Academic Report: ${selectedStudent.firstName} ${selectedStudent.lastName}\n\nSummary: ${result.executiveSummary}\n\nNarrative: ${result.finalGradeNarrative}`
       navigator.clipboard.writeText(text)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
@@ -65,149 +125,142 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-headline font-bold tracking-tight text-primary">AI Academic Narratives</h1>
-        <p className="text-muted-foreground">Generate structured, high-detail student reports with behavioral and academic insights.</p>
+        <h1 className="text-3xl font-headline font-bold tracking-tight text-primary">Academic Narratives</h1>
+        <p className="text-muted-foreground">Generating comprehensive reports synced with live attendance and exam records.</p>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-2">
-        <Card className="border-none shadow-md h-fit">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="size-5 text-primary" />
-              Student Data Entry
-            </CardTitle>
-            <CardDescription>Populate the fields below to create a comprehensive analysis.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Full Name</Label>
-                <Input 
-                  placeholder="e.g. Ama Serwaa"
-                  value={formData.studentName} 
-                  onChange={(e) => setFormData({...formData, studentName: e.target.value})}
-                />
+        <div className="space-y-6">
+          <Card className="border-none shadow-md overflow-hidden rounded-2xl">
+            <CardHeader className="bg-primary/5 border-b">
+              <CardTitle className="flex items-center gap-2 text-primary">
+                <Database className="size-5" />
+                Registry Data Sync
+              </CardTitle>
+              <CardDescription>Select a student to pull academic and presence history.</CardDescription>
+            </CardHeader>
+            <CardContent className="p-6 space-y-6">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Grade Module</Label>
+                  <Select value={selectedGrade} onValueChange={(v) => { setSelectedGrade(v); setSelectedStudentId(""); }}>
+                    <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Select Grade" /></SelectTrigger>
+                    <SelectContent>
+                      {classes.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Student Name</Label>
+                  <Select value={selectedStudentId} onValueChange={setSelectedStudentId} disabled={!selectedGrade}>
+                    <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Choose Student" /></SelectTrigger>
+                    <SelectContent>
+                      {students.map(s => <SelectItem key={s.id} value={s.id}>{s.firstName} {s.lastName}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Subject</Label>
-                <Input 
-                  placeholder="e.g. Core Mathematics"
-                  value={formData.subject} 
-                  onChange={(e) => setFormData({...formData, subject: e.target.value})}
-                />
-              </div>
-            </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Grade Level</Label>
-                <Input 
-                  placeholder="SHS 2"
-                  value={formData.gradeLevel} 
-                  onChange={(e) => setFormData({...formData, gradeLevel: e.target.value})}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Attendance (%)</Label>
-                <Input 
-                  type="number"
-                  value={formData.attendancePercentage} 
-                  onChange={(e) => setFormData({...formData, attendancePercentage: parseInt(e.target.value) || 0})}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Qualitative Observations</Label>
-              <Textarea 
-                placeholder="Mention class participation, projects, or attitude..."
-                className="min-h-[100px]"
-                value={formData.behaviorNotes}
-                onChange={(e) => setFormData({...formData, behaviorNotes: e.target.value})}
-              />
-            </div>
-
-            <Button 
-              className="w-full gap-2 bg-primary hover:bg-primary/90 h-12"
-              onClick={handleGenerate}
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" />
-                  Analyzing Academic Data...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="size-4" />
-                  Generate Comprehensive Report
-                </>
+              {selectedStudent && (
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-3 animate-in slide-in-from-top-2 duration-300">
+                   <div className="flex justify-between items-center text-xs">
+                     <span className="text-muted-foreground">Attendance Logs</span>
+                     <Badge variant="secondary" className="font-bold">{aggregatedMetrics.attendancePercent}%</Badge>
+                   </div>
+                   <div className="flex justify-between items-center text-xs">
+                     <span className="text-muted-foreground">Exam Records Found</span>
+                     <Badge variant="secondary" className="font-bold">{aggregatedMetrics.examScores.length} Subjects</Badge>
+                   </div>
+                   <p className="text-[10px] text-muted-foreground italic flex items-center gap-1">
+                     <RefreshCw className="size-2.5 animate-spin-slow" /> Data synchronized with live institutional vault.
+                   </p>
+                </div>
               )}
-            </Button>
-          </CardContent>
-        </Card>
+
+              <div className="space-y-2">
+                <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Qualitative Observations</Label>
+                <Textarea 
+                  placeholder="Mention participation, soft skills, or specific projects..."
+                  className="min-h-[120px] rounded-xl border-slate-200"
+                  value={behaviorNotes}
+                  onChange={(e) => setBehaviorNotes(e.target.value)}
+                />
+              </div>
+
+              <Button 
+                className="w-full h-14 gap-2 bg-primary hover:bg-primary/90 rounded-2xl shadow-xl shadow-primary/10 transition-all active:scale-95"
+                onClick={handleGenerate}
+                disabled={loading || !selectedStudentId}
+              >
+                {loading ? <Loader2 className="size-5 animate-spin" /> : <Sparkles className="size-5" />}
+                Generate Comprehensive Report
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
 
         <div className="space-y-6">
           {!result ? (
-            <Card className="border-none shadow-md min-h-[500px] flex flex-col">
-              <CardContent className="flex-1 flex flex-col items-center justify-center text-center p-12 space-y-4">
-                <div className="size-20 rounded-full bg-muted flex items-center justify-center">
-                  <GraduationCap className="size-10 text-muted-foreground/30" />
-                </div>
-                <div className="max-w-xs">
-                  <p className="font-semibold text-lg">Ready for Analysis</p>
-                  <p className="text-sm text-muted-foreground">
-                    Enter student metrics on the left to generate a professional, multi-section report draft.
-                  </p>
-                </div>
-              </CardContent>
+            <Card className="border-none shadow-md min-h-[500px] flex flex-col items-center justify-center text-center p-12 space-y-4 rounded-3xl bg-muted/5 border-2 border-dashed">
+              <div className="size-24 rounded-full bg-primary/5 flex items-center justify-center">
+                <GraduationCap className="size-12 text-primary/20" />
+              </div>
+              <div className="max-w-xs">
+                <p className="font-bold text-xl text-primary/60">Awaiting Selection</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Link a student from the registry to automatically compute performance narratives.
+                </p>
+              </div>
             </Card>
           ) : (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
-              <Card className="border-none shadow-md overflow-hidden">
-                <CardHeader className="bg-primary text-primary-foreground">
+              <Card className="border-none shadow-xl overflow-hidden rounded-3xl">
+                <CardHeader className="bg-primary text-primary-foreground p-8">
                   <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-xl">Student Assessment: {formData.studentName}</CardTitle>
-                      <CardDescription className="text-primary-foreground/70">{formData.subject} • {formData.gradeLevel}</CardDescription>
+                    <div className="space-y-1">
+                      <div className="inline-flex items-center gap-2 px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-bold uppercase tracking-widest">
+                        <Check className="size-3" /> Official Assessment
+                      </div>
+                      <CardTitle className="text-2xl font-headline">{selectedStudent?.firstName} {selectedStudent?.lastName}</CardTitle>
+                      <CardDescription className="text-primary-foreground/70">{selectedGrade} • Term 2 Report Draft</CardDescription>
                     </div>
-                    <Button variant="secondary" size="icon" onClick={handleCopy} className="bg-white/10 hover:bg-white/20 border-none text-white">
+                    <Button variant="secondary" size="icon" onClick={handleCopy} className="bg-white/10 hover:bg-white/20 border-none text-white rounded-xl">
                       {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
                     </Button>
                   </div>
                 </CardHeader>
-                <CardContent className="p-6 space-y-8 bg-white">
+                <CardContent className="p-8 space-y-8 bg-white">
                   <section>
-                    <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
-                      <ListChecks className="size-4" /> Executive Summary
+                    <h3 className="font-bold text-xs uppercase tracking-widest text-muted-foreground mb-4 flex items-center gap-2">
+                      <ListChecks className="size-4 text-primary" /> Executive Summary
                     </h3>
-                    <p className="text-sm leading-relaxed">{result.executiveSummary}</p>
+                    <p className="text-sm leading-relaxed text-slate-700">{result.executiveSummary}</p>
                   </section>
 
                   <div className="grid gap-6 md:grid-cols-2">
-                    <section className="p-4 rounded-xl bg-green-50/50 border border-green-100">
-                      <h3 className="font-bold text-sm text-green-700 mb-3 flex items-center gap-2">
+                    <section className="p-5 rounded-2xl bg-green-50/50 border border-green-100">
+                      <h3 className="font-bold text-xs text-green-700 uppercase tracking-widest mb-4 flex items-center gap-2">
                         <Target className="size-4" /> Key Strengths
                       </h3>
-                      <ul className="space-y-2">
+                      <ul className="space-y-3">
                         {result.keyStrengths.map((s, i) => (
-                          <li key={i} className="text-xs flex gap-2">
-                            <span className="text-green-500 font-bold">•</span>
+                          <li key={i} className="text-xs flex gap-3 text-slate-600">
+                            <span className="text-green-500 font-bold shrink-0">•</span>
                             {s}
                           </li>
                         ))}
                       </ul>
                     </section>
-                    <section className="p-4 rounded-xl bg-orange-50/50 border border-orange-100">
-                      <h3 className="font-bold text-sm text-orange-700 mb-3 flex items-center gap-2">
-                        <Lightbulb className="size-4" /> Development Areas
+                    <section className="p-5 rounded-2xl bg-orange-50/50 border border-orange-100">
+                      <h3 className="font-bold text-xs text-orange-700 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <Lightbulb className="size-4" /> Growth Targets
                       </h3>
-                      <ul className="space-y-2">
+                      <ul className="space-y-3">
                         {result.areasToImprove.map((a, i) => (
-                          <li key={i} className="text-xs flex gap-2">
-                            <span className="text-orange-500 font-bold">•</span>
+                          <li key={i} className="text-xs flex gap-3 text-slate-600">
+                            <span className="text-orange-500 font-bold shrink-0">•</span>
                             {a}
                           </li>
                         ))}
@@ -215,14 +268,9 @@ export default function ReportsPage() {
                     </section>
                   </div>
 
-                  <section>
-                    <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground mb-3">Academic Analysis</h3>
-                    <p className="text-sm leading-relaxed">{result.academicAnalysis}</p>
-                  </section>
-
-                  <section className="p-6 rounded-2xl bg-muted/30 border border-dashed">
-                    <h3 className="font-bold text-sm mb-4">Official Report Comment</h3>
-                    <p className="text-sm italic text-muted-foreground italic leading-relaxed">
+                  <section className="p-8 rounded-3xl bg-slate-50 border border-slate-100">
+                    <h3 className="font-bold text-xs uppercase tracking-widest text-primary mb-4">Official Narratives</h3>
+                    <p className="text-sm italic text-slate-600 leading-relaxed indent-4">
                       "{result.finalGradeNarrative}"
                     </p>
                   </section>
