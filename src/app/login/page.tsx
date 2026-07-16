@@ -118,11 +118,14 @@ export default function LoginPage() {
       const credential = await signInWithPopup(auth, provider)
       await redirectUser(credential.user)
     } catch (error: any) {
+      if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+        // User closed the popup, silence the error
+        return
+      }
+      
       console.error("Google Auth Error:", error)
       
-      if (error.code === 'auth/popup-closed-by-user') {
-        return
-      } else if (error.code === 'auth/unauthorized-domain') {
+      if (error.code === 'auth/unauthorized-domain') {
         toast({
           variant: "destructive",
           title: "Domain Not Authorized",
