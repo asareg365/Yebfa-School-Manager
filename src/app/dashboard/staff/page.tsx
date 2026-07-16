@@ -21,7 +21,8 @@ import {
   HeartHandshake,
   Search,
   Filter,
-  Check
+  Check,
+  X
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { toast } from "@/hooks/use-toast"
@@ -263,9 +264,9 @@ export default function StaffPage() {
       </Card>
 
       <Dialog open={isEnrollOpen} onOpenChange={setIsEnrollOpen}>
-        <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded-3xl">
-          <form onSubmit={handleEnroll}>
-            <DialogHeader className="bg-primary text-primary-foreground p-8">
+        <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded-3xl max-h-[90vh] flex flex-col">
+          <form onSubmit={handleEnroll} className="flex flex-col h-full overflow-hidden">
+            <DialogHeader className="bg-primary text-primary-foreground p-8 shrink-0">
               <div className="flex items-center gap-3 mb-2">
                 <div className="size-8 rounded-xl bg-white/10 flex items-center justify-center"><ShieldCheck className="size-5" /></div>
                 <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Faculty Enrollment Hub</span>
@@ -274,8 +275,8 @@ export default function StaffPage() {
               <DialogDescription className="text-primary-foreground/70">Registering unique credentials for the 2026 academic cycle.</DialogDescription>
             </DialogHeader>
 
-            <Tabs defaultValue="personal" className="w-full">
-              <div className="bg-muted/30 px-8 py-2 border-b">
+            <Tabs defaultValue="personal" className="w-full flex-1 flex flex-col overflow-hidden">
+              <div className="bg-muted/30 px-8 py-2 border-b shrink-0">
                 <TabsList className="bg-transparent gap-6 p-0 h-10">
                   <TabsTrigger value="personal" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full gap-2 text-xs font-bold uppercase"><User className="size-3.5" /> Personal</TabsTrigger>
                   <TabsTrigger value="professional" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full gap-2 text-xs font-bold uppercase"><Briefcase className="size-3.5" /> Professional</TabsTrigger>
@@ -283,7 +284,7 @@ export default function StaffPage() {
                 </TabsList>
               </div>
 
-              <ScrollArea className="max-h-[60vh]">
+              <ScrollArea className="flex-1">
                 <div className="p-8">
                   <TabsContent value="personal" className="mt-0 space-y-6">
                     <div className="flex flex-col items-center gap-4 mb-8">
@@ -397,7 +398,7 @@ export default function StaffPage() {
               </ScrollArea>
             </Tabs>
 
-            <DialogFooter className="bg-slate-50 p-8 border-t">
+            <DialogFooter className="bg-slate-50 p-8 border-t shrink-0">
               <Button type="submit" disabled={loading} className="w-full h-14 text-lg font-bold rounded-2xl bg-primary shadow-xl shadow-primary/20">
                 {loading ? <Loader2 className="mr-2 size-5 animate-spin" /> : <ShieldCheck className="mr-2 size-5" />}
                 Confirm Enrollment
@@ -408,25 +409,31 @@ export default function StaffPage() {
       </Dialog>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="max-w-2xl rounded-3xl p-8"><form onSubmit={handleUpdate}>
-          <DialogHeader><DialogTitle className="text-2xl font-headline font-bold">Edit Employee Registry</DialogTitle></DialogHeader>
-          <div className="grid gap-6 py-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Full Name</Label><Input required value={staffForm.fullName} onChange={e => setStaffForm({...staffForm, fullName: e.target.value})} className="h-11 rounded-xl" /></div>
-              <div className="space-y-2"><Label>Salary (GH₵)</Label><Input type="number" value={staffForm.salary} onChange={e => setStaffForm({...staffForm, salary: e.target.value})} className="h-11 rounded-xl" /></div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-               <div className="space-y-2"><Label>Role</Label>
-                  <Select onValueChange={v => setStaffForm({...staffForm, role: v})} value={staffForm.role}>
-                    <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
-                    <SelectContent>{STAFF_ROLES.map(r => <SelectItem key={r} value={r} className="capitalize">{r}</SelectItem>)}</SelectContent>
-                  </Select>
-               </div>
-               <div className="space-y-2"><Label>Department</Label><Input value={staffForm.department} onChange={e => setStaffForm({...staffForm, department: e.target.value})} className="h-11 rounded-xl" /></div>
-            </div>
-          </div>
-          <DialogFooter><Button type="submit" disabled={loading} className="w-full h-12 rounded-xl font-bold bg-primary shadow-lg">Authorize Update</Button></DialogFooter>
-        </form></DialogContent>
+        <DialogContent className="max-w-2xl rounded-3xl p-0 overflow-hidden max-h-[85vh] flex flex-col">
+          <form onSubmit={handleUpdate} className="flex flex-col h-full overflow-hidden">
+            <DialogHeader className="p-8 border-b shrink-0"><DialogTitle className="text-2xl font-headline font-bold">Edit Employee Registry</DialogTitle></DialogHeader>
+            <ScrollArea className="flex-1">
+              <div className="grid gap-6 p-8">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2"><Label>Full Name</Label><Input required value={staffForm.fullName} onChange={e => setStaffForm({...staffForm, fullName: e.target.value})} className="h-11 rounded-xl" /></div>
+                  <div className="space-y-2"><Label>Salary (GH₵)</Label><Input type="number" value={staffForm.salary} onChange={e => setStaffForm({...staffForm, salary: e.target.value})} className="h-11 rounded-xl" /></div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                   <div className="space-y-2"><Label>Role</Label>
+                      <Select onValueChange={v => setStaffForm({...staffForm, role: v})} value={staffForm.role}>
+                        <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                        <SelectContent>{STAFF_ROLES.map(r => <SelectItem key={r} value={r} className="capitalize">{r}</SelectItem>)}</SelectContent>
+                      </Select>
+                   </div>
+                   <div className="space-y-2"><Label>Department</Label><Input value={staffForm.department} onChange={e => setStaffForm({...staffForm, department: e.target.value})} className="h-11 rounded-xl" /></div>
+                </div>
+              </div>
+            </ScrollArea>
+            <DialogFooter className="p-8 bg-slate-50 border-t shrink-0">
+              <Button type="submit" disabled={loading} className="w-full h-12 rounded-xl font-bold bg-primary shadow-lg">Authorize Update</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
       </Dialog>
     </div>
   )

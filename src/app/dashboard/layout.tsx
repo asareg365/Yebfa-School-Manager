@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -112,12 +113,12 @@ export default function DashboardLayout({
   if (!user) return null;
 
   return (
-    <SidebarProvider className="print-provider">
-      <div className="no-print">
+    <SidebarProvider className="print-provider h-screen overflow-hidden">
+      <div className="no-print h-full overflow-y-auto border-r bg-sidebar">
         <AppSidebar />
       </div>
-      <SidebarInset className="bg-background print-inset overflow-visible">
-        <header className="no-print flex h-16 shrink-0 items-center justify-between px-6 border-b border-border/40 sticky top-0 bg-background/80 backdrop-blur-md z-40">
+      <SidebarInset className="bg-background print-inset flex flex-col h-full overflow-hidden">
+        <header className="no-print flex h-16 shrink-0 items-center justify-between px-6 border-b border-border/40 bg-background/80 backdrop-blur-md z-40">
           <div className="flex items-center gap-4">
             <SidebarTrigger />
             <Separator orientation="vertical" className="h-4" />
@@ -210,8 +211,10 @@ export default function DashboardLayout({
             </div>
           </div>
         </header>
-        <main className="flex-1 p-6 lg:p-10 max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-300">
-          {children}
+        <main className="flex-1 overflow-y-auto p-6 lg:p-10">
+          <div className="max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-300">
+            {children}
+          </div>
         </main>
       </SidebarInset>
     </SidebarProvider>

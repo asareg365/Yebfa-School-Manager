@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -323,7 +324,7 @@ export default function StudentsPage() {
   if (dataLoading) return <div className="p-24 text-center animate-pulse font-bold text-muted-foreground text-lg">Synchronizing Institutional Registry...</div>
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-in fade-in duration-300 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <h1 className="text-3xl font-headline font-bold text-primary">Student Directory</h1>
@@ -356,78 +357,80 @@ export default function StudentsPage() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader className="bg-muted/30">
-              <TableRow>
-                <TableHead className="w-12 text-center">
-                  <Checkbox checked={selectedIds.size === students.length && students.length > 0} onCheckedChange={toggleSelectAll} />
-                </TableHead>
-                <TableHead className="py-4 font-bold">ADMISSION # / NAME</TableHead>
-                <TableHead className="font-bold py-4">GRADE / GENDER</TableHead>
-                <TableHead className="font-bold py-4">GUARDIAN / PHONE</TableHead>
-                <TableHead className="font-bold py-4 text-center">STATUS</TableHead>
-                <TableHead className="text-right font-bold py-4">ACTIONS</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {students.map((stu: any) => (
-                <TableRow key={stu.id} className="hover:bg-slate-50/80 transition-colors group">
-                  <TableCell className="text-center">
-                    <Checkbox checked={selectedIds.has(stu.id)} onCheckedChange={() => toggleSelect(stu.id)} />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-4">
-                      <div className="size-12 rounded-2xl overflow-hidden bg-muted flex items-center justify-center border-2 border-white shadow-sm shrink-0">
-                        {stu.photoUrl ? <img src={stu.photoUrl} alt="" className="w-full h-full object-cover" /> : <User className="size-6 text-muted-foreground/30" />}
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="font-mono text-[10px] font-bold text-accent uppercase tracking-tighter">{stu.admissionNumber}</span>
-                        <span className="font-bold text-primary text-base">{stu.firstName} {stu.lastName}</span>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-sm font-bold text-slate-700">{stu.gradeLevel}</span>
-                      <Badge variant="secondary" className="w-fit text-[9px] uppercase font-bold bg-primary/5 text-primary border-none">{stu.gender}</Badge>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-xs font-bold text-slate-700">{stu.parentName || stu.guardianName || "N/A"}</span>
-                      <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Phone className="size-2.5" /> {stu.parentPhone || "N/A"}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Badge className="text-[9px] uppercase font-bold bg-green-50 text-green-600 border-green-200">{stu.status}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" className="h-9 w-9 text-primary rounded-xl" asChild><Link href="/dashboard/exams"><FileText className="size-4" /></Link></Button>
-                      <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={() => {
-                        setEditingStudent(stu);
-                        setStudentForm({...stu});
-                        setIsEditOpen(true);
-                      }}><Pencil className="size-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => deleteDoc(doc(db!, "students", stu.id))} className="h-9 w-9 text-destructive rounded-xl hover:bg-destructive/10"><Trash2 className="size-4" /></Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {students.length === 0 && !dataLoading && (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader className="bg-muted/30">
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-24 text-muted-foreground italic">
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="size-16 rounded-full bg-muted flex items-center justify-center opacity-30">
-                        <User className="size-8" />
-                      </div>
-                      <p>No student records found in current partition.</p>
-                    </div>
-                  </TableCell>
+                  <TableHead className="w-12 text-center">
+                    <Checkbox checked={selectedIds.size === students.length && students.length > 0} onCheckedChange={toggleSelectAll} />
+                  </TableHead>
+                  <TableHead className="py-4 font-bold">ADMISSION # / NAME</TableHead>
+                  <TableHead className="font-bold py-4">GRADE / GENDER</TableHead>
+                  <TableHead className="font-bold py-4">GUARDIAN / PHONE</TableHead>
+                  <TableHead className="font-bold py-4 text-center">STATUS</TableHead>
+                  <TableHead className="text-right font-bold py-4">ACTIONS</TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {students.map((stu: any) => (
+                  <TableRow key={stu.id} className="hover:bg-slate-50/80 transition-colors group">
+                    <TableCell className="text-center">
+                      <Checkbox checked={selectedIds.has(stu.id)} onCheckedChange={() => toggleSelect(stu.id)} />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-4">
+                        <div className="size-12 rounded-2xl overflow-hidden bg-muted flex items-center justify-center border-2 border-white shadow-sm shrink-0">
+                          {stu.photoUrl ? <img src={stu.photoUrl} alt="" className="w-full h-full object-cover" /> : <User className="size-6 text-muted-foreground/30" />}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-mono text-[10px] font-bold text-accent uppercase tracking-tighter">{stu.admissionNumber}</span>
+                          <span className="font-bold text-primary text-base">{stu.firstName} {stu.lastName}</span>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-sm font-bold text-slate-700">{stu.gradeLevel}</span>
+                        <Badge variant="secondary" className="w-fit text-[9px] uppercase font-bold bg-primary/5 text-primary border-none">{stu.gender}</Badge>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-xs font-bold text-slate-700">{stu.parentName || stu.guardianName || "N/A"}</span>
+                        <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Phone className="size-2.5" /> {stu.parentPhone || "N/A"}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge className="text-[9px] uppercase font-bold bg-green-50 text-green-600 border-green-200">{stu.status}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="icon" className="h-9 w-9 text-primary rounded-xl" asChild><Link href="/dashboard/exams"><FileText className="size-4" /></Link></Button>
+                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={() => {
+                          setEditingStudent(stu);
+                          setStudentForm({...stu});
+                          setIsEditOpen(true);
+                        }}><Pencil className="size-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => deleteDoc(doc(db!, "students", stu.id))} className="h-9 w-9 text-destructive rounded-xl hover:bg-destructive/10"><Trash2 className="size-4" /></Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {students.length === 0 && !dataLoading && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-24 text-muted-foreground italic">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="size-16 rounded-full bg-muted flex items-center justify-center opacity-30">
+                          <User className="size-8" />
+                        </div>
+                        <p>No student records found in current partition.</p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
@@ -453,10 +456,6 @@ export default function StudentsPage() {
                 Choose File
               </Button>
             </div>
-            <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 flex gap-3 text-[10px] text-amber-800 leading-tight">
-               <AlertTriangle className="size-4 shrink-0" />
-               <p>Admission numbers and unique system IDs will be automatically generated upon import completion.</p>
-            </div>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setIsImportOpen(false)} className="w-full">Cancel</Button>
@@ -464,42 +463,11 @@ export default function StudentsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Promotion Dialog */}
-      <Dialog open={isPromoteOpen} onOpenChange={setIsPromoteOpen}>
-        <DialogContent className="max-w-md rounded-3xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-headline font-bold">Batch Promotion</DialogTitle>
-            <DialogDescription>Move {selectedIds.size} selected students to a new grade level for the 2026/2027 session.</DialogDescription>
-          </DialogHeader>
-          <div className="py-6 space-y-4">
-            <div className="space-y-2">
-              <Label>Target Grade Module</Label>
-              <Select value={targetGrade} onValueChange={setTargetGrade}>
-                <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select target grade" /></SelectTrigger>
-                <SelectContent>
-                  {availableGrades.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 flex items-center gap-3">
-              <ChevronRight className="size-4 text-primary" />
-              <p className="text-xs font-bold text-primary">Academic history will be preserved.</p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button className="w-full h-12 rounded-xl bg-primary font-bold shadow-lg" onClick={handlePromoteStudents} disabled={loading || !targetGrade}>
-              {loading ? <Loader2 className="size-4 animate-spin mr-2" /> : <ArrowUpRight className="size-4 mr-2" />}
-              Finalize Promotion
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Enroll Dialog */}
       <Dialog open={isEnrollOpen} onOpenChange={(val) => { if (!val) stopCamera(); setIsEnrollOpen(val); }}>
-        <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded-3xl">
-          <form onSubmit={handleEnroll}>
-            <DialogHeader className="bg-primary text-primary-foreground p-8">
+        <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded-3xl max-h-[90vh] flex flex-col">
+          <form onSubmit={handleEnroll} className="flex flex-col h-full overflow-hidden">
+            <DialogHeader className="bg-primary text-primary-foreground p-8 shrink-0">
               <div className="flex items-center gap-3 mb-2">
                 <div className="size-8 rounded-xl bg-white/10 flex items-center justify-center">
                   <ShieldCheck className="size-5" />
@@ -510,17 +478,17 @@ export default function StudentsPage() {
               <DialogDescription className="text-primary-foreground/70">Building a permanent academic record for {institution?.name}.</DialogDescription>
             </DialogHeader>
 
-            <Tabs defaultValue="identity" className="w-full">
-              <div className="bg-muted/30 px-8 py-2 border-b">
+            <Tabs defaultValue="identity" className="w-full flex-1 flex flex-col overflow-hidden">
+              <div className="bg-muted/30 px-8 py-2 border-b shrink-0">
                 <TabsList className="bg-transparent gap-6 p-0 h-10">
                   <TabsTrigger value="identity" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full gap-2 text-xs font-bold uppercase"><User className="size-3.5" /> Identity</TabsTrigger>
-                  <TabsTrigger value="family" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full gap-2 text-xs font-bold uppercase"><Home className="size-3.5" /> Family & Home</TabsTrigger>
-                  <TabsTrigger value="health" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full gap-2 text-xs font-bold uppercase"><HeartPulse className="size-3.5" /> Health & Logistics</TabsTrigger>
+                  <TabsTrigger value="family" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full gap-2 text-xs font-bold uppercase"><Home className="size-3.5" /> Family</TabsTrigger>
+                  <TabsTrigger value="health" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full gap-2 text-xs font-bold uppercase"><HeartPulse className="size-3.5" /> Health</TabsTrigger>
                   <TabsTrigger value="academic" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full gap-2 text-xs font-bold uppercase"><GraduationCap className="size-3.5" /> Academic</TabsTrigger>
                 </TabsList>
               </div>
 
-              <ScrollArea className="max-h-[60vh]">
+              <ScrollArea className="flex-1">
                 <div className="p-8">
                   <TabsContent value="identity" className="mt-0 space-y-8">
                     <div className="flex flex-col items-center gap-6">
@@ -534,56 +502,19 @@ export default function StudentsPage() {
                           <Button type="button" variant={isCameraActive ? "destructive" : "secondary"} size="icon" className="size-9 rounded-xl shadow-lg" onClick={isCameraActive ? stopCamera : startCamera}><Camera className="size-4" /></Button>
                         </div>
                       </div>
-                      {isCameraActive && <Button type="button" size="sm" onClick={capturePhoto} className="bg-green-600 rounded-full h-9 px-6 gap-2"><Check className="size-4" /> Snap Photo</Button>}
                     </div>
 
                     <div className="grid gap-6">
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">First Name</Label>
-                          <Input required value={studentForm.firstName} onChange={e => setStudentForm({...studentForm, firstName: e.target.value})} className="h-11 rounded-xl" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Middle Name</Label>
-                          <Input value={studentForm.middleName} onChange={e => setStudentForm({...studentForm, middleName: e.target.value})} className="h-11 rounded-xl" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Surname</Label>
-                          <Input required value={studentForm.lastName} onChange={e => setStudentForm({...studentForm, lastName: e.target.value})} className="h-11 rounded-xl" />
-                        </div>
-                      </div>
-
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Admission Number</Label>
-                          <Input readOnly value={studentForm.admissionNumber} className="h-11 rounded-xl bg-slate-50 font-bold text-accent" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Gender</Label>
+                        <div className="space-y-2"><Label>First Name</Label><Input required value={studentForm.firstName} onChange={e => setStudentForm({...studentForm, firstName: e.target.value})} className="h-11 rounded-xl" /></div>
+                        <div className="space-y-2"><Label>Surname</Label><Input required value={studentForm.lastName} onChange={e => setStudentForm({...studentForm, lastName: e.target.value})} className="h-11 rounded-xl" /></div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2"><Label>Admission #</Label><Input readOnly value={studentForm.admissionNumber} className="h-11 rounded-xl bg-slate-50 font-bold text-accent" /></div>
+                        <div className="space-y-2"><Label>Gender</Label>
                           <Select onValueChange={v => setStudentForm({...studentForm, gender: v})} value={studentForm.gender}>
                             <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Male">Male</SelectItem>
-                              <SelectItem value="Female">Female</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Date of Birth</Label>
-                          <Input type="date" required value={studentForm.dateOfBirth} onChange={e => setStudentForm({...studentForm, dateOfBirth: e.target.value})} className="h-11 rounded-xl" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Nationality</Label>
-                          <Input value={studentForm.nationality} onChange={e => setStudentForm({...studentForm, nationality: e.target.value})} className="h-11 rounded-xl" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Religion</Label>
-                          <Select onValueChange={v => setStudentForm({...studentForm, religion: v})} value={studentForm.religion}>
-                            <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
-                            <SelectContent>{RELIGIONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+                            <SelectContent><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem></SelectContent>
                           </Select>
                         </div>
                       </div>
@@ -593,82 +524,8 @@ export default function StudentsPage() {
                   <TabsContent value="family" className="mt-0 space-y-6">
                     <div className="grid gap-6">
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Parent/Guardian Name</Label>
-                          <Input required value={studentForm.parentName} onChange={e => setStudentForm({...studentForm, parentName: e.target.value})} className="h-11 rounded-xl" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Primary Contact Phone</Label>
-                          <Input required value={studentForm.parentPhone} onChange={e => setStudentForm({...studentForm, parentPhone: e.target.value})} className="h-11 rounded-xl" />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Residential Address</Label>
-                        <Input value={studentForm.residentialAddress} onChange={e => setStudentForm({...studentForm, residentialAddress: e.target.value})} className="h-11 rounded-xl" placeholder="Full residential description" />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">GPS Address (Digital)</Label>
-                          <Input value={studentForm.gpsAddress} onChange={e => setStudentForm({...studentForm, gpsAddress: e.target.value})} className="h-11 rounded-xl" placeholder="e.g. GA-123-4567" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Emergency Alt. Contact</Label>
-                          <Input value={studentForm.emergencyContact} onChange={e => setStudentForm({...studentForm, emergencyContact: e.target.value})} className="h-11 rounded-xl" />
-                        </div>
-                      </div>
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="health" className="mt-0 space-y-6">
-                    <div className="grid gap-6">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Blood Group</Label>
-                          <Select onValueChange={v => setStudentForm({...studentForm, bloodGroup: v})} value={studentForm.bloodGroup}>
-                            <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
-                            <SelectContent>{BLOOD_GROUPS.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">NHIS Number</Label>
-                          <Input value={studentForm.nhisNumber} onChange={e => setStudentForm({...studentForm, nhisNumber: e.target.value})} className="h-11 rounded-xl" />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Assigned House</Label>
-                          <Input value={studentForm.house} onChange={e => setStudentForm({...studentForm, house: e.target.value})} className="h-11 rounded-xl" placeholder="e.g. Red House" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Hostel / Dormitory</Label>
-                          <Input value={studentForm.hostel} onChange={e => setStudentForm({...studentForm, hostel: e.target.value})} className="h-11 rounded-xl" />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Medical History / Allergies</Label>
-                        <Input value={studentForm.medicalHistory} onChange={e => setStudentForm({...studentForm, medicalHistory: e.target.value})} className="h-11 rounded-xl" placeholder="List any chronic conditions or allergies" />
-                      </div>
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="academic" className="mt-0 space-y-6">
-                    <div className="grid gap-6">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Enrollment Grade</Label>
-                          <Select onValueChange={v => setStudentForm({...studentForm, gradeLevel: v})} value={studentForm.gradeLevel}>
-                            <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
-                            <SelectContent>{availableGrades.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}</SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Admission Date</Label>
-                          <Input type="date" value={studentForm.admissionDate} onChange={e => setStudentForm({...studentForm, admissionDate: e.target.value})} className="h-11 rounded-xl" />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Previous Institution</Label>
-                        <Input value={studentForm.previousSchool} onChange={e => setStudentForm({...studentForm, previousSchool: e.target.value})} className="h-11 rounded-xl" placeholder="School name and location" />
+                        <div className="space-y-2"><Label>Guardian Name</Label><Input required value={studentForm.parentName} onChange={e => setStudentForm({...studentForm, parentName: e.target.value})} className="h-11 rounded-xl" /></div>
+                        <div className="space-y-2"><Label>Contact Phone</Label><Input required value={studentForm.parentPhone} onChange={e => setStudentForm({...studentForm, parentPhone: e.target.value})} className="h-11 rounded-xl" /></div>
                       </div>
                     </div>
                   </TabsContent>
@@ -676,36 +533,14 @@ export default function StudentsPage() {
               </ScrollArea>
             </Tabs>
 
-            <DialogFooter className="bg-slate-50 p-8 border-t">
-              <Button type="submit" disabled={loading} className="w-full h-14 text-lg font-bold rounded-2xl bg-primary shadow-xl shadow-primary/20 transition-all active:scale-95">
+            <DialogFooter className="bg-slate-50 p-8 border-t shrink-0">
+              <Button type="submit" disabled={loading} className="w-full h-14 text-lg font-bold rounded-2xl bg-primary shadow-xl shadow-primary/20">
                 {loading ? <Loader2 className="mr-2 size-5 animate-spin" /> : <ShieldCheck className="mr-2 size-5" />}
                 Authorize Enrollment
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
-      </Dialog>
-
-      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="max-w-2xl rounded-3xl"><form onSubmit={handleUpdate}>
-          <DialogHeader><DialogTitle className="text-2xl font-headline font-bold">Edit Student Record</DialogTitle></DialogHeader>
-          <div className="grid gap-6 py-6 px-1 max-h-[70vh] overflow-y-auto">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>First Name</Label><Input required value={studentForm.firstName} onChange={e => setStudentForm({...studentForm, firstName: e.target.value})} className="rounded-xl h-11" /></div>
-              <div className="space-y-2"><Label>Surname</Label><Input required value={studentForm.lastName} onChange={e => setStudentForm({...studentForm, lastName: e.target.value})} className="rounded-xl h-11" /></div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Grade</Label>
-                <Select onValueChange={v => setStudentForm({...studentForm, gradeLevel: v})} value={studentForm.gradeLevel}>
-                  <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
-                  <SelectContent>{availableGrades.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2"><Label>Guardian Phone</Label><Input required value={studentForm.parentPhone} onChange={e => setStudentForm({...studentForm, parentPhone: e.target.value})} className="rounded-xl h-11" /></div>
-            </div>
-          </div>
-          <DialogFooter><Button type="submit" disabled={loading} className="w-full h-12 font-bold rounded-xl bg-primary shadow-lg shadow-primary/10">Authorize Update</Button></DialogFooter>
-        </form></DialogContent>
       </Dialog>
     </div>
   )
