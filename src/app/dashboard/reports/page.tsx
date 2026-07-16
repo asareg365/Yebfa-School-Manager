@@ -5,14 +5,12 @@ import { useState, useMemo, useEffect } from "react"
 import { generateStudentReportComments, GenerateStudentReportCommentsOutput } from "@/ai/flows/generate-student-report-comments"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { 
   Loader2, 
   Sparkles, 
-  User, 
   GraduationCap, 
   Copy, 
   Check, 
@@ -20,9 +18,10 @@ import {
   Lightbulb, 
   ListChecks, 
   Database,
-  Search,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  ExternalLink,
+  ShieldAlert
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection } from "@/firebase"
@@ -83,7 +82,6 @@ export default function ReportsPage() {
     const attendancePercent = totalDays > 0 ? Math.round((daysPresent / totalDays) * 100) : 100
 
     const examScores = examRecords.map((e: any) => {
-      // Find subject name from ID
       const subjectName = subjects.find(s => s.id === e.subjectId)?.name || "Academic Subject"
       return {
         name: subjectName,
@@ -122,15 +120,7 @@ export default function ReportsPage() {
       toast({ title: "Report Generated", description: "Data-synced performance narrative is ready." })
     } catch (error: any) {
       console.error("AI Generation Error:", error)
-      const msg = error.message || "An unexpected error occurred."
-      setErrorMessage(msg)
-      toast({ 
-        variant: "destructive", 
-        title: "Generation Failed", 
-        description: msg.includes('403') || msg.includes('Access is blocked') 
-          ? "Institutional AI access is restricted. Please check your API configuration." 
-          : "Could not process registry data at this time." 
-      })
+      setErrorMessage(error.message || "An unexpected error occurred.")
     } finally {
       setLoading(false)
     }
@@ -146,47 +136,57 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 overflow-y-auto max-h-full pb-20">
+    <div className="space-y-8 animate-in fade-in duration-500 pb-24">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-headline font-bold tracking-tight text-primary">Academic Narratives</h1>
         <p className="text-muted-foreground">Generating comprehensive reports synced with live attendance and exam records.</p>
       </div>
 
       {errorMessage && (
-        <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-800 rounded-2xl animate-in slide-in-from-top-2">
-          <AlertCircle className="size-4" />
-          <AlertTitle className="font-bold">System Configuration Required</AlertTitle>
-          <AlertDescription className="text-sm">
-            {errorMessage.includes('403') || errorMessage.includes('blocked') ? (
-              <div className="space-y-2">
-                <p>The AI service returned a "403 Forbidden" error. This usually means the <strong>Generative Language API</strong> is not enabled for your project.</p>
-                <ol className="list-decimal ml-4 space-y-1 mt-2 font-medium">
-                  <li>Go to the Google Cloud Console.</li>
-                  <li>Enable the <strong>Generative Language API</strong>.</li>
-                  <li>Ensure your API Key has permission to access this service.</li>
-                </ol>
-              </div>
-            ) : errorMessage}
-          </AlertDescription>
+        <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-800 rounded-3xl p-8 border-2 animate-in slide-in-from-top-4">
+          <div className="flex items-start gap-6">
+            <div className="size-14 rounded-2xl bg-red-100 flex items-center justify-center shrink-0">
+              <ShieldAlert className="size-8 text-red-600" />
+            </div>
+            <div className="space-y-4">
+              <AlertTitle className="text-xl font-bold font-headline">Institutional AI Setup Required</AlertTitle>
+              <AlertDescription className="text-base leading-relaxed">
+                <p className="mb-4">The system encountered a <strong>403 Forbidden</strong> error. This means the AI engine is ready but your Google project hasn't authorized this specific service.</p>
+                
+                <div className="bg-white/50 p-6 rounded-2xl border border-red-100 space-y-4">
+                  <h4 className="font-bold text-sm uppercase tracking-widest text-red-900">Immediate Fix Action:</h4>
+                  <ol className="list-decimal ml-5 space-y-2 font-medium">
+                    <li>Open the <a href="https://console.cloud.google.com/" target="_blank" className="underline font-bold text-primary flex inline-flex items-center gap-1">Google Cloud Console <ExternalLink className="size-3" /></a></li>
+                    <li>Ensure you are in the correct project (check the top header).</li>
+                    <li>Search for <strong>"Generative Language API"</strong> in the top search bar.</li>
+                    <li>Click the <strong>ENABLE</strong> button.</li>
+                    <li>Wait 2-3 minutes, then click "Generate" again on this page.</li>
+                  </ol>
+                </div>
+                
+                <p className="text-sm mt-4 italic opacity-80">Note: This is a one-time setup step for your institutional workspace.</p>
+              </AlertDescription>
+            </div>
+          </div>
         </Alert>
       )}
 
       <div className="grid gap-8 lg:grid-cols-2">
         <div className="space-y-6">
-          <Card className="border-none shadow-md overflow-hidden rounded-2xl">
-            <CardHeader className="bg-primary/5 border-b">
-              <CardTitle className="flex items-center gap-2 text-primary">
+          <Card className="border-none shadow-md overflow-hidden rounded-3xl">
+            <CardHeader className="bg-primary/5 border-b p-6">
+              <CardTitle className="flex items-center gap-2 text-primary font-headline">
                 <Database className="size-5" />
                 Registry Data Sync
               </CardTitle>
               <CardDescription>Select a student to pull academic and presence history.</CardDescription>
             </CardHeader>
-            <CardContent className="p-6 space-y-6">
-              <div className="grid gap-4 sm:grid-cols-2">
+            <CardContent className="p-8 space-y-6">
+              <div className="grid gap-6 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Grade Module</Label>
                   <Select value={selectedGrade} onValueChange={(v) => { setSelectedGrade(v); setSelectedStudentId(""); }}>
-                    <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Select Grade" /></SelectTrigger>
+                    <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select Grade" /></SelectTrigger>
                     <SelectContent>
                       {classes.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
                       {classes.length === 0 && <div className="p-2 text-center text-xs italic">No classes registered</div>}
@@ -196,7 +196,7 @@ export default function ReportsPage() {
                 <div className="space-y-2">
                   <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Student Name</Label>
                   <Select value={selectedStudentId} onValueChange={setSelectedStudentId} disabled={!selectedGrade}>
-                    <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Choose Student" /></SelectTrigger>
+                    <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Choose Student" /></SelectTrigger>
                     <SelectContent>
                       {students.map(s => <SelectItem key={s.id} value={s.id}>{s.firstName} {s.lastName}</SelectItem>)}
                       {students.length === 0 && selectedGrade && <div className="p-2 text-center text-xs italic">No students in this grade</div>}
@@ -206,17 +206,17 @@ export default function ReportsPage() {
               </div>
 
               {selectedStudent && (
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-3 animate-in slide-in-from-top-2 duration-300">
-                   <div className="flex justify-between items-center text-xs">
-                     <span className="text-muted-foreground">Attendance Logs</span>
-                     <Badge variant="secondary" className="font-bold">{aggregatedMetrics.attendancePercent}%</Badge>
+                <div className="p-6 rounded-2xl bg-slate-50 border border-slate-100 space-y-4 animate-in slide-in-from-top-2 duration-300">
+                   <div className="flex justify-between items-center">
+                     <span className="text-xs font-bold text-muted-foreground uppercase">Attendance Presence</span>
+                     <Badge variant="secondary" className="font-bold text-lg px-4">{aggregatedMetrics.attendancePercent}%</Badge>
                    </div>
-                   <div className="flex justify-between items-center text-xs">
-                     <span className="text-muted-foreground">Exam Records Found</span>
-                     <Badge variant="secondary" className="font-bold">{aggregatedMetrics.examScores.length} Subjects</Badge>
+                   <div className="flex justify-between items-center">
+                     <span className="text-xs font-bold text-muted-foreground uppercase">Exam Data Set</span>
+                     <Badge variant="secondary" className="font-bold px-4">{aggregatedMetrics.examScores.length} Subjects Found</Badge>
                    </div>
-                   <p className="text-[10px] text-muted-foreground italic flex items-center gap-1">
-                     <RefreshCw className="size-2.5 animate-spin-slow" /> Data synchronized with live institutional vault.
+                   <p className="text-[10px] text-muted-foreground italic flex items-center gap-2 pt-2 border-t">
+                     <RefreshCw className="size-3 animate-spin-slow text-primary" /> Multi-tenant partition synchronized with institutional vault.
                    </p>
                 </div>
               )}
@@ -225,19 +225,19 @@ export default function ReportsPage() {
                 <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Qualitative Observations</Label>
                 <Textarea 
                   placeholder="Mention participation, soft skills, or specific projects..."
-                  className="min-h-[120px] rounded-xl border-slate-200"
+                  className="min-h-[140px] rounded-2xl border-slate-200 p-4 focus:ring-primary/20"
                   value={behaviorNotes}
                   onChange={(e) => setBehaviorNotes(e.target.value)}
                 />
               </div>
 
               <Button 
-                className="w-full h-14 gap-2 bg-primary hover:bg-primary/90 rounded-2xl shadow-xl shadow-primary/10 transition-all active:scale-95"
+                className="w-full h-16 gap-3 bg-primary hover:bg-primary/90 rounded-2xl shadow-xl shadow-primary/10 transition-all active:scale-95 text-lg font-bold"
                 onClick={handleGenerate}
                 disabled={loading || !selectedStudentId}
               >
-                {loading ? <Loader2 className="size-5 animate-spin" /> : <Sparkles className="size-5" />}
-                Generate Comprehensive Report
+                {loading ? <Loader2 className="size-6 animate-spin" /> : <Sparkles className="size-6 text-accent" />}
+                Authorize Comprehensive Report
               </Button>
             </CardContent>
           </Card>
@@ -245,63 +245,63 @@ export default function ReportsPage() {
 
         <div className="space-y-6">
           {!result ? (
-            <Card className="border-none shadow-md min-h-[500px] flex flex-col items-center justify-center text-center p-12 space-y-4 rounded-3xl bg-muted/5 border-2 border-dashed">
+            <Card className="border-none shadow-md min-h-[550px] flex flex-col items-center justify-center text-center p-12 space-y-6 rounded-3xl bg-muted/5 border-2 border-dashed">
               <div className="size-24 rounded-full bg-primary/5 flex items-center justify-center">
                 <GraduationCap className="size-12 text-primary/20" />
               </div>
               <div className="max-w-xs">
-                <p className="font-bold text-xl text-primary/60">Awaiting Selection</p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Link a student from the registry to automatically compute performance narratives.
+                <p className="font-bold text-xl text-primary/60 font-headline">Awaiting Registry Selection</p>
+                <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+                  Link a student from your institutional registry to automatically compute a high-fidelity performance narrative.
                 </p>
               </div>
             </Card>
           ) : (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
-              <Card className="border-none shadow-xl overflow-hidden rounded-3xl">
+              <Card className="border-none shadow-2xl overflow-hidden rounded-3xl">
                 <CardHeader className="bg-primary text-primary-foreground p-8">
                   <div className="flex justify-between items-start">
-                    <div className="space-y-1">
-                      <div className="inline-flex items-center gap-2 px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-bold uppercase tracking-widest">
-                        <Check className="size-3" /> Official Assessment
+                    <div className="space-y-2">
+                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-[10px] font-bold uppercase tracking-widest">
+                        <Check className="size-3 text-green-400" /> Authorized AI Assessment
                       </div>
-                      <CardTitle className="text-2xl font-headline">{selectedStudent?.firstName} {selectedStudent?.lastName}</CardTitle>
-                      <CardDescription className="text-primary-foreground/70">{selectedGrade} • Performance Report Draft</CardDescription>
+                      <CardTitle className="text-3xl font-headline font-bold">{selectedStudent?.firstName} {selectedStudent?.lastName}</CardTitle>
+                      <CardDescription className="text-primary-foreground/70 font-medium">{selectedGrade} • Institutional Report Draft 2026</CardDescription>
                     </div>
-                    <Button variant="secondary" size="icon" onClick={handleCopy} className="bg-white/10 hover:bg-white/20 border-none text-white rounded-xl">
-                      {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+                    <Button variant="secondary" size="icon" onClick={handleCopy} className="bg-white/10 hover:bg-white/20 border-none text-white rounded-xl size-12">
+                      {copied ? <Check className="size-6 text-green-400" /> : <Copy className="size-6" />}
                     </Button>
                   </div>
                 </CardHeader>
-                <CardContent className="p-8 space-y-8 bg-white">
+                <CardContent className="p-10 space-y-10 bg-white">
                   <section>
                     <h3 className="font-bold text-xs uppercase tracking-widest text-muted-foreground mb-4 flex items-center gap-2">
                       <ListChecks className="size-4 text-primary" /> Executive Summary
                     </h3>
-                    <p className="text-sm leading-relaxed text-slate-700">{result.executiveSummary}</p>
+                    <p className="text-sm leading-relaxed text-slate-700 font-medium">{result.executiveSummary}</p>
                   </section>
 
-                  <div className="grid gap-6 md:grid-cols-2">
-                    <section className="p-5 rounded-2xl bg-green-50/50 border border-green-100">
+                  <div className="grid gap-8 md:grid-cols-2">
+                    <section className="p-6 rounded-3xl bg-green-50/50 border border-green-100">
                       <h3 className="font-bold text-xs text-green-700 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <Target className="size-4" /> Key Strengths
+                        <Target className="size-4" /> Academic Strengths
                       </h3>
-                      <ul className="space-y-3">
+                      <ul className="space-y-4">
                         {result.keyStrengths.map((s, i) => (
-                          <li key={i} className="text-xs flex gap-3 text-slate-600">
+                          <li key={i} className="text-xs flex gap-3 text-slate-600 font-medium">
                             <span className="text-green-500 font-bold shrink-0">•</span>
                             {s}
                           </li>
                         ))}
                       </ul>
                     </section>
-                    <section className="p-5 rounded-2xl bg-orange-50/50 border border-orange-100">
+                    <section className="p-6 rounded-3xl bg-orange-50/50 border border-orange-100">
                       <h3 className="font-bold text-xs text-orange-700 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <Lightbulb className="size-4" /> Growth Targets
+                        <Lightbulb className="size-4" /> Strategic Targets
                       </h3>
-                      <ul className="space-y-3">
+                      <ul className="space-y-4">
                         {result.areasToImprove.map((a, i) => (
-                          <li key={i} className="text-xs flex gap-3 text-slate-600">
+                          <li key={i} className="text-xs flex gap-3 text-slate-600 font-medium">
                             <span className="text-orange-500 font-bold shrink-0">•</span>
                             {a}
                           </li>
@@ -310,9 +310,10 @@ export default function ReportsPage() {
                     </section>
                   </div>
 
-                  <section className="p-8 rounded-3xl bg-slate-50 border border-slate-100">
-                    <h3 className="font-bold text-xs uppercase tracking-widest text-primary mb-4">Official Narratives</h3>
-                    <p className="text-sm italic text-slate-600 leading-relaxed indent-4">
+                  <section className="p-8 rounded-3xl bg-slate-50 border border-slate-100 relative">
+                    <div className="absolute top-4 right-4 opacity-5 text-primary"><Sparkles className="size-10" /></div>
+                    <h3 className="font-bold text-xs uppercase tracking-widest text-primary mb-6">Final Official Narrative</h3>
+                    <p className="text-sm italic text-slate-600 leading-relaxed indent-8 font-medium">
                       "{result.finalGradeNarrative}"
                     </p>
                   </section>

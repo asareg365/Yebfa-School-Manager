@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -114,10 +113,10 @@ export default function DashboardLayout({
 
   return (
     <SidebarProvider className="print-provider h-screen overflow-hidden">
-      <div className="no-print h-full overflow-y-auto border-r bg-sidebar">
+      <div className="no-print h-full overflow-y-auto border-r bg-sidebar shrink-0">
         <AppSidebar />
       </div>
-      <SidebarInset className="bg-background print-inset flex flex-col h-full overflow-hidden">
+      <SidebarInset className="bg-background print-inset flex flex-col min-h-0 w-full overflow-hidden">
         <header className="no-print flex h-16 shrink-0 items-center justify-between px-6 border-b border-border/40 bg-background/80 backdrop-blur-md z-40">
           <div className="flex items-center gap-4">
             <SidebarTrigger />
@@ -211,7 +210,7 @@ export default function DashboardLayout({
             </div>
           </div>
         </header>
-        <main className="flex-1 overflow-y-auto p-6 lg:p-10">
+        <main className="flex-1 overflow-y-auto p-6 lg:p-10 relative">
           <div className="max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-300">
             {children}
           </div>

@@ -102,7 +102,7 @@ const generateStudentReportCommentsFlow = ai.defineFlow(
       }
       return output;
     } catch (err: any) {
-      if (err.message?.includes('403') || err.message?.includes('blocked')) {
+      if (err.message?.includes('403') || err.message?.includes('blocked') || err.message?.includes('permission')) {
         throw new Error("AI access is blocked by your service provider. Please enable the 'Generative Language API' in your Google Cloud Console.");
       }
       throw err;
