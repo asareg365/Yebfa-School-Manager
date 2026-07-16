@@ -4,10 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, UserPlus, GraduationCap, Trash2, Pencil, Loader2, Upload, IdCard, User, Camera, X, Check, FileText, Phone, MapPin, ShieldCheck, HeartPulse, Bus, Home } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Search, UserPlus, GraduationCap, Trash2, Pencil, Loader2, Upload, IdCard, User, Camera, X, Check, FileText, Phone, MapPin, ShieldCheck, HeartPulse, Bus, Home, FileSpreadsheet, ArrowUpRight, ChevronRight, AlertTriangle } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection, useDoc } from "@/firebase"
-import { collection, addDoc, query, deleteDoc, doc, where, serverTimestamp, updateDoc, orderBy } from "firebase/firestore"
+import { collection, addDoc, query, deleteDoc, doc, where, serverTimestamp, updateDoc, writeBatch } from "firebase/firestore"
 import { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -16,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import Papa from "papaparse"
 
 const PRIMARY_GRADES = ["KG 1", "KG 2", "Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6"]
 const JHS_GRADES = ["JHS 1", "JHS 2", "JHS 3"]
@@ -27,18 +28,23 @@ const RELIGIONS = ["Christianity", "Islam", "Traditional", "Hinduism", "Other", 
 
 export default function StudentsPage() {
   const db = useFirestore()
-  const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [isEnrollOpen, setIsEnrollOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
+  const [isImportOpen, setIsImportOpen] = useState(false)
+  const [isPromoteOpen, setIsPromoteOpen] = useState(false)
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [editingStudent, setEditingStudent] = useState<any>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [targetGrade, setTargetGrade] = useState("")
   
   const [isCameraActive, setIsCameraActive] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const bulkInputRef = useRef<HTMLInputElement>(null)
 
   const [studentForm, setStudentForm] = useState({
     firstName: "",
@@ -123,6 +129,93 @@ export default function StudentsPage() {
     }
   }, [isEnrollOpen, rawStudentsData.length, availableGrades, institution]);
 
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds)
+    if (newSelected.has(id)) newSelected.delete(id)
+    else newSelected.add(id)
+    setSelectedIds(newSelected)
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === students.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(students.map(s => s.id)))
+    }
+  }
+
+  const handleBulkUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !institutionId) return
+    setLoading(true)
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        try {
+          const batch = writeBatch(db)
+          let count = 0
+          const year = new Date().getFullYear()
+          const prefix = institution?.name?.substring(0, 3).toUpperCase() || "APS"
+
+          results.data.forEach((row: any, index: number) => {
+            if (!row.firstName || !row.lastName) return
+            
+            const studentRef = doc(collection(db, "students"))
+            const currentIndex = rawStudentsData.length + index + 1
+            
+            batch.set(studentRef, {
+              firstName: row.firstName,
+              lastName: row.lastName,
+              gender: row.gender || "Male",
+              gradeLevel: row.gradeLevel || availableGrades[0],
+              admissionNumber: `${prefix}-${year}-${String(currentIndex).padStart(6, '0')}`,
+              studentId: `STU-${String(currentIndex).padStart(4, '0')}`,
+              parentPhone: row.parentPhone || "",
+              status: "active",
+              tenantId: institutionId,
+              institutionId: institutionId,
+              createdAt: serverTimestamp()
+            })
+            count++
+          })
+
+          await batch.commit()
+          toast({ title: "Import Successful", description: `${count} students added to registry.` })
+          setIsImportOpen(false)
+        } catch (err: any) {
+          toast({ variant: "destructive", title: "Import Failed", description: err.message })
+        } finally {
+          setLoading(false)
+        }
+      }
+    })
+  }
+
+  const handlePromoteStudents = async () => {
+    if (selectedIds.size === 0 || !targetGrade || !institutionId) return
+    setLoading(true)
+    try {
+      const batch = writeBatch(db)
+      selectedIds.forEach(id => {
+        const studentRef = doc(db, "students", id)
+        batch.update(studentRef, {
+          gradeLevel: targetGrade,
+          updatedAt: serverTimestamp()
+        })
+      })
+      await batch.commit()
+      toast({ title: "Promotion Finalized", description: `${selectedIds.size} students moved to ${targetGrade}.` })
+      setSelectedIds(new Set())
+      setIsPromoteOpen(false)
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Promotion Failed" })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
@@ -182,7 +275,6 @@ export default function StudentsPage() {
       await addDoc(collection(db, "students"), data)
       toast({ title: "Student Enrolled", description: `${studentForm.firstName} joined the registry.` })
       setIsEnrollOpen(false)
-      // Reset form
       setStudentForm({
         firstName: "", middleName: "", lastName: "", gender: "Male", gradeLevel: availableGrades[0],
         admissionNumber: "", studentId: "", dateOfBirth: "", nationality: "Ghanaian", religion: "Christianity",
@@ -226,33 +318,52 @@ export default function StudentsPage() {
           <h1 className="text-3xl font-headline font-bold text-primary">Student Directory</h1>
           <p className="text-muted-foreground">Managing {students.length} comprehensive enrollment records.</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
+          {selectedIds.size > 0 && (
+            <Button variant="accent" className="h-11 rounded-xl shadow-lg gap-2" onClick={() => setIsPromoteOpen(true)}>
+              <ArrowUpRight className="size-4" /> Promote ({selectedIds.size})
+            </Button>
+          )}
+          <Button variant="outline" onClick={() => setIsImportOpen(true)} className="rounded-xl h-11 border-primary/20 hover:bg-primary/5">
+            <FileSpreadsheet className="size-4 mr-2" /> Bulk Import
+          </Button>
           <Button variant="outline" asChild className="rounded-xl h-11"><Link href="/dashboard/students/id-cards"><IdCard className="size-4" /> ID Generator</Link></Button>
-          <Button className="gap-2 bg-primary rounded-xl h-11 shadow-lg shadow-primary/20" onClick={() => setIsEnrollOpen(true)}><UserPlus className="size-4" /> Enroll Student</Button>
+          <Button className="gap-2 bg-primary rounded-xl h-11 shadow-lg shadow-primary/10" onClick={() => setIsEnrollOpen(true)}><UserPlus className="size-4" /> Enroll Student</Button>
         </div>
       </div>
 
       <Card className="border-none shadow-xl overflow-hidden rounded-2xl">
-        <CardHeader className="border-b pb-6 bg-white">
-          <div className="relative max-w-sm">
+        <CardHeader className="border-b pb-6 bg-white flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="relative max-w-sm flex-1">
             <Search className="absolute left-2.5 top-3.5 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Search by name, ID or Admission #..." className="pl-9 h-12 bg-slate-50 border-none rounded-xl" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="h-10 px-4 rounded-xl text-[10px] font-bold uppercase tracking-widest bg-slate-50">
+              {students.length} Total Records
+            </Badge>
           </div>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow>
-                <TableHead className="font-bold py-4">ADMISSION # / NAME</TableHead>
+                <TableHead className="w-12 text-center">
+                  <Checkbox checked={selectedIds.size === students.length && students.length > 0} onCheckedChange={toggleSelectAll} />
+                </TableHead>
+                <TableHead className="py-4 font-bold">ADMISSION # / NAME</TableHead>
                 <TableHead className="font-bold py-4">GRADE / GENDER</TableHead>
                 <TableHead className="font-bold py-4">GUARDIAN / PHONE</TableHead>
-                <TableHead className="font-bold py-4">STATUS</TableHead>
+                <TableHead className="font-bold py-4 text-center">STATUS</TableHead>
                 <TableHead className="text-right font-bold py-4">ACTIONS</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {students.map((stu: any) => (
                 <TableRow key={stu.id} className="hover:bg-slate-50/80 transition-colors group">
+                  <TableCell className="text-center">
+                    <Checkbox checked={selectedIds.has(stu.id)} onCheckedChange={() => toggleSelect(stu.id)} />
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-4">
                       <div className="size-12 rounded-2xl overflow-hidden bg-muted flex items-center justify-center border-2 border-white shadow-sm shrink-0">
@@ -276,7 +387,9 @@ export default function StudentsPage() {
                       <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Phone className="size-2.5" /> {stu.parentPhone || "N/A"}</span>
                     </div>
                   </TableCell>
-                  <TableCell><Badge className="text-[9px] uppercase font-bold bg-green-50 text-green-600 border-green-200">{stu.status}</Badge></TableCell>
+                  <TableCell className="text-center">
+                    <Badge className="text-[9px] uppercase font-bold bg-green-50 text-green-600 border-green-200">{stu.status}</Badge>
+                  </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Button variant="ghost" size="icon" className="h-9 w-9 text-primary rounded-xl" asChild><Link href="/dashboard/exams"><FileText className="size-4" /></Link></Button>
@@ -292,8 +405,13 @@ export default function StudentsPage() {
               ))}
               {students.length === 0 && !dataLoading && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-20 text-muted-foreground italic">
-                    No student records found matching your query.
+                  <TableCell colSpan={6} className="text-center py-24 text-muted-foreground italic">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="size-16 rounded-full bg-muted flex items-center justify-center opacity-30">
+                        <User className="size-8" />
+                      </div>
+                      <p>No student records found in current partition.</p>
+                    </div>
                   </TableCell>
                 </TableRow>
               )}
@@ -302,6 +420,71 @@ export default function StudentsPage() {
         </CardContent>
       </Card>
 
+      {/* Bulk Import Dialog */}
+      <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
+        <DialogContent className="max-w-md rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-headline font-bold">Bulk Student Import</DialogTitle>
+            <DialogDescription>Upload a CSV file from Excel or text apps to populate your registry.</DialogDescription>
+          </DialogHeader>
+          <div className="py-8 space-y-6">
+            <div className="p-6 border-2 border-dashed rounded-3xl bg-slate-50 flex flex-col items-center text-center gap-4">
+              <div className="size-12 rounded-2xl bg-primary/5 flex items-center justify-center text-primary">
+                <FileSpreadsheet className="size-6" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-bold">Select CSV File</p>
+                <p className="text-xs text-muted-foreground">Columns: firstName, lastName, gender, gradeLevel, parentPhone</p>
+              </div>
+              <input type="file" ref={bulkInputRef} onChange={handleBulkUpload} accept=".csv" className="hidden" />
+              <Button onClick={() => bulkInputRef.current?.click()} disabled={loading} className="gap-2 rounded-xl">
+                {loading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+                Choose File
+              </Button>
+            </div>
+            <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 flex gap-3 text-[10px] text-amber-800 leading-tight">
+               <AlertTriangle className="size-4 shrink-0" />
+               <p>Admission numbers and unique system IDs will be automatically generated upon import completion.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsImportOpen(false)} className="w-full">Cancel</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Promotion Dialog */}
+      <Dialog open={isPromoteOpen} onOpenChange={setIsPromoteOpen}>
+        <DialogContent className="max-w-md rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-headline font-bold">Batch Promotion</DialogTitle>
+            <DialogDescription>Move {selectedIds.size} selected students to a new grade level for the 2026/2027 session.</DialogDescription>
+          </DialogHeader>
+          <div className="py-6 space-y-4">
+            <div className="space-y-2">
+              <Label>Target Grade Module</Label>
+              <Select value={targetGrade} onValueChange={setTargetGrade}>
+                <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select target grade" /></SelectTrigger>
+                <SelectContent>
+                  {availableGrades.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 flex items-center gap-3">
+              <ChevronRight className="size-4 text-primary" />
+              <p className="text-xs font-bold text-primary">Academic history will be preserved.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button className="w-full h-12 rounded-xl bg-primary font-bold shadow-lg" onClick={handlePromoteStudents} disabled={loading || !targetGrade}>
+              {loading ? <Loader2 className="size-4 animate-spin mr-2" /> : <ArrowUpRight className="size-4 mr-2" />}
+              Finalize Promotion
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Enroll Dialog */}
       <Dialog open={isEnrollOpen} onOpenChange={(val) => { if (!val) stopCamera(); setIsEnrollOpen(val); }}>
         <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded-3xl">
           <form onSubmit={handleEnroll}>
@@ -492,7 +675,6 @@ export default function StudentsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Dialog remains similar but sectioned or simplified as needed */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="max-w-2xl rounded-3xl"><form onSubmit={handleUpdate}>
           <DialogHeader><DialogTitle className="text-2xl font-headline font-bold">Edit Student Record</DialogTitle></DialogHeader>
