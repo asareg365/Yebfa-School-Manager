@@ -26,11 +26,18 @@ export default function AttendancePage() {
     if (storedId) setInstitutionId(storedId)
   }, [])
 
+  // Sync with actual registered classes
+  const classesQuery = useMemo(() => {
+    if (!db || !institutionId) return null;
+    return query(collection(db, "classes"), where("tenantId", "==", institutionId));
+  }, [db, institutionId]);
+
   const studentsQuery = useMemo(() => {
     if (!db || !institutionId || !selectedGrade) return null;
     return query(collection(db, "students"), where("tenantId", "==", institutionId), where("gradeLevel", "==", selectedGrade));
   }, [db, institutionId, selectedGrade]);
 
+  const { data: classes = [] } = useCollection(classesQuery)
   const { data: students, loading: studentsLoading } = useCollection(studentsQuery)
 
   const handleSaveAttendance = () => {
@@ -75,7 +82,12 @@ export default function AttendancePage() {
             <div className="space-y-2"><Label>Grade</Label>
               <Select onValueChange={setSelectedGrade} value={selectedGrade}>
                 <SelectTrigger><SelectValue placeholder="Select Grade" /></SelectTrigger>
-                <SelectContent><SelectItem value="Primary 1">Primary 1</SelectItem><SelectItem value="Primary 2">Primary 2</SelectItem><SelectItem value="Primary 3">Primary 3</SelectItem></SelectContent>
+                <SelectContent>
+                  {classes.map(c => (
+                    <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                  ))}
+                  {classes.length === 0 && <div className="p-2 text-center text-[10px] text-muted-foreground italic">No classes found</div>}
+                </SelectContent>
               </Select>
             </div>
           </CardContent>
@@ -97,6 +109,7 @@ export default function AttendancePage() {
                       <TableCell className="text-center"><Checkbox checked={presentStudents[stu.id] || false} onCheckedChange={(val) => setPresentStudents({...presentStudents, [stu.id]: !!val})} /></TableCell>
                     </TableRow>
                   ))}
+                  {students.length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-12 text-muted-foreground italic">No students found in this grade.</TableCell></TableRow>}
                 </TableBody>
               </Table>
             )}

@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -28,6 +27,11 @@ export default function ExaminationCenterPage() {
     setInstitutionId(localStorage.getItem('selected_institution_id'))
   }, [])
 
+  const classesQuery = useMemo(() => {
+    if (!db || !institutionId) return null;
+    return query(collection(db, "classes"), where("tenantId", "==", institutionId));
+  }, [db, institutionId]);
+
   const studentsQuery = useMemo(() => {
     if (!db || !institutionId || !selectedGrade) return null;
     return query(collection(db, "students"), where("tenantId", "==", institutionId), where("gradeLevel", "==", selectedGrade));
@@ -38,8 +42,9 @@ export default function ExaminationCenterPage() {
     return query(collection(db, "subjects"), where("tenantId", "==", institutionId));
   }, [db, institutionId]);
 
-  const { data: students } = useCollection(studentsQuery)
-  const { data: subjects } = useCollection(subjectsQuery)
+  const { data: classes = [] } = useCollection(classesQuery)
+  const { data: students = [] } = useCollection(studentsQuery)
+  const { data: subjects = [] } = useCollection(subjectsQuery)
 
   const handleAiGenerate = async () => {
     if (!selectedSubject || !selectedGrade) {
@@ -86,7 +91,12 @@ export default function ExaminationCenterPage() {
             <div className="space-y-2"><Label>Grade</Label>
               <Select onValueChange={setSelectedGrade} value={selectedGrade}>
                 <SelectTrigger><SelectValue placeholder="Grade" /></SelectTrigger>
-                <SelectContent><SelectItem value="Primary 1">Primary 1</SelectItem><SelectItem value="Primary 2">Primary 2</SelectItem></SelectContent>
+                <SelectContent>
+                  {classes.map(c => (
+                    <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                  ))}
+                  {classes.length === 0 && <div className="p-2 text-center text-xs italic">Establish classes first</div>}
+                </SelectContent>
               </Select>
             </div>
             <div className="space-y-2"><Label>Subject</Label>
@@ -145,6 +155,7 @@ export default function ExaminationCenterPage() {
                           <TableCell className="font-bold text-accent">0</TableCell>
                         </TableRow>
                       ))}
+                      {students.length === 0 && <TableRow><TableCell colSpan={4} className="text-center py-12 text-muted-foreground italic">No student roster detected for this grade.</TableCell></TableRow>}
                     </TableBody>
                   </Table>
                 )}

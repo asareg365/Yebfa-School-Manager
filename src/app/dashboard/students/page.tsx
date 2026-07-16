@@ -51,7 +51,7 @@ export default function StudentsPage() {
     middleName: "",
     lastName: "",
     gender: "Male",
-    gradeLevel: "Primary 1",
+    gradeLevel: "",
     admissionNumber: "",
     studentId: "",
     dateOfBirth: "",
@@ -84,6 +84,12 @@ export default function StudentsPage() {
   const instRef = useMemo(() => institutionId ? doc(db!, "institutions", institutionId) : null, [db, institutionId])
   const { data: institution } = useDoc(instRef)
 
+  // Real-time synchronization with registered classes
+  const classesQuery = useMemo(() => {
+    if (!db || !institutionId) return null;
+    return query(collection(db, "classes"), where("tenantId", "==", institutionId));
+  }, [db, institutionId]);
+
   const studentsQuery = useMemo(() => {
     if (!db || !institutionId) return null;
     return query(
@@ -92,6 +98,7 @@ export default function StudentsPage() {
     );
   }, [db, institutionId]);
 
+  const { data: registeredClasses = [] } = useCollection(classesQuery)
   const { data: rawStudentsData, loading: dataLoading } = useCollection(studentsQuery)
 
   const students = useMemo(() => {
@@ -104,13 +111,17 @@ export default function StudentsPage() {
       .sort((a, b) => (b.admissionNumber || "").localeCompare(a.admissionNumber || ""));
   }, [rawStudentsData, searchQuery]);
 
+  // Use registered classes if available, otherwise fallback to defaults
   const availableGrades = useMemo(() => {
+    if (registeredClasses.length > 0) {
+      return registeredClasses.map(c => c.name).sort();
+    }
     const category = institution?.gradeLevel || institution?.type || "Basic"
     if (category.toLowerCase().includes("primary") || category.toLowerCase().includes("basic")) return PRIMARY_GRADES
     if (category.toLowerCase().includes("jhs")) return JHS_GRADES
     if (category.toLowerCase().includes("shs")) return SHS_GRADES
     return [...PRIMARY_GRADES, ...JHS_GRADES, ...SHS_GRADES]
-  }, [institution])
+  }, [institution, registeredClasses])
 
   useEffect(() => {
     if (isEnrollOpen && !studentForm.admissionNumber) {
@@ -124,7 +135,7 @@ export default function StudentsPage() {
         ...prev, 
         admissionNumber: autoAdm, 
         studentId: autoId, 
-        gradeLevel: availableGrades[0] 
+        gradeLevel: availableGrades[0] || ""
       }));
     }
   }, [isEnrollOpen, rawStudentsData.length, availableGrades, institution]);
@@ -276,7 +287,7 @@ export default function StudentsPage() {
       toast({ title: "Student Enrolled", description: `${studentForm.firstName} joined the registry.` })
       setIsEnrollOpen(false)
       setStudentForm({
-        firstName: "", middleName: "", lastName: "", gender: "Male", gradeLevel: availableGrades[0],
+        firstName: "", middleName: "", lastName: "", gender: "Male", gradeLevel: availableGrades[0] || "",
         admissionNumber: "", studentId: "", dateOfBirth: "", nationality: "Ghanaian", religion: "Christianity",
         bloodGroup: "O+", nhisNumber: "", gpsAddress: "", residentialAddress: "", parentName: "",
         parentPhone: "", parentEmail: "", guardianName: "", emergencyContact: "", medicalHistory: "",

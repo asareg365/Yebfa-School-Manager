@@ -41,6 +41,11 @@ export default function InvoicingPage() {
     if (storedId) setInstitutionId(storedId)
   }, [])
 
+  const classesQuery = useMemo(() => {
+    if (!db || !institutionId) return null;
+    return query(collection(db, "classes"), where("tenantId", "==", institutionId));
+  }, [db, institutionId]);
+
   const studentsQuery = useMemo(() => {
     if (!db || !institutionId) return null
     let q = query(collection(db, "students"), where("tenantId", "==", institutionId))
@@ -57,9 +62,10 @@ export default function InvoicingPage() {
     return query(collection(db, "invoices"), where("tenantId", "==", institutionId))
   }, [db, institutionId])
 
-  const { data: students } = useCollection(studentsQuery)
-  const { data: fees } = useCollection(feesQuery)
-  const { data: invoices } = useCollection(invoicesQuery)
+  const { data: classes = [] } = useCollection(classesQuery)
+  const { data: students = [] } = useCollection(studentsQuery)
+  const { data: fees = [] } = useCollection(feesQuery)
+  const { data: invoices = [] } = useCollection(invoicesQuery)
 
   const handleGenerateInvoices = async () => {
     if (!db || !institutionId || students.length === 0 || fees.length === 0) {
@@ -112,7 +118,7 @@ export default function InvoicingPage() {
     } catch (e: any) {
       toast({ variant: "destructive", title: "Error", description: e.message })
     } finally {
-      setLoading(true)
+      setLoading(false)
     }
   }
 
@@ -187,8 +193,9 @@ export default function InvoicingPage() {
                  <SelectTrigger className="w-40 h-11 rounded-xl"><SelectValue placeholder="Grade" /></SelectTrigger>
                  <SelectContent>
                    <SelectItem value="All">All Grades</SelectItem>
-                   <SelectItem value="Primary 1">Primary 1</SelectItem>
-                   <SelectItem value="Primary 2">Primary 2</SelectItem>
+                   {classes.map(c => (
+                     <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                   ))}
                  </SelectContent>
                </Select>
                <Button variant="outline" className="h-11 rounded-xl"><Printer className="size-4" /></Button>
