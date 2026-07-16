@@ -5,10 +5,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ClipboardList, Printer, Save, Loader2, Bot, Sparkles, FileText, Download, Wand2 } from "lucide-react"
+import { ClipboardList, Printer, Save, Loader2, Bot, Sparkles, FileText, Download, Wand2, CheckCircle2 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection } from "@/firebase"
-import { collection, query, where, doc, setDoc, serverTimestamp } from "firebase/firestore"
+import { collection, query, where, doc, setDoc, serverTimestamp, writeBatch } from "firebase/firestore"
 import { useState, useMemo, useEffect } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
@@ -22,6 +22,9 @@ export default function ExaminationCenterPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiResult, setAiResult] = useState<any>(null)
+
+  // Score state management: Record<studentId, { ca: string, exam: string }>
+  const [scores, setScores] = useState<Record<string, { ca: string, exam: string }>>({})
 
   useEffect(() => {
     setInstitutionId(localStorage.getItem('selected_institution_id'))
@@ -45,6 +48,62 @@ export default function ExaminationCenterPage() {
   const { data: classes = [] } = useCollection(classesQuery)
   const { data: students = [] } = useCollection(studentsQuery)
   const { data: subjects = [] } = useCollection(subjectsQuery)
+
+  const handleScoreChange = (studentId: string, field: 'ca' | 'exam', value: string) => {
+    setScores(prev => ({
+      ...prev,
+      [studentId]: {
+        ...(prev[studentId] || { ca: "0", exam: "0" }),
+        [field]: value
+      }
+    }))
+  }
+
+  const handleSaveScores = async () => {
+    if (!db || !institutionId || !selectedSubject || !selectedGrade) {
+      toast({ variant: "destructive", title: "Selection Required", description: "Select grade and subject to save scores." })
+      return
+    }
+
+    setIsSaving(true)
+    try {
+      const batch = writeBatch(db)
+      const termId = "Term 2" // Default for 2026 cycle
+
+      students.forEach(stu => {
+        const studentScores = scores[stu.id] || { ca: "0", exam: "0" }
+        const ca = parseFloat(studentScores.ca) || 0
+        const exam = parseFloat(studentScores.exam) || 0
+        const total = ca + exam
+        
+        // Document ID: stuId_subjectId_termId to prevent duplicates
+        const recordId = `${stu.id}_${selectedSubject}_${termId.replace(/\s+/g, '')}`
+        const recordRef = doc(db, "exam_records", recordId)
+        
+        batch.set(recordRef, {
+          tenantId: institutionId,
+          institutionId,
+          studentId: stu.id,
+          studentName: `${stu.firstName} ${stu.lastName}`,
+          subjectId: selectedSubject,
+          gradeLevel: selectedGrade,
+          termId,
+          classScore: ca,
+          examScore: exam,
+          totalScore: total,
+          updatedAt: serverTimestamp(),
+          createdAt: serverTimestamp()
+        }, { merge: true })
+      })
+
+      await batch.commit()
+      toast({ title: "Scores Finalized", description: `Academic records synchronized for ${students.length} students.` })
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Save Failed", description: err.message })
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   const handleAiGenerate = async () => {
     if (!selectedSubject || !selectedGrade) {
@@ -72,25 +131,33 @@ export default function ExaminationCenterPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex justify-between items-center">
-        <div><h1 className="text-3xl font-headline font-bold text-primary">Examination Center</h1><p className="text-muted-foreground">Capture results and generate intelligent papers.</p></div>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Examination Center</h1>
+          <p className="text-muted-foreground">Capture results and generate intelligent papers.</p>
+        </div>
         <div className="flex gap-3">
-          <Button variant="outline" className="gap-2" onClick={handleAiGenerate} disabled={aiLoading}>
+          <Button variant="outline" className="gap-2 h-11 rounded-xl" onClick={handleAiGenerate} disabled={aiLoading}>
             {aiLoading ? <Loader2 className="size-4 animate-spin" /> : <Bot className="size-4 text-accent" />} AI Paper Gen
           </Button>
-          <Button className="gap-2 bg-primary" disabled={!selectedSubject}>
-            <Save className="size-4" /> Save Score Batch
+          <Button 
+            className="gap-2 bg-primary h-11 rounded-xl shadow-lg" 
+            onClick={handleSaveScores}
+            disabled={isSaving || !selectedSubject || students.length === 0}
+          >
+            {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Save Score Batch
           </Button>
         </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-4">
         <Card className="border-none shadow-md h-fit">
-          <CardHeader><CardTitle className="text-sm">Exam Context</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Exam Context</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2"><Label>Grade</Label>
+            <div className="space-y-2">
+              <Label className="text-[10px] font-bold uppercase text-muted-foreground">Grade Module</Label>
               <Select onValueChange={setSelectedGrade} value={selectedGrade}>
-                <SelectTrigger><SelectValue placeholder="Grade" /></SelectTrigger>
+                <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Select Grade" /></SelectTrigger>
                 <SelectContent>
                   {classes.map(c => (
                     <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
@@ -99,9 +166,10 @@ export default function ExaminationCenterPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2"><Label>Subject</Label>
+            <div className="space-y-2">
+              <Label className="text-[10px] font-bold uppercase text-muted-foreground">Subject</Label>
               <Select onValueChange={setSelectedSubject} value={selectedSubject} disabled={!selectedGrade}>
-                <SelectTrigger><SelectValue placeholder="Subject" /></SelectTrigger>
+                <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Select Subject" /></SelectTrigger>
                 <SelectContent>{subjects.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
@@ -110,7 +178,7 @@ export default function ExaminationCenterPage() {
 
         <div className="md:col-span-3 space-y-6">
            {aiResult && (
-             <Card className="border-none shadow-xl bg-primary text-primary-foreground overflow-hidden animate-in slide-in-from-top-4 duration-500">
+             <Card className="border-none shadow-xl bg-primary text-primary-foreground overflow-hidden animate-in slide-in-from-top-4 duration-500 rounded-3xl">
                <CardHeader className="flex flex-row items-center justify-between">
                  <div>
                    <CardTitle className="text-lg">AI Generated Examination Paper</CardTitle>
@@ -138,24 +206,78 @@ export default function ExaminationCenterPage() {
              </Card>
            )}
 
-           <Card className="border-none shadow-md overflow-hidden">
-             <CardHeader className="border-b bg-muted/20"><CardTitle className="text-lg">Score Registry</CardTitle></CardHeader>
+           <Card className="border-none shadow-xl rounded-2xl overflow-hidden bg-white">
+             <CardHeader className="border-b bg-slate-50/50 flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg">Score Registry</CardTitle>
+                  <CardDescription>Entering scores for Term 2, 2026 Academic Cycle.</CardDescription>
+                </div>
+                {selectedSubject && <Badge className="bg-primary/5 text-primary border-none text-[10px] font-bold uppercase tracking-widest px-3">Sync Active</Badge>}
+             </CardHeader>
              <CardContent className="p-0">
-                {!selectedGrade ? (
-                  <div className="p-24 text-center text-muted-foreground opacity-20 italic">Select a grade module to record scores.</div>
+                {!selectedGrade || !selectedSubject ? (
+                  <div className="p-32 text-center text-muted-foreground space-y-4">
+                    <div className="size-16 rounded-full bg-muted flex items-center justify-center mx-auto opacity-20"><ClipboardList className="size-8" /></div>
+                    <p className="italic text-sm">Select a grade module and subject to record scores.</p>
+                  </div>
                 ) : (
                   <Table>
-                    <TableHeader className="bg-muted/30"><TableRow><TableHead>Student</TableHead><TableHead className="w-24">CA (30)</TableHead><TableHead className="w-24">Exam (70)</TableHead><TableHead className="w-20">Total</TableHead></TableRow></TableHeader>
+                    <TableHeader className="bg-muted/30">
+                      <TableRow>
+                        <TableHead className="py-4 font-bold">STUDENT NAME</TableHead>
+                        <TableHead className="py-4 font-bold w-32">CA (30)</TableHead>
+                        <TableHead className="py-4 font-bold w-32">EXAM (70)</TableHead>
+                        <TableHead className="py-4 font-bold w-24 text-right">TOTAL</TableHead>
+                      </TableRow>
+                    </TableHeader>
                     <TableBody>
-                      {students.map((stu: any) => (
-                        <TableRow key={stu.id}>
-                          <TableCell className="font-bold text-primary">{stu.firstName} {stu.lastName}</TableCell>
-                          <TableCell><Input type="number" className="h-8" /></TableCell>
-                          <TableCell><Input type="number" className="h-8" /></TableCell>
-                          <TableCell className="font-bold text-accent">0</TableCell>
+                      {students.map((stu: any) => {
+                        const s = scores[stu.id] || { ca: "0", exam: "0" };
+                        const total = (parseFloat(s.ca) || 0) + (parseFloat(s.exam) || 0);
+                        
+                        return (
+                          <TableRow key={stu.id} className="hover:bg-slate-50/50 transition-colors">
+                            <TableCell className="font-bold text-primary flex items-center gap-3">
+                              <div className="size-8 rounded-full bg-primary/5 flex items-center justify-center text-[10px] font-bold text-primary">
+                                {stu.firstName.charAt(0)}{stu.lastName.charAt(0)}
+                              </div>
+                              {stu.firstName} {stu.lastName}
+                            </TableCell>
+                            <TableCell>
+                              <Input 
+                                type="number" 
+                                min="0" 
+                                max="30"
+                                className="h-9 rounded-lg bg-slate-50 border-none font-bold" 
+                                value={s.ca}
+                                onChange={(e) => handleScoreChange(stu.id, 'ca', e.target.value)}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input 
+                                type="number" 
+                                min="0" 
+                                max="70"
+                                className="h-9 rounded-lg bg-slate-50 border-none font-bold" 
+                                value={s.exam}
+                                onChange={(e) => handleScoreChange(stu.id, 'exam', e.target.value)}
+                              />
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Badge className={`text-sm font-bold h-9 px-4 rounded-lg min-w-16 flex items-center justify-center ${total >= 50 ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'} border-none`}>
+                                {total}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                      {students.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center py-20 text-muted-foreground italic">
+                            No student roster detected for this grade in your institutional registry.
+                          </TableCell>
                         </TableRow>
-                      ))}
-                      {students.length === 0 && <TableRow><TableCell colSpan={4} className="text-center py-12 text-muted-foreground italic">No student roster detected for this grade.</TableCell></TableRow>}
+                      )}
                     </TableBody>
                   </Table>
                 )}
@@ -165,4 +287,8 @@ export default function ExaminationCenterPage() {
       </div>
     </div>
   )
+}
+
+function Label({ children, className }: { children: React.ReactNode, className?: string }) {
+  return <label className={`text-xs font-bold uppercase tracking-wider text-muted-foreground ${className}`}>{children}</label>
 }
