@@ -30,7 +30,7 @@ export default function ExpensesPage() {
 
   const expensesQuery = useMemo(() => {
     if (!db || !institutionId) return null
-    return query(collection(db, "expenditure_vouchers"), where("institutionId", "==", institutionId))
+    return query(collection(db, "expenditure_vouchers"), where("tenantId", "==", institutionId))
   }, [db, institutionId])
 
   const { data: expenses } = useCollection(expensesQuery)
@@ -43,7 +43,8 @@ export default function ExpensesPage() {
     const data = {
       ...voucherForm,
       amount: parseFloat(voucherForm.amount) || 0,
-      institutionId,
+      tenantId: institutionId,
+      institutionId: institutionId,
       createdAt: serverTimestamp()
     }
 
@@ -136,9 +137,9 @@ export default function ExpensesPage() {
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow>
-                <TableHead>Category</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
+                <TableHead className="py-4">Category</TableHead>
+                <TableHead className="py-4">Description</TableHead>
+                <TableHead className="text-right py-4">Amount</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

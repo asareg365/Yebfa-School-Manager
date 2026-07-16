@@ -45,9 +45,37 @@ export default function ExaminationCenterPage() {
     return query(collection(db, "subjects"), where("tenantId", "==", institutionId));
   }, [db, institutionId]);
 
+  // Query for existing scores to ensure data persists after refresh
+  const existingScoresQuery = useMemo(() => {
+    if (!db || !institutionId || !selectedGrade || !selectedSubject) return null;
+    return query(
+      collection(db, "exam_records"),
+      where("tenantId", "==", institutionId),
+      where("gradeLevel", "==", selectedGrade),
+      where("subjectId", "==", selectedSubject)
+    );
+  }, [db, institutionId, selectedGrade, selectedSubject]);
+
   const { data: classes = [] } = useCollection(classesQuery)
   const { data: students = [] } = useCollection(studentsQuery)
   const { data: subjects = [] } = useCollection(subjectsQuery)
+  const { data: existingScores = [] } = useCollection(existingScoresQuery)
+
+  // Sync state with existing database records
+  useEffect(() => {
+    if (existingScores.length > 0) {
+      const map: Record<string, { ca: string, exam: string }> = {};
+      existingScores.forEach((record: any) => {
+        map[record.studentId] = {
+          ca: record.classScore?.toString() || "0",
+          exam: record.examScore?.toString() || "0"
+        };
+      });
+      setScores(map);
+    } else {
+      setScores({});
+    }
+  }, [existingScores]);
 
   const handleScoreChange = (studentId: string, field: 'ca' | 'exam', value: string) => {
     setScores(prev => ({

@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from "@/components/ui/table"
 
 export default function AttendancePage() {
   const db = useFirestore()
@@ -37,8 +37,33 @@ export default function AttendancePage() {
     return query(collection(db, "students"), where("tenantId", "==", institutionId), where("gradeLevel", "==", selectedGrade));
   }, [db, institutionId, selectedGrade]);
 
+  // Query for existing attendance records for the selected date/grade
+  const attendanceQuery = useMemo(() => {
+    if (!db || !institutionId || !selectedGrade || !selectedDate) return null;
+    return query(
+      collection(db, "attendance"),
+      where("tenantId", "==", institutionId),
+      where("gradeLevel", "==", selectedGrade),
+      where("date", "==", selectedDate)
+    );
+  }, [db, institutionId, selectedGrade, selectedDate]);
+
   const { data: classes = [] } = useCollection(classesQuery)
   const { data: students, loading: studentsLoading } = useCollection(studentsQuery)
+  const { data: existingAttendance } = useCollection(attendanceQuery)
+
+  // Sync UI state with fetched database records
+  useEffect(() => {
+    if (existingAttendance.length > 0) {
+      const map: Record<string, boolean> = {};
+      existingAttendance.forEach((record: any) => {
+        map[record.studentId] = record.status === 'present';
+      });
+      setPresentStudents(map);
+    } else {
+      setPresentStudents({});
+    }
+  }, [existingAttendance]);
 
   const handleSaveAttendance = () => {
     if (!db || !institutionId || !selectedGrade || !selectedDate) return
@@ -101,12 +126,22 @@ export default function AttendancePage() {
               <div className="p-20 text-center"><Loader2 className="size-8 animate-spin mx-auto text-primary" /></div>
             ) : (
               <Table>
-                <TableHeader className="bg-muted/30"><TableRow><TableHead>Student Name</TableHead><TableHead className="w-32 text-center">Status</TableHead></TableRow></TableHeader>
+                <TableHeader className="bg-muted/30">
+                  <TableRow>
+                    <TableHead className="py-4">Student Name</TableHead>
+                    <TableHead className="w-32 text-center">Status</TableHead>
+                  </TableRow>
+                </TableHeader>
                 <TableBody>
                   {students.map((stu: any) => (
                     <TableRow key={stu.id}>
                       <TableCell className="font-bold text-primary">{stu.firstName} {stu.lastName}</TableCell>
-                      <TableCell className="text-center"><Checkbox checked={presentStudents[stu.id] || false} onCheckedChange={(val) => setPresentStudents({...presentStudents, [stu.id]: !!val})} /></TableCell>
+                      <TableCell className="text-center">
+                        <Checkbox 
+                          checked={presentStudents[stu.id] || false} 
+                          onCheckedChange={(val) => setPresentStudents({...presentStudents, [stu.id]: !!val})} 
+                        />
+                      </TableCell>
                     </TableRow>
                   ))}
                   {students.length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-12 text-muted-foreground italic">No students found in this grade.</TableCell></TableRow>}
