@@ -34,6 +34,37 @@
       },
       "required": ["name", "tenantId"]
     },
+    "Student": {
+      "title": "Student Profile",
+      "description": "Complete student record within the SIS.",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "institutionId": { "type": "string" },
+        "admissionNumber": { "type": "string" },
+        "indexNumber": { "type": "string" },
+        "firstName": { "type": "string" },
+        "middleName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "gender": { "type": "string", "enum": ["Male", "Female"] },
+        "dateOfBirth": { "type": "string", "format": "date" },
+        "bloodGroup": { "type": "string" },
+        "nationality": { "type": "string" },
+        "religion": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "gradeLevel": { "type": "string" },
+        "currentClassId": { "type": "string" },
+        "sectionId": { "type": "string" },
+        "academicYearId": { "type": "string" },
+        "house": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "inactive", "suspended", "alumni"] },
+        "parentId": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["tenantId", "institutionId", "firstName", "lastName", "admissionNumber"]
+    },
     "AcademicYear": {
       "title": "Academic Year",
       "description": "Definition of an academic session (e.g. 2026/2027).",
@@ -64,66 +95,6 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["tenantId", "institutionId", "academicYearId", "name"]
-    },
-    "Class": {
-      "title": "Class",
-      "description": "Definition of a grade level.",
-      "type": "object",
-      "properties": {
-        "tenantId": { "type": "string" },
-        "institutionId": { "type": "string" },
-        "name": { "type": "string" },
-        "level": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["tenantId", "institutionId", "name"]
-    },
-    "Section": {
-      "title": "Section / Stream",
-      "description": "Sub-division of a class (e.g. Section A).",
-      "type": "object",
-      "properties": {
-        "tenantId": { "type": "string" },
-        "institutionId": { "type": "string" },
-        "classId": { "type": "string" },
-        "name": { "type": "string" },
-        "capacity": { "type": "number" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["tenantId", "institutionId", "classId", "name"]
-    },
-    "Subject": {
-      "title": "Subject",
-      "description": "Academic subject definition.",
-      "type": "object",
-      "properties": {
-        "tenantId": { "type": "string" },
-        "institutionId": { "type": "string" },
-        "name": { "type": "string" },
-        "code": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["tenantId", "institutionId", "name"]
-    },
-    "TeacherAssignment": {
-      "title": "Teacher Assignment",
-      "description": "Mapping a teacher to a class, section, and subject.",
-      "type": "object",
-      "properties": {
-        "tenantId": { "type": "string" },
-        "institutionId": { "type": "string" },
-        "teacherId": { "type": "string" },
-        "classId": { "type": "string" },
-        "sectionId": { "type": "string" },
-        "subjectId": { "type": "string" },
-        "termId": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["tenantId", "institutionId", "teacherId", "classId", "subjectId"]
     }
   },
   "auth": {
@@ -132,11 +103,8 @@
   "firestore": {
     "/users/{userId}": { "schema": "User" },
     "/institutions/{institutionId}": { "schema": "Institution" },
+    "/students/{studentId}": { "schema": "Student" },
     "/academic_years/{id}": { "schema": "AcademicYear" },
-    "/terms/{id}": { "schema": "Term" },
-    "/classes/{id}": { "schema": "Class" },
-    "/sections/{id}": { "schema": "Section" },
-    "/subjects/{id}": { "schema": "Subject" },
-    "/teacher_assignments/{id}": { "schema": "TeacherAssignment" }
+    "/terms/{id}": { "schema": "Term" }
   }
 }
