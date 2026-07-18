@@ -168,7 +168,7 @@ export default function AdminPortal() {
           <Button variant="ghost" className="h-11 gap-2 font-bold" onClick={handleLogout}>
             <LogOut className="size-4" /> Sign Out
           </Button>
-          <Button className="bg-accent text-accent-foreground h-11 shadow-lg" onClick={() => setIsProvisionDialogOpen(true)}>
+          <Button className="bg-primary text-primary-foreground h-11 shadow-lg" onClick={() => setIsProvisionDialogOpen(true)}>
             <Plus className="size-4 mr-2" /> Provision New School
           </Button>
         </div>
@@ -374,7 +374,8 @@ export default function AdminPortal() {
                    <div className="text-3xl font-bold">14ms</div>
                    <p className="text-[10px] text-muted-foreground font-bold mt-1 uppercase">Optimized Firestore Response</p>
                  </CardContent>
-               </div>
+               </Card>
+             </div>
 
              <Card className="border-none shadow-xl bg-white overflow-hidden rounded-2xl">
                <CardHeader className="border-b bg-slate-50/50">
