@@ -1,17 +1,20 @@
+
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser } from "@/firebase";
+import { useUser, useFirestore, useDoc } from "@/firebase";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/dashboard/app-sidebar";
 import { Separator } from "@/components/ui/separator";
-import { Bell, Search, Loader2, Info, AlertTriangle, CheckCircle2, X } from "lucide-react";
+import { Bell, Search, Loader2, Info, AlertTriangle, CheckCircle2, X, Sparkles, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { differenceInDays } from "date-fns";
 import Link from 'next/link';
+import { doc } from 'firebase/firestore';
 
 export default function DashboardLayout({
   children,
@@ -19,10 +22,20 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const { user, loading } = useUser();
+  const db = useFirestore();
   const router = useRouter();
   const [hasNotifications, setHasNotifications] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [institutionName, setInstitutionName] = useState<string>("Institution Hub");
+  const [institutionId, setInstitutionId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const storedId = localStorage.getItem('selected_institution_id');
+    setInstitutionId(storedId);
+  }, []);
+
+  const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId]);
+  const { data: institution } = useDoc(instRef);
 
   useEffect(() => {
     const isCleared = localStorage.getItem('notifications_cleared_v2') === 'true';
@@ -36,24 +49,6 @@ export default function DashboardLayout({
           type: 'info',
           icon: Info,
           color: 'bg-blue-100 text-blue-600'
-        },
-        {
-          id: '2',
-          title: 'Fee Overdue Alert',
-          description: '15 students are past the Term 2 deadline.',
-          time: '5 hours ago',
-          type: 'warning',
-          icon: AlertTriangle,
-          color: 'bg-orange-100 text-orange-600'
-        },
-        {
-          id: '3',
-          title: 'Sync Complete',
-          description: 'Global sync for Ahafo region finished.',
-          time: 'Yesterday',
-          type: 'success',
-          icon: CheckCircle2,
-          color: 'bg-green-100 text-green-600'
         }
       ];
       setNotifications(initial);
@@ -79,6 +74,13 @@ export default function DashboardLayout({
     const interval = setInterval(updateName, 2000);
     return () => clearInterval(interval);
   }, [institutionName]);
+
+  const trialDaysLeft = useMemo(() => {
+    if (!institution?.createdAt) return null;
+    const start = new Date(institution.createdAt.toMillis());
+    const diff = differenceInDays(new Date(), start);
+    return Math.max(0, 30 - diff);
+  }, [institution]);
 
   const handleMarkAllRead = useCallback(() => {
     setHasNotifications(false);
@@ -117,6 +119,17 @@ export default function DashboardLayout({
         <AppSidebar />
       </div>
       <SidebarInset className="bg-background print-inset flex flex-col min-h-0 w-full overflow-hidden">
+        {institution?.subscriptionPlan === 'Trial' && trialDaysLeft !== null && (
+          <div className={`no-print py-2 px-6 flex items-center justify-between transition-colors ${trialDaysLeft <= 7 ? 'bg-orange-600 text-white' : 'bg-blue-600 text-white'}`}>
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest">
+              {trialDaysLeft <= 7 ? <AlertTriangle className="size-4" /> : <Clock className="size-4" />}
+              Institutional Trial: {trialDaysLeft} days remaining
+            </div>
+            <Button size="sm" variant="ghost" className="h-7 text-[10px] font-bold uppercase bg-white/20 hover:bg-white/30 text-white border-none" asChild>
+              <Link href="/dashboard/settings?tab=subscription">Upgrade Now</Link>
+            </Button>
+          </div>
+        )}
         <header className="no-print flex h-16 shrink-0 items-center justify-between px-6 border-b border-border/40 bg-background/80 backdrop-blur-md z-40">
           <div className="flex items-center gap-4">
             <SidebarTrigger />
@@ -143,28 +156,6 @@ export default function DashboardLayout({
               <PopoverContent className="w-80 p-0 shadow-2xl border-none rounded-xl" align="end">
                 <div className="p-4 border-b flex items-center justify-between">
                   <h4 className="font-bold text-sm">Notifications</h4>
-                  <div className="flex gap-2">
-                    {notifications.length > 0 && (
-                      <>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-[10px] h-6 px-2 text-muted-foreground hover:text-primary" 
-                          onClick={handleMarkAllRead}
-                        >
-                          Mark all read
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-[10px] h-6 px-2 text-destructive hover:bg-destructive/10" 
-                          onClick={handleClearAll}
-                        >
-                          Clear all
-                        </Button>
-                      </>
-                    )}
-                  </div>
                 </div>
                 <ScrollArea className="h-[300px]">
                   {notifications.length === 0 ? (
@@ -186,27 +177,19 @@ export default function DashboardLayout({
                             <p className="text-[10px] text-muted-foreground leading-snug">{notif.description}</p>
                             <p className="text-[9px] font-medium text-primary">{notif.time}</p>
                           </div>
-                          <button 
-                            onClick={() => removeNotification(notif.id)}
-                            className="absolute right-2 top-2 size-5 rounded-full hover:bg-muted flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <X className="size-3 text-muted-foreground" />
-                          </button>
                         </div>
                       ))}
                     </div>
                   )}
                 </ScrollArea>
-                <div className="p-2 border-t text-center">
-                  <Button variant="ghost" size="sm" className="w-full text-[10px] font-bold" asChild>
-                    <Link href="/dashboard/logs">View All Activity</Link>
-                  </Button>
-                </div>
               </PopoverContent>
             </Popover>
             <div className="hidden sm:flex flex-col text-right">
               <span className="text-sm font-semibold truncate max-w-[180px] text-primary">{institutionName}</span>
-              <span className="text-xs text-muted-foreground uppercase font-bold tracking-tighter">Live System 2026</span>
+              <div className="flex items-center justify-end gap-1">
+                 <Badge variant="outline" className="text-[8px] h-4 px-1.5 font-bold uppercase tracking-tighter bg-primary/5">{institution?.subscriptionPlan || 'Trial'}</Badge>
+                 <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-tighter">Live 2026</span>
+              </div>
             </div>
           </div>
         </header>

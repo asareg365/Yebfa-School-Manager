@@ -2,7 +2,7 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Pencil, Loader2, LogOut, Zap, ShieldAlert, Terminal, Save, Megaphone, Server, Globe } from "lucide-react"
+import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Pencil, Loader2, LogOut, Zap, ShieldAlert, Terminal, Save, Megaphone, Server, Globe, ArrowUpRight, Clock, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -17,6 +17,7 @@ import { toast } from "@/hooks/use-toast"
 import { collection, addDoc, serverTimestamp, query, deleteDoc, doc, updateDoc } from "firebase/firestore"
 import { signOut } from "firebase/auth"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { differenceInDays } from "date-fns"
 
 export default function AdminPortal() {
   const { user, loading: authLoading } = useUser()
@@ -32,19 +33,18 @@ export default function AdminPortal() {
   const [provisioning, setProvisioning] = useState(false)
   const [isProvisionDialogOpen, setIsProvisionDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isUpgradeDialogOpen, setIsUpgradeDialogOpen] = useState(false)
   const [editingSchool, setEditingSchool] = useState<any>(null)
+  const [upgradingSchool, setUpgradingSchool] = useState<any>(null)
   
   const [newSchool, setNewSchool] = useState({
     name: "",
     ownerEmail: "",
     type: "Secondary",
-    gradeLevel: "Secondary",
-    specificGrades: "SHS 1-3",
     location: "Goaso, Ahafo"
   })
 
   const institutionsQuery = useMemo(() => {
-    // CRITICAL: Ensure we don't query until profile is loaded and confirmed super_admin
     if (!db || authLoading || profileLoading || !isSuperAdmin) return null;
     return query(collection(db, "institutions"));
   }, [db, isSuperAdmin, authLoading, profileLoading]);
@@ -79,51 +79,43 @@ export default function AdminPortal() {
     setProvisioning(true)
     const data = {
       ...newSchool,
-      subscriptionPlan: "trial for 30days",
+      subscriptionPlan: "Trial",
       status: "active",
       createdAt: serverTimestamp(),
+      trialStartDate: serverTimestamp(),
       tenantId: doc(collection(db, "institutions")).id
     }
     addDoc(collection(db, "institutions"), data)
       .then(() => {
-        toast({ title: "School Provisioned", description: `${newSchool.name} is now live.` })
+        toast({ title: "School Provisioned", description: `${newSchool.name} is now live on Trial.` })
         setIsProvisionDialogOpen(false)
-        setNewSchool({ name: "", ownerEmail: "", type: "Secondary", gradeLevel: "Secondary", specificGrades: "SHS 1-3", location: "Goaso, Ahafo" })
+        setNewSchool({ name: "", ownerEmail: "", type: "Secondary", location: "Goaso, Ahafo" })
       })
       .finally(() => setProvisioning(false))
   }
 
-  const handleEditSchoolSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!db || !editingSchool || provisioning) return
+  const handleUpgradeInstitution = async (plan: string) => {
+    if (!db || !upgradingSchool || provisioning) return
     setProvisioning(true)
     
-    updateDoc(doc(db, "institutions", editingSchool.id), {
-      name: editingSchool.name,
-      ownerEmail: editingSchool.ownerEmail,
-      location: editingSchool.location,
-      status: editingSchool.status,
+    updateDoc(doc(db, "institutions", upgradingSchool.id), {
+      subscriptionPlan: plan,
       updatedAt: serverTimestamp()
     })
       .then(() => {
-        toast({ title: "Registry Updated", description: "Institutional profile synchronized." })
-        setIsEditDialogOpen(false)
-        setEditingSchool(null)
+        toast({ title: "Upgrade Authorized", description: `${upgradingSchool.name} is now on ${plan} plan.` })
+        setIsUpgradeDialogOpen(false)
+        setUpgradingSchool(null)
       })
       .finally(() => setProvisioning(false))
   }
 
-  const handleDeleteSchool = (id: string, name: string) => {
-    if (!db) return
-    if (!confirm(`Are you sure you want to de-provision ${name}?`)) return
-    deleteDoc(doc(db, "institutions", id))
-      .then(() => toast({ title: "Instance Deprovisioned", description: `${name} removed.` }))
-  }
-
-  const handleSelectInstitution = (id: string, name: string) => {
-    localStorage.setItem('selected_institution_id', id);
-    localStorage.setItem('selected_institution_name', name);
-    router.push("/dashboard")
+  const getTrialDaysLeft = (createdAt: any) => {
+    if (!createdAt) return 0
+    const start = new Date(createdAt.toMillis())
+    const now = new Date()
+    const diff = differenceInDays(now, start)
+    return Math.max(0, 30 - diff)
   }
 
   if (authLoading || profileLoading) return (
@@ -170,8 +162,8 @@ export default function AdminPortal() {
             <div className="grid gap-6 md:grid-cols-4">
                {[
                  { title: "Total Schools", value: institutions.length, icon: School, trend: "Live registry count" },
-                 { title: "Active Users", value: "---", icon: Users, trend: "Syncing telemetry..." },
-                 { title: "Global Revenue", value: "GH₵ 0.00", icon: Wallet, trend: "Waiting for cycle" },
+                 { title: "Active Trials", value: institutions.filter(i => i.subscriptionPlan === 'Trial').length, icon: Clock, trend: "Onboarding phase" },
+                 { title: "Global Revenue", value: "GH₵ 0.00", icon: Wallet, trend: "Cycle tracking" },
                  { title: "Server Status", value: "Optimal", icon: Server, trend: "Goaso Node Active" }
                ].map((stat, i) => (
                  <Card key={i} className="border-none shadow-sm bg-white">
@@ -185,29 +177,6 @@ export default function AdminPortal() {
                    </CardContent>
                  </Card>
                ))}
-            </div>
-
-            <div className="grid gap-8 md:grid-cols-2">
-              <Card className="border-none shadow-md bg-white">
-                <CardHeader>
-                  <CardTitle className="text-lg">Growth & Revenue (2026)</CardTitle>
-                  <CardDescription>Visualizing onboarding trends across the ecosystem.</CardDescription>
-                </CardHeader>
-                <CardContent className="h-[300px] flex items-center justify-center text-muted-foreground italic text-sm">
-                   Awaiting multi-tenant dataset for trend analysis...
-                </CardContent>
-              </Card>
-
-              <Card className="border-none shadow-md bg-white">
-                <CardHeader>
-                  <CardTitle className="text-lg">Institutional Distribution</CardTitle>
-                  <CardDescription>Schools onboarded per month.</CardDescription>
-                </CardHeader>
-                <CardContent className="h-[300px] flex items-center justify-center text-muted-foreground italic text-sm">
-                   Awaiting historical data for 2026...
-                </CardContent>
-              </Card>
-
             </div>
 
             <Card className="border-none shadow-md bg-primary text-primary-foreground overflow-hidden">
@@ -264,28 +233,27 @@ export default function AdminPortal() {
                         </TableCell>
                         <TableCell><span className="text-xs">{inst.ownerEmail}</span></TableCell>
                         <TableCell><Badge variant="outline" className="text-[9px] uppercase font-bold">{inst.status}</Badge></TableCell>
-                        <TableCell><Badge className="bg-primary/5 text-primary border-none text-[9px] font-bold">{inst.subscriptionPlan}</Badge></TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Badge className="bg-primary/5 text-primary border-none text-[9px] font-bold">{inst.subscriptionPlan}</Badge>
+                            {inst.subscriptionPlan === 'Trial' && (
+                              <span className="text-[9px] text-muted-foreground font-bold">{getTrialDaysLeft(inst.createdAt)}d left</span>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                             <Button variant="ghost" size="sm" className="h-8 text-[10px] font-bold uppercase" onClick={() => handleSelectInstitution(inst.id, inst.name)}>Enter</Button>
-                             <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => {
-                               setEditingSchool(inst);
-                               setIsEditDialogOpen(true);
-                             }}>
-                               <Pencil className="size-3.5" />
-                             </Button>
-                             <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteSchool(inst.id, inst.name)}>
+                             <Button variant="ghost" size="sm" className="h-8 text-[10px] font-bold uppercase" onClick={() => {
+                                setUpgradingSchool(inst);
+                                setIsUpgradeDialogOpen(true);
+                             }}>Upgrade</Button>
+                             <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteDoc(doc(db!, "institutions", inst.id))}>
                                <Trash2 className="size-3.5" />
                              </Button>
                           </div>
                         </TableCell>
                       </TableRow>
                     ))}
-                    {institutions.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-20 text-muted-foreground italic">No institutions provisioned.</TableCell>
-                      </TableRow>
-                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -293,68 +261,44 @@ export default function AdminPortal() {
           </TabsContent>
 
           <TabsContent value="revenue" className="space-y-6 animate-in fade-in duration-300">
-            <div className="grid gap-6 md:grid-cols-3">
-               <Card className="border-none shadow-md bg-white">
-                 <CardHeader className="pb-2"><CardDescription className="text-[10px] font-bold uppercase">Total SaaS MRR</CardDescription></CardHeader>
-                 <CardContent><div className="text-3xl font-bold font-headline text-primary">GH₵ 0.00</div></CardContent>
-               </Card>
-               <Card className="border-none shadow-md bg-white">
-                 <CardHeader className="pb-2"><CardDescription className="text-[10px] font-bold uppercase">Churn Rate</CardDescription></CardHeader>
-                 <CardContent><div className="text-3xl font-bold font-headline text-green-600">0.0%</div></CardContent>
-               </Card>
-               <Card className="border-none shadow-md bg-white">
-                 <CardHeader className="pb-2"><CardDescription className="text-[10px] font-bold uppercase">Pending Renewals</CardDescription></CardHeader>
-                 <CardContent><div className="text-3xl font-bold font-headline text-amber-600">0 Schools</div></CardContent>
-               </Card>
-            </div>
             <Card className="border-none shadow-xl bg-white rounded-2xl overflow-hidden">
-               <CardHeader className="border-b"><CardTitle className="text-lg">Subscription Billing Ledger</CardTitle></CardHeader>
-               <CardContent className="p-20 text-center text-muted-foreground italic text-sm">
-                  Waiting for subscription cycle synchronization...
+               <CardHeader className="border-b"><CardTitle className="text-lg">Subscription Tracking</CardTitle></CardHeader>
+               <CardContent className="p-0">
+                  <Table>
+                    <TableHeader className="bg-muted/30">
+                      <TableRow>
+                        <TableHead>Institution</TableHead>
+                        <TableHead>Plan Status</TableHead>
+                        <TableHead>Expiry Tracking</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {institutions.filter(i => i.subscriptionPlan === 'Trial').map((inst: any) => {
+                        const daysLeft = getTrialDaysLeft(inst.createdAt)
+                        return (
+                          <TableRow key={inst.id}>
+                            <TableCell className="font-bold text-primary">{inst.name}</TableCell>
+                            <TableCell><Badge className="bg-blue-100 text-blue-700">Trial Period</Badge></TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                {daysLeft <= 7 ? <AlertTriangle className="size-3 text-orange-500" /> : <Clock className="size-3 text-blue-500" />}
+                                <span className={`text-xs font-bold ${daysLeft <= 7 ? 'text-orange-600' : ''}`}>{daysLeft} days remaining</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="outline" size="sm" className="h-8 text-[10px] font-bold" onClick={() => {
+                                setUpgradingSchool(inst);
+                                setIsUpgradeDialogOpen(true);
+                              }}>Authorize Upgrade</Button>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
                </CardContent>
             </Card>
-          </TabsContent>
-
-          <TabsContent value="security" className="space-y-6 animate-in fade-in duration-300">
-             <div className="grid gap-6 md:grid-cols-2">
-                <Card className="border-none shadow-md bg-white">
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2"><Globe className="size-4 text-blue-600" /> Node Deployment</CardTitle>
-                    <CardDescription>Status of regional institutional partitions.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                     <div className="flex justify-between items-center text-sm"><span>Ahafo Cluster (Goaso)</span><Badge className="bg-green-600">Operational</Badge></div>
-                     <div className="flex justify-between items-center text-sm"><span>Greater Accra Node</span><Badge className="bg-green-600">Operational</Badge></div>
-                     <div className="flex justify-between items-center text-sm"><span>System Firewall</span><Badge className="bg-green-600">Active</Badge></div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-none shadow-md bg-white">
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2"><ShieldAlert className="size-4 text-primary" /> Global Audit Log</CardTitle>
-                    <CardDescription>Real-time security events across ecosystem.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                     <div className="divide-y max-h-[160px] overflow-y-auto">
-                        <div className="p-3 text-[10px] font-mono text-muted-foreground"><span className="text-green-600">[AUTH]</span> Super Admin identity verified</div>
-                        <div className="p-3 text-[10px] font-mono text-muted-foreground"><span className="text-blue-600">[SYNC]</span> Multi-tenant isolation layer active</div>
-                     </div>
-                  </CardContent>
-                </Card>
-             </div>
-             
-             <Card className="border-none shadow-md bg-slate-900 text-white rounded-2xl overflow-hidden">
-                <CardHeader className="bg-white/5 p-6 border-b border-white/10">
-                   <div className="flex items-center gap-2 text-green-400"><Terminal className="size-4" /><span className="text-xs font-bold uppercase tracking-widest">System Console</span></div>
-                </CardHeader>
-                <CardContent className="p-6 font-mono text-[11px] space-y-1">
-                   <p className="text-white/40">Initializing ecosystem audit v2.0.26...</p>
-                   <p className="text-green-400">STATUS: ALL NODES OPTIMAL</p>
-                   <p className="text-white/60">Multi-tenant isolation layer: ACTIVE</p>
-                   <p className="text-white/60">Firestore Security Rules version: 2026.2</p>
-                   <p className="text-white/60">Ghana Region latency: 18ms</p>
-                </CardContent>
-             </Card>
           </TabsContent>
         </Tabs>
       </div>
@@ -379,48 +323,38 @@ export default function AdminPortal() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      <Dialog open={isUpgradeDialogOpen} onOpenChange={setIsUpgradeDialogOpen}>
         <DialogContent className="rounded-3xl border-none shadow-2xl p-8">
-          {editingSchool && (
-            <form onSubmit={handleEditSchoolSubmit}>
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-headline font-bold">Edit Institutional Node</DialogTitle>
-                <DialogDescription>Update master registry records for this institution.</DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-6 py-6">
-                <div className="space-y-2">
-                  <Label>Institution Name</Label>
-                  <Input required value={editingSchool.name} onChange={e => setEditingSchool({...editingSchool, name: e.target.value})} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Owner / Principal Email</Label>
-                  <Input type="email" required value={editingSchool.ownerEmail} onChange={e => setEditingSchool({...editingSchool, ownerEmail: e.target.value})} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Physical Location</Label>
-                  <Input required value={editingSchool.location} onChange={e => setEditingSchool({...editingSchool, location: e.target.value})} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Operational Status</Label>
-                  <Select value={editingSchool.status} onValueChange={v => setEditingSchool({...editingSchool, status: v})}>
-                    <SelectTrigger className="h-10">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="suspended">Suspended</SelectItem>
-                      <SelectItem value="maintenance">Maintenance</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-headline font-bold">Upgrade Institution</DialogTitle>
+            <DialogDescription>Move {upgradingSchool?.name} from trial to a paid strategic plan.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-8">
+            <Button onClick={() => handleUpgradeInstitution('Basic')} className="h-16 flex justify-between px-6 bg-slate-50 border hover:bg-slate-100 text-primary group">
+              <div className="text-left">
+                <p className="font-bold">Basic Management</p>
+                <p className="text-[10px] text-muted-foreground uppercase">Standard SIS Tools</p>
               </div>
-              <DialogFooter>
-                <Button type="submit" disabled={provisioning} className="w-full h-12 bg-primary font-bold gap-2">
-                  {provisioning ? <Loader2 className="animate-spin size-4" /> : <Save className="size-4" />} Authorize Registry Update
-                </Button>
-              </DialogFooter>
-            </form>
-          )}
+              <ArrowUpRight className="size-5 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </Button>
+            <Button onClick={() => handleUpgradeInstitution('Premium')} className="h-16 flex justify-between px-6 bg-primary/5 border border-primary/20 hover:bg-primary/10 text-primary group">
+              <div className="text-left">
+                <p className="font-bold">Premium AI Insights</p>
+                <p className="text-[10px] text-primary/60 uppercase">Strategic Reporting & Forecasts</p>
+              </div>
+              <ArrowUpRight className="size-5 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </Button>
+            <Button onClick={() => handleUpgradeInstitution('Enterprise')} className="h-16 flex justify-between px-6 bg-accent/5 border border-accent/20 hover:bg-accent/10 text-accent group">
+              <div className="text-left">
+                <p className="font-bold">Enterprise Hub</p>
+                <p className="text-[10px] text-accent/60 uppercase">Unlimited Multi-Campus Nodes</p>
+              </div>
+              <ArrowUpRight className="size-5 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" className="w-full" onClick={() => setIsUpgradeDialogOpen(false)}>Cancel Authorization</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
