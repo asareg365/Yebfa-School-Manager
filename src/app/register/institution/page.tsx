@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -19,8 +18,6 @@ import {
   writeBatch
 } from "firebase/firestore"
 import { createUserWithEmailAndPassword } from "firebase/auth"
-import { errorEmitter } from "@/firebase/error-emitter"
-import { FirestorePermissionError } from "@/firebase/errors"
 
 const GRADE_LEVEL_CATEGORIES = [
   { id: "basic", label: "Basic Education (KG - Primary)", grades: ["KG 1-2", "Primary 1-6", "KG - Primary 6"] },
@@ -67,7 +64,6 @@ export default function InstitutionRegistrationPage() {
       return
     }
 
-    // Password validation for new users
     if (!user) {
       if (formData.password.length < 6) {
         toast({ variant: "destructive", title: "Weak Password", description: "Password must be at least 6 characters." })
@@ -84,7 +80,6 @@ export default function InstitutionRegistrationPage() {
     try {
       let activeUser = user;
 
-      // 1. Create Auth User if not logged in
       if (!activeUser) {
         const credential = await createUserWithEmailAndPassword(auth, formData.ownerEmail, formData.password)
         activeUser = credential.user
@@ -95,7 +90,6 @@ export default function InstitutionRegistrationPage() {
 
       const batch = writeBatch(db)
 
-      // 2. Create Institution
       batch.set(
         institutionRef,
         {
@@ -109,14 +103,13 @@ export default function InstitutionRegistrationPage() {
           ownerUid: activeUser.uid,
           ownerName: formData.ownerName,
           ownerEmail: formData.ownerEmail,
-          subscriptionPlan: "trial for 30days",
+          subscriptionPlan: "Trial",
           status: "active",
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         }
       )
 
-      // 3. Create User Profile
       batch.set(
         doc(db, "users", activeUser.uid),
         {
@@ -132,7 +125,6 @@ export default function InstitutionRegistrationPage() {
         }
       )
 
-      // 4. Default Settings & Departments
       batch.set(doc(db, "settings", tenantId), {
         tenantId,
         institutionId: tenantId,

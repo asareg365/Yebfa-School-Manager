@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -92,14 +91,6 @@ export default function DashboardLayout({
     localStorage.setItem('notifications_cleared_v2', 'true');
   }, []);
 
-  const removeNotification = (id: string) => {
-    setNotifications(prev => {
-      const filtered = prev.filter(n => n.id !== id);
-      if (filtered.length === 0) setHasNotifications(false);
-      return filtered;
-    });
-  };
-
   if (loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -113,13 +104,15 @@ export default function DashboardLayout({
 
   if (!user) return null;
 
+  const isTrial = institution?.subscriptionPlan?.toLowerCase().includes('trial');
+
   return (
     <SidebarProvider className="print-provider h-screen overflow-hidden">
       <div className="no-print h-full overflow-y-auto border-r bg-sidebar shrink-0">
         <AppSidebar />
       </div>
       <SidebarInset className="bg-background print-inset flex flex-col min-h-0 w-full overflow-hidden">
-        {institution?.subscriptionPlan === 'Trial' && trialDaysLeft !== null && (
+        {isTrial && trialDaysLeft !== null && (
           <div className={`no-print py-2 px-6 flex items-center justify-between transition-colors ${trialDaysLeft <= 7 ? 'bg-orange-600 text-white' : 'bg-blue-600 text-white'}`}>
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest">
               {trialDaysLeft <= 7 ? <AlertTriangle className="size-4" /> : <Clock className="size-4" />}

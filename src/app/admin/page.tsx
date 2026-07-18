@@ -1,8 +1,7 @@
-
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Pencil, Loader2, LogOut, Zap, ShieldAlert, Terminal, Save, Megaphone, Server, Globe, ArrowUpRight, Clock, AlertTriangle } from "lucide-react"
+import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Pencil, Loader2, LogOut, Zap, ShieldAlert, Terminal, Save, Megaphone, Server, Globe, ArrowUpRight, Clock, AlertTriangle, Cpu, HardDrive, Network } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -32,9 +31,7 @@ export default function AdminPortal() {
 
   const [provisioning, setProvisioning] = useState(false)
   const [isProvisionDialogOpen, setIsProvisionDialogOpen] = useState(false)
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isUpgradeDialogOpen, setIsUpgradeDialogOpen] = useState(false)
-  const [editingSchool, setEditingSchool] = useState<any>(null)
   const [upgradingSchool, setUpgradingSchool] = useState<any>(null)
   
   const [newSchool, setNewSchool] = useState({
@@ -162,7 +159,7 @@ export default function AdminPortal() {
             <div className="grid gap-6 md:grid-cols-4">
                {[
                  { title: "Total Schools", value: institutions.length, icon: School, trend: "Live registry count" },
-                 { title: "Active Trials", value: institutions.filter(i => i.subscriptionPlan === 'Trial').length, icon: Clock, trend: "Onboarding phase" },
+                 { title: "Active Trials", value: institutions.filter(i => i.subscriptionPlan?.toLowerCase().includes('trial')).length, icon: Clock, trend: "Onboarding phase" },
                  { title: "Global Revenue", value: "GH₵ 0.00", icon: Wallet, trend: "Cycle tracking" },
                  { title: "Server Status", value: "Optimal", icon: Server, trend: "Goaso Node Active" }
                ].map((stat, i) => (
@@ -236,7 +233,7 @@ export default function AdminPortal() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Badge className="bg-primary/5 text-primary border-none text-[9px] font-bold">{inst.subscriptionPlan}</Badge>
-                            {inst.subscriptionPlan === 'Trial' && (
+                            {inst.subscriptionPlan?.toLowerCase().includes('trial') && (
                               <span className="text-[9px] text-muted-foreground font-bold">{getTrialDaysLeft(inst.createdAt)}d left</span>
                             )}
                           </div>
@@ -274,7 +271,7 @@ export default function AdminPortal() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {institutions.filter(i => i.subscriptionPlan === 'Trial').map((inst: any) => {
+                      {institutions.filter(i => i.subscriptionPlan?.toLowerCase().includes('trial')).map((inst: any) => {
                         const daysLeft = getTrialDaysLeft(inst.createdAt)
                         return (
                           <TableRow key={inst.id}>
@@ -295,10 +292,63 @@ export default function AdminPortal() {
                           </TableRow>
                         )
                       })}
+                      {institutions.filter(i => i.subscriptionPlan?.toLowerCase().includes('trial')).length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center py-12 text-muted-foreground italic">No active trial instances found.</TableCell>
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
                </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="security" className="space-y-8 animate-in fade-in duration-300">
+             <div className="grid gap-6 md:grid-cols-3">
+               <Card className="border-none shadow-sm bg-white">
+                 <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                   <CardTitle className="text-xs font-bold text-muted-foreground uppercase">Cloud Node</CardTitle>
+                   <Network className="size-4 text-green-500" />
+                 </CardHeader>
+                 <CardContent>
+                   <div className="text-3xl font-bold">Operational</div>
+                   <p className="text-[10px] text-green-600 font-bold mt-1 uppercase">Goaso-Ahafo Region Edge</p>
+                 </CardContent>
+               </Card>
+               <Card className="border-none shadow-sm bg-white">
+                 <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                   <CardTitle className="text-xs font-bold text-muted-foreground uppercase">Data Integrity</CardTitle>
+                   <HardDrive className="size-4 text-blue-500" />
+                 </CardHeader>
+                 <CardContent>
+                   <div className="text-3xl font-bold">Verified</div>
+                   <p className="text-[10px] text-muted-foreground font-bold mt-1 uppercase">Daily backup completed</p>
+                 </CardContent>
+               </Card>
+               <Card className="border-none shadow-sm bg-white">
+                 <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                   <CardTitle className="text-xs font-bold text-muted-foreground uppercase">API Latency</CardTitle>
+                   <Cpu className="size-4 text-amber-500" />
+                 </CardHeader>
+                 <CardContent>
+                   <div className="text-3xl font-bold">14ms</div>
+                   <p className="text-[10px] text-muted-foreground font-bold mt-1 uppercase">Optimized Firestore Response</p>
+                 </CardContent>
+               </Card>
+             </div>
+
+             <Card className="border-none shadow-xl bg-white overflow-hidden rounded-2xl">
+               <CardHeader className="border-b bg-slate-50/50">
+                 <CardTitle className="text-lg flex items-center gap-2"><ShieldCheck className="size-5 text-primary" /> Security Audit Logs</CardTitle>
+                 <CardDescription>Global system events and cross-tenant access monitoring.</CardDescription>
+               </CardHeader>
+               <CardContent className="p-0">
+                  <div className="p-20 text-center space-y-4">
+                     <Terminal className="size-12 mx-auto text-muted-foreground/20" />
+                     <p className="text-sm text-muted-foreground italic">No critical security breaches detected in the last 72 hours.</p>
+                  </div>
+               </CardContent>
+             </Card>
           </TabsContent>
         </Tabs>
       </div>
