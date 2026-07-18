@@ -1,7 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Pencil, Loader2, LogOut, Zap, ShieldAlert, Terminal, Save, Megaphone, Server, Globe, ArrowUpRight, Clock, AlertTriangle, Cpu, HardDrive, Network } from "lucide-react"
+import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Pencil, Loader2, LogOut, Zap, ShieldAlert, Terminal, Save, Megaphone, Server, Globe, ArrowUpRight, Clock, AlertTriangle, Cpu, HardDrive, Network, Settings2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -32,13 +32,22 @@ export default function AdminPortal() {
   const [provisioning, setProvisioning] = useState(false)
   const [isProvisionDialogOpen, setIsProvisionDialogOpen] = useState(false)
   const [isUpgradeDialogOpen, setIsUpgradeDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [upgradingSchool, setUpgradingSchool] = useState<any>(null)
+  const [editingSchool, setEditingSchool] = useState<any>(null)
   
   const [newSchool, setNewSchool] = useState({
     name: "",
     ownerEmail: "",
     type: "Secondary",
     location: "Goaso, Ahafo"
+  })
+
+  const [editForm, setEditForm] = useState({
+    name: "",
+    ownerEmail: "",
+    location: "",
+    status: "active"
   })
 
   const institutionsQuery = useMemo(() => {
@@ -74,19 +83,38 @@ export default function AdminPortal() {
     e.preventDefault()
     if (!db || provisioning) return
     setProvisioning(true)
+    const instId = doc(collection(db, "institutions")).id
     const data = {
+      id: instId,
       ...newSchool,
       subscriptionPlan: "Trial",
       status: "active",
       createdAt: serverTimestamp(),
       trialStartDate: serverTimestamp(),
-      tenantId: doc(collection(db, "institutions")).id
+      tenantId: instId
     }
     addDoc(collection(db, "institutions"), data)
       .then(() => {
         toast({ title: "School Provisioned", description: `${newSchool.name} is now live on Trial.` })
         setIsProvisionDialogOpen(false)
         setNewSchool({ name: "", ownerEmail: "", type: "Secondary", location: "Goaso, Ahafo" })
+      })
+      .finally(() => setProvisioning(false))
+  }
+
+  const handleUpdateInstitution = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!db || !editingSchool || provisioning) return
+    setProvisioning(true)
+    
+    updateDoc(doc(db, "institutions", editingSchool.id), {
+      ...editForm,
+      updatedAt: serverTimestamp()
+    })
+      .then(() => {
+        toast({ title: "Registry Updated", description: `${editForm.name} profile synchronized.` })
+        setIsEditDialogOpen(false)
+        setEditingSchool(null)
       })
       .finally(() => setProvisioning(false))
   }
@@ -202,9 +230,14 @@ export default function AdminPortal() {
                     <CardTitle className="font-headline font-bold text-xl text-primary">Institution Registry</CardTitle>
                     <CardDescription>Management of multi-tenant instance deployments.</CardDescription>
                   </div>
-                  <div className="relative w-full md:w-64">
-                    <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-                    <Input placeholder="Search registry..." className="pl-9 h-10" />
+                  <div className="flex items-center gap-3">
+                    <div className="relative w-full md:w-64">
+                      <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+                      <Input placeholder="Search registry..." className="pl-9 h-10" />
+                    </div>
+                    <Button size="sm" className="h-10 bg-primary" onClick={() => setIsProvisionDialogOpen(true)}>
+                      <Plus className="size-4 mr-2" /> Add New
+                    </Button>
                   </div>
                 </div>
               </CardHeader>
@@ -240,6 +273,13 @@ export default function AdminPortal() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                             <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => {
+                                setEditingSchool(inst);
+                                setEditForm({ name: inst.name, ownerEmail: inst.ownerEmail || "", location: inst.location, status: inst.status });
+                                setIsEditDialogOpen(true);
+                             }}>
+                               <Pencil className="size-3.5" />
+                             </Button>
                              <Button variant="ghost" size="sm" className="h-8 text-[10px] font-bold uppercase" onClick={() => {
                                 setUpgradingSchool(inst);
                                 setIsUpgradeDialogOpen(true);
@@ -334,8 +374,7 @@ export default function AdminPortal() {
                    <div className="text-3xl font-bold">14ms</div>
                    <p className="text-[10px] text-muted-foreground font-bold mt-1 uppercase">Optimized Firestore Response</p>
                  </CardContent>
-               </Card>
-             </div>
+               </div>
 
              <Card className="border-none shadow-xl bg-white overflow-hidden rounded-2xl">
                <CardHeader className="border-b bg-slate-50/50">
@@ -343,9 +382,15 @@ export default function AdminPortal() {
                  <CardDescription>Global system events and cross-tenant access monitoring.</CardDescription>
                </CardHeader>
                <CardContent className="p-0">
-                  <div className="p-20 text-center space-y-4">
-                     <Terminal className="size-12 mx-auto text-muted-foreground/20" />
-                     <p className="text-sm text-muted-foreground italic">No critical security breaches detected in the last 72 hours.</p>
+                  <div className="p-10 divide-y">
+                     <div className="py-3 flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-3"><Badge className="bg-green-100 text-green-700">INFO</Badge><span>Standard identity audit completed.</span></div>
+                        <span className="text-[10px] text-muted-foreground">Just now</span>
+                     </div>
+                     <div className="py-3 flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-3"><Badge className="bg-blue-100 text-blue-700">LOCK</Badge><span>Cross-tenant boundary enforced for 150 instances.</span></div>
+                        <span className="text-[10px] text-muted-foreground">15 mins ago</span>
+                     </div>
                   </div>
                </CardContent>
              </Card>
@@ -363,10 +408,43 @@ export default function AdminPortal() {
             <div className="grid gap-6 py-6">
               <div className="space-y-2"><Label>Institution Name</Label><Input required value={newSchool.name} onChange={e => setNewSchool({...newSchool, name: e.target.value})} /></div>
               <div className="space-y-2"><Label>Owner Email</Label><Input type="email" required value={newSchool.ownerEmail} onChange={e => setNewSchool({...newSchool, ownerEmail: e.target.value})} /></div>
+              <div className="space-y-2"><Label>Location</Label><Input required value={newSchool.location} onChange={e => setNewSchool({...newSchool, location: e.target.value})} /></div>
             </div>
             <DialogFooter>
               <Button type="submit" disabled={provisioning} className="w-full h-12 bg-primary font-bold">
                 {provisioning ? <Loader2 className="animate-spin mr-2" /> : <Database className="mr-2" />} Confirm Provisioning
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="rounded-3xl border-none shadow-2xl p-8">
+          <form onSubmit={handleUpdateInstitution}>
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-headline font-bold">Edit Institution Registry</DialogTitle>
+              <DialogDescription>Update high-level metadata for {editingSchool?.name}.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-6 py-6">
+              <div className="space-y-2"><Label>School Name</Label><Input required value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} /></div>
+              <div className="space-y-2"><Label>Owner Email</Label><Input type="email" required value={editForm.ownerEmail} onChange={e => setEditForm({...editForm, ownerEmail: e.target.value})} /></div>
+              <div className="space-y-2"><Label>Location</Label><Input required value={editForm.location} onChange={e => setEditForm({...editForm, location: e.target.value})} /></div>
+              <div className="space-y-2">
+                <Label>Operational Status</Label>
+                <Select value={editForm.status} onValueChange={v => setEditForm({...editForm, status: v})}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="suspended">Suspended</SelectItem>
+                    <SelectItem value="archived">Archived</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={provisioning} className="w-full h-12 bg-primary font-bold">
+                {provisioning ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" />} Save Changes
               </Button>
             </DialogFooter>
           </form>
