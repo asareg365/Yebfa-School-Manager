@@ -18,8 +18,8 @@ import {
   Banknote,
   PieChart
 } from "lucide-react"
-import { useFirestore, useCollection } from "@/firebase"
-import { collection, query, where } from "firebase/firestore"
+import { useFirestore, useCollection, useDoc } from "@/firebase"
+import { collection, query, where, doc } from "firebase/firestore"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 
@@ -32,28 +32,31 @@ export default function ProfitAndLossPage() {
     if (storedId) setInstitutionId(storedId)
   }, [])
 
+  const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
+  const { data: institution } = useDoc(instRef)
+
   const txnsQuery = useMemo(() => institutionId ? query(collection(db, "transactions"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   const expensesQuery = useMemo(() => institutionId ? query(collection(db, "expenditure_vouchers"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   const payrollQuery = useMemo(() => institutionId ? query(collection(db, "payroll_records"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
 
-  const { data: incomeTxns } = useCollection(txnsQuery)
-  const { data: expenses } = useCollection(expensesQuery)
-  const { data: payroll } = useCollection(payrollQuery)
+  const { data: incomeTxns = [] } = useCollection(txnsQuery)
+  const { data: expenses = [] } = useCollection(expensesQuery)
+  const { data: payroll = [] } = useCollection(payrollQuery)
 
-  const totalIncome = incomeTxns.reduce((a, c: any) => a + c.amount, 0)
-  const operationalExpenses = expenses.reduce((a, c: any) => a + c.amount, 0)
-  const payrollExpenses = payroll.reduce((a, c: any) => a + c.netSalary, 0)
+  const totalIncome = incomeTxns.reduce((a, c: any) => a + (c.amount || 0), 0)
+  const operationalExpenses = expenses.reduce((a, c: any) => a + (c.amount || 0), 0)
+  const payrollExpenses = payroll.reduce((a, c: any) => a + (c.netSalary || 0), 0)
   const totalExpenses = operationalExpenses + payrollExpenses
   const netProfit = totalIncome - totalExpenses
 
   const margin = totalIncome > 0 ? (netProfit / totalIncome) * 100 : 0
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-8 animate-in fade-in duration-500 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <h1 className="text-3xl font-headline font-bold text-primary">Strategic Financial Report</h1>
-          <p className="text-muted-foreground">Comprehensive Profit & Loss for Term 2, 2026 academic cycle.</p>
+          <p className="text-muted-foreground font-medium">Comprehensive Profit & Loss for <span className="text-accent font-bold uppercase">{institution?.currentTerm || "Term 1"}</span> academic cycle.</p>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" className="h-11 rounded-xl gap-2"><Printer className="size-4" /> Print PDF</Button>

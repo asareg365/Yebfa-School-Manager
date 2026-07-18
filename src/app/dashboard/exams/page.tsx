@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ClipboardList, Printer, Save, Loader2, Bot, Sparkles, FileText, Download, Wand2, CheckCircle2 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useFirestore, useCollection } from "@/firebase"
+import { useFirestore, useCollection, useDoc } from "@/firebase"
 import { collection, query, where, doc, setDoc, serverTimestamp, writeBatch } from "firebase/firestore"
 import { useState, useMemo, useEffect } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -23,12 +23,16 @@ export default function ExaminationCenterPage() {
   const [aiLoading, setAiLoading] = useState(false)
   const [aiResult, setAiResult] = useState<any>(null)
 
-  // Score state management: Record<studentId, { ca: string, exam: string }>
   const [scores, setScores] = useState<Record<string, { ca: string, exam: string }>>({})
 
   useEffect(() => {
     setInstitutionId(localStorage.getItem('selected_institution_id'))
   }, [])
+
+  const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
+  const { data: institution } = useDoc(instRef)
+  
+  const currentTerm = institution?.currentTerm || "Term 1"
 
   const classesQuery = useMemo(() => {
     if (!db || !institutionId) return null;
@@ -45,23 +49,22 @@ export default function ExaminationCenterPage() {
     return query(collection(db, "subjects"), where("tenantId", "==", institutionId));
   }, [db, institutionId]);
 
-  // Query for existing scores to ensure data persists after refresh
   const existingScoresQuery = useMemo(() => {
     if (!db || !institutionId || !selectedGrade || !selectedSubject) return null;
     return query(
       collection(db, "exam_records"),
       where("tenantId", "==", institutionId),
       where("gradeLevel", "==", selectedGrade),
-      where("subjectId", "==", selectedSubject)
+      where("subjectId", "==", selectedSubject),
+      where("termId", "==", currentTerm)
     );
-  }, [db, institutionId, selectedGrade, selectedSubject]);
+  }, [db, institutionId, selectedGrade, selectedSubject, currentTerm]);
 
   const { data: classes = [] } = useCollection(classesQuery)
   const { data: students = [] } = useCollection(studentsQuery)
   const { data: subjects = [] } = useCollection(subjectsQuery)
   const { data: existingScores = [] } = useCollection(existingScoresQuery)
 
-  // Sync state with existing database records
   useEffect(() => {
     if (existingScores.length > 0) {
       const map: Record<string, { ca: string, exam: string }> = {};
@@ -75,7 +78,7 @@ export default function ExaminationCenterPage() {
     } else {
       setScores({});
     }
-  }, [existingScores]);
+  }, [existingScores, selectedSubject]);
 
   const handleScoreChange = (studentId: string, field: 'ca' | 'exam', value: string) => {
     setScores(prev => ({
@@ -96,7 +99,6 @@ export default function ExaminationCenterPage() {
     setIsSaving(true)
     try {
       const batch = writeBatch(db)
-      const termId = "Term 2" // Default for 2026 cycle
 
       students.forEach(stu => {
         const studentScores = scores[stu.id] || { ca: "0", exam: "0" }
@@ -104,8 +106,7 @@ export default function ExaminationCenterPage() {
         const exam = parseFloat(studentScores.exam) || 0
         const total = ca + exam
         
-        // Document ID: stuId_subjectId_termId to prevent duplicates
-        const recordId = `${stu.id}_${selectedSubject}_${termId.replace(/\s+/g, '')}`
+        const recordId = `${stu.id}_${selectedSubject}_${currentTerm.replace(/\s+/g, '')}`
         const recordRef = doc(db, "exam_records", recordId)
         
         batch.set(recordRef, {
@@ -115,7 +116,7 @@ export default function ExaminationCenterPage() {
           studentName: `${stu.firstName} ${stu.lastName}`,
           subjectId: selectedSubject,
           gradeLevel: selectedGrade,
-          termId,
+          termId: currentTerm,
           classScore: ca,
           examScore: exam,
           totalScore: total,
@@ -125,7 +126,7 @@ export default function ExaminationCenterPage() {
       })
 
       await batch.commit()
-      toast({ title: "Scores Finalized", description: `Academic records synchronized for ${students.length} students.` })
+      toast({ title: "Scores Finalized", description: `Academic records synchronized for ${students.length} students for ${currentTerm}.` })
     } catch (err: any) {
       toast({ variant: "destructive", title: "Save Failed", description: err.message })
     } finally {
@@ -158,11 +159,11 @@ export default function ExaminationCenterPage() {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6 animate-in fade-in duration-500 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Examination Center</h1>
-          <p className="text-muted-foreground">Capture results and generate intelligent papers.</p>
+          <p className="text-muted-foreground font-medium">Capture results for <span className="text-accent font-bold uppercase">{currentTerm}</span>.</p>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" className="gap-2 h-11 rounded-xl" onClick={handleAiGenerate} disabled={aiLoading}>
@@ -238,7 +239,7 @@ export default function ExaminationCenterPage() {
              <CardHeader className="border-b bg-slate-50/50 flex flex-row items-center justify-between">
                 <div>
                   <CardTitle className="text-lg">Score Registry</CardTitle>
-                  <CardDescription>Entering scores for Term 2, 2026 Academic Cycle.</CardDescription>
+                  <CardDescription>Entering scores for {currentTerm}, 2026 Academic Cycle.</CardDescription>
                 </div>
                 {selectedSubject && <Badge className="bg-primary/5 text-primary border-none text-[10px] font-bold uppercase tracking-widest px-3">Sync Active</Badge>}
              </CardHeader>

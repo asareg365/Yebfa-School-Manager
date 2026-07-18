@@ -24,8 +24,8 @@ import {
   ShieldAlert
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useFirestore, useCollection } from "@/firebase"
-import { collection, query, where } from "firebase/firestore"
+import { useFirestore, useCollection, useDoc } from "@/firebase"
+import { collection, query, where, doc } from "firebase/firestore"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
@@ -37,7 +37,6 @@ export default function ReportsPage() {
   const [copied, setCopied] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-  // Selection states
   const [selectedGrade, setSelectedGrade] = useState("")
   const [selectedStudentId, setSelectedStudentId] = useState("")
 
@@ -45,7 +44,11 @@ export default function ReportsPage() {
     setInstitutionId(localStorage.getItem('selected_institution_id'))
   }, [])
 
-  // Queries
+  const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
+  const { data: institution } = useDoc(instRef)
+  
+  const currentTerm = institution?.currentTerm || "Term 1"
+
   const classesQuery = useMemo(() => 
     institutionId ? query(collection(db, "classes"), where("tenantId", "==", institutionId)) : null, 
     [db, institutionId]
@@ -59,8 +62,8 @@ export default function ReportsPage() {
     [db, institutionId]
   )
   const examsQuery = useMemo(() => 
-    institutionId && selectedStudentId ? query(collection(db, "exam_records"), where("studentId", "==", selectedStudentId)) : null, 
-    [db, institutionId, selectedStudentId]
+    institutionId && selectedStudentId ? query(collection(db, "exam_records"), where("studentId", "==", selectedStudentId), where("termId", "==", currentTerm)) : null, 
+    [db, institutionId, selectedStudentId, currentTerm]
   )
   const attendanceQuery = useMemo(() => 
     institutionId && selectedStudentId ? query(collection(db, "attendance"), where("studentId", "==", selectedStudentId)) : null, 
@@ -75,14 +78,14 @@ export default function ReportsPage() {
 
   const selectedStudent = useMemo(() => students.find(s => s.id === selectedStudentId), [students, selectedStudentId])
 
-  // Calculated Metrics for AI
   const aggregatedMetrics = useMemo(() => {
     const totalDays = attendanceDocs.length
     const daysPresent = attendanceDocs.filter((a: any) => a.status === 'present').length
     const attendancePercent = totalDays > 0 ? Math.round((daysPresent / totalDays) * 100) : 100
 
     const examScores = examRecords.map((e: any) => {
-      const subjectName = subjects.find(s => s.id === e.subjectId)?.name || "Academic Subject"
+      const subjectDoc = subjects.find(s => s.id === e.subjectId)
+      const subjectName = subjectDoc?.name || "Academic Subject"
       return {
         name: subjectName,
         score: typeof e.totalScore === 'number' ? e.totalScore : 0
@@ -91,7 +94,7 @@ export default function ReportsPage() {
 
     return {
       attendancePercent,
-      examScores
+      examScores: examScores.length > 0 ? examScores : [{ name: "General Studies", score: 0 }]
     }
   }, [attendanceDocs, examRecords, subjects])
 
@@ -139,7 +142,7 @@ export default function ReportsPage() {
     <div className="space-y-8 animate-in fade-in duration-500 pb-24">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-headline font-bold tracking-tight text-primary">Academic Narratives</h1>
-        <p className="text-muted-foreground">Generating comprehensive reports synced with live attendance and exam records.</p>
+        <p className="text-muted-foreground font-medium">Generating comprehensive reports for <span className="text-accent font-bold uppercase">{currentTerm}</span>.</p>
       </div>
 
       {errorMessage && (
@@ -152,19 +155,15 @@ export default function ReportsPage() {
               <AlertTitle className="text-xl font-bold font-headline">Institutional AI Setup Required</AlertTitle>
               <AlertDescription className="text-base leading-relaxed">
                 <p className="mb-4">The system encountered a <strong>403 Forbidden</strong> error. This means the AI engine is ready but your Google project hasn't authorized this specific service.</p>
-                
                 <div className="bg-white/50 p-6 rounded-2xl border border-red-100 space-y-4">
                   <h4 className="font-bold text-sm uppercase tracking-widest text-red-900">Immediate Fix Action:</h4>
                   <ol className="list-decimal ml-5 space-y-2 font-medium">
-                    <li>Open the <a href="https://console.cloud.google.com/" target="_blank" className="underline font-bold text-primary flex inline-flex items-center gap-1">Google Cloud Console <ExternalLink className="size-3" /></a></li>
-                    <li>Ensure you are in the correct project (check the top header).</li>
-                    <li>Search for <strong>"Generative Language API"</strong> in the top search bar.</li>
-                    <li>Click the <strong>ENABLE</strong> button.</li>
-                    <li>Wait 2-3 minutes, then click "Generate" again on this page.</li>
+                    <li>Open the <a href="https://console.cloud.google.com/" target="_blank" className="underline font-bold text-primary inline-flex items-center gap-1">Google Cloud Console <ExternalLink className="size-3" /></a></li>
+                    <li>Ensure you are in the correct project.</li>
+                    <li>Search for <strong>"Generative Language API"</strong> and click <strong>ENABLE</strong>.</li>
+                    <li>Wait 2-3 minutes, then click "Generate" again.</li>
                   </ol>
                 </div>
-                
-                <p className="text-sm mt-4 italic opacity-80">Note: This is a one-time setup step for your institutional workspace.</p>
               </AlertDescription>
             </div>
           </div>
@@ -173,13 +172,13 @@ export default function ReportsPage() {
 
       <div className="grid gap-8 lg:grid-cols-2">
         <div className="space-y-6">
-          <Card className="border-none shadow-md overflow-hidden rounded-3xl">
+          <Card className="border-none shadow-md overflow-hidden rounded-3xl bg-white">
             <CardHeader className="bg-primary/5 border-b p-6">
               <CardTitle className="flex items-center gap-2 text-primary font-headline">
                 <Database className="size-5" />
                 Registry Data Sync
               </CardTitle>
-              <CardDescription>Select a student to pull academic and presence history.</CardDescription>
+              <CardDescription>Select a student to pull academic and presence history for {currentTerm}.</CardDescription>
             </CardHeader>
             <CardContent className="p-8 space-y-6">
               <div className="grid gap-6 sm:grid-cols-2">
@@ -189,7 +188,6 @@ export default function ReportsPage() {
                     <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select Grade" /></SelectTrigger>
                     <SelectContent>
                       {classes.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-                      {classes.length === 0 && <div className="p-2 text-center text-xs italic">No classes registered</div>}
                     </SelectContent>
                   </Select>
                 </div>
@@ -199,7 +197,6 @@ export default function ReportsPage() {
                     <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Choose Student" /></SelectTrigger>
                     <SelectContent>
                       {students.map(s => <SelectItem key={s.id} value={s.id}>{s.firstName} {s.lastName}</SelectItem>)}
-                      {students.length === 0 && selectedGrade && <div className="p-2 text-center text-xs italic">No students in this grade</div>}
                     </SelectContent>
                   </Select>
                 </div>
@@ -212,11 +209,11 @@ export default function ReportsPage() {
                      <Badge variant="secondary" className="font-bold text-lg px-4">{aggregatedMetrics.attendancePercent}%</Badge>
                    </div>
                    <div className="flex justify-between items-center">
-                     <span className="text-xs font-bold text-muted-foreground uppercase">Exam Data Set</span>
-                     <Badge variant="secondary" className="font-bold px-4">{aggregatedMetrics.examScores.length} Subjects Found</Badge>
+                     <span className="text-xs font-bold text-muted-foreground uppercase">Exam Data Set ({currentTerm})</span>
+                     <Badge variant="secondary" className="font-bold px-4">{examRecords.length} Subjects</Badge>
                    </div>
                    <p className="text-[10px] text-muted-foreground italic flex items-center gap-2 pt-2 border-t">
-                     <RefreshCw className="size-3 animate-spin-slow text-primary" /> Multi-tenant partition synchronized with institutional vault.
+                     <RefreshCw className="size-3 animate-spin-slow text-primary" /> Multi-tenant partition synchronized.
                    </p>
                 </div>
               )}
@@ -232,7 +229,7 @@ export default function ReportsPage() {
               </div>
 
               <Button 
-                className="w-full h-16 gap-3 bg-primary hover:bg-primary/90 rounded-2xl shadow-xl shadow-primary/10 transition-all active:scale-95 text-lg font-bold"
+                className="w-full h-16 gap-3 bg-primary hover:bg-primary/90 rounded-2xl shadow-xl text-lg font-bold"
                 onClick={handleGenerate}
                 disabled={loading || !selectedStudentId}
               >
@@ -258,7 +255,7 @@ export default function ReportsPage() {
             </Card>
           ) : (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
-              <Card className="border-none shadow-2xl overflow-hidden rounded-3xl">
+              <Card className="border-none shadow-2xl overflow-hidden rounded-3xl bg-white">
                 <CardHeader className="bg-primary text-primary-foreground p-8">
                   <div className="flex justify-between items-start">
                     <div className="space-y-2">
@@ -266,7 +263,7 @@ export default function ReportsPage() {
                         <Check className="size-3 text-green-400" /> Authorized AI Assessment
                       </div>
                       <CardTitle className="text-3xl font-headline font-bold">{selectedStudent?.firstName} {selectedStudent?.lastName}</CardTitle>
-                      <CardDescription className="text-primary-foreground/70 font-medium">{selectedGrade} • Institutional Report Draft 2026</CardDescription>
+                      <CardDescription className="text-primary-foreground/70 font-medium">{selectedGrade} • {currentTerm} Report Draft 2026</CardDescription>
                     </div>
                     <Button variant="secondary" size="icon" onClick={handleCopy} className="bg-white/10 hover:bg-white/20 border-none text-white rounded-xl size-12">
                       {copied ? <Check className="size-6 text-green-400" /> : <Copy className="size-6" />}

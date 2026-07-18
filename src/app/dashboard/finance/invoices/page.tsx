@@ -20,7 +20,7 @@ import {
   MoreVertical
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useFirestore, useCollection } from "@/firebase"
+import { useFirestore, useCollection, useDoc } from "@/firebase"
 import { collection, query, where, addDoc, serverTimestamp, writeBatch, doc } from "firebase/firestore"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog"
@@ -41,6 +41,9 @@ export default function InvoicingPage() {
     if (storedId) setInstitutionId(storedId)
   }, [])
 
+  const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
+  const { data: institution } = useDoc(instRef)
+
   const classesQuery = useMemo(() => {
     if (!db || !institutionId) return null;
     return query(collection(db, "classes"), where("tenantId", "==", institutionId));
@@ -48,8 +51,7 @@ export default function InvoicingPage() {
 
   const studentsQuery = useMemo(() => {
     if (!db || !institutionId) return null
-    let q = query(collection(db, "students"), where("tenantId", "==", institutionId))
-    return q
+    return query(collection(db, "students"), where("tenantId", "==", institutionId))
   }, [db, institutionId])
 
   const feesQuery = useMemo(() => {
@@ -76,8 +78,8 @@ export default function InvoicingPage() {
     setLoading(true)
     try {
       const batch = writeBatch(db)
-      const term = "Term 2"
-      const year = "2026/2027"
+      const term = institution?.currentTerm || "Term 1"
+      const year = institution?.academicYear || "2026/2027"
 
       students.forEach((student: any) => {
         const mandatoryFees = fees.filter((f: any) => f.category === "Mandatory")
@@ -99,7 +101,6 @@ export default function InvoicingPage() {
           createdAt: serverTimestamp()
         })
 
-        // Also post to ledger
         const ledgerRef = doc(collection(db, "student_ledger"))
         batch.set(ledgerRef, {
           tenantId: institutionId,
@@ -113,7 +114,7 @@ export default function InvoicingPage() {
       })
 
       await batch.commit()
-      toast({ title: "Invoices Generated", description: `Batch billing completed for ${students.length} students.` })
+      toast({ title: "Invoices Generated", description: `Batch billing completed for ${students.length} students for ${term}.` })
       setIsGenOpen(false)
     } catch (e: any) {
       toast({ variant: "destructive", title: "Error", description: e.message })
@@ -130,11 +131,11 @@ export default function InvoicingPage() {
   }, [invoices, searchQuery, selectedGrade])
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6 animate-in fade-in duration-500 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <h1 className="text-3xl font-headline font-bold text-primary">Invoicing & Billing</h1>
-          <p className="text-muted-foreground">Automated term-based charges and student statements.</p>
+          <p className="text-muted-foreground font-medium">Automated charges for <span className="text-accent font-bold uppercase">{institution?.currentTerm || "Term 1"}</span>.</p>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" className="h-11 rounded-xl">Statement Registry</Button>
@@ -142,20 +143,20 @@ export default function InvoicingPage() {
             <DialogTrigger asChild>
               <Button className="bg-primary h-11 rounded-xl shadow-lg gap-2"><Plus className="size-4" /> Run Term Billing</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="rounded-3xl">
               <DialogHeader>
-                <DialogTitle>Generate Batch Invoices</DialogTitle>
-                <DialogDescription>This will generate invoices for all enrolled students based on current mandatory fee items.</DialogDescription>
+                <DialogTitle className="text-2xl font-headline font-bold">Generate Batch Invoices</DialogTitle>
+                <DialogDescription>This will generate invoices for all enrolled students based on current mandatory fee items for <span className="font-bold text-primary">{institution?.currentTerm}</span>.</DialogDescription>
               </DialogHeader>
               <div className="py-6 space-y-4">
-                <div className="p-4 rounded-xl bg-muted/30 border space-y-2">
+                <div className="p-4 rounded-2xl bg-muted/30 border space-y-2">
                   <div className="flex justify-between text-sm"><span>Active Students</span><span className="font-bold">{students.length}</span></div>
                   <div className="flex justify-between text-sm"><span>Mandatory Fee Items</span><span className="font-bold">{fees.filter((f: any) => f.category === "Mandatory").length}</span></div>
                 </div>
                 <p className="text-xs text-muted-foreground italic">Note: Only students in the institutional registry will be billed.</p>
               </div>
               <DialogFooter>
-                <Button className="w-full h-12" onClick={handleGenerateInvoices} disabled={loading}>
+                <Button className="w-full h-12 rounded-xl bg-primary font-bold" onClick={handleGenerateInvoices} disabled={loading}>
                    {loading ? <Loader2 className="animate-spin mr-2" /> : <FileText className="mr-2" />} Authorize Billing Cycle
                 </Button>
               </DialogFooter>
@@ -181,16 +182,16 @@ export default function InvoicingPage() {
         ))}
       </div>
 
-      <Card className="border-none shadow-xl rounded-2xl overflow-hidden">
-        <CardHeader className="border-b bg-white">
+      <Card className="border-none shadow-xl rounded-2xl overflow-hidden bg-white">
+        <CardHeader className="border-b py-6">
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
              <div className="relative w-full max-w-sm">
-                <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
-                <Input placeholder="Search invoice or student..." className="pl-10 h-11 bg-slate-50 border-none" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                <Search className="absolute left-3 top-3.5 size-4 text-muted-foreground" />
+                <Input placeholder="Search invoice or student..." className="pl-10 h-12 bg-slate-50 border-none rounded-xl" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
              </div>
              <div className="flex items-center gap-3">
                <Select value={selectedGrade} onValueChange={setSelectedGrade}>
-                 <SelectTrigger className="w-40 h-11 rounded-xl"><SelectValue placeholder="Grade" /></SelectTrigger>
+                 <SelectTrigger className="w-40 h-12 rounded-xl"><SelectValue placeholder="Grade" /></SelectTrigger>
                  <SelectContent>
                    <SelectItem value="All">All Grades</SelectItem>
                    {classes.map(c => (
@@ -198,7 +199,7 @@ export default function InvoicingPage() {
                    ))}
                  </SelectContent>
                </Select>
-               <Button variant="outline" className="h-11 rounded-xl"><Printer className="size-4" /></Button>
+               <Button variant="outline" className="h-12 rounded-xl"><Printer className="size-4" /></Button>
              </div>
           </div>
         </CardHeader>
@@ -216,7 +217,7 @@ export default function InvoicingPage() {
             </TableHeader>
             <TableBody>
               {filteredInvoices.map((inv: any) => (
-                <TableRow key={inv.id} className="hover:bg-slate-50/50">
+                <TableRow key={inv.id} className="hover:bg-slate-50/50 transition-colors">
                   <TableCell>
                     <div className="flex flex-col">
                       <span className="text-[10px] font-mono font-bold text-accent">{inv.invoiceNumber}</span>
