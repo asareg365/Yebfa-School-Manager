@@ -62,21 +62,11 @@
         "tenantId": { "type": "string" },
         "institutionId": { "type": "string" },
         "admissionNumber": { "type": "string" },
-        "indexNumber": { "type": "string" },
         "firstName": { "type": "string" },
-        "middleName": { "type": "string" },
         "lastName": { "type": "string" },
         "gender": { "type": "string", "enum": ["Male", "Female"] },
         "dateOfBirth": { "type": "string", "format": "date" },
-        "bloodGroup": { "type": "string" },
-        "nationality": { "type": "string" },
-        "religion": { "type": "string" },
-        "photoUrl": { "type": "string" },
         "gradeLevel": { "type": "string" },
-        "currentClassId": { "type": "string" },
-        "sectionId": { "type": "string" },
-        "academicYearId": { "type": "string" },
-        "house": { "type": "string" },
         "status": { "type": "string", "enum": ["active", "inactive", "suspended", "alumni"] },
         "parentId": { "type": "string" },
         "address": {
@@ -94,9 +84,7 @@
           "properties": {
             "birthCertificate": { "type": "string" },
             "passport": { "type": "string" },
-            "medicalReport": { "type": "string" },
-            "transferLetter": { "type": "string" },
-            "beceResults": { "type": "string" }
+            "medicalReport": { "type": "string" }
           }
         },
         "medical": {
@@ -108,11 +96,35 @@
             "doctor": { "type": "string" }
           }
         },
-        "createdBy": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" }
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["tenantId", "institutionId", "firstName", "lastName", "admissionNumber"]
+      "required": ["tenantId", "firstName", "lastName", "admissionNumber"]
+    },
+    "Staff": {
+      "title": "Staff Member",
+      "description": "Professional employment record for institutional staff.",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "institutionId": { "type": "string" },
+        "staffNumber": { "type": "string" },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "gender": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "qualification": { "type": "string" },
+        "departmentId": { "type": "string" },
+        "designation": { "type": "string" },
+        "employmentDate": { "type": "string" },
+        "salary": { "type": "number" },
+        "bankName": { "type": "string" },
+        "bankAccount": { "type": "string" },
+        "ssnitNumber": { "type": "string" },
+        "tin": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "auth": {
@@ -122,6 +134,7 @@
     "/users/{userId}": { "schema": "User" },
     "/institutions/{institutionId}": { "schema": "Institution" },
     "/parents/{parentId}": { "schema": "Parent" },
-    "/students/{studentId}": { "schema": "Student" }
+    "/students/{studentId}": { "schema": "Student" },
+    "/staff/{staffId}": { "schema": "Staff" }
   }
 }

@@ -75,42 +75,27 @@ service cloud.firestore {
 
     match /parents/{parentId} {
       allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
-      allow create: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
-      allow update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
+      allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin() || isAccountant());
       allow delete: if isSuperAdmin() || isOwner();
     }
 
-    // Standard Multi-Tenant Rule Pattern
+    match /students/{studentId} {
+      allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
+      allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin() || isTeacher());
+      allow delete: if isSuperAdmin() || isOwner();
+    }
+
+    match /staff/{staffId} {
+      allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
+      allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin() || isAccountant());
+      allow delete: if isSuperAdmin() || isOwner();
+    }
+
+    // Standard Multi-Tenant Rule Pattern for other modules
     match /{collectionName}/{docId} {
-      
-      allow read: if signedIn() && (
-        isSuperAdmin() || 
-        belongsToUserTenant(resource.data) ||
-        (isParent() && collectionName == 'students' && resource.data.parentUid == request.auth.uid)
-      );
-
-      allow create: if signedIn() && (
-        isValidTenantLock() && (
-          isSuperAdmin() || isOwner() || isAdmin() || 
-          (collectionName == 'attendance' && isTeacher()) ||
-          (collectionName == 'exam_records' && isTeacher()) ||
-          (collectionName == 'library_transactions' && isLibrarian()) ||
-          ((collectionName == 'expenditure_vouchers' || collectionName == 'transactions' || collectionName == 'student_ledger') && isAccountant())
-        )
-        || (request.resource.data.tenantId != null && !hasProfile())
-      );
-
-      allow update: if signedIn() && isValidTenantLock() && (
-        isSuperAdmin() || isOwner() || isAdmin() || 
-        (collectionName == 'attendance' && isTeacher()) ||
-        (collectionName == 'exam_records' && isTeacher()) ||
-        (collectionName == 'library_books' && isLibrarian())
-      );
-
-      allow delete: if signedIn() && (
-        isSuperAdmin() || 
-        (belongsToUserTenant(resource.data) && (isOwner() || isAdmin()))
-      );
+      allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
+      allow create, update: if signedIn() && (isSuperAdmin() || belongsToUserTenant(request.resource.data));
+      allow delete: if signedIn() && (isSuperAdmin() || (belongsToUserTenant(resource.data) && (isOwner() || isAdmin())));
     }
   }
 }
