@@ -1,10 +1,10 @@
-
 'use server';
 /**
  * @fileOverview AI Academic Risk Predictor.
  */
 
 import { ai } from '@/ai/genkit';
+import { googleAI } from '@genkit-ai/google-genai';
 import { z } from 'genkit';
 
 const AnalyzeRiskInputSchema = z.object({
@@ -25,7 +25,7 @@ export type AnalyzeRiskOutput = z.infer<typeof AnalyzeRiskOutputSchema>;
 
 export async function analyzeAcademicRisk(input: AnalyzeRiskInput): Promise<AnalyzeRiskOutput> {
   const { output } = await ai.generate({
-    model: 'googleai/gemini-1.5-flash',
+    model: googleAI.model('gemini-1.5-flash'),
     input: input,
     output: { schema: AnalyzeRiskOutputSchema },
     prompt: `Analyze the following student metrics and predict academic risk:

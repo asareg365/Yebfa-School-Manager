@@ -1,10 +1,10 @@
-
 'use server';
 /**
  * @fileOverview AI Lesson Plan Generator.
  */
 
 import { ai } from '@/ai/genkit';
+import { googleAI } from '@genkit-ai/google-genai';
 import { z } from 'genkit';
 
 const GenerateLessonPlanInputSchema = z.object({
@@ -30,7 +30,7 @@ export type GenerateLessonPlanOutput = z.infer<typeof GenerateLessonPlanOutputSc
 
 export async function generateLessonPlan(input: GenerateLessonPlanInput): Promise<GenerateLessonPlanOutput> {
   const { output } = await ai.generate({
-    model: 'googleai/gemini-1.5-flash',
+    model: googleAI.model('gemini-1.5-flash'),
     input: input,
     output: { schema: GenerateLessonPlanOutputSchema },
     prompt: `You are an expert curriculum developer for schools in Ghana.

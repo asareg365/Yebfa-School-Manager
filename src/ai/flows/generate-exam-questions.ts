@@ -1,10 +1,10 @@
-
 'use server';
 /**
  * @fileOverview AI Exam Question Generator.
  */
 
 import { ai } from '@/ai/genkit';
+import { googleAI } from '@genkit-ai/google-genai';
 import { z } from 'genkit';
 
 const GenerateExamInputSchema = z.object({
@@ -30,7 +30,7 @@ export type GenerateExamOutput = z.infer<typeof GenerateExamOutputSchema>;
 
 export async function generateExamQuestions(input: GenerateExamInput): Promise<GenerateExamOutput> {
   const { output } = await ai.generate({
-    model: 'googleai/gemini-1.5-flash',
+    model: googleAI.model('gemini-1.5-flash'),
     input: input,
     output: { schema: GenerateExamOutputSchema },
     prompt: `You are an expert examiner. Generate {{count}} {{type}} questions for:

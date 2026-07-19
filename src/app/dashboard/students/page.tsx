@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -15,14 +14,12 @@ import {
   User, 
   Camera, 
   ShieldCheck, 
-  ArrowUpRight, 
   BookOpen, 
   UserCheck, 
   Stethoscope, 
   MapPin, 
   Phone, 
   IdCard,
-  X,
   History
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
@@ -104,8 +101,7 @@ export default function StudentsPage() {
   const [studentForm, setStudentForm] = useState(initialForm)
 
   useEffect(() => {
-    const storedId = localStorage.getItem('selected_institution_id')
-    setInstitutionId(storedId)
+    setInstitutionId(localStorage.getItem('selected_institution_id'))
   }, [])
 
   const instRef = useMemo(() => institutionId ? doc(db!, "institutions", institutionId) : null, [db, institutionId])
@@ -213,17 +209,21 @@ export default function StudentsPage() {
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!db || !editingStudent || loading) return
+    if (!db || !editingStudent || !institutionId || loading) return
     setLoading(true)
     try {
+      // Strip internal 'id' from data payload to prevent Firestore merge errors
+      const { id, ...updateData } = studentForm as any;
+
       await updateDoc(doc(db, "students", editingStudent.id), {
-        ...studentForm,
+        ...updateData,
         updatedAt: serverTimestamp()
       })
       toast({ title: "Record Updated", description: "Student details synchronized." })
       setIsEditOpen(false)
       setEditingStudent(null)
     } catch (error: any) {
+      console.error("Update Error:", error);
       toast({ variant: "destructive", title: "Update Failed", description: error.message })
     } finally {
       setLoading(false)
