@@ -105,40 +105,40 @@ export default function DashboardLayout({
       </div>
       <SidebarInset className="bg-background print-inset flex flex-col h-screen w-full overflow-hidden">
         {isTrial && trialDaysLeft !== null && (
-          <div className={`no-print py-2 px-6 flex items-center justify-between transition-colors shrink-0 ${trialDaysLeft <= 7 ? 'bg-orange-600 text-white' : 'bg-blue-600 text-white'}`}>
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest">
-              {trialDaysLeft <= 7 ? <AlertTriangle className="size-4" /> : <Clock className="size-4" />}
-              Institutional Trial: {trialDaysLeft} days remaining
+          <div className={`no-print py-2 px-4 md:px-6 flex items-center justify-between transition-colors shrink-0 ${trialDaysLeft <= 7 ? 'bg-orange-600 text-white' : 'bg-blue-600 text-white'}`}>
+            <div className="flex items-center gap-2 text-[10px] md:text-xs font-bold uppercase tracking-widest truncate">
+              {trialDaysLeft <= 7 ? <AlertTriangle className="size-3 md:size-4" /> : <Clock className="size-3 md:size-4" />}
+              <span className="hidden xs:inline">Institutional Trial:</span> {trialDaysLeft} days left
             </div>
-            <Button size="sm" variant="ghost" className="h-7 text-[10px] font-bold uppercase bg-white/20 hover:bg-white/30 text-white border-none" asChild>
-              <Link href="/dashboard/settings?tab=subscription">Upgrade Now</Link>
+            <Button size="sm" variant="ghost" className="h-6 md:h-7 text-[9px] md:text-[10px] font-bold uppercase bg-white/20 hover:bg-white/30 text-white border-none px-2" asChild>
+              <Link href="/dashboard/settings?tab=subscription">Upgrade</Link>
             </Button>
           </div>
         )}
-        <header className="no-print flex h-16 shrink-0 items-center justify-between px-6 border-b border-border/40 bg-background/80 backdrop-blur-md z-40">
-          <div className="flex items-center gap-4">
+        <header className="no-print flex h-16 shrink-0 items-center justify-between px-4 md:px-6 border-b border-border/40 bg-background/80 backdrop-blur-md z-40">
+          <div className="flex items-center gap-2 md:gap-4">
             <SidebarTrigger />
-            <Separator orientation="vertical" className="h-4" />
-            <div className="relative hidden md:block">
+            <Separator orientation="vertical" className="h-4 hidden xs:block" />
+            <div className="relative hidden lg:block">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Search students, staff, records..."
-                className="w-80 pl-9 h-10 bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary/20 transition-all"
+                placeholder="Search records..."
+                className="w-64 xl:w-80 pl-9 h-10 bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary/20 transition-all"
               />
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative transition-transform active:scale-95">
+                <Button variant="ghost" size="icon" className="relative transition-transform active:scale-95 shrink-0">
                   <Bell className="h-5 w-5" />
                   {hasNotifications && notifications.length > 0 && (
                     <span className="absolute top-2 right-2.5 size-2 bg-accent rounded-full border-2 border-background" />
                   )}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-80 p-0 shadow-2xl border-none rounded-xl" align="end">
+              <PopoverContent className="w-[calc(100vw-2rem)] sm:w-80 p-0 shadow-2xl border-none rounded-xl" align="end">
                 <div className="p-4 border-b flex items-center justify-between">
                   <h4 className="font-bold text-sm">Notifications</h4>
                 </div>
@@ -169,16 +169,16 @@ export default function DashboardLayout({
                 </ScrollArea>
               </PopoverContent>
             </Popover>
-            <div className="hidden sm:flex flex-col text-right">
-              <span className="text-sm font-semibold truncate max-w-[180px] text-primary">{institutionName}</span>
+            <div className="flex flex-col text-right">
+              <span className="text-xs md:text-sm font-semibold truncate max-w-[120px] md:max-w-[180px] text-primary">{institutionName}</span>
               <div className="flex items-center justify-end gap-1">
-                 <Badge variant="outline" className="text-[8px] h-4 px-1.5 font-bold uppercase tracking-tighter bg-primary/5">{institution?.subscriptionPlan || 'Trial'}</Badge>
-                 <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-tighter">Live 2026</span>
+                 <Badge variant="outline" className="text-[7px] md:text-[8px] h-3.5 md:h-4 px-1 md:px-1.5 font-bold uppercase tracking-tighter bg-primary/5">{institution?.subscriptionPlan || 'Trial'}</Badge>
+                 <span className="hidden xs:inline text-[9px] text-muted-foreground uppercase font-bold tracking-tighter">Live 2026</span>
               </div>
             </div>
           </div>
         </header>
-        <main className="flex-1 overflow-y-auto p-6 lg:p-10 relative scroll-smooth overflow-x-hidden">
+        <main className="flex-1 overflow-y-auto p-4 md:p-10 relative scroll-smooth overflow-x-hidden">
           <div className="max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-300 min-h-0 pb-24">
             {children}
           </div>

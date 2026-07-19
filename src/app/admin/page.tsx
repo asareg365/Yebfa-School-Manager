@@ -171,36 +171,36 @@ export default function AdminPortal() {
   if (!isSuperAdmin) return null
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 lg:p-12 space-y-10 animate-in fade-in duration-300">
+    <div className="min-h-screen bg-slate-50 p-4 lg:p-12 space-y-6 md:space-y-10 animate-in fade-in duration-300">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 max-w-7xl mx-auto w-full">
         <div className="space-y-2">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest">
             <ShieldCheck className="size-3" /> System Super Admin
           </div>
-          <h1 className="text-4xl font-headline font-bold text-primary tracking-tight text-balance">SaaS Command Center</h1>
+          <h1 className="text-3xl md:text-4xl font-headline font-bold text-primary tracking-tight">SaaS Command Center</h1>
           <p className="text-muted-foreground text-sm">Strategic ecosystem management and global usage analytics.</p>
         </div>
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" className="h-11 gap-2 font-bold" onClick={handleLogout}>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button variant="ghost" className="h-11 gap-2 font-bold text-xs" onClick={handleLogout}>
             <LogOut className="size-4" /> Sign Out
           </Button>
-          <Button className="bg-primary text-primary-foreground h-11 shadow-lg" onClick={() => setIsProvisionDialogOpen(true)}>
-            <Plus className="size-4 mr-2" /> Provision New School
+          <Button className="flex-1 md:flex-none bg-primary text-primary-foreground h-11 shadow-lg" onClick={() => setIsProvisionDialogOpen(true)}>
+            <Plus className="size-4 mr-2" /> Provision New
           </Button>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto w-full">
-        <Tabs defaultValue="overview" className="space-y-10">
-          <TabsList className="bg-white border p-1 rounded-xl shadow-sm h-auto flex-wrap transition-all">
-            <TabsTrigger value="overview" className="rounded-lg px-6 gap-2"><Zap className="size-4" /> Dashboard</TabsTrigger>
-            <TabsTrigger value="registry" className="rounded-lg px-6 gap-2"><Database className="size-4" /> Institutions</TabsTrigger>
-            <TabsTrigger value="revenue" className="rounded-lg px-6 gap-2"><Wallet className="size-4" /> Subscriptions</TabsTrigger>
-            <TabsTrigger value="security" className="rounded-lg px-6 gap-2"><ShieldAlert className="size-4" /> System Health</TabsTrigger>
+        <Tabs defaultValue="overview" className="space-y-6 md:space-y-10">
+          <TabsList className="bg-white border p-1 rounded-xl shadow-sm h-auto flex-wrap transition-all w-full justify-start md:w-auto">
+            <TabsTrigger value="overview" className="rounded-lg px-4 md:px-6 gap-2 text-xs md:text-sm"><Zap className="size-4" /> Dashboard</TabsTrigger>
+            <TabsTrigger value="registry" className="rounded-lg px-4 md:px-6 gap-2 text-xs md:text-sm"><Database className="size-4" /> Institutions</TabsTrigger>
+            <TabsTrigger value="revenue" className="rounded-lg px-4 md:px-6 gap-2 text-xs md:text-sm"><Wallet className="size-4" /> Subscriptions</TabsTrigger>
+            <TabsTrigger value="security" className="rounded-lg px-4 md:px-6 gap-2 text-xs md:text-sm"><ShieldAlert className="size-4" /> Health</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="grid gap-6 md:grid-cols-4">
+            <div className="grid gap-4 md:gap-6 sm:grid-cols-2 lg:grid-cols-4">
                {[
                  { title: "Total Schools", value: rawInstitutions.length, icon: School, trend: "Live registry count" },
                  { title: "Active Trials", value: rawInstitutions.filter(i => i.subscriptionPlan?.toLowerCase().includes('trial')).length, icon: Clock, trend: "Onboarding phase" },
@@ -213,50 +213,50 @@ export default function AdminPortal() {
                      <stat.icon className="size-4 text-primary/30" />
                    </CardHeader>
                    <CardContent>
-                     <div className="text-3xl font-bold font-headline">{stat.value}</div>
-                     <p className="text-[10px] text-muted-foreground font-bold mt-1 uppercase">{stat.trend}</p>
+                     <div className="text-2xl md:text-3xl font-bold font-headline truncate">{stat.value}</div>
+                     <p className="text-[10px] text-muted-foreground font-bold mt-1 uppercase truncate">{stat.trend}</p>
                    </CardContent>
                  </Card>
                ))}
             </div>
 
-            <Card className="border-none shadow-md bg-primary text-primary-foreground overflow-hidden">
-               <CardHeader className="flex flex-row items-center justify-between">
+            <Card className="border-none shadow-md bg-primary text-primary-foreground overflow-hidden rounded-2xl md:rounded-3xl">
+               <CardHeader className="flex flex-row items-center justify-between p-6">
                  <div>
-                   <CardTitle className="text-xl">Ecosystem Broadcast</CardTitle>
-                   <CardDescription className="text-primary-foreground/60">Dispatch global notifications to all school dashboards.</CardDescription>
+                   <CardTitle className="text-lg md:text-xl">Ecosystem Broadcast</CardTitle>
+                   <CardDescription className="text-primary-foreground/60 text-xs md:text-sm">Dispatch global notifications to all school dashboards.</CardDescription>
                  </div>
-                 <Megaphone className="size-10 opacity-20" />
+                 <Megaphone className="size-10 opacity-20 hidden md:block" />
                </CardHeader>
-               <CardContent className="space-y-4">
-                  <Input placeholder="Global Message Title" className="bg-white/10 border-white/20 placeholder:text-white/40 h-12" />
-                  <div className="flex gap-4">
-                    <Button className="bg-accent text-accent-foreground font-bold h-12 px-8">Authorize Push</Button>
-                    <Button variant="ghost" className="h-12">Target Specific Region</Button>
+               <CardContent className="space-y-4 p-6 pt-0">
+                  <Input placeholder="Global Message Title" className="bg-white/10 border-white/20 placeholder:text-white/40 h-12 rounded-xl" />
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Button className="flex-1 bg-accent text-accent-foreground font-bold h-12 rounded-xl">Authorize Push</Button>
+                    <Button variant="ghost" className="flex-1 h-12 rounded-xl border border-white/10">Target Specific Region</Button>
                   </div>
                </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="registry" className="space-y-10 animate-in fade-in duration-300">
+          <TabsContent value="registry" className="space-y-6 animate-in fade-in duration-300">
             <Card className="border-none shadow-xl bg-white overflow-hidden rounded-2xl">
               <CardHeader className="bg-white border-b px-6 py-6">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
                   <div>
                     <CardTitle className="font-headline font-bold text-xl text-primary">Institution Registry</CardTitle>
-                    <CardDescription>Management of multi-tenant instance deployments.</CardDescription>
+                    <CardDescription className="text-xs">Management of multi-tenant instance deployments.</CardDescription>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="relative w-full md:w-64">
+                  <div className="flex flex-col sm:flex-row items-center gap-3">
+                    <div className="relative w-full sm:w-64">
                       <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
                       <Input 
                         placeholder="Search registry..." 
-                        className="pl-9 h-10" 
+                        className="pl-9 h-10 rounded-xl" 
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                       />
                     </div>
-                    <Button size="sm" className="h-10 bg-primary" onClick={() => setIsProvisionDialogOpen(true)}>
+                    <Button size="sm" className="h-10 w-full sm:w-auto bg-primary rounded-xl" onClick={() => setIsProvisionDialogOpen(true)}>
                       <Plus className="size-4 mr-2" /> Add New
                     </Button>
                   </div>
@@ -267,8 +267,8 @@ export default function AdminPortal() {
                   <Table>
                     <TableHeader className="bg-muted/30">
                       <TableRow>
-                        <TableHead>School</TableHead>
-                        <TableHead>Owner</TableHead>
+                        <TableHead className="min-w-[200px]">School</TableHead>
+                        <TableHead className="min-w-[150px]">Owner</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Plan</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
@@ -283,20 +283,20 @@ export default function AdminPortal() {
                               <span className="text-[10px] text-muted-foreground uppercase">{inst.location}</span>
                             </div>
                           </TableCell>
-                          <TableCell><span className="text-xs">{inst.ownerEmail}</span></TableCell>
+                          <TableCell><span className="text-xs truncate max-w-[140px] block">{inst.ownerEmail}</span></TableCell>
                           <TableCell><Badge variant="outline" className="text-[9px] uppercase font-bold">{inst.status}</Badge></TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <Badge className="bg-primary/5 text-primary border-none text-[9px] font-bold">{inst.subscriptionPlan}</Badge>
                               {inst.subscriptionPlan?.toLowerCase().includes('trial') && (
-                                <span className="text-[9px] text-muted-foreground font-bold">{getTrialDaysLeft(inst.createdAt)}d left</span>
+                                <span className="text-[9px] text-muted-foreground font-bold whitespace-nowrap">{getTrialDaysLeft(inst.createdAt)}d left</span>
                               )}
                             </div>
                           </TableCell>
                           <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                               <Button variant="ghost" size="sm" className="h-8 text-[10px] font-bold uppercase text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => handleEnterInstitution(inst)}>
-                                 <LayoutDashboard className="size-3 mr-1" /> Enter Hub
+                            <div className="flex items-center justify-end gap-1">
+                               <Button variant="ghost" size="sm" className="h-8 px-2 text-[10px] font-bold uppercase text-green-600 hover:text-green-700" onClick={() => handleEnterInstitution(inst)}>
+                                 <LayoutDashboard className="size-3 mr-1" /> <span className="hidden sm:inline">Enter</span>
                                </Button>
                                <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => {
                                   setEditingSchool(inst);
@@ -305,10 +305,6 @@ export default function AdminPortal() {
                                }}>
                                  <Pencil className="size-3.5" />
                                </Button>
-                               <Button variant="ghost" size="sm" className="h-8 text-[10px] font-bold uppercase" onClick={() => {
-                                  setUpgradingSchool(inst);
-                                  setIsUpgradeDialogOpen(true);
-                               }}>Upgrade</Button>
                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteDoc(doc(db!, "institutions", inst.id))}>
                                  <Trash2 className="size-3.5" />
                                </Button>
@@ -338,7 +334,7 @@ export default function AdminPortal() {
                     <Table>
                       <TableHeader className="bg-muted/30">
                         <TableRow>
-                          <TableHead>Institution</TableHead>
+                          <TableHead className="min-w-[200px]">Institution</TableHead>
                           <TableHead>Plan Status</TableHead>
                           <TableHead>Expiry Tracking</TableHead>
                           <TableHead className="text-right">Action</TableHead>
@@ -350,16 +346,15 @@ export default function AdminPortal() {
                           return (
                             <TableRow key={inst.id}>
                               <TableCell className="font-bold text-primary">{inst.name}</TableCell>
-                              <TableCell><Badge className="bg-blue-100 text-blue-700">Trial Period</Badge></TableCell>
+                              <TableCell><Badge className="bg-blue-100 text-blue-700 text-[10px]">Trial Period</Badge></TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-2">
                                   {daysLeft <= 7 ? <AlertTriangle className="size-3 text-orange-500" /> : <Clock className="size-3 text-blue-500" />}
-                                  <span className={`text-xs font-bold ${daysLeft <= 7 ? 'text-orange-600' : ''}`}>{daysLeft} days remaining</span>
+                                  <span className={`text-[11px] font-bold ${daysLeft <= 7 ? 'text-orange-600' : ''}`}>{daysLeft} days remaining</span>
                                 </div>
                               </TableCell>
                               <TableCell className="text-right">
                                 <div className="flex items-center justify-end gap-2">
-                                  <Button variant="ghost" size="sm" className="h-8 text-[10px] font-bold uppercase text-green-600" onClick={() => handleEnterInstitution(inst)}>Enter Hub</Button>
                                   <Button variant="outline" size="sm" className="h-8 text-[10px] font-bold" onClick={() => {
                                     setUpgradingSchool(inst);
                                     setIsUpgradeDialogOpen(true);
@@ -371,7 +366,7 @@ export default function AdminPortal() {
                         })}
                         {institutions.filter(i => i.subscriptionPlan?.toLowerCase().includes('trial')).length === 0 && (
                           <TableRow>
-                            <TableCell colSpan={4} className="text-center py-12 text-muted-foreground italic">No active trial instances found matching "{searchQuery}".</TableCell>
+                            <TableCell colSpan={4} className="text-center py-12 text-muted-foreground italic text-sm">No active trial instances found.</TableCell>
                           </TableRow>
                         )}
                       </TableBody>
@@ -382,53 +377,53 @@ export default function AdminPortal() {
           </TabsContent>
 
           <TabsContent value="security" className="space-y-8 animate-in fade-in duration-300">
-             <div className="grid gap-6 md:grid-cols-3">
+             <div className="grid gap-4 md:gap-6 sm:grid-cols-3">
                <Card className="border-none shadow-sm bg-white">
                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                   <CardTitle className="text-xs font-bold text-muted-foreground uppercase">Cloud Node</CardTitle>
+                   <CardTitle className="text-[10px] font-bold text-muted-foreground uppercase">Cloud Node</CardTitle>
                    <Network className="size-4 text-green-500" />
                  </CardHeader>
                  <CardContent>
-                   <div className="text-3xl font-bold">Operational</div>
-                   <p className="text-[10px] text-green-600 font-bold mt-1 uppercase">Goaso-Ahafo Region Edge</p>
+                   <div className="text-xl md:text-2xl font-bold truncate">Operational</div>
+                   <p className="text-[10px] text-green-600 font-bold mt-1 uppercase truncate">Goaso-Ahafo Region Edge</p>
                  </CardContent>
                </Card>
                <Card className="border-none shadow-sm bg-white">
                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                   <CardTitle className="text-xs font-bold text-muted-foreground uppercase">Data Integrity</CardTitle>
+                   <CardTitle className="text-[10px] font-bold text-muted-foreground uppercase">Integrity</CardTitle>
                    <HardDrive className="size-4 text-blue-500" />
                  </CardHeader>
                  <CardContent>
-                   <div className="text-3xl font-bold">Verified</div>
-                   <p className="text-[10px] text-muted-foreground font-bold mt-1 uppercase">Daily backup completed</p>
+                   <div className="text-xl md:text-2xl font-bold truncate">Verified</div>
+                   <p className="text-[10px] text-muted-foreground font-bold mt-1 uppercase truncate">Daily backup complete</p>
                  </CardContent>
                </Card>
                <Card className="border-none shadow-sm bg-white">
                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                   <CardTitle className="text-xs font-bold text-muted-foreground uppercase">API Latency</CardTitle>
+                   <CardTitle className="text-[10px] font-bold text-muted-foreground uppercase">Latency</CardTitle>
                    <Cpu className="size-4 text-amber-500" />
                  </CardHeader>
                  <CardContent>
-                   <div className="text-3xl font-bold">14ms</div>
-                   <p className="text-[10px] text-muted-foreground font-bold mt-1 uppercase">Optimized Firestore Response</p>
+                   <div className="text-xl md:text-2xl font-bold truncate">14ms</div>
+                   <p className="text-[10px] text-muted-foreground font-bold mt-1 uppercase truncate">Optimized Response</p>
                  </CardContent>
                </Card>
              </div>
 
              <Card className="border-none shadow-xl bg-white overflow-hidden rounded-2xl">
-               <CardHeader className="border-b bg-slate-50/50">
+               <CardHeader className="border-b bg-slate-50/50 p-6">
                  <CardTitle className="text-lg flex items-center gap-2"><ShieldCheck className="size-5 text-primary" /> Security Audit Logs</CardTitle>
-                 <CardDescription>Global system events and cross-tenant access monitoring.</CardDescription>
+                 <CardDescription className="text-xs">Global system events and cross-tenant access monitoring.</CardDescription>
                </CardHeader>
                <CardContent className="p-0">
-                  <div className="p-10 divide-y">
-                     <div className="py-3 flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-3"><Badge className="bg-green-100 text-green-700">INFO</Badge><span>Standard identity audit completed.</span></div>
-                        <span className="text-[10px] text-muted-foreground">Just now</span>
+                  <div className="p-6 md:p-8 divide-y">
+                     <div className="py-4 flex items-center justify-between text-xs md:text-sm">
+                        <div className="flex items-center gap-3"><Badge className="bg-green-100 text-green-700 text-[9px]">INFO</Badge><span>Standard identity audit completed.</span></div>
+                        <span className="text-[10px] text-muted-foreground whitespace-nowrap">Just now</span>
                      </div>
-                     <div className="py-3 flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-3"><Badge className="bg-blue-100 text-blue-700">LOCK</Badge><span>Cross-tenant boundary enforced for {rawInstitutions.length} instances.</span></div>
-                        <span className="text-[10px] text-muted-foreground">15 mins ago</span>
+                     <div className="py-4 flex items-center justify-between text-xs md:text-sm">
+                        <div className="flex items-center gap-3"><Badge className="bg-blue-100 text-blue-700 text-[9px]">LOCK</Badge><span>Cross-tenant boundary enforced for {rawInstitutions.length} instances.</span></div>
+                        <span className="text-[10px] text-muted-foreground whitespace-nowrap">15 mins ago</span>
                      </div>
                   </div>
                </CardContent>
@@ -438,19 +433,19 @@ export default function AdminPortal() {
       </div>
 
       <Dialog open={isProvisionDialogOpen} onOpenChange={setIsProvisionDialogOpen}>
-        <DialogContent className="rounded-3xl border-none shadow-2xl p-0 overflow-hidden max-w-md">
+        <DialogContent className="rounded-2xl md:rounded-3xl border-none shadow-2xl p-0 overflow-hidden max-w-md">
           <form onSubmit={handleManualProvision}>
-            <DialogHeader className="p-8 bg-primary text-primary-foreground">
+            <DialogHeader className="p-6 md:p-8 bg-primary text-primary-foreground">
               <DialogTitle className="text-2xl font-headline font-bold">Manual Provisioning</DialogTitle>
-              <DialogDescription className="text-primary-foreground/70">Bypass registration to create a pre-paid institutional node.</DialogDescription>
+              <DialogDescription className="text-primary-foreground/70 text-xs">Bypass registration to create a pre-paid institutional node.</DialogDescription>
             </DialogHeader>
-            <div className="grid gap-6 p-8">
-              <div className="space-y-2"><Label>Institution Name</Label><Input required value={newSchool.name} onChange={e => setNewSchool({...newSchool, name: e.target.value})} /></div>
-              <div className="space-y-2"><Label>Owner Email</Label><Input type="email" required value={newSchool.ownerEmail} onChange={e => setNewSchool({...newSchool, ownerEmail: e.target.value})} /></div>
-              <div className="space-y-2"><Label>Location</Label><Input required value={newSchool.location} onChange={e => setNewSchool({...newSchool, location: e.target.value})} /></div>
+            <div className="grid gap-6 p-6 md:p-8">
+              <div className="space-y-2"><Label>Institution Name</Label><Input required value={newSchool.name} onChange={e => setNewSchool({...newSchool, name: e.target.value})} className="h-11 rounded-xl" /></div>
+              <div className="space-y-2"><Label>Owner Email</Label><Input type="email" required value={newSchool.ownerEmail} onChange={e => setNewSchool({...newSchool, ownerEmail: e.target.value})} className="h-11 rounded-xl" /></div>
+              <div className="space-y-2"><Label>Location</Label><Input required value={newSchool.location} onChange={e => setNewSchool({...newSchool, location: e.target.value})} className="h-11 rounded-xl" /></div>
             </div>
-            <DialogFooter className="p-8 bg-slate-50 border-t">
-              <Button type="submit" disabled={provisioning} className="w-full h-12 bg-primary font-bold">
+            <DialogFooter className="p-6 md:p-8 bg-slate-50 border-t">
+              <Button type="submit" disabled={provisioning} className="w-full h-12 bg-primary font-bold rounded-xl shadow-lg">
                 {provisioning ? <Loader2 className="animate-spin mr-2" /> : <Database className="mr-2" />} Confirm Provisioning
               </Button>
             </DialogFooter>
@@ -459,20 +454,20 @@ export default function AdminPortal() {
       </Dialog>
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="rounded-3xl border-none shadow-2xl p-0 overflow-hidden max-w-md">
+        <DialogContent className="rounded-2xl md:rounded-3xl border-none shadow-2xl p-0 overflow-hidden max-w-md">
           <form onSubmit={handleUpdateInstitution}>
-            <DialogHeader className="p-8 bg-slate-50 border-b">
-              <DialogTitle className="text-2xl font-headline font-bold">Edit Institution Registry</DialogTitle>
-              <DialogDescription>Update high-level metadata for {editingSchool?.name}.</DialogDescription>
+            <DialogHeader className="p-6 md:p-8 bg-slate-50 border-b">
+              <DialogTitle className="text-2xl font-headline font-bold">Edit Registry</DialogTitle>
+              <DialogDescription className="text-xs">Update metadata for {editingSchool?.name}.</DialogDescription>
             </DialogHeader>
-            <div className="grid gap-6 p-8">
-              <div className="space-y-2"><Label>School Name</Label><Input required value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} /></div>
-              <div className="space-y-2"><Label>Owner Email</Label><Input type="email" required value={editForm.ownerEmail} onChange={e => setEditForm({...editForm, ownerEmail: e.target.value})} /></div>
-              <div className="space-y-2"><Label>Location</Label><Input required value={editForm.location} onChange={e => setEditForm({...editForm, location: e.target.value})} /></div>
+            <div className="grid gap-6 p-6 md:p-8">
+              <div className="space-y-2"><Label>School Name</Label><Input required value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} className="h-11 rounded-xl" /></div>
+              <div className="space-y-2"><Label>Owner Email</Label><Input type="email" required value={editForm.ownerEmail} onChange={e => setEditForm({...editForm, ownerEmail: e.target.value})} className="h-11 rounded-xl" /></div>
+              <div className="space-y-2"><Label>Location</Label><Input required value={editForm.location} onChange={e => setEditForm({...editForm, location: e.target.value})} className="h-11 rounded-xl" /></div>
               <div className="space-y-2">
                 <Label>Operational Status</Label>
                 <Select value={editForm.status} onValueChange={v => setEditForm({...editForm, status: v})}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="active">Active</SelectItem>
                     <SelectItem value="suspended">Suspended</SelectItem>
@@ -481,8 +476,8 @@ export default function AdminPortal() {
                 </Select>
               </div>
             </div>
-            <DialogFooter className="p-8 bg-slate-50 border-t">
-              <Button type="submit" disabled={provisioning} className="w-full h-12 bg-primary font-bold">
+            <DialogFooter className="p-6 md:p-8 bg-slate-50 border-t">
+              <Button type="submit" disabled={provisioning} className="w-full h-12 bg-primary font-bold rounded-xl shadow-lg">
                 {provisioning ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" />} Save Changes
               </Button>
             </DialogFooter>
@@ -491,36 +486,36 @@ export default function AdminPortal() {
       </Dialog>
 
       <Dialog open={isUpgradeDialogOpen} onOpenChange={setIsUpgradeDialogOpen}>
-        <DialogContent className="rounded-3xl border-none shadow-2xl p-8 max-w-md">
+        <DialogContent className="rounded-2xl md:rounded-3xl border-none shadow-2xl p-6 md:p-8 max-w-md">
           <DialogHeader>
             <DialogTitle className="text-2xl font-headline font-bold">Upgrade Institution</DialogTitle>
-            <DialogDescription>Move {upgradingSchool?.name} from trial to a paid strategic plan.</DialogDescription>
+            <DialogDescription className="text-xs">Move {upgradingSchool?.name} from trial to a paid strategic plan.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-8">
-            <Button onClick={() => handleUpgradeInstitution('Basic')} className="h-16 flex justify-between px-6 bg-slate-50 border hover:bg-slate-100 text-primary group">
+            <Button onClick={() => handleUpgradeInstitution('Basic')} className="h-16 flex justify-between px-6 bg-slate-50 border rounded-xl hover:bg-slate-100 text-primary group">
               <div className="text-left">
-                <p className="font-bold">Basic Management</p>
+                <p className="font-bold text-sm">Basic Management</p>
                 <p className="text-[10px] text-muted-foreground uppercase">Standard SIS Tools</p>
               </div>
-              <ArrowUpRight className="size-5 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <ArrowUpRight className="size-4 opacity-0 group-hover:opacity-100 transition-opacity" />
             </Button>
-            <Button onClick={() => handleUpgradeInstitution('Premium')} className="h-16 flex justify-between px-6 bg-primary/5 border border-primary/20 hover:bg-primary/10 text-primary group">
+            <Button onClick={() => handleUpgradeInstitution('Premium')} className="h-16 flex justify-between px-6 bg-primary/5 border border-primary/20 rounded-xl hover:bg-primary/10 text-primary group">
               <div className="text-left">
-                <p className="font-bold">Premium AI Insights</p>
+                <p className="font-bold text-sm">Premium AI Insights</p>
                 <p className="text-[10px] text-primary/60 uppercase">Strategic Reporting & Forecasts</p>
               </div>
-              <ArrowUpRight className="size-5 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <ArrowUpRight className="size-4 opacity-0 group-hover:opacity-100 transition-opacity" />
             </Button>
-            <Button onClick={() => handleUpgradeInstitution('Enterprise')} className="h-16 flex justify-between px-6 bg-accent/5 border border-accent/20 hover:bg-accent/10 text-accent group">
+            <Button onClick={() => handleUpgradeInstitution('Enterprise')} className="h-16 flex justify-between px-6 bg-accent/5 border border-accent/20 rounded-xl hover:bg-accent/10 text-accent group">
               <div className="text-left">
-                <p className="font-bold">Enterprise Hub</p>
+                <p className="font-bold text-sm">Enterprise Hub</p>
                 <p className="text-[10px] text-accent/60 uppercase">Unlimited Multi-Campus Nodes</p>
               </div>
-              <ArrowUpRight className="size-5 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <ArrowUpRight className="size-4 opacity-0 group-hover:opacity-100 transition-opacity" />
             </Button>
           </div>
           <DialogFooter>
-            <Button variant="ghost" className="w-full" onClick={() => setIsUpgradeDialogOpen(false)}>Cancel Authorization</Button>
+            <Button variant="ghost" className="w-full text-xs font-bold" onClick={() => setIsUpgradeDialogOpen(false)}>Cancel Authorization</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
