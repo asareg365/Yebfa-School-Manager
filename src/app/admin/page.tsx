@@ -17,6 +17,7 @@ import { collection, addDoc, serverTimestamp, query, deleteDoc, doc, updateDoc }
 import { signOut } from "firebase/auth"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { differenceInDays } from "date-fns"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 export default function AdminPortal() {
   const { user, loading: authLoading } = useUser()
@@ -168,7 +169,7 @@ export default function AdminPortal() {
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest">
             <ShieldCheck className="size-3" /> System Super Admin
           </div>
-          <h1 className="text-4xl font-headline font-bold text-primary tracking-tight">SaaS Command Center</h1>
+          <h1 className="text-4xl font-headline font-bold text-primary tracking-tight text-balance">SaaS Command Center</h1>
           <p className="text-muted-foreground text-sm">Strategic ecosystem management and global usage analytics.</p>
         </div>
         <div className="flex items-center gap-4">
@@ -249,60 +250,62 @@ export default function AdminPortal() {
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                <Table>
-                  <TableHeader className="bg-muted/30">
-                    <TableRow>
-                      <TableHead>School</TableHead>
-                      <TableHead>Owner</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Plan</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {institutions.map((inst: any) => (
-                      <TableRow key={inst.id} className="hover:bg-slate-50 transition-colors group">
-                        <TableCell className="font-bold text-primary">
-                          <div className="flex flex-col">
-                            <span>{inst.name}</span>
-                            <span className="text-[10px] text-muted-foreground uppercase">{inst.location}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell><span className="text-xs">{inst.ownerEmail}</span></TableCell>
-                        <TableCell><Badge variant="outline" className="text-[9px] uppercase font-bold">{inst.status}</Badge></TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Badge className="bg-primary/5 text-primary border-none text-[9px] font-bold">{inst.subscriptionPlan}</Badge>
-                            {inst.subscriptionPlan?.toLowerCase().includes('trial') && (
-                              <span className="text-[9px] text-muted-foreground font-bold">{getTrialDaysLeft(inst.createdAt)}d left</span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                             <Button variant="ghost" size="sm" className="h-8 text-[10px] font-bold uppercase text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => handleEnterInstitution(inst)}>
-                               <LayoutDashboard className="size-3 mr-1" /> Enter Hub
-                             </Button>
-                             <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => {
-                                setEditingSchool(inst);
-                                setEditForm({ name: inst.name, ownerEmail: inst.ownerEmail || "", location: inst.location, status: inst.status });
-                                setIsEditDialogOpen(true);
-                             }}>
-                               <Pencil className="size-3.5" />
-                             </Button>
-                             <Button variant="ghost" size="sm" className="h-8 text-[10px] font-bold uppercase" onClick={() => {
-                                setUpgradingSchool(inst);
-                                setIsUpgradeDialogOpen(true);
-                             }}>Upgrade</Button>
-                             <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteDoc(doc(db!, "institutions", inst.id))}>
-                               <Trash2 className="size-3.5" />
-                             </Button>
-                          </div>
-                        </TableCell>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader className="bg-muted/30">
+                      <TableRow>
+                        <TableHead>School</TableHead>
+                        <TableHead>Owner</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Plan</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {institutions.map((inst: any) => (
+                        <TableRow key={inst.id} className="hover:bg-slate-50 transition-colors group">
+                          <TableCell className="font-bold text-primary">
+                            <div className="flex flex-col">
+                              <span>{inst.name}</span>
+                              <span className="text-[10px] text-muted-foreground uppercase">{inst.location}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell><span className="text-xs">{inst.ownerEmail}</span></TableCell>
+                          <TableCell><Badge variant="outline" className="text-[9px] uppercase font-bold">{inst.status}</Badge></TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Badge className="bg-primary/5 text-primary border-none text-[9px] font-bold">{inst.subscriptionPlan}</Badge>
+                              {inst.subscriptionPlan?.toLowerCase().includes('trial') && (
+                                <span className="text-[9px] text-muted-foreground font-bold">{getTrialDaysLeft(inst.createdAt)}d left</span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                               <Button variant="ghost" size="sm" className="h-8 text-[10px] font-bold uppercase text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => handleEnterInstitution(inst)}>
+                                 <LayoutDashboard className="size-3 mr-1" /> Enter Hub
+                               </Button>
+                               <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => {
+                                  setEditingSchool(inst);
+                                  setEditForm({ name: inst.name, ownerEmail: inst.ownerEmail || "", location: inst.location, status: inst.status });
+                                  setIsEditDialogOpen(true);
+                               }}>
+                                 <Pencil className="size-3.5" />
+                               </Button>
+                               <Button variant="ghost" size="sm" className="h-8 text-[10px] font-bold uppercase" onClick={() => {
+                                  setUpgradingSchool(inst);
+                                  setIsUpgradeDialogOpen(true);
+                               }}>Upgrade</Button>
+                               <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteDoc(doc(db!, "institutions", inst.id))}>
+                                 <Trash2 className="size-3.5" />
+                               </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -311,47 +314,49 @@ export default function AdminPortal() {
             <Card className="border-none shadow-xl bg-white rounded-2xl overflow-hidden">
                <CardHeader className="border-b"><CardTitle className="text-lg">Subscription Tracking</CardTitle></CardHeader>
                <CardContent className="p-0">
-                  <Table>
-                    <TableHeader className="bg-muted/30">
-                      <TableRow>
-                        <TableHead>Institution</TableHead>
-                        <TableHead>Plan Status</TableHead>
-                        <TableHead>Expiry Tracking</TableHead>
-                        <TableHead className="text-right">Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {institutions.filter(i => i.subscriptionPlan?.toLowerCase().includes('trial')).map((inst: any) => {
-                        const daysLeft = getTrialDaysLeft(inst.createdAt)
-                        return (
-                          <TableRow key={inst.id}>
-                            <TableCell className="font-bold text-primary">{inst.name}</TableCell>
-                            <TableCell><Badge className="bg-blue-100 text-blue-700">Trial Period</Badge></TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                {daysLeft <= 7 ? <AlertTriangle className="size-3 text-orange-500" /> : <Clock className="size-3 text-blue-500" />}
-                                <span className={`text-xs font-bold ${daysLeft <= 7 ? 'text-orange-600' : ''}`}>{daysLeft} days remaining</span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                <Button variant="ghost" size="sm" className="h-8 text-[10px] font-bold uppercase text-green-600" onClick={() => handleEnterInstitution(inst)}>Enter Hub</Button>
-                                <Button variant="outline" size="sm" className="h-8 text-[10px] font-bold" onClick={() => {
-                                  setUpgradingSchool(inst);
-                                  setIsUpgradeDialogOpen(true);
-                                }}>Authorize Upgrade</Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        )
-                      })}
-                      {institutions.filter(i => i.subscriptionPlan?.toLowerCase().includes('trial')).length === 0 && (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader className="bg-muted/30">
                         <TableRow>
-                          <TableCell colSpan={4} className="text-center py-12 text-muted-foreground italic">No active trial instances found.</TableCell>
+                          <TableHead>Institution</TableHead>
+                          <TableHead>Plan Status</TableHead>
+                          <TableHead>Expiry Tracking</TableHead>
+                          <TableHead className="text-right">Action</TableHead>
                         </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {institutions.filter(i => i.subscriptionPlan?.toLowerCase().includes('trial')).map((inst: any) => {
+                          const daysLeft = getTrialDaysLeft(inst.createdAt)
+                          return (
+                            <TableRow key={inst.id}>
+                              <TableCell className="font-bold text-primary">{inst.name}</TableCell>
+                              <TableCell><Badge className="bg-blue-100 text-blue-700">Trial Period</Badge></TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  {daysLeft <= 7 ? <AlertTriangle className="size-3 text-orange-500" /> : <Clock className="size-3 text-blue-500" />}
+                                  <span className={`text-xs font-bold ${daysLeft <= 7 ? 'text-orange-600' : ''}`}>{daysLeft} days remaining</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  <Button variant="ghost" size="sm" className="h-8 text-[10px] font-bold uppercase text-green-600" onClick={() => handleEnterInstitution(inst)}>Enter Hub</Button>
+                                  <Button variant="outline" size="sm" className="h-8 text-[10px] font-bold" onClick={() => {
+                                    setUpgradingSchool(inst);
+                                    setIsUpgradeDialogOpen(true);
+                                  }}>Authorize Upgrade</Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )
+                        })}
+                        {institutions.filter(i => i.subscriptionPlan?.toLowerCase().includes('trial')).length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={4} className="text-center py-12 text-muted-foreground italic">No active trial instances found.</TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
                </CardContent>
             </Card>
           </TabsContent>
@@ -402,7 +407,7 @@ export default function AdminPortal() {
                         <span className="text-[10px] text-muted-foreground">Just now</span>
                      </div>
                      <div className="py-3 flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-3"><Badge className="bg-blue-100 text-blue-700">LOCK</Badge><span>Cross-tenant boundary enforced for 150 instances.</span></div>
+                        <div className="flex items-center gap-3"><Badge className="bg-blue-100 text-blue-700">LOCK</Badge><span>Cross-tenant boundary enforced for {institutions.length} instances.</span></div>
                         <span className="text-[10px] text-muted-foreground">15 mins ago</span>
                      </div>
                   </div>
@@ -413,18 +418,18 @@ export default function AdminPortal() {
       </div>
 
       <Dialog open={isProvisionDialogOpen} onOpenChange={setIsProvisionDialogOpen}>
-        <DialogContent className="rounded-3xl border-none shadow-2xl p-8">
+        <DialogContent className="rounded-3xl border-none shadow-2xl p-0 overflow-hidden max-w-md">
           <form onSubmit={handleManualProvision}>
-            <DialogHeader>
+            <DialogHeader className="p-8 bg-primary text-primary-foreground">
               <DialogTitle className="text-2xl font-headline font-bold">Manual Provisioning</DialogTitle>
-              <DialogDescription>Bypass registration to create a pre-paid institutional node.</DialogDescription>
+              <DialogDescription className="text-primary-foreground/70">Bypass registration to create a pre-paid institutional node.</DialogDescription>
             </DialogHeader>
-            <div className="grid gap-6 py-6">
+            <div className="grid gap-6 p-8">
               <div className="space-y-2"><Label>Institution Name</Label><Input required value={newSchool.name} onChange={e => setNewSchool({...newSchool, name: e.target.value})} /></div>
               <div className="space-y-2"><Label>Owner Email</Label><Input type="email" required value={newSchool.ownerEmail} onChange={e => setNewSchool({...newSchool, ownerEmail: e.target.value})} /></div>
               <div className="space-y-2"><Label>Location</Label><Input required value={newSchool.location} onChange={e => setNewSchool({...newSchool, location: e.target.value})} /></div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="p-8 bg-slate-50 border-t">
               <Button type="submit" disabled={provisioning} className="w-full h-12 bg-primary font-bold">
                 {provisioning ? <Loader2 className="animate-spin mr-2" /> : <Database className="mr-2" />} Confirm Provisioning
               </Button>
@@ -434,13 +439,13 @@ export default function AdminPortal() {
       </Dialog>
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="rounded-3xl border-none shadow-2xl p-8">
+        <DialogContent className="rounded-3xl border-none shadow-2xl p-0 overflow-hidden max-w-md">
           <form onSubmit={handleUpdateInstitution}>
-            <DialogHeader>
+            <DialogHeader className="p-8 bg-slate-50 border-b">
               <DialogTitle className="text-2xl font-headline font-bold">Edit Institution Registry</DialogTitle>
               <DialogDescription>Update high-level metadata for {editingSchool?.name}.</DialogDescription>
             </DialogHeader>
-            <div className="grid gap-6 py-6">
+            <div className="grid gap-6 p-8">
               <div className="space-y-2"><Label>School Name</Label><Input required value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} /></div>
               <div className="space-y-2"><Label>Owner Email</Label><Input type="email" required value={editForm.ownerEmail} onChange={e => setEditForm({...editForm, ownerEmail: e.target.value})} /></div>
               <div className="space-y-2"><Label>Location</Label><Input required value={editForm.location} onChange={e => setEditForm({...editForm, location: e.target.value})} /></div>
@@ -456,7 +461,7 @@ export default function AdminPortal() {
                 </Select>
               </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="p-8 bg-slate-50 border-t">
               <Button type="submit" disabled={provisioning} className="w-full h-12 bg-primary font-bold">
                 {provisioning ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" />} Save Changes
               </Button>
@@ -466,7 +471,7 @@ export default function AdminPortal() {
       </Dialog>
 
       <Dialog open={isUpgradeDialogOpen} onOpenChange={setIsUpgradeDialogOpen}>
-        <DialogContent className="rounded-3xl border-none shadow-2xl p-8">
+        <DialogContent className="rounded-3xl border-none shadow-2xl p-8 max-w-md">
           <DialogHeader>
             <DialogTitle className="text-2xl font-headline font-bold">Upgrade Institution</DialogTitle>
             <DialogDescription>Move {upgradingSchool?.name} from trial to a paid strategic plan.</DialogDescription>

@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input"
 import { 
   Search, 
   UserPlus, 
-  GraduationCap, 
   Trash2, 
   Pencil, 
   Loader2, 
@@ -280,46 +279,46 @@ export default function StudentsPage() {
             <Table>
               <TableHeader className="bg-muted/30">
                 <TableRow>
-                  <TableHead className="py-4 font-bold">STUDENT INFO</TableHead>
-                  <TableHead className="font-bold py-4">ACADEMIC</TableHead>
-                  <TableHead className="font-bold py-4">GUARDIAN</TableHead>
-                  <TableHead className="font-bold py-4">STATUS</TableHead>
-                  <TableHead className="text-right font-bold py-4 pr-6">ACTIONS</TableHead>
+                  <TableHead className="py-4 font-bold whitespace-nowrap">STUDENT INFO</TableHead>
+                  <TableHead className="font-bold py-4 whitespace-nowrap">ACADEMIC</TableHead>
+                  <TableHead className="font-bold py-4 whitespace-nowrap">GUARDIAN</TableHead>
+                  <TableHead className="font-bold py-4 whitespace-nowrap">STATUS</TableHead>
+                  <TableHead className="text-right font-bold py-4 pr-6 whitespace-nowrap">ACTIONS</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {students.map((stu: any) => (
                   <TableRow key={stu.id} className="hover:bg-slate-50/80 transition-colors group">
                     <TableCell>
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-4 min-w-[200px]">
                         <div className="size-12 rounded-2xl overflow-hidden bg-muted flex items-center justify-center border-2 border-white shadow-sm shrink-0">
                           {stu.photoUrl ? <img src={stu.photoUrl} alt="" className="w-full h-full object-cover" /> : <User className="size-6 text-muted-foreground/30" />}
                         </div>
                         <div className="flex flex-col">
-                          <span className="font-mono text-[10px] font-bold text-accent uppercase">{stu.admissionNumber}</span>
-                          <span className="font-bold text-primary text-base">{stu.firstName} {stu.lastName}</span>
+                          <span className="font-mono text-[10px] font-bold text-accent uppercase tracking-tighter">{stu.admissionNumber}</span>
+                          <span className="font-bold text-primary text-sm truncate">{stu.firstName} {stu.lastName}</span>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-col gap-0.5">
+                      <div className="flex flex-col gap-0.5 min-w-[120px]">
                         <span className="text-sm font-bold text-slate-700">{stu.gradeLevel}</span>
                         <span className="text-[10px] text-muted-foreground uppercase font-bold">{stu.house || "No House"}</span>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-col gap-0.5">
+                      <div className="flex flex-col gap-0.5 min-w-[150px]">
                         <span className="text-xs font-bold text-slate-700">{stu.parentName || "N/A"}</span>
                         <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Phone className="size-2.5" /> {stu.parentPhone || "N/A"}</span>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge className={`text-[9px] uppercase font-bold border-none ${stu.status === 'active' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                      <Badge className={`text-[9px] uppercase font-bold border-none whitespace-nowrap ${stu.status === 'active' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
                         {stu.status}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right pr-6">
-                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center justify-end gap-1 md:opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={() => {
                           setEditingStudent(stu);
                           setStudentForm({...initialForm, ...stu});
@@ -331,7 +330,7 @@ export default function StudentsPage() {
                   </TableRow>
                 ))}
                 {students.length === 0 && (
-                  <TableRow><TableCell colSpan={5} className="text-center py-24 text-muted-foreground italic">No student records found.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center py-24 text-muted-foreground italic">No student records found in your registry.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -355,11 +354,11 @@ export default function StudentsPage() {
 
             <Tabs defaultValue="identity" className="w-full flex-1 flex flex-col overflow-hidden">
               <div className="bg-muted/30 px-8 py-2 border-b shrink-0">
-                <TabsList className="bg-transparent gap-6 p-0 h-10">
-                  <TabsTrigger value="identity" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full gap-2 text-xs font-bold uppercase"><User className="size-3.5" /> Identity</TabsTrigger>
-                  <TabsTrigger value="academic" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full gap-2 text-xs font-bold uppercase"><BookOpen className="size-3.5" /> Academic</TabsTrigger>
-                  <TabsTrigger value="family" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full gap-2 text-xs font-bold uppercase"><UserCheck className="size-3.5" /> Family & Address</TabsTrigger>
-                  <TabsTrigger value="medical" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full gap-2 text-xs font-bold uppercase"><Stethoscope className="size-3.5" /> Health</TabsTrigger>
+                <TabsList className="bg-transparent gap-6 p-0 h-10 overflow-x-auto no-scrollbar justify-start">
+                  <TabsTrigger value="identity" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full gap-2 text-xs font-bold uppercase whitespace-nowrap"><User className="size-3.5" /> Identity</TabsTrigger>
+                  <TabsTrigger value="academic" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full gap-2 text-xs font-bold uppercase whitespace-nowrap"><BookOpen className="size-3.5" /> Academic</TabsTrigger>
+                  <TabsTrigger value="family" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full gap-2 text-xs font-bold uppercase whitespace-nowrap"><UserCheck className="size-3.5" /> Family & Address</TabsTrigger>
+                  <TabsTrigger value="medical" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full gap-2 text-xs font-bold uppercase whitespace-nowrap"><Stethoscope className="size-3.5" /> Health</TabsTrigger>
                 </TabsList>
               </div>
 
@@ -387,12 +386,12 @@ export default function StudentsPage() {
                     </div>
 
                     <div className="grid gap-6">
-                      <div className="grid grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="space-y-2"><Label>First Name</Label><Input required value={studentForm.firstName} onChange={e => setStudentForm({...studentForm, firstName: e.target.value})} className="h-11 rounded-xl" /></div>
                         <div className="space-y-2"><Label>Middle Name</Label><Input value={studentForm.middleName} onChange={e => setStudentForm({...studentForm, middleName: e.target.value})} className="h-11 rounded-xl" /></div>
                         <div className="space-y-2"><Label>Last Name</Label><Input required value={studentForm.lastName} onChange={e => setStudentForm({...studentForm, lastName: e.target.value})} className="h-11 rounded-xl" /></div>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2"><Label>Date of Birth</Label><Input type="date" value={studentForm.dateOfBirth} onChange={e => setStudentForm({...studentForm, dateOfBirth: e.target.value})} className="h-11 rounded-xl" /></div>
                         <div className="space-y-2"><Label>Gender</Label>
                           <Select onValueChange={v => setStudentForm({...studentForm, gender: v})} value={studentForm.gender}>
@@ -401,7 +400,7 @@ export default function StudentsPage() {
                           </Select>
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2"><Label>Nationality</Label><Input value={studentForm.nationality} onChange={e => setStudentForm({...studentForm, nationality: e.target.value})} className="h-11 rounded-xl" /></div>
                         <div className="space-y-2"><Label>Religion</Label>
                           <Select onValueChange={v => setStudentForm({...studentForm, religion: v})} value={studentForm.religion}>
@@ -414,11 +413,11 @@ export default function StudentsPage() {
                   </TabsContent>
 
                   <TabsContent value="academic" className="mt-0 space-y-8">
-                     <div className="grid grid-cols-2 gap-6">
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2"><Label>Admission #</Label><Input readOnly value={studentForm.admissionNumber} className="h-11 rounded-xl bg-slate-50 font-bold text-accent" /></div>
                         <div className="space-y-2"><Label>Index / Student ID</Label><Input value={studentForm.indexNumber} onChange={e => setStudentForm({...studentForm, indexNumber: e.target.value})} className="h-11 rounded-xl" /></div>
                      </div>
-                     <div className="grid grid-cols-2 gap-6">
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2"><Label>Academic Year</Label>
                           <Select onValueChange={v => setStudentForm({...studentForm, academicYearId: v})} value={studentForm.academicYearId}>
                             <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Select Year" /></SelectTrigger>
@@ -435,7 +434,7 @@ export default function StudentsPage() {
                      
                      <div className="space-y-4 pt-4 border-t">
                         <h4 className="text-xs font-bold uppercase tracking-widest text-primary flex items-center gap-2"><ArrowUpRight className="size-4" /> Previous Academic History</h4>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                            <div className="space-y-2"><Label>Previous School Name</Label><Input value={studentForm.previousSchool.name} onChange={e => updatePrevious('name', e.target.value)} className="h-11 rounded-xl" /></div>
                            <div className="space-y-2"><Label>Class Completed</Label><Input value={studentForm.previousSchool.classCompleted} onChange={e => updatePrevious('classCompleted', e.target.value)} className="h-11 rounded-xl" /></div>
                         </div>
@@ -446,7 +445,7 @@ export default function StudentsPage() {
                   <TabsContent value="family" className="mt-0 space-y-8">
                      <div className="space-y-4">
                         <h4 className="text-xs font-bold uppercase tracking-widest text-primary flex items-center gap-2"><UserCheck className="size-4" /> Guardian Registry</h4>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                            <div className="space-y-2"><Label>Guardian Full Name</Label><Input required value={studentForm.parentName} onChange={e => setStudentForm({...studentForm, parentName: e.target.value})} className="h-11 rounded-xl" /></div>
                            <div className="space-y-2"><Label>Contact Phone</Label><Input required value={studentForm.parentPhone} onChange={e => setStudentForm({...studentForm, parentPhone: e.target.value})} className="h-11 rounded-xl" /></div>
                         </div>
@@ -455,11 +454,11 @@ export default function StudentsPage() {
 
                      <div className="space-y-4 pt-4 border-t">
                         <h4 className="text-xs font-bold uppercase tracking-widest text-primary flex items-center gap-2"><MapPin className="size-4" /> Residential Address</h4>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                            <div className="space-y-2"><Label>GPS / Digital Address</Label><Input value={studentForm.address.digitalAddress} onChange={e => updateAddress('digitalAddress', e.target.value)} className="h-11 rounded-xl" placeholder="e.g. GA-123-4567" /></div>
                            <div className="space-y-2"><Label>Town / Suburb</Label><Input value={studentForm.address.town} onChange={e => updateAddress('town', e.target.value)} className="h-11 rounded-xl" /></div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                            <div className="space-y-2"><Label>District</Label><Input value={studentForm.address.district} onChange={e => updateAddress('district', e.target.value)} className="h-11 rounded-xl" /></div>
                            <div className="space-y-2"><Label>Region</Label><Input value={studentForm.address.region} onChange={e => updateAddress('region', e.target.value)} className="h-11 rounded-xl" /></div>
                         </div>
@@ -467,7 +466,7 @@ export default function StudentsPage() {
 
                      <div className="space-y-4 pt-4 border-t">
                         <h4 className="text-xs font-bold uppercase tracking-widest text-primary flex items-center gap-2"><Phone className="size-4" /> Emergency Contact</h4>
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                            <div className="space-y-2"><Label>Contact Name</Label><Input value={studentForm.emergencyContact.name} onChange={e => updateEmergency('name', e.target.value)} className="h-11 rounded-xl" /></div>
                            <div className="space-y-2"><Label>Relationship</Label><Input value={studentForm.emergencyContact.relationship} onChange={e => updateEmergency('relationship', e.target.value)} className="h-11 rounded-xl" /></div>
                            <div className="space-y-2"><Label>Emergency Phone</Label><Input value={studentForm.emergencyContact.phone} onChange={e => updateEmergency('phone', e.target.value)} className="h-11 rounded-xl" /></div>
@@ -476,7 +475,7 @@ export default function StudentsPage() {
                   </TabsContent>
 
                   <TabsContent value="medical" className="mt-0 space-y-8">
-                     <div className="grid grid-cols-2 gap-6">
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2"><Label>Blood Group</Label>
                           <Select onValueChange={v => updateMedical('bloodGroup', v)} value={studentForm.medical.bloodGroup}>
                             <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>

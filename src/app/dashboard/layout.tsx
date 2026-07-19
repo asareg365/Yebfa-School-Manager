@@ -6,7 +6,7 @@ import { useUser, useFirestore, useDoc } from "@/firebase";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/dashboard/app-sidebar";
 import { Separator } from "@/components/ui/separator";
-import { Bell, Search, Loader2, Info, AlertTriangle, CheckCircle2, X, Sparkles, Clock } from "lucide-react";
+import { Bell, Search, Loader2, Info, AlertTriangle, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -82,16 +82,6 @@ export default function DashboardLayout({
     return Math.max(0, 30 - diff);
   }, [institution]);
 
-  const handleMarkAllRead = useCallback(() => {
-    setHasNotifications(false);
-  }, []);
-
-  const handleClearAll = useCallback(() => {
-    setNotifications([]);
-    setHasNotifications(false);
-    localStorage.setItem('notifications_cleared_v2', 'true');
-  }, []);
-
   if (loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -114,7 +104,7 @@ export default function DashboardLayout({
       </div>
       <SidebarInset className="bg-background print-inset flex flex-col min-h-0 w-full overflow-hidden">
         {isTrial && trialDaysLeft !== null && (
-          <div className={`no-print py-2 px-6 flex items-center justify-between transition-colors ${trialDaysLeft <= 7 ? 'bg-orange-600 text-white' : 'bg-blue-600 text-white'}`}>
+          <div className={`no-print py-2 px-6 flex items-center justify-between transition-colors shrink-0 ${trialDaysLeft <= 7 ? 'bg-orange-600 text-white' : 'bg-blue-600 text-white'}`}>
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest">
               {trialDaysLeft <= 7 ? <AlertTriangle className="size-4" /> : <Clock className="size-4" />}
               Institutional Trial: {trialDaysLeft} days remaining
@@ -187,8 +177,8 @@ export default function DashboardLayout({
             </div>
           </div>
         </header>
-        <main className="flex-1 overflow-y-auto p-6 lg:p-10 relative">
-          <div className="max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <main className="flex-1 overflow-y-auto p-6 lg:p-10 relative scroll-smooth">
+          <div className="max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-300 min-h-0 pb-20">
             {children}
           </div>
         </main>

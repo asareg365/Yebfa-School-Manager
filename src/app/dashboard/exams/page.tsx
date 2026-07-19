@@ -215,20 +215,22 @@ export default function ExaminationCenterPage() {
                  </div>
                  <Sparkles className="size-6 opacity-30" />
                </CardHeader>
-               <CardContent className="space-y-4 bg-white text-slate-800 p-8 m-2 rounded-2xl">
-                  {aiResult.questions.map((q: any) => (
-                    <div key={q.id} className="space-y-2 border-b pb-4 last:border-none">
-                      <p className="font-bold">Q{q.id}. {q.question}</p>
-                      {q.options && (
-                        <div className="grid grid-cols-2 gap-2 text-sm italic ml-4">
-                          {q.options.map((opt: string) => <div key={opt}>• {opt}</div>)}
-                        </div>
-                      )}
-                      <p className="text-[10px] text-green-600 font-bold uppercase mt-2">Correct: {q.correctAnswer}</p>
-                    </div>
-                  ))}
+               <CardContent className="p-2">
+                  <div className="bg-white text-slate-800 p-8 rounded-2xl max-h-[400px] overflow-y-auto">
+                    {aiResult.questions.map((q: any) => (
+                      <div key={q.id} className="space-y-2 border-b pb-4 mb-4 last:border-none last:mb-0">
+                        <p className="font-bold">Q{q.id}. {q.question}</p>
+                        {q.options && (
+                          <div className="grid grid-cols-2 gap-2 text-sm italic ml-4">
+                            {q.options.map((opt: string) => <div key={opt}>• {opt}</div>)}
+                          </div>
+                        )}
+                        <p className="text-[10px] text-green-600 font-bold uppercase mt-2">Correct: {q.correctAnswer}</p>
+                      </div>
+                    ))}
+                  </div>
                </CardContent>
-               <div className="p-4 flex justify-end gap-3">
+               <div className="p-4 flex justify-end gap-3 border-t border-white/10">
                  <Button variant="ghost" className="text-white hover:bg-white/10" onClick={() => setAiResult(null)}>Discard</Button>
                  <Button className="bg-white text-primary hover:bg-white/90 gap-2"><Printer className="size-4" /> Print Paper</Button>
                </div>
@@ -250,65 +252,67 @@ export default function ExaminationCenterPage() {
                     <p className="italic text-sm">Select a grade module and subject to record scores.</p>
                   </div>
                 ) : (
-                  <Table>
-                    <TableHeader className="bg-muted/30">
-                      <TableRow>
-                        <TableHead className="py-4 font-bold">STUDENT NAME</TableHead>
-                        <TableHead className="py-4 font-bold w-32">CA (30)</TableHead>
-                        <TableHead className="py-4 font-bold w-32">EXAM (70)</TableHead>
-                        <TableHead className="py-4 font-bold w-24 text-right">TOTAL</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {students.map((stu: any) => {
-                        const s = scores[stu.id] || { ca: "0", exam: "0" };
-                        const total = (parseFloat(s.ca) || 0) + (parseFloat(s.exam) || 0);
-                        
-                        return (
-                          <TableRow key={stu.id} className="hover:bg-slate-50/50 transition-colors">
-                            <TableCell className="font-bold text-primary flex items-center gap-3">
-                              <div className="size-8 rounded-full bg-primary/5 flex items-center justify-center text-[10px] font-bold text-primary">
-                                {stu.firstName.charAt(0)}{stu.lastName.charAt(0)}
-                              </div>
-                              {stu.firstName} {stu.lastName}
-                            </TableCell>
-                            <TableCell>
-                              <Input 
-                                type="number" 
-                                min="0" 
-                                max="30"
-                                className="h-9 rounded-lg bg-slate-50 border-none font-bold" 
-                                value={s.ca}
-                                onChange={(e) => handleScoreChange(stu.id, 'ca', e.target.value)}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Input 
-                                type="number" 
-                                min="0" 
-                                max="70"
-                                className="h-9 rounded-lg bg-slate-50 border-none font-bold" 
-                                value={s.exam}
-                                onChange={(e) => handleScoreChange(stu.id, 'exam', e.target.value)}
-                              />
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Badge className={`text-sm font-bold h-9 px-4 rounded-lg min-w-16 flex items-center justify-center ${total >= 50 ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'} border-none`}>
-                                {total}
-                              </Badge>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader className="bg-muted/30">
+                        <TableRow>
+                          <TableHead className="py-4 font-bold whitespace-nowrap">STUDENT NAME</TableHead>
+                          <TableHead className="py-4 font-bold w-32 whitespace-nowrap">CA (30)</TableHead>
+                          <TableHead className="py-4 font-bold w-32 whitespace-nowrap">EXAM (70)</TableHead>
+                          <TableHead className="py-4 font-bold w-24 text-right whitespace-nowrap">TOTAL</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {students.map((stu: any) => {
+                          const s = scores[stu.id] || { ca: "0", exam: "0" };
+                          const total = (parseFloat(s.ca) || 0) + (parseFloat(s.exam) || 0);
+                          
+                          return (
+                            <TableRow key={stu.id} className="hover:bg-slate-50/50 transition-colors">
+                              <TableCell className="font-bold text-primary flex items-center gap-3 min-w-[200px]">
+                                <div className="size-8 rounded-full bg-primary/5 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
+                                  {stu.firstName.charAt(0)}{stu.lastName.charAt(0)}
+                                </div>
+                                <span className="truncate">{stu.firstName} {stu.lastName}</span>
+                              </TableCell>
+                              <TableCell>
+                                <Input 
+                                  type="number" 
+                                  min="0" 
+                                  max="30"
+                                  className="h-9 rounded-lg bg-slate-50 border-none font-bold min-w-[80px]" 
+                                  value={s.ca}
+                                  onChange={(e) => handleScoreChange(stu.id, 'ca', e.target.value)}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input 
+                                  type="number" 
+                                  min="0" 
+                                  max="70"
+                                  className="h-9 rounded-lg bg-slate-50 border-none font-bold min-w-[80px]" 
+                                  value={s.exam}
+                                  onChange={(e) => handleScoreChange(stu.id, 'exam', e.target.value)}
+                                />
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Badge className={`text-sm font-bold h-9 px-4 rounded-lg min-w-16 flex items-center justify-center ${total >= 50 ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'} border-none`}>
+                                  {total}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                        {students.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={4} className="text-center py-20 text-muted-foreground italic">
+                              No student roster detected for this grade in your institutional registry.
                             </TableCell>
                           </TableRow>
-                        );
-                      })}
-                      {students.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={4} className="text-center py-20 text-muted-foreground italic">
-                            No student roster detected for this grade in your institutional registry.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
                 )}
              </CardContent>
            </Card>
