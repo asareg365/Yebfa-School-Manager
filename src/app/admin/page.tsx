@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -36,6 +37,7 @@ export default function AdminPortal() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [upgradingSchool, setUpgradingSchool] = useState<any>(null)
   const [editingSchool, setEditingSchool] = useState<any>(null)
+  const [searchQuery, setSearchQuery] = useState("")
   
   const [newSchool, setNewSchool] = useState({
     name: "",
@@ -59,12 +61,18 @@ export default function AdminPortal() {
   const { data: rawInstitutions = [] } = useCollection(institutionsQuery)
 
   const institutions = useMemo(() => {
-    return [...rawInstitutions].sort((a: any, b: any) => {
-      const dateA = a.createdAt?.toMillis?.() || Date.now();
-      const dateB = b.createdAt?.toMillis?.() || Date.now();
-      return dateB - dateA;
-    });
-  }, [rawInstitutions]);
+    return [...rawInstitutions]
+      .filter(inst => 
+        inst.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        inst.ownerEmail?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        inst.location?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+      .sort((a: any, b: any) => {
+        const dateA = a.createdAt?.toMillis?.() || Date.now();
+        const dateB = b.createdAt?.toMillis?.() || Date.now();
+        return dateB - dateA;
+      });
+  }, [rawInstitutions, searchQuery]);
 
   useEffect(() => {
     if (!authLoading && !profileLoading && user && profile && !isSuperAdmin) {
@@ -194,8 +202,8 @@ export default function AdminPortal() {
           <TabsContent value="overview" className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
             <div className="grid gap-6 md:grid-cols-4">
                {[
-                 { title: "Total Schools", value: institutions.length, icon: School, trend: "Live registry count" },
-                 { title: "Active Trials", value: institutions.filter(i => i.subscriptionPlan?.toLowerCase().includes('trial')).length, icon: Clock, trend: "Onboarding phase" },
+                 { title: "Total Schools", value: rawInstitutions.length, icon: School, trend: "Live registry count" },
+                 { title: "Active Trials", value: rawInstitutions.filter(i => i.subscriptionPlan?.toLowerCase().includes('trial')).length, icon: Clock, trend: "Onboarding phase" },
                  { title: "Global Revenue", value: "GH₵ 0.00", icon: Wallet, trend: "Cycle tracking" },
                  { title: "Server Status", value: "Optimal", icon: Server, trend: "Goaso Node Active" }
                ].map((stat, i) => (
@@ -241,7 +249,12 @@ export default function AdminPortal() {
                   <div className="flex items-center gap-3">
                     <div className="relative w-full md:w-64">
                       <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-                      <Input placeholder="Search registry..." className="pl-9 h-10" />
+                      <Input 
+                        placeholder="Search registry..." 
+                        className="pl-9 h-10" 
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
                     </div>
                     <Button size="sm" className="h-10 bg-primary" onClick={() => setIsProvisionDialogOpen(true)}>
                       <Plus className="size-4 mr-2" /> Add New
@@ -303,6 +316,13 @@ export default function AdminPortal() {
                           </TableCell>
                         </TableRow>
                       ))}
+                      {institutions.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-12 text-muted-foreground italic">
+                            No institutions matching "{searchQuery}"
+                          </TableCell>
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
                 </div>
@@ -351,7 +371,7 @@ export default function AdminPortal() {
                         })}
                         {institutions.filter(i => i.subscriptionPlan?.toLowerCase().includes('trial')).length === 0 && (
                           <TableRow>
-                            <TableCell colSpan={4} className="text-center py-12 text-muted-foreground italic">No active trial instances found.</TableCell>
+                            <TableCell colSpan={4} className="text-center py-12 text-muted-foreground italic">No active trial instances found matching "{searchQuery}".</TableCell>
                           </TableRow>
                         )}
                       </TableBody>
@@ -407,7 +427,7 @@ export default function AdminPortal() {
                         <span className="text-[10px] text-muted-foreground">Just now</span>
                      </div>
                      <div className="py-3 flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-3"><Badge className="bg-blue-100 text-blue-700">LOCK</Badge><span>Cross-tenant boundary enforced for {institutions.length} instances.</span></div>
+                        <div className="flex items-center gap-3"><Badge className="bg-blue-100 text-blue-700">LOCK</Badge><span>Cross-tenant boundary enforced for {rawInstitutions.length} instances.</span></div>
                         <span className="text-[10px] text-muted-foreground">15 mins ago</span>
                      </div>
                   </div>

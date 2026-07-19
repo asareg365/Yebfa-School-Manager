@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -56,8 +57,16 @@ export default function PaymentsProcessorPage() {
     return query(collection(db, "transactions"), where("tenantId", "==", institutionId))
   }, [db, institutionId])
 
-  const { data: pendingInvoices } = useCollection(invoicesQuery)
-  const { data: transactions } = useCollection(txnsQuery)
+  const { data: pendingInvoices = [] } = useCollection(invoicesQuery)
+  const { data: rawTransactions = [] } = useCollection(txnsQuery)
+
+  const transactions = useMemo(() => {
+    return rawTransactions.filter(t => 
+      t.studentName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      t.reference?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      t.paymentMethod?.toLowerCase().includes(searchQuery.toLowerCase())
+    ).sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))
+  }, [rawTransactions, searchQuery])
 
   const handleProcessPayment = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -65,9 +74,12 @@ export default function PaymentsProcessorPage() {
 
     setLoading(true)
     const amount = parseFloat(paymentForm.amount)
-    const selectedInvoice = pendingInvoices.find(i => i.id === paymentForm.invoiceId)
+    const selectedInvoice = pendingInvoices.find((i: any) => i.id === paymentForm.invoiceId)
     
-    if (!selectedInvoice) return
+    if (!selectedInvoice) {
+      setLoading(false)
+      return
+    }
 
     try {
       const batch = writeBatch(db)
@@ -76,6 +88,7 @@ export default function PaymentsProcessorPage() {
       const txnRef = doc(collection(db, "transactions"))
       batch.set(txnRef, {
         tenantId: institutionId,
+        institutionId,
         invoiceId: selectedInvoice.id,
         invoiceNumber: selectedInvoice.invoiceNumber,
         studentId: selectedInvoice.studentId,
@@ -89,7 +102,7 @@ export default function PaymentsProcessorPage() {
 
       // 2. Update Invoice
       const newPaid = (selectedInvoice.amountPaid || 0) + amount
-      const newDue = selectedInvoice.totalAmount - newPaid
+      const newDue = (selectedInvoice.totalAmount || 0) - newPaid
       const newStatus = newDue <= 0 ? "Paid" : "Partial"
 
       batch.update(doc(db, "invoices", selectedInvoice.id), {
@@ -103,6 +116,7 @@ export default function PaymentsProcessorPage() {
       const ledgerRef = doc(collection(db, "student_ledger"))
       batch.set(ledgerRef, {
         tenantId: institutionId,
+        institutionId,
         studentId: selectedInvoice.studentId,
         date: new Date().toISOString().split('T')[0],
         item: `Payment via ${paymentForm.method} - Ref: ${paymentForm.reference}`,
@@ -136,21 +150,26 @@ export default function PaymentsProcessorPage() {
 
       <div className="grid gap-6 md:grid-cols-4">
         <Card className="border-none shadow-md bg-green-50/50 border-green-100">
-          <CardHeader className="pb-2"><CardTitle className="text-xs uppercase text-green-700 font-bold">Collections (Term)</CardTitle></CardHeader>
-          <CardContent><div className="text-3xl font-bold font-headline text-green-700">GH₵ {transactions.reduce((a, c: any) => a + c.amount, 0).toLocaleString()}</div></CardContent>
+          <CardHeader className="pb-2"><CardTitle className="text-xs uppercase text-green-700 font-bold">Collections (Total)</CardTitle></CardHeader>
+          <CardContent><div className="text-3xl font-bold font-headline text-green-700">GH₵ {rawTransactions.reduce((a, c: any) => a + (c.amount || 0), 0).toLocaleString()}</div></CardContent>
         </Card>
         <Card className="border-none shadow-md">
-          <CardHeader className="pb-2"><CardTitle className="text-xs uppercase text-muted-foreground font-bold">Daily Intake</CardTitle></CardHeader>
-          <CardContent><div className="text-3xl font-bold font-headline">GH₵ ---</div></CardContent>
+          <CardHeader className="pb-2"><CardTitle className="text-xs uppercase text-muted-foreground font-bold">Entries</CardTitle></CardHeader>
+          <CardContent><div className="text-3xl font-bold font-headline">{rawTransactions.length}</div></CardContent>
         </Card>
       </div>
 
       <Card className="border-none shadow-xl rounded-2xl overflow-hidden">
-        <CardHeader className="border-b bg-white flex flex-row items-center justify-between">
-          <CardTitle className="text-lg">Recent Transactions</CardTitle>
-          <div className="relative w-64">
+        <CardHeader className="border-b bg-white flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <CardTitle className="text-lg">Transaction History</CardTitle>
+          <div className="relative w-full md:w-64">
             <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-            <Input placeholder="Search ref or student..." className="pl-9 h-9" />
+            <Input 
+              placeholder="Search ref or student..." 
+              className="pl-9 h-9" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -176,18 +195,18 @@ export default function PaymentsProcessorPage() {
                   <TableCell><span className="text-xs font-bold text-primary">{t.studentName}</span></TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                       {t.paymentMethod.includes('MoMo') ? <Smartphone className="size-3 text-blue-600" /> : <CreditCard className="size-3 text-slate-600" />}
+                       {t.paymentMethod?.includes('MoMo') ? <Smartphone className="size-3 text-blue-600" /> : <CreditCard className="size-3 text-slate-600" />}
                        <span className="text-xs font-medium">{t.paymentMethod}</span>
                     </div>
                   </TableCell>
-                  <TableCell><span className="text-sm font-bold text-green-600">GH₵ {t.amount.toLocaleString()}</span></TableCell>
+                  <TableCell><span className="text-sm font-bold text-green-600">GH₵ {t.amount?.toLocaleString()}</span></TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-primary"><Receipt className="size-4" /></Button>
                   </TableCell>
                 </TableRow>
               ))}
               {transactions.length === 0 && (
-                <TableRow><TableCell colSpan={5} className="text-center py-20 text-muted-foreground italic">No transaction records detected.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center py-20 text-muted-foreground italic">No transaction records found matching your search.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
@@ -205,7 +224,7 @@ export default function PaymentsProcessorPage() {
               <div className="space-y-2">
                 <Label>Select Active Invoice</Label>
                 <Select value={paymentForm.invoiceId} onValueChange={v => {
-                  const inv = pendingInvoices.find(i => i.id === v)
+                  const inv = pendingInvoices.find((i: any) => i.id === v)
                   setPaymentForm({...paymentForm, invoiceId: v, amount: inv?.amountDue.toString() || ""})
                 }}>
                   <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Choose Invoice" /></SelectTrigger>

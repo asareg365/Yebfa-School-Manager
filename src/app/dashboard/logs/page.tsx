@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -48,8 +49,14 @@ export default function LogsPage() {
               <Terminal className="size-8 text-muted-foreground/30" />
             </div>
             <div className="max-w-xs mx-auto">
-              <h3 className="font-bold text-lg">Empty Audit Trail</h3>
-              <p className="text-sm text-muted-foreground mt-2 italic">Awaiting first significant institutional event for the 2026 cycle.</p>
+              <h3 className="font-bold text-lg">
+                {searchQuery ? `No matching logs for "${searchQuery}"` : "Empty Audit Trail"}
+              </h3>
+              <p className="text-sm text-muted-foreground mt-2 italic">
+                {searchQuery 
+                  ? "Try refining your search keywords or check the date range." 
+                  : "Awaiting first significant institutional event for the 2026 cycle."}
+              </p>
             </div>
           </div>
         </CardContent>
