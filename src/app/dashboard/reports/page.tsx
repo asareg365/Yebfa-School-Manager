@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -21,7 +22,8 @@ import {
   RefreshCw,
   AlertCircle,
   ExternalLink,
-  ShieldAlert
+  ShieldAlert,
+  ClipboardList
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection, useDoc } from "@/firebase"
@@ -119,11 +121,15 @@ export default function ReportsPage() {
       }
 
       const output = await generateStudentReportComments(payload)
-      setResult(output)
-      toast({ title: "Report Generated", description: "Data-synced performance narrative is ready." })
+      
+      if (output.error) {
+        setErrorMessage(output.error)
+      } else {
+        setResult(output)
+        toast({ title: "Report Generated", description: "Data-synced performance narrative is ready." })
+      }
     } catch (error: any) {
-      console.error("AI Generation Error:", error)
-      setErrorMessage(error.message || "An unexpected error occurred.")
+      setErrorMessage(error.message || "An unexpected error occurred during processing.")
     } finally {
       setLoading(false)
     }
@@ -154,16 +160,18 @@ export default function ReportsPage() {
             <div className="space-y-4">
               <AlertTitle className="text-xl font-bold font-headline">Institutional AI Setup Required</AlertTitle>
               <AlertDescription className="text-base leading-relaxed">
-                <p className="mb-4">The system encountered a <strong>403 Forbidden</strong> error. This means the AI engine is ready but your Google project hasn't authorized this specific service.</p>
-                <div className="bg-white/50 p-6 rounded-2xl border border-red-100 space-y-4">
-                  <h4 className="font-bold text-sm uppercase tracking-widest text-red-900">Immediate Fix Action:</h4>
-                  <ol className="list-decimal ml-5 space-y-2 font-medium">
-                    <li>Open the <a href="https://console.cloud.google.com/" target="_blank" className="underline font-bold text-primary inline-flex items-center gap-1">Google Cloud Console <ExternalLink className="size-3" /></a></li>
-                    <li>Ensure you are in the correct project.</li>
-                    <li>Search for <strong>"Generative Language API"</strong> and click <strong>ENABLE</strong>.</li>
-                    <li>Wait 2-3 minutes, then click "Generate" again.</li>
-                  </ol>
-                </div>
+                <p className="mb-4">{errorMessage}</p>
+                {errorMessage.includes('403') && (
+                  <div className="bg-white/50 p-6 rounded-2xl border border-red-100 space-y-4 mt-4">
+                    <h4 className="font-bold text-sm uppercase tracking-widest text-red-900">Immediate Fix Action:</h4>
+                    <ol className="list-decimal ml-5 space-y-2 font-medium">
+                      <li>Open the <a href="https://console.cloud.google.com/" target="_blank" className="underline font-bold text-primary inline-flex items-center gap-1">Google Cloud Console <ExternalLink className="size-3" /></a></li>
+                      <li>Ensure you are in the correct project.</li>
+                      <li>Search for <strong>"Generative Language API"</strong> and click <strong>ENABLE</strong>.</li>
+                      <li>Wait 2-3 minutes, then click "Generate" again.</li>
+                    </ol>
+                  </div>
+                )}
               </AlertDescription>
             </div>
           </div>
@@ -213,7 +221,7 @@ export default function ReportsPage() {
                      <Badge variant="secondary" className="font-bold px-4">{examRecords.length} Subjects</Badge>
                    </div>
                    <p className="text-[10px] text-muted-foreground italic flex items-center gap-2 pt-2 border-t">
-                     <RefreshCw className="size-3 animate-spin-slow text-primary" /> Multi-tenant partition synchronized.
+                     <RefreshCw className="size-3 animate-spin text-primary" /> Multi-tenant partition synchronized.
                    </p>
                 </div>
               )}
@@ -244,7 +252,7 @@ export default function ReportsPage() {
           {!result ? (
             <Card className="border-none shadow-md min-h-[550px] flex flex-col items-center justify-center text-center p-12 space-y-6 rounded-3xl bg-muted/5 border-2 border-dashed">
               <div className="size-24 rounded-full bg-primary/5 flex items-center justify-center">
-                <GraduationCap className="size-12 text-primary/20" />
+                <ClipboardList className="size-12 text-primary/20" />
               </div>
               <div className="max-w-xs">
                 <p className="font-bold text-xl text-primary/60 font-headline">Awaiting Registry Selection</p>
@@ -284,7 +292,7 @@ export default function ReportsPage() {
                         <Target className="size-4" /> Academic Strengths
                       </h3>
                       <ul className="space-y-4">
-                        {result.keyStrengths.map((s, i) => (
+                        {result.keyStrengths?.map((s, i) => (
                           <li key={i} className="text-xs flex gap-3 text-slate-600 font-medium">
                             <span className="text-green-500 font-bold shrink-0">•</span>
                             {s}
@@ -297,7 +305,7 @@ export default function ReportsPage() {
                         <Lightbulb className="size-4" /> Strategic Targets
                       </h3>
                       <ul className="space-y-4">
-                        {result.areasToImprove.map((a, i) => (
+                        {result.areasToImprove?.map((a, i) => (
                           <li key={i} className="text-xs flex gap-3 text-slate-600 font-medium">
                             <span className="text-orange-500 font-bold shrink-0">•</span>
                             {a}

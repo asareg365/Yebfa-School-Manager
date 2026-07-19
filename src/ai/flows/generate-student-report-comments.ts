@@ -1,10 +1,7 @@
+
 'use server';
 /**
  * @fileOverview This file defines a Genkit flow for generating highly detailed student report comments.
- *
- * - generateStudentReportComments - A function that handles the generation of structured student reports.
- * - GenerateStudentReportCommentsInput - The input type for the function.
- * - GenerateStudentReportCommentsOutput - The return type for the function.
  */
 
 import {ai} from '@/ai/genkit';
@@ -26,13 +23,14 @@ const GenerateStudentReportCommentsInputSchema = z.object({
 export type GenerateStudentReportCommentsInput = z.infer<typeof GenerateStudentReportCommentsInputSchema>;
 
 const GenerateStudentReportCommentsOutputSchema = z.object({
-  executiveSummary: z.string().describe("A high-level summary of the student's performance."),
-  academicAnalysis: z.string().describe("Detailed analysis of academic strengths and weaknesses based on scores."),
-  personalDevelopment: z.string().describe("Analysis of behavioral and personal growth."),
-  keyStrengths: z.array(z.string()).describe("List of core academic or social strengths."),
-  areasToImprove: z.array(z.string()).describe("Specific targets for growth."),
-  actionableSteps: z.array(z.string()).describe("Concrete steps for the student/parent to take."),
-  finalGradeNarrative: z.string().describe("A concise paragraph for the final report card."),
+  executiveSummary: z.string().optional().describe("A high-level summary of the student's performance."),
+  academicAnalysis: z.string().optional().describe("Detailed analysis of academic strengths and weaknesses based on scores."),
+  personalDevelopment: z.string().optional().describe("Analysis of behavioral and personal growth."),
+  keyStrengths: z.array(z.string()).optional().describe("List of core academic or social strengths."),
+  areasToImprove: z.array(z.string()).optional().describe("Specific targets for growth."),
+  actionableSteps: z.array(z.string()).optional().describe("Concrete steps for the student/parent to take."),
+  finalGradeNarrative: z.string().optional().describe("A concise paragraph for the final report card."),
+  error: z.string().optional().describe("An error message if the generation failed."),
 });
 export type GenerateStudentReportCommentsOutput = z.infer<typeof GenerateStudentReportCommentsOutputSchema>;
 
@@ -46,22 +44,10 @@ const generateStudentReportCommentsPrompt = ai.definePrompt({
   output: {schema: GenerateStudentReportCommentsOutputSchema},
   config: {
     safetySettings: [
-      {
-        category: 'HARM_CATEGORY_HARASSMENT',
-        threshold: 'BLOCK_NONE',
-      },
-      {
-        category: 'HARM_CATEGORY_HATE_SPEECH',
-        threshold: 'BLOCK_NONE',
-      },
-      {
-        category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-        threshold: 'BLOCK_NONE',
-      },
-      {
-        category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-        threshold: 'BLOCK_NONE',
-      },
+      { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
     ],
   },
   prompt: `You are an expert educator crafting professional, detailed academic reports.
@@ -98,14 +84,16 @@ const generateStudentReportCommentsFlow = ai.defineFlow(
     try {
       const {output} = await generateStudentReportCommentsPrompt(input);
       if (!output) {
-        throw new Error("The AI model failed to return a structured performance narrative.");
+        return { error: "The AI model failed to return a structured performance narrative." };
       }
       return output;
     } catch (err: any) {
       if (err.message?.includes('403') || err.message?.includes('blocked') || err.message?.includes('permission')) {
-        throw new Error("AI access is blocked by your service provider. Please enable the 'Generative Language API' in your Google Cloud Console.");
+        return { 
+          error: "AI access is blocked by your service provider. Please enable the 'Generative Language API' in your Google Cloud Console." 
+        };
       }
-      throw err;
+      return { error: err.message || "An unexpected AI error occurred during report generation." };
     }
   }
 );

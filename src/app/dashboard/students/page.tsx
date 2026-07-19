@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -20,7 +21,9 @@ import {
   Stethoscope, 
   MapPin, 
   Phone, 
-  IdCard
+  IdCard,
+  X,
+  History
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection, useDoc, useUser } from "@/firebase"
@@ -131,7 +134,7 @@ export default function StudentsPage() {
     return [...rawStudentsData]
       .filter(s => 
         `${s.firstName} ${s.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.admissionNumber?.toLowerCase().includes(searchQuery.toLowerCase())
+        (s.admissionNumber && s.admissionNumber.toLowerCase().includes(searchQuery.toLowerCase()))
       )
       .sort((a, b) => (b.admissionNumber || "").localeCompare(a.admissionNumber || ""));
   }, [rawStudentsData, searchQuery]);
@@ -433,7 +436,7 @@ export default function StudentsPage() {
                      </div>
                      
                      <div className="space-y-4 pt-4 border-t">
-                        <h4 className="text-xs font-bold uppercase tracking-widest text-primary flex items-center gap-2"><ArrowUpRight className="size-4" /> Previous Academic History</h4>
+                        <h4 className="text-xs font-bold uppercase tracking-widest text-primary flex items-center gap-2"><History className="size-4" /> Previous Academic History</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                            <div className="space-y-2"><Label>Previous School Name</Label><Input value={studentForm.previousSchool.name} onChange={e => updatePrevious('name', e.target.value)} className="h-11 rounded-xl" /></div>
                            <div className="space-y-2"><Label>Class Completed</Label><Input value={studentForm.previousSchool.classCompleted} onChange={e => updatePrevious('classCompleted', e.target.value)} className="h-11 rounded-xl" /></div>

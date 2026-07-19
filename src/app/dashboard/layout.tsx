@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser, useFirestore, useDoc } from "@/firebase";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -102,7 +103,7 @@ export default function DashboardLayout({
       <div className="no-print h-full overflow-y-auto border-r bg-sidebar shrink-0">
         <AppSidebar />
       </div>
-      <SidebarInset className="bg-background print-inset flex flex-col min-h-0 w-full overflow-hidden">
+      <SidebarInset className="bg-background print-inset flex flex-col h-screen w-full overflow-hidden">
         {isTrial && trialDaysLeft !== null && (
           <div className={`no-print py-2 px-6 flex items-center justify-between transition-colors shrink-0 ${trialDaysLeft <= 7 ? 'bg-orange-600 text-white' : 'bg-blue-600 text-white'}`}>
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest">
@@ -177,8 +178,8 @@ export default function DashboardLayout({
             </div>
           </div>
         </header>
-        <main className="flex-1 overflow-y-auto p-6 lg:p-10 relative scroll-smooth">
-          <div className="max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-300 min-h-0 pb-20">
+        <main className="flex-1 overflow-y-auto p-6 lg:p-10 relative scroll-smooth overflow-x-hidden">
+          <div className="max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-300 min-h-0 pb-24">
             {children}
           </div>
         </main>
