@@ -1,11 +1,9 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Checkbox } from "@/components/ui/checkbox"
 import { 
   Search, 
   UserPlus, 
@@ -17,14 +15,13 @@ import {
   User, 
   Camera, 
   ShieldCheck, 
-  FileSpreadsheet, 
   ArrowUpRight, 
   BookOpen, 
   UserCheck, 
   Stethoscope, 
   MapPin, 
   Phone, 
-  Globe 
+  IdCard
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection, useDoc, useUser } from "@/firebase"
@@ -36,6 +33,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import Link from "next/link"
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
 const RELIGIONS = ["Christianity", "Islam", "Traditional", "Hinduism", "Other", "None"]
@@ -46,13 +44,9 @@ export default function StudentsPage() {
   const [loading, setLoading] = useState(false)
   const [isEnrollOpen, setIsEnrollOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
-  const [isImportOpen, setIsImportOpen] = useState(false)
-  const [isPromoteOpen, setIsPromoteOpen] = useState(false)
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [editingStudent, setEditingStudent] = useState<any>(null)
   const [searchQuery, setSearchQuery] = useState("")
-  
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   
   const [isCameraActive, setIsCameraActive] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
