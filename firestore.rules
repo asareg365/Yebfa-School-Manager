@@ -69,20 +69,15 @@ service cloud.firestore {
 
     match /institutions/{instId} {
       allow read: if signedIn() && (isSuperAdmin() || instId == userTenant());
-      // Allow creation of first institution
       allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
       allow update, delete: if isSuperAdmin() || (signedIn() && instId == userTenant() && (isOwner() || isAdmin()));
     }
 
-    // Setup Collections (Settings & Departments)
-    match /settings/{tenantId} {
-      allow read: if signedIn() && (isSuperAdmin() || tenantId == userTenant());
-      allow write: if signedIn() && (isSuperAdmin() || tenantId == userTenant() || (request.method == 'create' && !hasProfile()));
-    }
-
-    match /departments/{tenantId} {
-      allow read: if signedIn() && (isSuperAdmin() || tenantId == userTenant());
-      allow write: if signedIn() && (isSuperAdmin() || tenantId == userTenant() || (request.method == 'create' && !hasProfile()));
+    match /parents/{parentId} {
+      allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
+      allow create: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
+      allow update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
+      allow delete: if isSuperAdmin() || isOwner();
     }
 
     // Standard Multi-Tenant Rule Pattern
@@ -102,7 +97,6 @@ service cloud.firestore {
           (collectionName == 'library_transactions' && isLibrarian()) ||
           ((collectionName == 'expenditure_vouchers' || collectionName == 'transactions' || collectionName == 'student_ledger') && isAccountant())
         )
-        // Bootstrap exception: allow creating first tenant data
         || (request.resource.data.tenantId != null && !hasProfile())
       );
 
