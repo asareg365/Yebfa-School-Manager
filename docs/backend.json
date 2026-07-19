@@ -36,7 +36,7 @@
     },
     "Student": {
       "title": "Student Profile",
-      "description": "Complete student record within the SIS.",
+      "description": "Complete student record with structured nested data.",
       "type": "object",
       "properties": {
         "tenantId": { "type": "string" },
@@ -48,7 +48,6 @@
         "lastName": { "type": "string" },
         "gender": { "type": "string", "enum": ["Male", "Female"] },
         "dateOfBirth": { "type": "string", "format": "date" },
-        "bloodGroup": { "type": "string" },
         "nationality": { "type": "string" },
         "religion": { "type": "string" },
         "photoUrl": { "type": "string" },
@@ -59,6 +58,45 @@
         "house": { "type": "string" },
         "status": { "type": "string", "enum": ["active", "inactive", "suspended", "alumni"] },
         "parentId": { "type": "string" },
+        "parentName": { "type": "string" },
+        "parentPhone": { "type": "string" },
+        "parentEmail": { "type": "string" },
+        "address": {
+          "type": "object",
+          "properties": {
+            "digitalAddress": { "type": "string" },
+            "town": { "type": "string" },
+            "district": { "type": "string" },
+            "region": { "type": "string" },
+            "country": { "type": "string" }
+          }
+        },
+        "emergencyContact": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "relationship": { "type": "string" },
+            "phone": { "type": "string" }
+          }
+        },
+        "medical": {
+          "type": "object",
+          "properties": {
+            "bloodGroup": { "type": "string" },
+            "allergies": { "type": "string" },
+            "specialNeeds": { "type": "string" },
+            "disability": { "type": "string" },
+            "doctor": { "type": "string" }
+          }
+        },
+        "previousSchool": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "classCompleted": { "type": "string" },
+            "reason": { "type": "string" }
+          }
+        },
         "createdBy": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
