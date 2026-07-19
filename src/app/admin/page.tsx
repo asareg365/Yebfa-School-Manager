@@ -1,7 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Pencil, Loader2, LogOut, Zap, ShieldAlert, Terminal, Save, Megaphone, Server, Globe, ArrowUpRight, Clock, AlertTriangle, Cpu, HardDrive, Network, Settings2 } from "lucide-react"
+import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Pencil, Loader2, LogOut, Zap, ShieldAlert, Terminal, Save, Megaphone, Server, Globe, ArrowUpRight, Clock, AlertTriangle, Cpu, HardDrive, Network, Settings2, LayoutDashboard } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -77,6 +77,13 @@ export default function AdminPortal() {
       router.push("/login")
       toast({ title: "Session Terminated", description: "Super Admin signed out successfully." })
     }
+  }
+
+  const handleEnterInstitution = (inst: any) => {
+    localStorage.setItem('selected_institution_id', inst.id)
+    localStorage.setItem('selected_institution_name', inst.name)
+    router.push("/dashboard")
+    toast({ title: "Hub Context Switched", description: `Simulating access for ${inst.name}.` })
   }
 
   const handleManualProvision = async (e: React.FormEvent) => {
@@ -273,6 +280,9 @@ export default function AdminPortal() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                             <Button variant="ghost" size="sm" className="h-8 text-[10px] font-bold uppercase text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => handleEnterInstitution(inst)}>
+                               <LayoutDashboard className="size-3 mr-1" /> Enter Hub
+                             </Button>
                              <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => {
                                 setEditingSchool(inst);
                                 setEditForm({ name: inst.name, ownerEmail: inst.ownerEmail || "", location: inst.location, status: inst.status });
@@ -324,10 +334,13 @@ export default function AdminPortal() {
                               </div>
                             </TableCell>
                             <TableCell className="text-right">
-                              <Button variant="outline" size="sm" className="h-8 text-[10px] font-bold" onClick={() => {
-                                setUpgradingSchool(inst);
-                                setIsUpgradeDialogOpen(true);
-                              }}>Authorize Upgrade</Button>
+                              <div className="flex items-center justify-end gap-2">
+                                <Button variant="ghost" size="sm" className="h-8 text-[10px] font-bold uppercase text-green-600" onClick={() => handleEnterInstitution(inst)}>Enter Hub</Button>
+                                <Button variant="outline" size="sm" className="h-8 text-[10px] font-bold" onClick={() => {
+                                  setUpgradingSchool(inst);
+                                  setIsUpgradeDialogOpen(true);
+                                }}>Authorize Upgrade</Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         )
