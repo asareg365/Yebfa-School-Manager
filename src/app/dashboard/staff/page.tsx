@@ -5,23 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { 
-  Users, 
   UserPlus, 
   Trash2, 
   Pencil, 
   Loader2, 
-  Upload, 
-  Phone, 
-  Mail, 
   ShieldCheck, 
-  Banknote, 
-  Briefcase, 
-  User, 
   Search,
-  Filter,
-  Check,
-  Building2,
-  Calendar
+  Save
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { toast } from "@/hooks/use-toast"
@@ -29,7 +19,7 @@ import { useFirestore, useCollection, useUser } from "@/firebase"
 import { collection, addDoc, query, deleteDoc, doc, where, serverTimestamp, updateDoc } from "firebase/firestore"
 import { useState, useMemo, useEffect } from "react"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -37,13 +27,13 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 
 export default function StaffPage() {
   const db = useFirestore()
-  const { user } = useUser()
   const [loading, setLoading] = useState(false)
   const [isEnrollOpen, setIsEnrollOpen] = useState(false)
+  const [editingStaff, setEditingStaff] = useState<any>(null)
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
 
-  const [staffForm, setStaffForm] = useState({
+  const initialForm = {
     staffNumber: "",
     firstName: "",
     lastName: "",
@@ -60,7 +50,9 @@ export default function StaffPage() {
     ssnitNumber: "",
     tin: "",
     status: "active"
-  })
+  }
+
+  const [staffForm, setStaffForm] = useState(initialForm)
 
   useEffect(() => {
     setInstitutionId(localStorage.getItem('selected_institution_id'))
@@ -73,7 +65,7 @@ export default function StaffPage() {
 
   const { data: rawStaff = [], loading: dataLoading } = useCollection(staffQuery)
 
-  const staff = useMemo(() => {
+  const staffList = useMemo(() => {
     return rawStaff.filter(s => 
       `${s.firstName} ${s.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.staffNumber?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -81,12 +73,12 @@ export default function StaffPage() {
   }, [rawStaff, searchQuery]);
 
   useEffect(() => {
-    if (isEnrollOpen && !staffForm.staffNumber) {
+    if (isEnrollOpen && !staffForm.staffNumber && !editingStaff) {
       const count = rawStaff.length + 1;
       const autoId = `EMP-${String(count).padStart(3, '0')}`;
       setStaffForm(prev => ({ ...prev, staffNumber: autoId }));
     }
-  }, [isEnrollOpen, rawStaff.length]);
+  }, [isEnrollOpen, rawStaff.length, editingStaff]);
 
   const handleEnroll = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -95,30 +87,41 @@ export default function StaffPage() {
     
     const data = {
       ...staffForm,
-      salary: parseFloat(staffForm.salary) || 0,
+      salary: parseFloat(staffForm.salary as string) || 0,
       tenantId: institutionId,
       institutionId: institutionId,
-      createdAt: serverTimestamp()
+      updatedAt: serverTimestamp()
     }
 
     try {
-      await addDoc(collection(db, "staff"), data)
-      toast({ title: "Staff Enrolled", description: `${staffForm.firstName} is now registered.` })
-      setIsEnrollOpen(false)
-      setStaffForm({
-        staffNumber: "", firstName: "", lastName: "", gender: "Male", phone: "", email: "",
-        qualification: "", departmentId: "Academics", designation: "Teacher",
-        employmentDate: new Date().toISOString().split('T')[0], salary: "",
-        bankName: "", bankAccount: "", ssnitNumber: "", tin: "", status: "active"
-      })
+      if (editingStaff) {
+        const { id, ...sanitizedData } = data as any;
+        await updateDoc(doc(db, "staff", editingStaff.id), sanitizedData);
+        toast({ title: "Registry Synchronized", description: `${staffForm.firstName}'s employment profile updated.` });
+      } else {
+        await addDoc(collection(db, "staff"), {
+          ...data,
+          createdAt: serverTimestamp()
+        });
+        toast({ title: "Staff Enrolled", description: `${staffForm.firstName} is now registered in the ecosystem.` });
+      }
+      setIsEnrollOpen(false);
+      setEditingStaff(null);
+      setStaffForm(initialForm);
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Enrollment Failed", description: error.message })
+      toast({ variant: "destructive", title: "Action Failed", description: error.message });
     } finally {
       setLoading(false)
     }
   }
 
-  if (dataLoading) return <div className="p-24 text-center animate-pulse">Syncing Staff Registry...</div>
+  const openEdit = (s: any) => {
+    setEditingStaff(s);
+    setStaffForm({ ...initialForm, ...s });
+    setIsEnrollOpen(true);
+  }
+
+  if (dataLoading) return <div className="p-24 text-center animate-pulse font-headline font-bold text-primary">Syncing Staff Registry...</div>
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -127,7 +130,7 @@ export default function StaffPage() {
           <h1 className="text-3xl font-headline font-bold text-primary">Faculty & Staff</h1>
           <p className="text-muted-foreground">Managing institutional human resources and payroll metadata.</p>
         </div>
-        <Button className="gap-2 bg-primary rounded-xl h-11" onClick={() => setIsEnrollOpen(true)}>
+        <Button className="gap-2 bg-primary rounded-xl h-11" onClick={() => { setEditingStaff(null); setStaffForm(initialForm); setIsEnrollOpen(true); }}>
           <UserPlus className="size-4" /> Enroll Staff
         </Button>
       </div>
@@ -152,11 +155,11 @@ export default function StaffPage() {
                 <TableHead className="py-4 font-bold">DESIGNATION</TableHead>
                 <TableHead className="py-4 font-bold">CONTACT</TableHead>
                 <TableHead className="py-4 font-bold">STATUS</TableHead>
-                <TableHead className="text-right py-4 font-bold">ACTIONS</TableHead>
+                <TableHead className="text-right py-4 font-bold px-6">ACTIONS</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {staff.map((s: any) => (
+              {staffList.map((s: any) => (
                 <TableRow key={s.id} className="hover:bg-slate-50 transition-colors">
                   <TableCell>
                     <div className="flex flex-col">
@@ -177,12 +180,19 @@ export default function StaffPage() {
                     </div>
                   </TableCell>
                   <TableCell><Badge variant="outline" className="text-[9px] uppercase font-bold text-green-600 border-green-200 bg-green-50">{s.status}</Badge></TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteDoc(doc(db!, "staff", s.id))}><Trash2 className="size-4" /></Button>
+                  <TableCell className="text-right px-6">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => openEdit(s)}>
+                        <Pencil className="size-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteDoc(doc(db!, "staff", s.id))}>
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
-              {staff.length === 0 && (
+              {staffList.length === 0 && (
                 <TableRow><TableCell colSpan={5} className="text-center py-20 text-muted-foreground italic">No staff members found.</TableCell></TableRow>
               )}
             </TableBody>
@@ -194,15 +204,15 @@ export default function StaffPage() {
         <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded-3xl max-h-[90vh] flex flex-col">
           <form onSubmit={handleEnroll} className="flex flex-col h-full overflow-hidden">
             <DialogHeader className="bg-primary text-primary-foreground p-8 shrink-0">
-              <DialogTitle className="text-2xl font-headline font-bold">New Staff Enrollment</DialogTitle>
+              <DialogTitle className="text-2xl font-headline font-bold">{editingStaff ? "Update Employment Record" : "New Staff Enrollment"}</DialogTitle>
               <DialogDescription className="text-primary-foreground/70">Building a professional employment profile.</DialogDescription>
             </DialogHeader>
 
             <Tabs defaultValue="personal" className="flex-1 flex flex-col overflow-hidden">
               <TabsList className="bg-muted/30 px-8 py-2 border-b shrink-0">
-                <TabsTrigger value="personal" className="gap-2">Personal Info</TabsTrigger>
-                <TabsTrigger value="employment" className="gap-2">Employment</TabsTrigger>
-                <TabsTrigger value="financial" className="gap-2">Financials</TabsTrigger>
+                <TabsTrigger value="personal">Personal Info</TabsTrigger>
+                <TabsTrigger value="employment">Employment</TabsTrigger>
+                <TabsTrigger value="financial">Financials</TabsTrigger>
               </TabsList>
 
               <ScrollArea className="flex-1 p-8">
@@ -245,7 +255,8 @@ export default function StaffPage() {
 
             <DialogFooter className="bg-slate-50 p-8 border-t shrink-0">
               <Button type="submit" disabled={loading} className="w-full h-12 rounded-xl bg-primary font-bold shadow-lg">
-                {loading ? <Loader2 className="animate-spin mr-2" /> : <ShieldCheck className="mr-2" />} Authorize Enrollment
+                {loading ? <Loader2 className="animate-spin mr-2" /> : <ShieldCheck className="mr-2" />} 
+                {editingStaff ? "Authorize Updates" : "Authorize Enrollment"}
               </Button>
             </DialogFooter>
           </form>

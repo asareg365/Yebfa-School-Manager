@@ -11,31 +11,22 @@ import {
   Trash2, 
   Pencil, 
   Loader2, 
-  Upload, 
   User, 
-  Camera, 
   ShieldCheck, 
-  BookOpen, 
-  UserCheck, 
-  Stethoscope, 
-  MapPin, 
-  Phone, 
-  IdCard,
-  FileText,
-  FileCheck,
-  Wallet,
   GraduationCap,
-  History,
-  Library,
-  Bus,
-  Scale
+  IdCard,
+  Stethoscope,
+  MapPin,
+  RefreshCw,
+  ClipboardList,
+  Save
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useFirestore, useCollection, useDoc, useUser } from "@/firebase"
+import { useFirestore, useCollection, useUser } from "@/firebase"
 import { collection, addDoc, query, deleteDoc, doc, where, serverTimestamp, updateDoc } from "firebase/firestore"
-import { useState, useMemo, useEffect, useRef } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -49,12 +40,9 @@ export default function StudentsPage() {
   const [isEnrollOpen, setIsEnrollOpen] = useState(false)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
+  const [editingStudent, setEditingStudent] = useState<any>(null)
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
-  
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const initialForm = {
     firstName: "",
@@ -65,6 +53,7 @@ export default function StudentsPage() {
     gradeLevel: "",
     status: "active",
     parentId: "",
+    house: "",
     photoUrl: "",
     address: {
       digitalAddress: "",
@@ -78,11 +67,6 @@ export default function StudentsPage() {
       specialNeeds: "",
       disability: "",
       doctor: ""
-    },
-    documents: {
-      birthCertificate: "",
-      passport: "",
-      medicalReport: ""
     }
   }
 
@@ -108,13 +92,13 @@ export default function StudentsPage() {
   }, [rawStudents, searchQuery]);
 
   useEffect(() => {
-    if (isEnrollOpen && !studentForm.admissionNumber) {
+    if (isEnrollOpen && !studentForm.admissionNumber && !editingStudent) {
       const year = new Date().getFullYear();
       const count = rawStudents.length + 1;
       const autoAdm = `ADM-${year}-${String(count).padStart(5, '0')}`;
       setStudentForm(prev => ({ ...prev, admissionNumber: autoAdm }));
     }
-  }, [isEnrollOpen, rawStudents.length]);
+  }, [isEnrollOpen, rawStudents.length, editingStudent]);
 
   const handleEnroll = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -125,20 +109,38 @@ export default function StudentsPage() {
       ...studentForm,
       tenantId: institutionId,
       institutionId: institutionId,
-      createdAt: serverTimestamp()
+      updatedAt: serverTimestamp()
     }
 
     try {
-      await addDoc(collection(db, "students"), data)
-      toast({ title: "Student Enrolled", description: `${studentForm.firstName} is now live.` })
-      setIsEnrollOpen(false)
-      setStudentForm(initialForm)
+      if (editingStudent) {
+        const { id, ...sanitizedData } = data as any;
+        await updateDoc(doc(db, "students", editingStudent.id), sanitizedData);
+        toast({ title: "Registry Updated", description: `${studentForm.firstName}'s profile has been synchronized.` });
+      } else {
+        await addDoc(collection(db, "students"), {
+          ...data,
+          createdAt: serverTimestamp()
+        });
+        toast({ title: "Student Enrolled", description: `${studentForm.firstName} is now live in the registry.` });
+      }
+      setIsEnrollOpen(false);
+      setEditingStudent(null);
+      setStudentForm(initialForm);
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Enrollment Failed", description: error.message })
+      toast({ variant: "destructive", title: "Action Failed", description: error.message });
     } finally {
       setLoading(false)
     }
   }
+
+  const openEdit = (stu: any) => {
+    setEditingStudent(stu);
+    setStudentForm({ ...initialForm, ...stu });
+    setIsEnrollOpen(true);
+  }
+
+  if (dataLoading) return <div className="p-24 text-center animate-pulse font-headline font-bold text-primary">Syncing Student Registry...</div>
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-20">
@@ -147,9 +149,9 @@ export default function StudentsPage() {
           <h1 className="text-3xl font-headline font-bold text-primary">Student Registry</h1>
           <p className="text-muted-foreground">Managing {students.length} multi-tenant enrollment records.</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <Button variant="outline" className="h-11 rounded-xl" asChild><Link href="/dashboard/students/id-cards"><IdCard className="size-4 mr-2" /> ID Cards</Link></Button>
-          <Button className="bg-primary rounded-xl h-11 shadow-lg gap-2" onClick={() => { setStudentForm(initialForm); setIsEnrollOpen(true); }}>
+          <Button className="bg-primary rounded-xl h-11 shadow-lg gap-2" onClick={() => { setEditingStudent(null); setStudentForm(initialForm); setIsEnrollOpen(true); }}>
             <UserPlus className="size-4" /> Enroll Student
           </Button>
         </div>
@@ -175,7 +177,7 @@ export default function StudentsPage() {
                 <TableHead className="py-4 font-bold">GRADE</TableHead>
                 <TableHead className="py-4 font-bold">PARENT</TableHead>
                 <TableHead className="py-4 font-bold">STATUS</TableHead>
-                <TableHead className="text-right py-4 font-bold">ACTIONS</TableHead>
+                <TableHead className="text-right py-4 font-bold px-6">ACTIONS</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -202,8 +204,15 @@ export default function StudentsPage() {
                       </div>
                     </TableCell>
                     <TableCell><Badge variant="outline" className="text-[9px] uppercase font-bold text-green-600 bg-green-50">{stu.status}</Badge></TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); deleteDoc(doc(db!, "students", stu.id)); }}><Trash2 className="size-4" /></Button>
+                    <TableCell className="text-right px-6">
+                      <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => openEdit(stu)}>
+                          <Pencil className="size-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteDoc(doc(db!, "students", stu.id))}>
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -216,12 +225,11 @@ export default function StudentsPage() {
         </CardContent>
       </Card>
 
-      {/* Enrollment Dialog */}
       <Dialog open={isEnrollOpen} onOpenChange={setIsEnrollOpen}>
         <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded-3xl max-h-[90vh] flex flex-col">
           <form onSubmit={handleEnroll} className="flex flex-col h-full overflow-hidden">
             <DialogHeader className="bg-primary text-primary-foreground p-8 shrink-0">
-              <DialogTitle className="text-2xl font-headline font-bold">Authorized Enrollment</DialogTitle>
+              <DialogTitle className="text-2xl font-headline font-bold">{editingStudent ? "Update Profile" : "Authorized Enrollment"}</DialogTitle>
               <DialogDescription className="text-primary-foreground/70">Institutional data synchronization in progress.</DialogDescription>
             </DialogHeader>
 
@@ -230,13 +238,13 @@ export default function StudentsPage() {
                 <div className="space-y-6">
                   <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2 border-b pb-2"><User className="size-3.5" /> Identity</h3>
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2"><Label>First Name</Label><Input required value={studentForm.firstName} onChange={e => setStaffForm({...studentForm, firstName: e.target.value})} className="h-11 rounded-xl" /></div>
-                    <div className="space-y-2"><Label>Last Name</Label><Input required value={studentForm.lastName} onChange={e => setStaffForm({...studentForm, lastName: e.target.value})} className="h-11 rounded-xl" /></div>
+                    <div className="space-y-2"><Label>First Name</Label><Input required value={studentForm.firstName} onChange={e => setStudentForm({...studentForm, firstName: e.target.value})} className="h-11 rounded-xl" /></div>
+                    <div className="space-y-2"><Label>Last Name</Label><Input required value={studentForm.lastName} onChange={e => setStudentForm({...studentForm, lastName: e.target.value})} className="h-11 rounded-xl" /></div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2"><Label>Admission #</Label><Input readOnly value={studentForm.admissionNumber} className="h-11 rounded-xl bg-slate-50 font-bold" /></div>
                     <div className="space-y-2"><Label>Grade Level</Label>
-                      <Select onValueChange={v => setStudentForm({...studentForm, gradeLevel: v})}>
+                      <Select value={studentForm.gradeLevel} onValueChange={v => setStudentForm({...studentForm, gradeLevel: v})}>
                         <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Select" /></SelectTrigger>
                         <SelectContent>{registeredClasses.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
                       </Select>
@@ -245,25 +253,28 @@ export default function StudentsPage() {
                 </div>
 
                 <div className="space-y-6">
-                   <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2 border-b pb-2"><UserCheck className="size-3.5" /> Family Context</h3>
+                   <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2 border-b pb-2"><IdCard className="size-3.5" /> Family Context</h3>
                    <div className="space-y-2"><Label>Select Parent / Guardian</Label>
-                      <Select onValueChange={v => setStudentForm({...studentForm, parentId: v})}>
+                      <Select value={studentForm.parentId} onValueChange={v => setStudentForm({...studentForm, parentId: v})}>
                         <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Choose from Hub" /></SelectTrigger>
                         <SelectContent>{parents.map(p => <SelectItem key={p.id} value={p.id}>{p.guardianName} ({p.phone})</SelectItem>)}</SelectContent>
                       </Select>
                    </div>
+                   <div className="space-y-2"><Label>House / Dormitory</Label><Input value={studentForm.house} onChange={e => setStudentForm({...studentForm, house: e.target.value})} className="h-11 rounded-xl" placeholder="e.g. Aggrey House" /></div>
                 </div>
               </div>
             </ScrollArea>
 
             <DialogFooter className="bg-slate-50 p-8 border-t shrink-0">
-              <Button type="submit" disabled={loading} className="w-full h-12 rounded-xl bg-primary font-bold shadow-lg">Authorize Registry Entry</Button>
+              <Button type="submit" disabled={loading} className="w-full h-12 rounded-xl bg-primary font-bold shadow-lg">
+                {loading ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" />} 
+                {editingStudent ? "Authorize Registry Update" : "Authorize Registry Entry"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Professional Profile Dialog */}
       <Dialog open={isProfileOpen} onOpenChange={setIsProfileOpen}>
         <DialogContent className="max-w-6xl p-0 overflow-hidden border-none shadow-2xl rounded-3xl max-h-[90vh] flex flex-col">
           <div className="flex flex-col h-full overflow-hidden">
@@ -288,7 +299,6 @@ export default function StudentsPage() {
                    <TabsTrigger value="fees">Fees</TabsTrigger>
                    <TabsTrigger value="results">Results</TabsTrigger>
                    <TabsTrigger value="medical">Medical</TabsTrigger>
-                   <TabsTrigger value="library">Library</TabsTrigger>
                 </TabsList>
 
                 <ScrollArea className="flex-1 p-8">
@@ -310,7 +320,7 @@ export default function StudentsPage() {
                    </TabsContent>
 
                    <TabsContent value="attendance" className="mt-0">
-                      <div className="p-12 text-center text-muted-foreground opacity-30 italic">Awaiting Term 1 Roll Call data...</div>
+                      <div className="p-12 text-center text-muted-foreground opacity-30 italic">Awaiting Cycle Roll Call data...</div>
                    </TabsContent>
                    
                    <TabsContent value="fees" className="mt-0">
@@ -322,7 +332,7 @@ export default function StudentsPage() {
                          <div className="space-y-4">
                             <h4 className="text-xs font-bold uppercase text-muted-foreground border-b pb-2 flex items-center gap-2"><Stethoscope className="size-3.5" /> Vital Stats</h4>
                             <div className="space-y-3">
-                               <div className="flex justify-between text-sm"><span>Blood Group</span><span className="font-bold">{selectedStudent?.bloodGroup || "O+" }</span></div>
+                               <div className="flex justify-between text-sm"><span>Blood Group</span><span className="font-bold">{selectedStudent?.bloodGroup || "Not Specified" }</span></div>
                                <div className="flex justify-between text-sm"><span>Allergies</span><span className="font-bold text-destructive">{selectedStudent?.medical?.allergies || "None Reported" }</span></div>
                             </div>
                          </div>
@@ -335,7 +345,7 @@ export default function StudentsPage() {
                 <p className="text-[10px] text-muted-foreground uppercase font-bold">Authorized Registry Access • {new Date().toLocaleDateString()}</p>
                 <div className="flex gap-2">
                    <Button variant="outline" className="h-9 text-xs rounded-xl" onClick={() => setIsProfileOpen(false)}>Close Registry</Button>
-                   <Button className="h-9 text-xs rounded-xl bg-primary">Sync Updates</Button>
+                   <Button className="h-9 text-xs rounded-xl bg-primary" onClick={() => { setIsProfileOpen(false); openEdit(selectedStudent); }}>Edit Profile</Button>
                 </div>
              </DialogFooter>
           </div>
