@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A flow to generate a demo video of the school management system.
@@ -26,10 +25,10 @@ const generateDemoVideoFlow = ai.defineFlow(
     outputSchema: GenerateDemoVideoOutputSchema,
   },
   async () => {
-    const apiKey = process.env.GOOGLE_GENAI_API_KEY || process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GOOGLE_GENAI_API_KEY;
     
     if (!apiKey) {
-      throw new Error('AI Configuration Error: Missing API Key. Please ensure GEMINI_API_KEY is set in the environment.');
+      throw new Error('AI Configuration Error: Missing API Key. Please ensure GOOGLE_GENAI_API_KEY is set in the environment.');
     }
 
     let { operation } = await ai.generate({
