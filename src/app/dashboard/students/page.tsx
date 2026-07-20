@@ -318,17 +318,17 @@ export default function StudentsPage() {
               <DialogTitle className="text-2xl font-headline font-bold">
                 {editingStudent ? "Update Admission File" : "Student Admission Wizard"}
               </DialogTitle>
-              <DialogDescription className="text-primary-foreground/70">Authorized guided enrollment process.</DialogDescription>
+              <DialogDescription className="text-primary-foreground/70">Authorized guided enrollment process for 2026.</DialogDescription>
             </DialogHeader>
 
             <Tabs value={activeStep} onValueChange={setActiveStep} className="flex-1 flex flex-col overflow-hidden">
               <TabsList className="bg-muted/30 px-8 py-2 border-b shrink-0 overflow-x-auto no-scrollbar justify-start gap-2">
-                <TabsTrigger value="identity" className="data-[state=active]:bg-primary data-[state=active]:text-white">1. Identity</TabsTrigger>
-                <TabsTrigger value="academic" className="data-[state=active]:bg-primary data-[state=active]:text-white">2. Academic</TabsTrigger>
-                <TabsTrigger value="guardian" className="data-[state=active]:bg-primary data-[state=active]:text-white">3. Guardian</TabsTrigger>
-                <TabsTrigger value="medical" className="data-[state=active]:bg-primary data-[state=active]:text-white">4. Medical</TabsTrigger>
-                <TabsTrigger value="documents" className="data-[state=active]:bg-primary data-[state=active]:text-white">5. Docs</TabsTrigger>
-                <TabsTrigger value="finalize" className="data-[state=active]:bg-primary data-[state=active]:text-white">6. Finish</TabsTrigger>
+                <TabsTrigger value="identity" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-lg">1. Identity</TabsTrigger>
+                <TabsTrigger value="academic" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-lg">2. Academic</TabsTrigger>
+                <TabsTrigger value="guardian" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-lg">3. Guardian</TabsTrigger>
+                <TabsTrigger value="medical" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-lg">4. Medical</TabsTrigger>
+                <TabsTrigger value="documents" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-lg">5. Docs</TabsTrigger>
+                <TabsTrigger value="finalize" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-lg">6. Finish</TabsTrigger>
               </TabsList>
 
               <ScrollArea className="flex-1 p-8">
@@ -396,7 +396,7 @@ export default function StudentsPage() {
                                  {parents.length === 0 && <div className="p-4 text-center text-xs text-muted-foreground">No parents registered in registry.</div>}
                               </SelectContent>
                            </Select>
-                           <p className="text-[10px] text-muted-foreground italic">Note: Linking an existing profile prevents data redundancy.</p>
+                           <p className="text-[10px] text-muted-foreground italic">Note: Searching and linking an existing profile prevents data redundancy.</p>
                         </div>
                       )}
                    </div>
@@ -458,22 +458,22 @@ export default function StudentsPage() {
 
                 <TabsContent value="finalize" className="space-y-8 mt-0 animate-in fade-in zoom-in-95 duration-500">
                    <div className="text-center space-y-4 py-8">
-                      <div className="size-20 rounded-full bg-green-50 flex items-center justify-center mx-auto text-green-600">
+                      <div className="size-20 rounded-full bg-green-50 flex items-center justify-center mx-auto text-green-600 shadow-sm border border-green-100">
                          <CheckCircle2 className="size-12" />
                       </div>
                       <div className="max-w-sm mx-auto">
-                         <h3 className="text-xl font-bold font-headline">Ready for Finalization</h3>
-                         <p className="text-sm text-muted-foreground mt-2">
-                            Please confirm the registry details. Upon authorization, the system will generate the Admission ID and initialize the student ledger.
+                         <h3 className="text-xl font-bold font-headline text-primary">Registry Ready</h3>
+                         <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+                            Upon authorization, the system will finalize the Admission ID and initialize the student ledger for 2026 financial records.
                          </p>
                       </div>
                    </div>
-                   <Card className="border-none shadow-sm bg-slate-50 p-6">
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                         <div className="flex flex-col"><span className="text-[10px] font-bold uppercase opacity-50">Student</span><span className="font-bold">{studentForm.firstName} {studentForm.lastName}</span></div>
-                         <div className="flex flex-col"><span className="text-[10px] font-bold uppercase opacity-50">Admission ID</span><span className="font-mono font-bold text-accent">{studentForm.admissionNumber}</span></div>
-                         <div className="flex flex-col"><span className="text-[10px] font-bold uppercase opacity-50">Grade</span><span className="font-bold">{studentForm.gradeLevel || "Unassigned"}</span></div>
-                         <div className="flex flex-col"><span className="text-[10px] font-bold uppercase opacity-50">Parent Link</span><span className="font-bold">{isNewParent ? "New Registration" : "Registry Linked"}</span></div>
+                   <Card className="border-none shadow-sm bg-slate-50 p-6 rounded-2xl">
+                      <div className="grid grid-cols-2 gap-6 text-sm">
+                         <div className="flex flex-col"><span className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Student</span><span className="font-bold text-primary">{studentForm.firstName} {studentForm.lastName}</span></div>
+                         <div className="flex flex-col"><span className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Admission ID</span><span className="font-mono font-bold text-accent">{studentForm.admissionNumber}</span></div>
+                         <div className="flex flex-col"><span className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Grade Level</span><span className="font-bold text-primary">{studentForm.gradeLevel || "Unassigned"}</span></div>
+                         <div className="flex flex-col"><span className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Status</span><span className="font-bold text-green-600 uppercase tracking-tight">{studentForm.status}</span></div>
                       </div>
                    </Card>
                 </TabsContent>
@@ -488,8 +488,8 @@ export default function StudentsPage() {
               </div>
               <div className="flex gap-3">
                  {activeStep === "finalize" ? (
-                   <Button type="submit" disabled={loading} className="h-12 px-8 rounded-xl bg-primary font-bold shadow-xl gap-2">
-                      {loading ? <Loader2 className="animate-spin" /> : <Save className="size-4" />} Authorize Registry Entry
+                   <Button type="submit" disabled={loading} className="h-12 px-8 rounded-xl bg-primary font-bold shadow-xl gap-2 hover:bg-primary/90 transition-all">
+                      {loading ? <Loader2 className="animate-spin" /> : <Save className="size-4" />} Authorize Admission
                    </Button>
                  ) : (
                    <Button type="button" className="h-12 px-8 rounded-xl bg-primary font-bold shadow-lg gap-2" onClick={() => navigateStep('next')}>
