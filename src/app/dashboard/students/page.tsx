@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -64,7 +63,7 @@ export default function StudentsPage() {
     admissionNumber: "",
     gradeLevel: "",
     status: "active",
-    parentId: "", // Existing Parent ID
+    parentId: "", 
     house: "",
     photoUrl: "",
     address: {
@@ -101,7 +100,6 @@ export default function StudentsPage() {
 
   const [studentForm, setStudentForm] = useState(initialForm)
   
-  // New Parent Form (if creating during wizard)
   const [isNewParent, setIsNewParent] = useState(false)
   const [newParentForm, setNewParentForm] = useState({
     guardianName: "",
@@ -148,7 +146,6 @@ export default function StudentsPage() {
       const batch = writeBatch(db)
       let finalParentId = studentForm.parentId
 
-      // Step 3: Handle Parent Logic
       if (isNewParent) {
         const parentRef = doc(collection(db, "parents"))
         finalParentId = parentRef.id
@@ -180,7 +177,7 @@ export default function StudentsPage() {
           createdAt: serverTimestamp()
         });
 
-        // Create initial ledger entry for the student
+        // Initialize Fee Ledger for the student automatically
         const ledgerRef = doc(collection(db, "student_ledger"))
         batch.set(ledgerRef, {
           tenantId: institutionId,
@@ -230,7 +227,7 @@ export default function StudentsPage() {
     <div className="space-y-6 animate-in fade-in duration-500 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-headline font-bold text-primary">Student Registry</h1>
+          <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Student Registry</h1>
           <p className="text-muted-foreground">Managing {students.length} multi-tenant enrollment records.</p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -241,10 +238,10 @@ export default function StudentsPage() {
         </div>
       </div>
 
-      <Card className="border-none shadow-xl rounded-2xl overflow-hidden">
-        <CardHeader className="bg-white border-b py-6">
+      <Card className="border-none shadow-xl rounded-2xl overflow-hidden bg-white">
+        <CardHeader className="border-b py-6 p-4 md:p-6">
           <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-3.5 size-4 text-muted-foreground" />
             <Input 
               placeholder="Search by name or admission #..." 
               className="pl-10 h-12 bg-slate-50 border-none rounded-xl" 
@@ -253,11 +250,11 @@ export default function StudentsPage() {
             />
           </div>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-x-auto">
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow>
-                <TableHead className="py-4 font-bold">ADM # / STUDENT</TableHead>
+                <TableHead className="py-4 font-bold px-6">ADM # / STUDENT</TableHead>
                 <TableHead className="py-4 font-bold">GRADE</TableHead>
                 <TableHead className="py-4 font-bold">PARENT</TableHead>
                 <TableHead className="py-4 font-bold">STATUS</TableHead>
@@ -269,7 +266,7 @@ export default function StudentsPage() {
                 const parent = parents.find(p => p.id === stu.parentId);
                 return (
                   <TableRow key={stu.id} className="hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => { setSelectedStudent(stu); setIsProfileOpen(true); }}>
-                    <TableCell>
+                    <TableCell className="px-6">
                       <div className="flex items-center gap-3">
                         <div className="size-10 rounded-xl bg-primary/5 flex items-center justify-center overflow-hidden border">
                           {stu.photoUrl ? <img src={stu.photoUrl} className="w-full h-full object-cover" /> : <User className="size-5 text-primary/20" />}
@@ -326,7 +323,7 @@ export default function StudentsPage() {
 
             <Tabs value={activeStep} onValueChange={setActiveStep} className="flex-1 flex flex-col overflow-hidden">
               <TabsList className="bg-muted/30 px-8 py-2 border-b shrink-0 overflow-x-auto no-scrollbar justify-start gap-2">
-                <TabsTrigger value="identity" className="data-[state=active]:bg-primary data-[state=active]:text-white">1. Basic</TabsTrigger>
+                <TabsTrigger value="identity" className="data-[state=active]:bg-primary data-[state=active]:text-white">1. Identity</TabsTrigger>
                 <TabsTrigger value="academic" className="data-[state=active]:bg-primary data-[state=active]:text-white">2. Academic</TabsTrigger>
                 <TabsTrigger value="guardian" className="data-[state=active]:bg-primary data-[state=active]:text-white">3. Guardian</TabsTrigger>
                 <TabsTrigger value="medical" className="data-[state=active]:bg-primary data-[state=active]:text-white">4. Medical</TabsTrigger>
@@ -337,7 +334,7 @@ export default function StudentsPage() {
               <ScrollArea className="flex-1 p-8">
                 <TabsContent value="identity" className="space-y-6 mt-0 animate-in fade-in slide-in-from-right-4 duration-300">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2"><Label>Admission #</Label><Input readOnly value={studentForm.admissionNumber} className="h-11 rounded-xl bg-slate-50 font-bold" /></div>
+                    <div className="space-y-2"><Label>Admission Number (Auto)</Label><Input readOnly value={studentForm.admissionNumber} className="h-11 rounded-xl bg-slate-50 font-bold" /></div>
                     <div className="space-y-2"><Label>First Name</Label><Input required value={studentForm.firstName} onChange={e => setStudentForm({...studentForm, firstName: e.target.value})} className="h-11 rounded-xl" /></div>
                     <div className="space-y-2"><Label>Last Name</Label><Input required value={studentForm.lastName} onChange={e => setStudentForm({...studentForm, lastName: e.target.value})} className="h-11 rounded-xl" /></div>
                     <div className="space-y-2"><Label>Gender</Label>
@@ -359,8 +356,8 @@ export default function StudentsPage() {
                           <SelectContent>{registeredClasses.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
                         </Select>
                       </div>
-                      <div className="space-y-2"><Label>House / Dormitory</Label><Input value={studentForm.house} onChange={e => setStudentForm({...studentForm, house: e.target.value})} className="h-11 rounded-xl" placeholder="e.g. Aggrey House" /></div>
-                      <div className="space-y-2"><Label>Status</Label>
+                      <div className="space-y-2"><Label>House / Dormitory (Optional)</Label><Input value={studentForm.house} onChange={e => setStudentForm({...studentForm, house: e.target.value})} className="h-11 rounded-xl" placeholder="e.g. Aggrey House" /></div>
+                      <div className="space-y-2"><Label>Student Status</Label>
                          <Select value={studentForm.status} onValueChange={v => setStudentForm({...studentForm, status: v})}>
                             <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
                             <SelectContent><SelectItem value="active">Active</SelectItem><SelectItem value="inactive">Inactive</SelectItem></SelectContent>
@@ -372,17 +369,17 @@ export default function StudentsPage() {
                 <TabsContent value="guardian" className="space-y-8 mt-0 animate-in fade-in slide-in-from-right-4 duration-300">
                    <div className="space-y-4">
                       <div className="flex items-center justify-between">
-                         <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Guardian Assignment</Label>
+                         <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Guardian Hub</Label>
                          <Button type="button" variant="outline" size="sm" onClick={() => setIsNewParent(!isNewParent)} className="h-8 text-[10px] font-bold uppercase">
-                            {isNewParent ? "Search Existing" : "Register New Parent"}
+                            {isNewParent ? "Search Registry" : "Register New Parent"}
                          </Button>
                       </div>
 
                       {isNewParent ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6 bg-primary/5 rounded-2xl border-2 border-dashed border-primary/20">
-                           <div className="space-y-2"><Label>Full Name</Label><Input value={newParentForm.guardianName} onChange={e => setNewParentForm({...newParentForm, guardianName: e.target.value})} className="h-11 rounded-xl" /></div>
-                           <div className="space-y-2"><Label>Phone</Label><Input value={newParentForm.phone} onChange={e => setNewParentForm({...newParentForm, phone: e.target.value})} className="h-11 rounded-xl" /></div>
-                           <div className="space-y-2"><Label>Email</Label><Input type="email" value={newParentForm.email} onChange={e => setNewParentForm({...newParentForm, email: e.target.value})} className="h-11 rounded-xl" /></div>
+                           <div className="space-y-2"><Label>Guardian Full Name</Label><Input value={newParentForm.guardianName} onChange={e => setNewParentForm({...newParentForm, guardianName: e.target.value})} className="h-11 rounded-xl" /></div>
+                           <div className="space-y-2"><Label>Phone Number</Label><Input value={newParentForm.phone} onChange={e => setNewParentForm({...newParentForm, phone: e.target.value})} className="h-11 rounded-xl" /></div>
+                           <div className="space-y-2"><Label>Email Address</Label><Input type="email" value={newParentForm.email} onChange={e => setNewParentForm({...newParentForm, email: e.target.value})} className="h-11 rounded-xl" /></div>
                            <div className="space-y-2"><Label>Relationship</Label>
                               <Select value={newParentForm.relationship} onValueChange={v => setNewParentForm({...newParentForm, relationship: v})}>
                                  <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
@@ -393,13 +390,13 @@ export default function StudentsPage() {
                       ) : (
                         <div className="space-y-2">
                            <Select value={studentForm.parentId} onValueChange={v => setStudentForm({...studentForm, parentId: v})}>
-                              <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Search Guardian Registry by Name or Phone" /></SelectTrigger>
+                              <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Search existing parent by Name, Phone, or Email" /></SelectTrigger>
                               <SelectContent>
-                                 {parents.map(p => <SelectItem key={p.id} value={p.id}>{p.guardianName} ({p.phone})</SelectItem>)}
+                                 {parents.map(p => <SelectItem key={p.id} value={p.id}>{p.guardianName} ({p.phone} • {p.email || 'No Email'})</SelectItem>)}
                                  {parents.length === 0 && <div className="p-4 text-center text-xs text-muted-foreground">No parents registered in registry.</div>}
                               </SelectContent>
                            </Select>
-                           <p className="text-[10px] text-muted-foreground italic">Tip: If parent is not listed, toggle "Register New Parent" above.</p>
+                           <p className="text-[10px] text-muted-foreground italic">Note: Linking an existing profile prevents data redundancy.</p>
                         </div>
                       )}
                    </div>
@@ -407,7 +404,7 @@ export default function StudentsPage() {
                    <div className="space-y-4">
                       <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Residential Hub</Label>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                         <div className="space-y-2"><Label>Digital Address (GPS)</Label><Input value={studentForm.address.digitalAddress} onChange={e => setStudentForm({...studentForm, address: {...studentForm.address, digitalAddress: e.target.value}})} className="h-11 rounded-xl" /></div>
+                         <div className="space-y-2"><Label>Digital Address (GPS)</Label><Input value={studentForm.address.digitalAddress} onChange={e => setStudentForm({...studentForm, address: {...studentForm.address, digitalAddress: e.target.value}})} className="h-11 rounded-xl" placeholder="e.g. GA-123-4567" /></div>
                          <div className="space-y-2"><Label>Town / City</Label><Input value={studentForm.address.town} onChange={e => setStudentForm({...studentForm, address: {...studentForm.address, town: e.target.value}})} className="h-11 rounded-xl" /></div>
                       </div>
                    </div>
@@ -424,7 +421,7 @@ export default function StudentsPage() {
                         </Select>
                       </div>
                       <div className="space-y-2"><Label>Allergies</Label><Input value={studentForm.medical.allergies} onChange={e => setStudentForm({...studentForm, medical: {...studentForm.medical, allergies: e.target.value}})} className="h-11 rounded-xl" placeholder="e.g. Peanuts, Penicillin" /></div>
-                      <div className="space-y-2"><Label>Special Needs / Disability</Label><Input value={studentForm.medical.specialNeeds} onChange={e => setStudentForm({...studentForm, medical: {...studentForm.medical, specialNeeds: e.target.value}})} className="h-11 rounded-xl" /></div>
+                      <div className="space-y-2"><Label>Special Needs</Label><Input value={studentForm.medical.specialNeeds} onChange={e => setStudentForm({...studentForm, medical: {...studentForm.medical, specialNeeds: e.target.value}})} className="h-11 rounded-xl" /></div>
                       <div className="space-y-2"><Label>Emergency Contact Name</Label><Input value={studentForm.emergencyContact.name} onChange={e => setStudentForm({...studentForm, emergencyContact: {...studentForm.emergencyContact, name: e.target.value}})} className="h-11 rounded-xl" /></div>
                       <div className="space-y-2"><Label>Emergency Phone</Label><Input value={studentForm.emergencyContact.phone} onChange={e => setStudentForm({...studentForm, emergencyContact: {...studentForm.emergencyContact, phone: e.target.value}})} className="h-11 rounded-xl" /></div>
                    </div>
@@ -436,9 +433,9 @@ export default function StudentsPage() {
                       <div className="grid gap-3">
                          {[
                            { label: "Birth Certificate", key: "birthCertificate" },
-                           { label: "Passport Photos (4)", key: "passport" },
+                           { label: "Passport Photo", key: "passport" },
                            { label: "Transfer Letter", key: "transferLetter" },
-                           { label: "Previous Academic Records", key: "previousRecords" }
+                           { label: "Previous School Records", key: "previousRecords" }
                          ].map(doc => (
                            <div key={doc.key} className="flex items-center justify-between p-3 bg-white rounded-xl border">
                               <span className="text-sm font-medium">{doc.label}</span>
@@ -448,9 +445,9 @@ export default function StudentsPage() {
                               >
                                  <SelectTrigger className="w-32 h-8 text-[10px]"><SelectValue /></SelectTrigger>
                                  <SelectContent>
-                                    <SelectItem value="Submitted">Received</SelectItem>
+                                    <SelectItem value="Submitted">Submitted</SelectItem>
                                     <SelectItem value="Pending">Pending</SelectItem>
-                                    <SelectItem value="N/A">Not Required</SelectItem>
+                                    <SelectItem value="N/A">Not Applicable</SelectItem>
                                  </SelectContent>
                               </Select>
                            </div>
@@ -467,16 +464,16 @@ export default function StudentsPage() {
                       <div className="max-w-sm mx-auto">
                          <h3 className="text-xl font-bold font-headline">Ready for Finalization</h3>
                          <p className="text-sm text-muted-foreground mt-2">
-                            Review admission data. Confirming will generate the ADM ID, link parents, and initialize the personal fee ledger.
+                            Please confirm the registry details. Upon authorization, the system will generate the Admission ID and initialize the student ledger.
                          </p>
                       </div>
                    </div>
                    <Card className="border-none shadow-sm bg-slate-50 p-6">
                       <div className="grid grid-cols-2 gap-4 text-sm">
                          <div className="flex flex-col"><span className="text-[10px] font-bold uppercase opacity-50">Student</span><span className="font-bold">{studentForm.firstName} {studentForm.lastName}</span></div>
-                         <div className="flex flex-col"><span className="text-[10px] font-bold uppercase opacity-50">Admission #</span><span className="font-mono font-bold text-accent">{studentForm.admissionNumber}</span></div>
-                         <div className="flex flex-col"><span className="text-[10px] font-bold uppercase opacity-50">Grade</span><span className="font-bold">{studentForm.gradeLevel || "Not Set"}</span></div>
-                         <div className="flex flex-col"><span className="text-[10px] font-bold uppercase opacity-50">Parent Link</span><span className="font-bold">{isNewParent ? "New Profile" : "Registry Link"}</span></div>
+                         <div className="flex flex-col"><span className="text-[10px] font-bold uppercase opacity-50">Admission ID</span><span className="font-mono font-bold text-accent">{studentForm.admissionNumber}</span></div>
+                         <div className="flex flex-col"><span className="text-[10px] font-bold uppercase opacity-50">Grade</span><span className="font-bold">{studentForm.gradeLevel || "Unassigned"}</span></div>
+                         <div className="flex flex-col"><span className="text-[10px] font-bold uppercase opacity-50">Parent Link</span><span className="font-bold">{isNewParent ? "New Registration" : "Registry Linked"}</span></div>
                       </div>
                    </Card>
                 </TabsContent>
@@ -486,13 +483,13 @@ export default function StudentsPage() {
             <DialogFooter className="bg-slate-50 p-8 border-t shrink-0 flex items-center justify-between">
               <div className="flex gap-2">
                  <Button type="button" variant="ghost" className="h-11 px-6 rounded-xl" onClick={() => navigateStep('back')} disabled={activeStep === 'identity'}>
-                    <ChevronLeft className="size-4 mr-2" /> Back
+                    <ChevronLeft className="size-4 mr-2" /> Previous
                  </Button>
               </div>
               <div className="flex gap-3">
                  {activeStep === "finalize" ? (
                    <Button type="submit" disabled={loading} className="h-12 px-8 rounded-xl bg-primary font-bold shadow-xl gap-2">
-                      {loading ? <Loader2 className="animate-spin" /> : <Save className="size-4" />} Authorize Admission
+                      {loading ? <Loader2 className="animate-spin" /> : <Save className="size-4" />} Authorize Registry Entry
                    </Button>
                  ) : (
                    <Button type="button" className="h-12 px-8 rounded-xl bg-primary font-bold shadow-lg gap-2" onClick={() => navigateStep('next')}>
@@ -505,15 +502,16 @@ export default function StudentsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Profile Detail Dialog */}
       <Dialog open={isProfileOpen} onOpenChange={setIsProfileOpen}>
-        <DialogContent className="max-w-6xl p-0 overflow-hidden border-none shadow-2xl rounded-3xl max-h-[90vh] flex flex-col">
+        <DialogContent className="max-w-6xl p-0 overflow-hidden border-none shadow-2xl rounded-3xl max-h-[90vh] flex flex-col bg-background">
           <div className="flex flex-col h-full overflow-hidden">
              <DialogHeader className="bg-primary text-primary-foreground p-8 shrink-0 flex flex-row items-center gap-6">
                 <div className="size-24 rounded-2xl bg-white/10 flex items-center justify-center shrink-0 border-2 border-white/20 overflow-hidden">
                   {selectedStudent?.photoUrl ? <img src={selectedStudent.photoUrl} className="w-full h-full object-cover" /> : <User className="size-12 opacity-50" />}
                 </div>
                 <div>
-                   <span className="text-[10px] font-bold uppercase tracking-widest text-accent mb-1 block">Live Profile Registry</span>
+                   <span className="text-[10px] font-bold uppercase tracking-widest text-accent mb-1 block">Institutional Profile</span>
                    <DialogTitle className="text-3xl font-headline font-bold">{selectedStudent?.firstName} {selectedStudent?.lastName}</DialogTitle>
                    <DialogDescription className="text-primary-foreground/70 mt-1 flex items-center gap-4">
                       <span className="flex items-center gap-1.5 font-mono"><ShieldCheck className="size-3.5" /> {selectedStudent?.admissionNumber}</span>
@@ -527,42 +525,43 @@ export default function StudentsPage() {
                    <TabsTrigger value="overview">Overview</TabsTrigger>
                    <TabsTrigger value="attendance">Attendance</TabsTrigger>
                    <TabsTrigger value="fees">Fees</TabsTrigger>
-                   <TabsTrigger value="health">Health & Safety</TabsTrigger>
-                   <TabsTrigger value="history">Academic Lineage</TabsTrigger>
+                   <TabsTrigger value="health">Medical</TabsTrigger>
+                   <TabsTrigger value="documents">Documents</TabsTrigger>
+                   <TabsTrigger value="history">Lineage</TabsTrigger>
                 </TabsList>
 
                 <ScrollArea className="flex-1 p-8">
                    <TabsContent value="overview" className="mt-0 space-y-8">
                       <div className="grid gap-6 md:grid-cols-3">
                          <div className="p-4 rounded-2xl bg-slate-50 border space-y-1">
-                            <span className="text-[10px] font-bold uppercase text-muted-foreground">Admission Year</span>
-                            <p className="font-bold text-primary">2026 Academic Cycle</p>
+                            <span className="text-[10px] font-bold uppercase text-muted-foreground">Registry Cycle</span>
+                            <p className="font-bold text-primary">2026 Academic Year</p>
                          </div>
                          <div className="p-4 rounded-2xl bg-slate-50 border space-y-1">
-                            <span className="text-[10px] font-bold uppercase text-muted-foreground">House / Hall</span>
-                            <p className="font-bold text-primary">{selectedStudent?.house || "Unassigned"}</p>
+                            <span className="text-[10px] font-bold uppercase text-muted-foreground">Residential Hall</span>
+                            <p className="font-bold text-primary">{selectedStudent?.house || "Day Student"}</p>
                          </div>
                          <div className="p-4 rounded-2xl bg-slate-50 border space-y-1">
-                            <span className="text-[10px] font-bold uppercase text-muted-foreground">Parent Guardian</span>
-                            <p className="font-bold text-primary">{parents.find(p => p.id === selectedStudent?.parentId)?.guardianName || "N/A"}</p>
+                            <span className="text-[10px] font-bold uppercase text-muted-foreground">Primary Guardian</span>
+                            <p className="font-bold text-primary">{parents.find(p => p.id === selectedStudent?.parentId)?.guardianName || "Unlinked"}</p>
                          </div>
                       </div>
 
                       <div className="grid gap-8 md:grid-cols-2">
                          <div className="space-y-4">
-                            <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground border-b pb-2">Residential Context</h4>
+                            <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground border-b pb-2">Residential Registry</h4>
                             <div className="space-y-2 text-sm">
                                <p className="flex justify-between"><span>Town</span><span className="font-bold">{selectedStudent?.address?.town}</span></p>
                                <p className="flex justify-between"><span>Digital Address</span><span className="font-mono font-bold">{selectedStudent?.address?.digitalAddress}</span></p>
-                               <p className="flex justify-between"><span>Region</span><span className="font-bold">{selectedStudent?.address?.region}</span></p>
+                               <p className="flex justify-between"><span>Region</span><span className="font-bold">{selectedStudent?.address?.region || "Ghana"}</span></p>
                             </div>
                          </div>
                          <div className="space-y-4">
                             <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground border-b pb-2">Emergency Hub</h4>
                             <div className="p-4 rounded-xl bg-orange-50 border border-orange-100 space-y-2 text-sm">
-                               <p className="font-bold text-orange-900">{selectedStudent?.emergencyContact?.name || "Contact Missing"}</p>
+                               <p className="font-bold text-orange-900">{selectedStudent?.emergencyContact?.name || "No Name Provided"}</p>
                                <p className="text-xs text-orange-800 uppercase font-bold">{selectedStudent?.emergencyContact?.relationship}</p>
-                               <p className="font-mono text-orange-900">{selectedStudent?.emergencyContact?.phone}</p>
+                               <p className="font-mono text-orange-900 font-bold">{selectedStudent?.emergencyContact?.phone}</p>
                             </div>
                          </div>
                       </div>
@@ -572,13 +571,27 @@ export default function StudentsPage() {
                       <div className="grid gap-8 md:grid-cols-2">
                          <div className="p-6 rounded-2xl bg-red-50 border border-red-100">
                             <h4 className="text-xs font-bold text-red-900 uppercase tracking-widest mb-4 flex items-center gap-2"><AlertCircle className="size-4" /> Medical Alerts</h4>
-                            <p className="text-[10px] font-bold uppercase text-red-700 mb-1">Blood Group: {selectedStudent?.medical?.bloodGroup || "Unknown"}</p>
-                            <p className="text-sm font-medium text-red-800">{selectedStudent?.medical?.allergies || "No allergies reported."}</p>
-                            <p className="text-xs mt-4 text-red-700">Special Needs: {selectedStudent?.medical?.specialNeeds || "None"}</p>
+                            <p className="text-[10px] font-bold uppercase text-red-700 mb-1">Blood Group: {selectedStudent?.medical?.bloodGroup || "Not Provided"}</p>
+                            <p className="text-sm font-medium text-red-800 leading-relaxed">{selectedStudent?.medical?.allergies || "No identified allergies."}</p>
+                            <p className="text-xs mt-4 text-red-700 font-bold">Special Needs: {selectedStudent?.medical?.specialNeeds || "None"}</p>
                          </div>
                          <div className="p-6 rounded-2xl bg-slate-50 border">
-                            <h4 className="text-xs font-bold uppercase tracking-widest mb-4 flex items-center gap-2"><Stethoscope className="size-4" /> Clinical Care</h4>
+                            <h4 className="text-xs font-bold uppercase tracking-widest mb-4 flex items-center gap-2"><Stethoscope className="size-4" /> Primary Physician</h4>
                             <p className="text-sm">Assigned Doctor: <span className="font-bold">{selectedStudent?.medical?.doctor || "Not Specified"}</span></p>
+                         </div>
+                      </div>
+                   </TabsContent>
+
+                   <TabsContent value="documents" className="mt-0">
+                      <div className="p-6 rounded-2xl border bg-slate-50/50">
+                         <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-4">Official Records Status</h4>
+                         <div className="grid gap-3">
+                            {selectedStudent?.documents && Object.entries(selectedStudent.documents).map(([key, status]) => (
+                               <div key={key} className="flex justify-between items-center p-3 bg-white rounded-xl border">
+                                  <span className="text-xs font-bold capitalize">{key.replace(/([A-Z])/g, ' $1')}</span>
+                                  <Badge variant={status === 'Submitted' ? 'default' : 'outline'} className="text-[9px] uppercase">{status as string}</Badge>
+                               </div>
+                            ))}
                          </div>
                       </div>
                    </TabsContent>
@@ -588,31 +601,31 @@ export default function StudentsPage() {
                          <div className="flex items-center gap-4">
                             <div className="size-12 rounded-xl bg-white flex items-center justify-center border shadow-sm"><School className="size-6 text-primary" /></div>
                             <div>
-                               <p className="font-bold text-lg">{selectedStudent?.previousSchool?.name || "No previous records"}</p>
-                               <p className="text-xs text-muted-foreground font-bold uppercase">Class Completed: {selectedStudent?.previousSchool?.classCompleted}</p>
+                               <p className="font-bold text-lg">{selectedStudent?.previousSchool?.name || "No Prior Records"}</p>
+                               <p className="text-xs text-muted-foreground font-bold uppercase">Class Level Completed: {selectedStudent?.previousSchool?.classCompleted}</p>
                             </div>
                          </div>
                          <div className="p-4 bg-white rounded-xl text-sm italic">
-                            Reason for transfer: {selectedStudent?.previousSchool?.reason || "Not specified."}
+                            Transfer Justification: {selectedStudent?.previousSchool?.reason || "Reason not provided."}
                          </div>
                       </Card>
                    </TabsContent>
 
                    <TabsContent value="attendance" className="mt-0">
-                      <div className="p-12 text-center text-muted-foreground opacity-30 italic">Awaiting Cycle Roll Call data...</div>
+                      <div className="p-20 text-center text-muted-foreground opacity-30 italic">Awaiting Cycle Roll Call synchronization...</div>
                    </TabsContent>
                    
                    <TabsContent value="fees" className="mt-0">
-                      <div className="p-12 text-center text-muted-foreground opacity-30 italic">Syncing personal ledger for GH₵...</div>
+                      <div className="p-20 text-center text-muted-foreground opacity-30 italic">Syncing personal fee ledger for GH₵...</div>
                    </TabsContent>
                 </ScrollArea>
              </Tabs>
 
              <DialogFooter className="bg-slate-50 p-6 border-t shrink-0 flex items-center justify-between">
-                <p className="text-[10px] text-muted-foreground uppercase font-bold">Authorized Registry Access • {new Date().toLocaleDateString()}</p>
+                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Authorized Registry Access • {new Date().toLocaleDateString()}</p>
                 <div className="flex gap-2">
                    <Button variant="outline" className="h-9 text-xs rounded-xl" onClick={() => setIsProfileOpen(false)}>Close Registry</Button>
-                   <Button className="h-9 text-xs rounded-xl bg-primary" onClick={() => { setIsProfileOpen(false); openEdit(selectedStudent); }}>Edit Profile</Button>
+                   <Button className="h-9 text-xs rounded-xl bg-primary" onClick={() => { setIsProfileOpen(false); openEdit(selectedStudent); }}>Update Profile</Button>
                 </div>
              </DialogFooter>
           </div>

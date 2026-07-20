@@ -25,10 +25,11 @@ const generateDemoVideoFlow = ai.defineFlow(
     outputSchema: GenerateDemoVideoOutputSchema,
   },
   async () => {
+    // Explicitly use the standardized environment variable
     const apiKey = process.env.GOOGLE_GENAI_API_KEY;
     
     if (!apiKey) {
-      throw new Error('AI Configuration Error: Missing API Key. Please ensure GOOGLE_GENAI_API_KEY is set in the environment.');
+      throw new Error('AI Configuration Error: Missing GOOGLE_GENAI_API_KEY. Please ensure it is set in the environment.');
     }
 
     let { operation } = await ai.generate({
@@ -44,7 +45,6 @@ const generateDemoVideoFlow = ai.defineFlow(
       throw new Error('The video generation service did not return an operation. This may be due to rate limits.');
     }
 
-    // Polling for completion with a maximum timeout to prevent server action hanging
     const startTime = Date.now();
     const maxDuration = 110000; // 110 seconds
 
@@ -56,7 +56,6 @@ const generateDemoVideoFlow = ai.defineFlow(
       operation = await ai.checkOperation(operation);
       if (operation.done) break;
       
-      // Sleep for 5 seconds before checking again.
       await new Promise((resolve) => setTimeout(resolve, 5000));
     }
 

@@ -1,12 +1,11 @@
 import {genkit} from 'genkit';
 import {googleAI} from '@genkit-ai/google-genai';
-import { GEMINI_MODEL } from '@/lib/ai-config';
 
 /**
  * @fileOverview Genkit Initialization
  * 
- * Configures the Google AI plugin using the API key from environment variables.
- * Standardizes the model to gemini-2.0-flash for all flows via centralized config.
+ * Configures the Google AI plugin using a standardized GOOGLE_GENAI_API_KEY.
+ * Standardizes the model to gemini-2.0-flash for all flows.
  */
 
 export const ai = genkit({
@@ -15,5 +14,5 @@ export const ai = genkit({
       apiKey: process.env.GOOGLE_GENAI_API_KEY,
     }),
   ],
-  model: GEMINI_MODEL,
+  model: 'googleai/gemini-2.0-flash',
 });
