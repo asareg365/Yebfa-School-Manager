@@ -30,7 +30,7 @@ export type GenerateLessonPlanOutput = z.infer<typeof GenerateLessonPlanOutputSc
 
 export async function generateLessonPlan(input: GenerateLessonPlanInput): Promise<GenerateLessonPlanOutput> {
   const { output } = await ai.generate({
-    model: googleAI.model('gemini-1.5-flash'),
+    model: googleAI.model('gemini-2.0-flash'),
     input: input,
     output: { schema: GenerateLessonPlanOutputSchema },
     prompt: `You are an expert curriculum developer for schools in Ghana.

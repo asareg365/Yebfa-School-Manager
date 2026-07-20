@@ -25,7 +25,7 @@ export type AnalyzeRiskOutput = z.infer<typeof AnalyzeRiskOutputSchema>;
 
 export async function analyzeAcademicRisk(input: AnalyzeRiskInput): Promise<AnalyzeRiskOutput> {
   const { output } = await ai.generate({
-    model: googleAI.model('gemini-1.5-flash'),
+    model: googleAI.model('gemini-2.0-flash'),
     input: input,
     output: { schema: AnalyzeRiskOutputSchema },
     prompt: `Analyze the following student metrics and predict academic risk:

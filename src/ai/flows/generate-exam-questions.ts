@@ -30,7 +30,7 @@ export type GenerateExamOutput = z.infer<typeof GenerateExamOutputSchema>;
 
 export async function generateExamQuestions(input: GenerateExamInput): Promise<GenerateExamOutput> {
   const { output } = await ai.generate({
-    model: googleAI.model('gemini-1.5-flash'),
+    model: googleAI.model('gemini-2.0-flash'),
     input: input,
     output: { schema: GenerateExamOutputSchema },
     prompt: `You are an expert examiner. Generate {{count}} {{type}} questions for:
