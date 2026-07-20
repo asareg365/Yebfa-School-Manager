@@ -4,8 +4,8 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { googleAI } from '@genkit-ai/google-genai';
 import { z } from 'genkit';
+import { GEMINI_MODEL } from '@/lib/ai-config';
 
 const GenerateExamInputSchema = z.object({
   subject: z.string(),
@@ -30,7 +30,7 @@ export type GenerateExamOutput = z.infer<typeof GenerateExamOutputSchema>;
 
 export async function generateExamQuestions(input: GenerateExamInput): Promise<GenerateExamOutput> {
   const { output } = await ai.generate({
-    model: googleAI.model('gemini-2.0-flash'),
+    model: GEMINI_MODEL,
     input: input,
     output: { schema: GenerateExamOutputSchema },
     prompt: `You are an expert examiner. Generate {{count}} {{type}} questions for:

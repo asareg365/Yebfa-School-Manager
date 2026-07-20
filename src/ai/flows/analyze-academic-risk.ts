@@ -4,8 +4,8 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { googleAI } from '@genkit-ai/google-genai';
 import { z } from 'genkit';
+import { GEMINI_MODEL } from '@/lib/ai-config';
 
 const AnalyzeRiskInputSchema = z.object({
   studentName: z.string(),
@@ -25,7 +25,7 @@ export type AnalyzeRiskOutput = z.infer<typeof AnalyzeRiskOutputSchema>;
 
 export async function analyzeAcademicRisk(input: AnalyzeRiskInput): Promise<AnalyzeRiskOutput> {
   const { output } = await ai.generate({
-    model: googleAI.model('gemini-2.0-flash'),
+    model: GEMINI_MODEL,
     input: input,
     output: { schema: AnalyzeRiskOutputSchema },
     prompt: `Analyze the following student metrics and predict academic risk:
