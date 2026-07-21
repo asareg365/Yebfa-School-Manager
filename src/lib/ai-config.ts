@@ -5,4 +5,4 @@
  * Standardizing on gemini-1.5-flash for maximum regional compatibility and stability.
  */
 
-export const GEMINI_MODEL = 'googleai/gemini-1.5-flash';
+export const GEMINI_MODEL = 'googleai/gemini-2.0-flash';
