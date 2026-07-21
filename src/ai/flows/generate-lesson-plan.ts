@@ -1,6 +1,8 @@
 'use server';
 /**
  * @fileOverview AI Lesson Plan Generator.
+ * 
+ * - generateLessonPlan - Creates detailed SMART-objective lesson plans.
  */
 
 import { ai } from '@/ai/genkit';
@@ -28,20 +30,34 @@ const GenerateLessonPlanOutputSchema = z.object({
 });
 export type GenerateLessonPlanOutput = z.infer<typeof GenerateLessonPlanOutputSchema>;
 
-export async function generateLessonPlan(input: GenerateLessonPlanInput): Promise<GenerateLessonPlanOutput> {
-  const { output } = await ai.generate({
-    model: GEMINI_MODEL,
-    input: input,
-    output: { schema: GenerateLessonPlanOutputSchema },
-    prompt: `You are an expert curriculum developer for schools in Ghana.
+const generateLessonPlanPrompt = ai.definePrompt({
+  name: 'generateLessonPlanPrompt',
+  model: GEMINI_MODEL,
+  input: { schema: GenerateLessonPlanInputSchema },
+  output: { schema: GenerateLessonPlanOutputSchema },
+  prompt: `You are an expert curriculum developer for schools in Ghana.
 Create a detailed, high-quality lesson plan for the following:
 
-Subject: {{subject}}
-Grade: {{gradeLevel}}
-Topic: {{topic}}
-Duration: {{duration}}
+Subject: {{{subject}}}
+Grade: {{{gradeLevel}}}
+Topic: {{{topic}}}
+Duration: {{{duration}}}
 
 Ensure the objectives are SMART and the procedure follows professional instructional design standards.`,
-  });
-  return output!;
+});
+
+const generateLessonPlanFlow = ai.defineFlow(
+  {
+    name: 'generateLessonPlanFlow',
+    inputSchema: GenerateLessonPlanInputSchema,
+    outputSchema: GenerateLessonPlanOutputSchema,
+  },
+  async (input) => {
+    const { output } = await generateLessonPlanPrompt(input);
+    return output!;
+  }
+);
+
+export async function generateLessonPlan(input: GenerateLessonPlanInput): Promise<GenerateLessonPlanOutput> {
+  return generateLessonPlanFlow(input);
 }

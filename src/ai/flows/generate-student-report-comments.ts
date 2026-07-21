@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview This file defines a Genkit flow for generating highly detailed student report comments.
@@ -6,6 +5,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { GEMINI_MODEL } from '@/lib/ai-config';
 
 const GenerateStudentReportCommentsInputSchema = z.object({
   studentName: z.string().describe("The student's full name."),
@@ -34,12 +34,9 @@ const GenerateStudentReportCommentsOutputSchema = z.object({
 });
 export type GenerateStudentReportCommentsOutput = z.infer<typeof GenerateStudentReportCommentsOutputSchema>;
 
-export async function generateStudentReportComments(input: GenerateStudentReportCommentsInput): Promise<GenerateStudentReportCommentsOutput> {
-  return generateStudentReportCommentsFlow(input);
-}
-
 const generateStudentReportCommentsPrompt = ai.definePrompt({
   name: 'generateStudentReportCommentsPrompt',
+  model: GEMINI_MODEL,
   input: {schema: GenerateStudentReportCommentsInputSchema},
   output: {schema: GenerateStudentReportCommentsOutputSchema},
   config: {
@@ -103,3 +100,7 @@ const generateStudentReportCommentsFlow = ai.defineFlow(
     }
   }
 );
+
+export async function generateStudentReportComments(input: GenerateStudentReportCommentsInput): Promise<GenerateStudentReportCommentsOutput> {
+  return generateStudentReportCommentsFlow(input);
+}

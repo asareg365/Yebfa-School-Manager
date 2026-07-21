@@ -5,6 +5,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { GEMINI_MODEL } from '@/lib/ai-config';
 
 const GenerateFinancialForecastInputSchema = z.object({
   revenueHistory: z.array(z.object({
@@ -45,12 +46,9 @@ const GenerateFinancialForecastOutputSchema = z.object({
 });
 export type GenerateFinancialForecastOutput = z.infer<typeof GenerateFinancialForecastOutputSchema>;
 
-export async function generateFinancialForecast(input: GenerateFinancialForecastInput): Promise<GenerateFinancialForecastOutput> {
-  return generateFinancialForecastFlow(input);
-}
-
 const prompt = ai.definePrompt({
   name: 'generateFinancialForecastPrompt',
+  model: GEMINI_MODEL,
   input: {schema: GenerateFinancialForecastInputSchema},
   output: {schema: GenerateFinancialForecastOutputSchema},
   prompt: `You are a specialized CFO for educational institutions in Ghana.
@@ -78,3 +76,7 @@ const generateFinancialForecastFlow = ai.defineFlow(
     return output!;
   }
 );
+
+export async function generateFinancialForecast(input: GenerateFinancialForecastInput): Promise<GenerateFinancialForecastOutput> {
+  return generateFinancialForecastFlow(input);
+}

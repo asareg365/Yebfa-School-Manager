@@ -1,6 +1,8 @@
 'use server';
 /**
  * @fileOverview AI Exam Question Generator.
+ * 
+ * - generateExamQuestions - Generates structured exam papers.
  */
 
 import { ai } from '@/ai/genkit';
@@ -28,17 +30,31 @@ const GenerateExamOutputSchema = z.object({
 });
 export type GenerateExamOutput = z.infer<typeof GenerateExamOutputSchema>;
 
-export async function generateExamQuestions(input: GenerateExamInput): Promise<GenerateExamOutput> {
-  const { output } = await ai.generate({
-    model: GEMINI_MODEL,
-    input: input,
-    output: { schema: GenerateExamOutputSchema },
-    prompt: `You are an expert examiner. Generate {{count}} {{type}} questions for:
-Subject: {{subject}}
-Topic: {{topic}}
-Grade: {{gradeLevel}}
+const generateExamPrompt = ai.definePrompt({
+  name: 'generateExamPrompt',
+  model: GEMINI_MODEL,
+  input: { schema: GenerateExamInputSchema },
+  output: { schema: GenerateExamOutputSchema },
+  prompt: `You are an expert examiner. Generate {{{count}}} {{{type}}} questions for:
+Subject: {{{subject}}}
+Topic: {{{topic}}}
+Grade: {{{gradeLevel}}}
 
-Provide clear questions and a detailed marking scheme.`,
-  });
-  return output!;
+Provide clear questions and a detailed marking scheme. Ensure the content is relevant to the curriculum standard.`,
+});
+
+const generateExamQuestionsFlow = ai.defineFlow(
+  {
+    name: 'generateExamQuestionsFlow',
+    inputSchema: GenerateExamInputSchema,
+    outputSchema: GenerateExamOutputSchema,
+  },
+  async (input) => {
+    const { output } = await generateExamPrompt(input);
+    return output!;
+  }
+);
+
+export async function generateExamQuestions(input: GenerateExamInput): Promise<GenerateExamOutput> {
+  return generateExamQuestionsFlow(input);
 }

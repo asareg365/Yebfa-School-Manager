@@ -5,6 +5,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { GEMINI_MODEL } from '@/lib/ai-config';
 
 const GenerateAppointmentLetterInputSchema = z.object({
   staffName: z.string(),
@@ -20,12 +21,9 @@ const GenerateAppointmentLetterOutputSchema = z.object({
 });
 export type GenerateAppointmentLetterOutput = z.infer<typeof GenerateAppointmentLetterOutputSchema>;
 
-export async function generateAppointmentLetter(input: GenerateAppointmentLetterInput): Promise<GenerateAppointmentLetterOutput> {
-  return generateAppointmentLetterFlow(input);
-}
-
 const prompt = ai.definePrompt({
   name: 'generateAppointmentLetterPrompt',
+  model: GEMINI_MODEL,
   input: {schema: GenerateAppointmentLetterInputSchema},
   output: {schema: GenerateAppointmentLetterOutputSchema},
   config: {
@@ -78,3 +76,7 @@ const generateAppointmentLetterFlow = ai.defineFlow(
     return output!;
   }
 );
+
+export async function generateAppointmentLetter(input: GenerateAppointmentLetterInput): Promise<GenerateAppointmentLetterOutput> {
+  return generateAppointmentLetterFlow(input);
+}

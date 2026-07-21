@@ -1,6 +1,8 @@
 'use server';
 /**
  * @fileOverview AI Academic Risk Predictor.
+ * 
+ * - analyzeAcademicRisk - Main function to predict student risk levels.
  */
 
 import { ai } from '@/ai/genkit';
@@ -23,18 +25,32 @@ const AnalyzeRiskOutputSchema = z.object({
 });
 export type AnalyzeRiskOutput = z.infer<typeof AnalyzeRiskOutputSchema>;
 
-export async function analyzeAcademicRisk(input: AnalyzeRiskInput): Promise<AnalyzeRiskOutput> {
-  const { output } = await ai.generate({
-    model: GEMINI_MODEL,
-    input: input,
-    output: { schema: AnalyzeRiskOutputSchema },
-    prompt: `Analyze the following student metrics and predict academic risk:
-Student: {{studentName}}
-Recent Scores: {{recentScores}}
-Attendance: {{attendancePercentage}}%
-Notes: {{behavioralNotes}}
+const analyzeRiskPrompt = ai.definePrompt({
+  name: 'analyzeRiskPrompt',
+  model: GEMINI_MODEL,
+  input: { schema: AnalyzeRiskInputSchema },
+  output: { schema: AnalyzeRiskOutputSchema },
+  prompt: `Analyze the following student metrics and predict academic risk for a student in a Ghanaian educational context:
+Student: {{{studentName}}}
+Recent Scores: {{#each recentScores}}{{{this}}}% {{/each}}
+Attendance: {{{attendancePercentage}}}%
+Notes: {{{behavioralNotes}}}
 
 Identify if the student is likely to fail or drop out and provide professional interventions.`,
-  });
-  return output!;
+});
+
+const analyzeAcademicRiskFlow = ai.defineFlow(
+  {
+    name: 'analyzeAcademicRiskFlow',
+    inputSchema: AnalyzeRiskInputSchema,
+    outputSchema: AnalyzeRiskOutputSchema,
+  },
+  async (input) => {
+    const { output } = await analyzeRiskPrompt(input);
+    return output!;
+  }
+);
+
+export async function analyzeAcademicRisk(input: AnalyzeRiskInput): Promise<AnalyzeRiskOutput> {
+  return analyzeAcademicRiskFlow(input);
 }
