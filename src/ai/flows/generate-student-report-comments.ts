@@ -86,17 +86,19 @@ const generateStudentReportCommentsFlow = ai.defineFlow(
       return output;
     } catch (err: any) {
       const errMsg = err.message || "";
+      console.error("AI Flow Error:", errMsg);
+
       if (errMsg.includes('403') || errMsg.includes('blocked') || errMsg.includes('permission')) {
         return { 
           error: "AI access is blocked by your service provider (403). Please enable the 'Generative Language API' in your Google Cloud Console." 
         };
       }
-      if (errMsg.includes('404') || errMsg.includes('not found')) {
+      if (errMsg.includes('404') || errMsg.includes('not found') || errMsg.includes('v1beta')) {
         return {
-          error: "AI Model Not Found (404). This typically means the model name specified in 'src/lib/ai-config.ts' is incorrect, deprecated, or not available in your region."
+          error: `AI Model Not Found (404). The model '${GEMINI_MODEL}' may not be available in your region or for your API version. Please check 'src/lib/ai-config.ts'.`
         };
       }
-      return { error: errMsg || "An unexpected AI error occurred during report generation." };
+      return { error: `AI Error: ${errMsg || "An unexpected AI error occurred during report generation."}` };
     }
   }
 );
