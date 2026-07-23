@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -26,7 +27,8 @@ import {
   ChevronLeft,
   CheckCircle2,
   FileText,
-  HeartHandshake
+  HeartHandshake,
+  Baby
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection, useUser } from "@/firebase"
@@ -102,11 +104,15 @@ export default function StudentsPage() {
   
   const [isNewParent, setIsNewParent] = useState(false)
   const [newParentForm, setNewParentForm] = useState({
-    guardianName: "",
+    parentCode: "",
+    firstName: "",
+    lastName: "",
+    gender: "Female",
     phone: "",
     email: "",
-    relationship: "Father",
-    occupation: ""
+    relationship: "Mother",
+    occupation: "",
+    status: "Active"
   })
 
   useEffect(() => {
@@ -135,7 +141,12 @@ export default function StudentsPage() {
       const autoAdm = `ADM-${year}-${String(count).padStart(5, '0')}`;
       setStudentForm(prev => ({ ...prev, admissionNumber: autoAdm }));
     }
-  }, [isEnrollOpen, rawStudents.length, editingStudent]);
+    if (isEnrollOpen && isNewParent && !newParentForm.parentCode) {
+      const count = parents.length + 1;
+      const autoCode = `PAR-${String(count).padStart(5, '0')}`;
+      setNewParentForm(prev => ({ ...prev, parentCode: autoCode }));
+    }
+  }, [isEnrollOpen, rawStudents.length, parents.length, editingStudent, isNewParent]);
 
   const handleEnroll = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -177,7 +188,6 @@ export default function StudentsPage() {
           createdAt: serverTimestamp()
         });
 
-        // Initialize Fee Ledger for the student automatically
         const ledgerRef = doc(collection(db, "student_ledger"))
         batch.set(ledgerRef, {
           tenantId: institutionId,
@@ -256,7 +266,7 @@ export default function StudentsPage() {
               <TableRow>
                 <TableHead className="py-4 font-bold px-6">ADM # / STUDENT</TableHead>
                 <TableHead className="py-4 font-bold">GRADE</TableHead>
-                <TableHead className="py-4 font-bold">PARENT</TableHead>
+                <TableHead className="py-4 font-bold">GUARDIAN</TableHead>
                 <TableHead className="py-4 font-bold">STATUS</TableHead>
                 <TableHead className="text-right py-4 font-bold px-6">ACTIONS</TableHead>
               </TableRow>
@@ -280,7 +290,7 @@ export default function StudentsPage() {
                     <TableCell><span className="text-sm font-bold text-slate-700">{stu.gradeLevel}</span></TableCell>
                     <TableCell>
                       <div className="flex flex-col text-xs">
-                        <span className="font-bold">{parent?.guardianName || "N/A"}</span>
+                        <span className="font-bold">{parent ? `${parent.firstName} ${parent.lastName}` : "N/A"}</span>
                         <span className="text-muted-foreground">{parent?.phone}</span>
                       </div>
                     </TableCell>
@@ -377,13 +387,22 @@ export default function StudentsPage() {
 
                       {isNewParent ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6 bg-primary/5 rounded-2xl border-2 border-dashed border-primary/20">
-                           <div className="space-y-2"><Label>Guardian Full Name</Label><Input value={newParentForm.guardianName} onChange={e => setNewParentForm({...newParentForm, guardianName: e.target.value})} className="h-11 rounded-xl" /></div>
+                           <div className="space-y-2 col-span-2"><Label>Parent Code (Auto)</Label><Input readOnly value={newParentForm.parentCode} className="h-11 rounded-xl bg-slate-100 font-mono font-bold" /></div>
+                           <div className="space-y-2"><Label>First Name</Label><Input value={newParentForm.firstName} onChange={e => setNewParentForm({...newParentForm, firstName: e.target.value})} className="h-11 rounded-xl" /></div>
+                           <div className="space-y-2"><Label>Last Name</Label><Input value={newParentForm.lastName} onChange={e => setNewParentForm({...newParentForm, lastName: e.target.value})} className="h-11 rounded-xl" /></div>
                            <div className="space-y-2"><Label>Phone Number</Label><Input value={newParentForm.phone} onChange={e => setNewParentForm({...newParentForm, phone: e.target.value})} className="h-11 rounded-xl" /></div>
                            <div className="space-y-2"><Label>Email Address</Label><Input type="email" value={newParentForm.email} onChange={e => setNewParentForm({...newParentForm, email: e.target.value})} className="h-11 rounded-xl" /></div>
                            <div className="space-y-2"><Label>Relationship</Label>
                               <Select value={newParentForm.relationship} onValueChange={v => setNewParentForm({...newParentForm, relationship: v})}>
                                  <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
-                                 <SelectContent><SelectItem value="Father">Father</SelectItem><SelectItem value="Mother">Mother</SelectItem><SelectItem value="Guardian">Guardian</SelectItem></SelectContent>
+                                 <SelectContent>
+                                    <SelectItem value="Mother">Mother</SelectItem>
+                                    <SelectItem value="Father">Father</SelectItem>
+                                    <SelectItem value="Guardian">Guardian</SelectItem>
+                                    <SelectItem value="Uncle">Uncle</SelectItem>
+                                    <SelectItem value="Aunt">Aunt</SelectItem>
+                                    <SelectItem value="Foster Parent">Foster Parent</SelectItem>
+                                 </SelectContent>
                               </Select>
                            </div>
                         </div>
@@ -392,21 +411,13 @@ export default function StudentsPage() {
                            <Select value={studentForm.parentId} onValueChange={v => setStudentForm({...studentForm, parentId: v})}>
                               <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Search existing parent by Name, Phone, or Email" /></SelectTrigger>
                               <SelectContent>
-                                 {parents.map(p => <SelectItem key={p.id} value={p.id}>{p.guardianName} ({p.phone} • {p.email || 'No Email'})</SelectItem>)}
+                                 {parents.map(p => <SelectItem key={p.id} value={p.id}>{p.firstName} {p.lastName} ({p.phone} • {p.parentCode})</SelectItem>)}
                                  {parents.length === 0 && <div className="p-4 text-center text-xs text-muted-foreground">No parents registered in registry.</div>}
                               </SelectContent>
                            </Select>
-                           <p className="text-[10px] text-muted-foreground italic">Note: Searching and linking an existing profile prevents data redundancy.</p>
+                           <p className="text-[10px] text-muted-foreground italic">Note: Linking an existing profile centralizes communication and fee tracking.</p>
                         </div>
                       )}
-                   </div>
-
-                   <div className="space-y-4">
-                      <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Residential Hub</Label>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                         <div className="space-y-2"><Label>Digital Address (GPS)</Label><Input value={studentForm.address.digitalAddress} onChange={e => setStudentForm({...studentForm, address: {...studentForm.address, digitalAddress: e.target.value}})} className="h-11 rounded-xl" placeholder="e.g. GA-123-4567" /></div>
-                         <div className="space-y-2"><Label>Town / City</Label><Input value={studentForm.address.town} onChange={e => setStudentForm({...studentForm, address: {...studentForm.address, town: e.target.value}})} className="h-11 rounded-xl" /></div>
-                      </div>
                    </div>
                 </TabsContent>
 
@@ -464,7 +475,7 @@ export default function StudentsPage() {
                       <div className="max-w-sm mx-auto">
                          <h3 className="text-xl font-bold font-headline text-primary">Registry Ready</h3>
                          <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-                            Upon authorization, the system will finalize the Admission ID and initialize the student ledger for 2026 financial records.
+                            The system will automatically provision the Admission ID, link the Guardian profile, and initialize the student ledger.
                          </p>
                       </div>
                    </div>
@@ -473,7 +484,7 @@ export default function StudentsPage() {
                          <div className="flex flex-col"><span className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Student</span><span className="font-bold text-primary">{studentForm.firstName} {studentForm.lastName}</span></div>
                          <div className="flex flex-col"><span className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Admission ID</span><span className="font-mono font-bold text-accent">{studentForm.admissionNumber}</span></div>
                          <div className="flex flex-col"><span className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Grade Level</span><span className="font-bold text-primary">{studentForm.gradeLevel || "Unassigned"}</span></div>
-                         <div className="flex flex-col"><span className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Status</span><span className="font-bold text-green-600 uppercase tracking-tight">{studentForm.status}</span></div>
+                         <div className="flex flex-col"><span className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Guardian Link</span><span className="font-bold text-primary">{isNewParent ? `${newParentForm.firstName} ${newParentForm.lastName}` : (parents.find(p => p.id === studentForm.parentId)?.firstName || "Unlinked")}</span></div>
                       </div>
                    </Card>
                 </TabsContent>
@@ -527,7 +538,7 @@ export default function StudentsPage() {
                    <TabsTrigger value="fees">Fees</TabsTrigger>
                    <TabsTrigger value="health">Medical</TabsTrigger>
                    <TabsTrigger value="documents">Documents</TabsTrigger>
-                   <TabsTrigger value="history">Lineage</TabsTrigger>
+                   <TabsTrigger value="history">Family</TabsTrigger>
                 </TabsList>
 
                 <ScrollArea className="flex-1 p-8">
@@ -543,7 +554,12 @@ export default function StudentsPage() {
                          </div>
                          <div className="p-4 rounded-2xl bg-slate-50 border space-y-1">
                             <span className="text-[10px] font-bold uppercase text-muted-foreground">Primary Guardian</span>
-                            <p className="font-bold text-primary">{parents.find(p => p.id === selectedStudent?.parentId)?.guardianName || "Unlinked"}</p>
+                            <p className="font-bold text-primary">
+                              {(() => {
+                                const p = parents.find(p => p.id === selectedStudent?.parentId);
+                                return p ? `${p.firstName} ${p.lastName}` : "Unlinked";
+                              })()}
+                            </p>
                          </div>
                       </div>
 
@@ -599,15 +615,39 @@ export default function StudentsPage() {
                    <TabsContent value="history" className="mt-0">
                       <Card className="border-none shadow-sm bg-slate-50 p-6 space-y-4">
                          <div className="flex items-center gap-4">
-                            <div className="size-12 rounded-xl bg-white flex items-center justify-center border shadow-sm"><School className="size-6 text-primary" /></div>
+                            <div className="size-12 rounded-xl bg-white flex items-center justify-center border shadow-sm"><HeartHandshake className="size-6 text-primary" /></div>
                             <div>
-                               <p className="font-bold text-lg">{selectedStudent?.previousSchool?.name || "No Prior Records"}</p>
-                               <p className="text-xs text-muted-foreground font-bold uppercase">Class Level Completed: {selectedStudent?.previousSchool?.classCompleted}</p>
+                               {(() => {
+                                  const p = parents.find(p => p.id === selectedStudent?.parentId);
+                                  if (!p) return <p className="font-bold">No Linked Parent Profile</p>;
+                                  return (
+                                    <>
+                                      <p className="font-bold text-lg">{p.firstName} {p.lastName}</p>
+                                      <p className="text-xs text-muted-foreground font-bold uppercase">{p.relationship} • {p.parentCode}</p>
+                                    </>
+                                  );
+                               })()}
                             </div>
                          </div>
-                         <div className="p-4 bg-white rounded-xl text-sm italic">
-                            Transfer Justification: {selectedStudent?.previousSchool?.reason || "Reason not provided."}
-                         </div>
+                         {(() => {
+                            const p = parents.find(p => p.id === selectedStudent?.parentId);
+                            if (!p) return null;
+                            const siblings = students.filter(s => s.parentId === p.id && s.id !== selectedStudent?.id);
+                            return (
+                              <div className="pt-4 border-t space-y-3">
+                                <p className="text-[10px] font-bold uppercase text-muted-foreground">Enrolled Siblings ({siblings.length})</p>
+                                <div className="grid gap-2">
+                                  {siblings.map(sib => (
+                                    <div key={sib.id} className="flex items-center justify-between p-2 bg-white rounded-lg border">
+                                      <span className="text-xs font-bold">{sib.firstName} {sib.lastName}</span>
+                                      <Badge variant="secondary" className="text-[8px]">{sib.gradeLevel}</Badge>
+                                    </div>
+                                  ))}
+                                  {siblings.length === 0 && <p className="text-xs text-muted-foreground italic">No siblings detected in system.</p>}
+                                </div>
+                              </div>
+                            );
+                         })()}
                       </Card>
                    </TabsContent>
 

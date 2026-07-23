@@ -39,20 +39,23 @@
       "description": "Consolidated guardian information for one or more students.",
       "type": "object",
       "properties": {
+        "id": { "type": "string" },
         "tenantId": { "type": "string" },
         "institutionId": { "type": "string" },
-        "fatherName": { "type": "string" },
-        "motherName": { "type": "string" },
-        "guardianName": { "type": "string" },
+        "parentCode": { "type": "string", "description": "Unique code e.g. PAR-00045" },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "gender": { "type": "string", "enum": ["Male", "Female"] },
         "phone": { "type": "string" },
-        "alternativePhone": { "type": "string" },
         "email": { "type": "string", "format": "email" },
         "occupation": { "type": "string" },
-        "gpsAddress": { "type": "string" },
-        "relationship": { "type": "string", "enum": ["Father", "Mother", "Guardian"] },
+        "address": { "type": "string" },
+        "relationship": { "type": "string", "enum": ["Mother", "Father", "Guardian", "Uncle", "Aunt", "Foster Parent"] },
+        "status": { "type": "string", "enum": ["Active", "Inactive"] },
+        "photo": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["tenantId", "institutionId", "guardianName", "phone"]
+      "required": ["tenantId", "institutionId", "firstName", "lastName", "phone"]
     },
     "Student": {
       "title": "Student Profile",
@@ -68,7 +71,7 @@
         "dateOfBirth": { "type": "string", "format": "date" },
         "gradeLevel": { "type": "string" },
         "status": { "type": "string", "enum": ["active", "inactive", "suspended", "alumni"] },
-        "parentId": { "type": "string" },
+        "parentId": { "type": "string", "description": "Foreign key to Parent document" },
         "address": {
           "type": "object",
           "properties": {
@@ -99,32 +102,6 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["tenantId", "firstName", "lastName", "admissionNumber"]
-    },
-    "Staff": {
-      "title": "Staff Member",
-      "description": "Professional employment record for institutional staff.",
-      "type": "object",
-      "properties": {
-        "tenantId": { "type": "string" },
-        "institutionId": { "type": "string" },
-        "staffNumber": { "type": "string" },
-        "firstName": { "type": "string" },
-        "lastName": { "type": "string" },
-        "gender": { "type": "string" },
-        "phone": { "type": "string" },
-        "email": { "type": "string" },
-        "qualification": { "type": "string" },
-        "departmentId": { "type": "string" },
-        "designation": { "type": "string" },
-        "employmentDate": { "type": "string" },
-        "salary": { "type": "number" },
-        "bankName": { "type": "string" },
-        "bankAccount": { "type": "string" },
-        "ssnitNumber": { "type": "string" },
-        "tin": { "type": "string" },
-        "status": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      }
     }
   },
   "auth": {
@@ -134,7 +111,6 @@
     "/users/{userId}": { "schema": "User" },
     "/institutions/{institutionId}": { "schema": "Institution" },
     "/parents/{parentId}": { "schema": "Parent" },
-    "/students/{studentId}": { "schema": "Student" },
-    "/staff/{staffId}": { "schema": "Staff" }
+    "/students/{studentId}": { "schema": "Student" }
   }
 }

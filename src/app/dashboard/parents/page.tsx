@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -16,7 +17,8 @@ import {
   Pencil,
   Briefcase,
   MapPin,
-  HeartHandshake
+  HeartHandshake,
+  User
 } from "lucide-react"
 import { useFirestore, useCollection, useUser } from "@/firebase"
 import { collection, query, where, serverTimestamp, addDoc, doc, deleteDoc, updateDoc } from "firebase/firestore"
@@ -38,15 +40,17 @@ export default function ParentsRegistryPage() {
   const [editingParent, setEditingParent] = useState<any>(null)
 
   const initialForm = {
-    fatherName: "",
-    motherName: "",
-    guardianName: "",
+    parentCode: "",
+    firstName: "",
+    lastName: "",
+    gender: "Female",
     phone: "",
-    alternativePhone: "",
     email: "",
     occupation: "",
-    gpsAddress: "",
-    relationship: "Father"
+    address: "",
+    relationship: "Mother",
+    status: "Active",
+    photo: ""
   }
 
   const [parentForm, setParentForm] = useState(initialForm)
@@ -63,11 +67,19 @@ export default function ParentsRegistryPage() {
 
   const filteredParents = useMemo(() => {
     return parents.filter(p => 
-      p.guardianName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.phone?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.email?.toLowerCase().includes(searchQuery.toLowerCase())
+      `${p.firstName} ${p.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.parentCode?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.phone?.toLowerCase().includes(searchQuery.toLowerCase())
     )
   }, [parents, searchQuery])
+
+  useEffect(() => {
+    if (isAddOpen && !parentForm.parentCode && !editingParent) {
+      const count = parents.length + 1;
+      const autoCode = `PAR-${String(count).padStart(5, '0')}`;
+      setParentForm(prev => ({ ...prev, parentCode: autoCode }));
+    }
+  }, [isAddOpen, parents.length, editingParent])
 
   const handleAddParent = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -85,7 +97,7 @@ export default function ParentsRegistryPage() {
           institutionId,
           createdAt: serverTimestamp()
         })
-        toast({ title: "Parent Registered", description: `${parentForm.guardianName} added to hub.` })
+        toast({ title: "Parent Registered", description: `${parentForm.firstName} ${parentForm.lastName} added to hub.` })
       }
       setIsAddOpen(false)
       setEditingParent(null)
@@ -117,7 +129,7 @@ export default function ParentsRegistryPage() {
           <div className="relative max-w-sm">
             <Search className="absolute left-3 top-3.5 size-4 text-muted-foreground" />
             <Input 
-              placeholder="Search by name, phone or email..." 
+              placeholder="Search by name, code or phone..." 
               className="pl-10 h-12 bg-slate-50 border-none rounded-xl" 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -129,10 +141,10 @@ export default function ParentsRegistryPage() {
             <Table>
               <TableHeader className="bg-muted/30">
                 <TableRow>
-                  <TableHead className="py-4 font-bold whitespace-nowrap px-6">GUARDIAN / FAMILY</TableHead>
+                  <TableHead className="py-4 font-bold whitespace-nowrap px-6">CODE / GUARDIAN</TableHead>
                   <TableHead className="py-4 font-bold whitespace-nowrap px-4">CONTACT</TableHead>
-                  <TableHead className="py-4 font-bold whitespace-nowrap px-4">PROFESSION</TableHead>
-                  <TableHead className="py-4 font-bold whitespace-nowrap px-4 text-center">SIBLINGS</TableHead>
+                  <TableHead className="py-4 font-bold whitespace-nowrap px-4">RELATIONSHIP</TableHead>
+                  <TableHead className="py-4 font-bold whitespace-nowrap px-4 text-center">CHILDREN</TableHead>
                   <TableHead className="text-right py-4 font-bold px-6">ACTIONS</TableHead>
                 </TableRow>
               </TableHeader>
@@ -144,11 +156,11 @@ export default function ParentsRegistryPage() {
                       <TableCell className="px-6">
                         <div className="flex items-center gap-3">
                           <div className="size-10 rounded-full bg-primary/5 flex items-center justify-center font-bold text-primary text-xs">
-                            {p.guardianName?.charAt(0)}
+                             {p.photo ? <img src={p.photo} className="w-full h-full object-cover rounded-full" /> : <User className="size-4" />}
                           </div>
                           <div className="flex flex-col">
-                            <span className="font-bold text-primary text-sm">{p.guardianName}</span>
-                            <span className="text-[10px] text-muted-foreground uppercase font-bold">{p.relationship}</span>
+                            <span className="text-[10px] font-mono font-bold text-accent">{p.parentCode}</span>
+                            <span className="font-bold text-primary text-sm">{p.firstName} {p.lastName}</span>
                           </div>
                         </div>
                       </TableCell>
@@ -159,10 +171,7 @@ export default function ParentsRegistryPage() {
                         </div>
                       </TableCell>
                       <TableCell className="px-4">
-                         <div className="flex items-center gap-2">
-                            <Briefcase className="size-3 text-muted-foreground" />
-                            <span className="text-xs font-medium">{p.occupation || "Unspecified"}</span>
-                         </div>
+                         <Badge variant="outline" className="text-[10px] uppercase font-bold">{p.relationship}</Badge>
                       </TableCell>
                       <TableCell className="px-4 text-center">
                          <Badge variant="secondary" className="gap-1.5 bg-blue-50 text-blue-700 border-none px-3 font-bold">
@@ -191,51 +200,71 @@ export default function ParentsRegistryPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={isAddOpen} onOpenChange={(val) => { if(!val) setIsAddOpen(false); }}>
+      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
         <DialogContent className="max-w-3xl p-0 overflow-hidden border-none shadow-2xl rounded-2xl md:rounded-3xl max-h-[90vh] flex flex-col">
           <form onSubmit={handleAddParent} className="flex flex-col h-full overflow-hidden">
              <DialogHeader className="bg-primary text-primary-foreground p-8 shrink-0">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="size-8 rounded-xl bg-white/10 flex items-center justify-center"><HeartHandshake className="size-5" /></div>
-                  <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Guardian Registry</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Guardian Hub</span>
                 </div>
-                <DialogTitle className="text-3xl font-headline font-bold">{editingParent ? "Edit Profile" : "New Parent Entry"}</DialogTitle>
-                <DialogDescription className="text-primary-foreground/70">Consolidate family contact and identification data.</DialogDescription>
+                <DialogTitle className="text-3xl font-headline font-bold">{editingParent ? "Update Profile" : "New Parent Entry"}</DialogTitle>
+                <DialogDescription className="text-primary-foreground/70">Establish a professional guardian profile for the ecosystem.</DialogDescription>
              </DialogHeader>
 
              <ScrollArea className="flex-1">
                 <div className="p-8 grid gap-8">
                    <div className="grid gap-6">
-                      <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2 border-b pb-2"><Users className="size-3.5" /> Identity Hub</h3>
+                      <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2 border-b pb-2"><Users className="size-3.5" /> Identity & Registry</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                         <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold">Primary Guardian Name</Label><Input required value={parentForm.guardianName} onChange={e => setParentForm({...parentForm, guardianName: e.target.value})} className="h-11 rounded-xl" /></div>
-                         <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold">Relationship to Student</Label>
-                            <Select value={parentForm.relationship} onValueChange={v => setParentForm({...parentForm, relationship: v})}>
+                         <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold">Parent Code</Label><Input readOnly value={parentForm.parentCode} className="h-11 rounded-xl bg-slate-50 font-bold font-mono" /></div>
+                         <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold">Account Status</Label>
+                            <Select value={parentForm.status} onValueChange={v => setParentForm({...parentForm, status: v})}>
                                <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
-                               <SelectContent><SelectItem value="Father">Father</SelectItem><SelectItem value="Mother">Mother</SelectItem><SelectItem value="Guardian">Guardian</SelectItem></SelectContent>
+                               <SelectContent><SelectItem value="Active">Active</SelectItem><SelectItem value="Inactive">Inactive</SelectItem></SelectContent>
                             </Select>
                          </div>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                         <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold">Father's Name (Optional)</Label><Input value={parentForm.fatherName} onChange={e => setParentForm({...parentForm, fatherName: e.target.value})} className="h-11 rounded-xl" /></div>
-                         <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold">Mother's Name (Optional)</Label><Input value={parentForm.motherName} onChange={e => setParentForm({...parentForm, motherName: e.target.value})} className="h-11 rounded-xl" /></div>
+                         <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold">First Name</Label><Input required value={parentForm.firstName} onChange={e => setParentForm({...parentForm, firstName: e.target.value})} className="h-11 rounded-xl" /></div>
+                         <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold">Last Name</Label><Input required value={parentForm.lastName} onChange={e => setParentForm({...parentForm, lastName: e.target.value})} className="h-11 rounded-xl" /></div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold">Gender</Label>
+                            <Select value={parentForm.gender} onValueChange={v => setParentForm({...parentForm, gender: v})}>
+                               <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                               <SelectContent><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem></SelectContent>
+                            </Select>
+                         </div>
+                         <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold">Relationship</Label>
+                            <Select value={parentForm.relationship} onValueChange={v => setParentForm({...parentForm, relationship: v})}>
+                               <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                               <SelectContent>
+                                  <SelectItem value="Mother">Mother</SelectItem>
+                                  <SelectItem value="Father">Father</SelectItem>
+                                  <SelectItem value="Guardian">Guardian</SelectItem>
+                                  <SelectItem value="Uncle">Uncle</SelectItem>
+                                  <SelectItem value="Aunt">Aunt</SelectItem>
+                                  <SelectItem value="Foster Parent">Foster Parent</SelectItem>
+                               </SelectContent>
+                            </Select>
+                         </div>
                       </div>
                    </div>
 
                    <div className="grid gap-6">
-                      <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2 border-b pb-2"><Phone className="size-3.5" /> Contact Details</h3>
+                      <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2 border-b pb-2"><Phone className="size-3.5" /> Communication</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                          <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold">Primary Phone</Label><Input required value={parentForm.phone} onChange={e => setParentForm({...parentForm, phone: e.target.value})} className="h-11 rounded-xl" /></div>
-                         <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold">Alternative Phone</Label><Input value={parentForm.alternativePhone} onChange={e => setParentForm({...parentForm, alternativePhone: e.target.value})} className="h-11 rounded-xl" /></div>
+                         <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold">Email Address</Label><Input type="email" value={parentForm.email} onChange={e => setParentForm({...parentForm, email: e.target.value})} className="h-11 rounded-xl" /></div>
                       </div>
-                      <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold">Email Address</Label><Input type="email" value={parentForm.email} onChange={e => setParentForm({...parentForm, email: e.target.value})} className="h-11 rounded-xl" /></div>
                    </div>
 
                    <div className="grid gap-6">
-                      <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2 border-b pb-2"><MapPin className="size-3.5" /> Professional & GPS</h3>
+                      <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2 border-b pb-2"><Briefcase className="size-3.5" /> Professional & Residential</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                          <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold">Occupation</Label><Input value={parentForm.occupation} onChange={e => setParentForm({...parentForm, occupation: e.target.value})} className="h-11 rounded-xl" /></div>
-                         <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold">GPS Digital Address</Label><Input value={parentForm.gpsAddress} onChange={e => setParentForm({...parentForm, gpsAddress: e.target.value})} className="h-11 rounded-xl" placeholder="e.g. GA-123-4567" /></div>
+                         <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold">Residential Address</Label><Input value={parentForm.address} onChange={e => setParentForm({...parentForm, address: e.target.value})} className="h-11 rounded-xl" /></div>
                       </div>
                    </div>
                 </div>
@@ -244,7 +273,7 @@ export default function ParentsRegistryPage() {
              <DialogFooter className="bg-slate-50 p-8 border-t shrink-0">
                 <Button type="submit" disabled={loading} className="w-full h-14 text-lg font-bold rounded-2xl bg-primary shadow-xl">
                    {loading ? <Loader2 className="mr-2 animate-spin" /> : <ShieldCheck className="mr-2" />}
-                   {editingParent ? "Update Profile" : "Register Guardian"}
+                   {editingParent ? "Update Profile" : "Authorize Parent Registry"}
                 </Button>
              </DialogFooter>
           </form>
