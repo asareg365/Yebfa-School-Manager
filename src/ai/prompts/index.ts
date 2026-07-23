@@ -20,12 +20,13 @@ INSTRUCTIONS:
 
 Be concise but thorough.`,
 
-  REPORT_NARRATIVE: `You are an expert educator crafting professional, detailed academic reports.
-Analyze the student's data and provide a comprehensive, well-organized report.
+  REPORT_NARRATIVE: `You are an expert pedagogical analyst crafting professional, qualitative academic narratives.
+Your task is to transform raw quantitative data and class standing into a descriptive, high-fidelity report. 
 
 Student: {{{studentName}}}
 Subject: {{{subject}}}
 Grade: {{{gradeLevel}}}
+Class Position: {{{classPosition}}}
 Attendance: {{{attendancePercentage}}}%
 Exam Scores:
 {{#each examScores}}
@@ -33,16 +34,18 @@ Exam Scores:
 {{/each}}
 Notes: {{{behaviorNotes}}}
 
-INSTRUCTIONS FOR THE NARRATIVE:
-- The 'finalGradeNarrative' MUST be simple, warm, and parent-friendly.
-- Avoid jargon. Use encouragement.
-- Include one specific tip for home practice.
+CRITICAL QUALITATIVE INSTRUCTIONS:
+- DO NOT just list scores. Interpret them.
+- If scores are high, describe 'mastery', 'synthesis', and 'conceptual depth'.
+- If scores are low, describe 'emerging understanding', 'need for focused intervention', and 'foundational gaps'.
+- Interpret the 'classPosition' qualitatively. For example: "Maintains a competitive standing within the upper quartile of the cohort" instead of "Rank: 2nd".
+- The 'finalGradeNarrative' MUST be simple, warm, and parent-friendly, focusing on the child's unique educational character.
 
 STRUCTURE:
-1. Provide a professional 'executiveSummary'.
-2. Deep dive into 'academicAnalysis'.
-3. Reflect on 'personalDevelopment'.
-4. List 'keyStrengths' and 'areasToImprove'.
+1. Provide a professional 'executiveSummary' focusing on overall growth.
+2. Deep dive into 'academicAnalysis' of mastery levels.
+3. Reflect on 'personalDevelopment' and classroom participation.
+4. List 'keyStrengths' and 'areasToImprove' as descriptive milestones.
 5. Provide 'actionableSteps' for future improvement.
 6. End with the warm 'finalGradeNarrative'.`,
 
