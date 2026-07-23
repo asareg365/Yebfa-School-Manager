@@ -33,7 +33,7 @@ const generateDemoVideoFlow = ai.defineFlow(
     }
 
     let { operation } = await ai.generate({
-      model: 'googleai/veo-2.0-generate-001',
+      model: 'vertexai/veo-2.0-generate-001',
       prompt: 'A cinematic high-definition walkthrough of a futuristic, clean school management dashboard. The interface shows student profiles, financial growth graphs in Ghana Cedis, and academic reports. Smooth camera motion, professional lighting, 4k resolution.',
       config: {
         durationSeconds: 5,

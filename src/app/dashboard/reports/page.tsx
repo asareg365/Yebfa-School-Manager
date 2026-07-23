@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -177,7 +176,7 @@ export default function ReportsPage() {
                     <h4 className="font-bold text-sm uppercase tracking-widest text-red-900">Troubleshooting Guide:</h4>
                     <ul className="list-disc ml-5 space-y-2 font-medium">
                       <li>Verify the <strong>GEMINI_MODEL</strong> constant in <code>src/lib/ai-config.ts</code>.</li>
-                      <li>Standard models include <code>googleai/gemini-2.0-flash</code> or <code>googleai/gemini-1.5-flash</code>.</li>
+                      <li>Standard models include <code>vertexai/gemini-2.5-flash</code> or <code>vertexai/gemini-1.5-flash</code>.</li>
                       <li>Check the <a href="https://aistudio.google.com/" target="_blank" className="underline font-bold text-primary">Google AI Studio</a> for available models in your region.</li>
                     </ul>
                   </div>
