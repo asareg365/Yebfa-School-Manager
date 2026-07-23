@@ -1,6 +1,6 @@
 'use server';
 /**
- * @fileOverview A highly detailed financial forecasting AI agent.
+ * @fileOverview A highly detailed financial forecasting AI agent using Vertex AI.
  */
 
 import {ai} from '@/ai/genkit';

@@ -1,6 +1,6 @@
 'use server';
 /**
- * @fileOverview This file defines a Genkit flow for generating highly detailed student report comments.
+ * @fileOverview Flow for generating student report comments using Vertex AI.
  */
 
 import {ai} from '@/ai/genkit';
@@ -90,15 +90,15 @@ const generateStudentReportCommentsFlow = ai.defineFlow(
 
       if (errMsg.includes('403') || errMsg.includes('blocked') || errMsg.includes('permission')) {
         return { 
-          error: "AI access is blocked by your service provider (403). Please enable the 'Generative Language API' in your Google Cloud Console." 
+          error: "AI access is blocked. Please ensure the 'Vertex AI API' is enabled in your Google Cloud Console and the service account has appropriate IAM permissions." 
         };
       }
-      if (errMsg.includes('404') || errMsg.includes('not found') || errMsg.includes('v1beta')) {
+      if (errMsg.includes('404') || errMsg.includes('not found')) {
         return {
-          error: `AI Model Not Found (404). The model '${GEMINI_MODEL}' may not be available in your region or for your API version. Please check 'src/lib/ai-config.ts'.`
+          error: `AI Model Not Found (404). The model '${GEMINI_MODEL}' may not be available in your region or project. Please verify your configuration in 'src/lib/ai-config.ts'.`
         };
       }
-      return { error: `AI Error: ${errMsg || "An unexpected AI error occurred during report generation."}` };
+      return { error: `AI Error: ${errMsg || "An unexpected error occurred during processing."}` };
     }
   }
 );

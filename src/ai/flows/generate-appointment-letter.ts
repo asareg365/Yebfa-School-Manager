@@ -1,6 +1,6 @@
 'use server';
 /**
- * @fileOverview A flow to generate professional staff appointment letters.
+ * @fileOverview A flow to generate professional staff appointment letters using Vertex AI.
  */
 
 import {ai} from '@/ai/genkit';
@@ -28,22 +28,10 @@ const prompt = ai.definePrompt({
   output: {schema: GenerateAppointmentLetterOutputSchema},
   config: {
     safetySettings: [
-      {
-        category: 'HARM_CATEGORY_HARASSMENT',
-        threshold: 'BLOCK_NONE',
-      },
-      {
-        category: 'HARM_CATEGORY_HATE_SPEECH',
-        threshold: 'BLOCK_NONE',
-      },
-      {
-        category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-        threshold: 'BLOCK_NONE',
-      },
-      {
-        category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-        threshold: 'BLOCK_NONE',
-      },
+      { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
     ],
   },
   prompt: `You are a professional HR manager for an educational institution in Ghana.

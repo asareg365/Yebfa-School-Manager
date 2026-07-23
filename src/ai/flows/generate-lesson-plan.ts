@@ -1,6 +1,6 @@
 'use server';
 /**
- * @fileOverview AI Teacher Assistant Flow.
+ * @fileOverview AI Teacher Assistant Flow using Vertex AI.
  * 
  * - generateLessonPlan - Creates a comprehensive "Instructional Pack" including notes, plans, and activities.
  */

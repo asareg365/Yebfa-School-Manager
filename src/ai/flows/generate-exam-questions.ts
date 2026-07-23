@@ -1,6 +1,6 @@
 'use server';
 /**
- * @fileOverview AI Exam Question Generator.
+ * @fileOverview AI Exam Question Generator using Vertex AI.
  * 
  * - generateExamQuestions - Generates structured exam papers.
  */

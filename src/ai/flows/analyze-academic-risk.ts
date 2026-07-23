@@ -1,6 +1,6 @@
 'use server';
 /**
- * @fileOverview AI Academic Risk Predictor.
+ * @fileOverview AI Academic Risk Predictor using Vertex AI.
  * 
  * - analyzeAcademicRisk - Main function to predict student risk levels.
  */
