@@ -59,21 +59,47 @@
       "properties": {
         "id": { "type": "string" },
         "tenantId": { "type": "string" },
-        "institutionId": { "type": "string" },
-        "parentCode": { "type": "string", "description": "Unique code e.g. PAR-00045" },
+        "parentNumber": { "type": "string", "description": "Unique code e.g. PAR-000001" },
         "firstName": { "type": "string" },
+        "middleName": { "type": "string" },
         "lastName": { "type": "string" },
         "gender": { "type": "string", "enum": ["Male", "Female"] },
+        "dateOfBirth": { "type": "string", "format": "date" },
+        "nationality": { "type": "string" },
         "phone": { "type": "string" },
+        "alternatePhone": { "type": "string" },
         "email": { "type": "string", "format": "email" },
-        "occupation": { "type": "string" },
         "address": { "type": "string" },
-        "relationship": { "type": "string", "enum": ["Mother", "Father", "Guardian", "Uncle", "Aunt", "Foster Parent"] },
+        "town": { "type": "string" },
+        "district": { "type": "string" },
+        "region": { "type": "string" },
+        "digitalAddress": { "type": "string" },
+        "occupation": { "type": "string" },
+        "employer": { "type": "string" },
+        "officeAddress": { "type": "string" },
+        "nationalId": { "type": "string" },
+        "passportNumber": { "type": "string" },
         "status": { "type": "string", "enum": ["Active", "Inactive"] },
-        "photo": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["tenantId", "institutionId", "firstName", "lastName", "phone"]
+      "required": ["tenantId", "parentNumber", "firstName", "lastName", "phone"]
+    },
+    "StudentParent": {
+      "title": "Student-Parent Relationship",
+      "description": "Junction table linking students to parents with relationship metadata.",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "parentId": { "type": "string" },
+        "relationship": { "type": "string" },
+        "primaryContact": { "type": "boolean" },
+        "emergencyContact": { "type": "boolean" },
+        "pickupAuthorized": { "type": "boolean" }
+      },
+      "required": ["tenantId", "studentId", "parentId", "relationship"]
     },
     "Student": {
       "title": "Student Profile",
@@ -89,7 +115,6 @@
         "dateOfBirth": { "type": "string", "format": "date" },
         "gradeLevel": { "type": "string" },
         "status": { "type": "string", "enum": ["active", "inactive", "suspended", "alumni"] },
-        "parentId": { "type": "string", "description": "Foreign key to Parent document" },
         "address": {
           "type": "object",
           "properties": {
@@ -130,6 +155,7 @@
     "/institutions/{institutionId}": { "schema": "Institution" },
     "/admissions/{admissionId}": { "schema": "Admission" },
     "/parents/{parentId}": { "schema": "Parent" },
+    "/student_parents/{relId}": { "schema": "StudentParent" },
     "/students/{studentId}": { "schema": "Student" }
   }
 }

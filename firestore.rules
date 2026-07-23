@@ -48,14 +48,6 @@ service cloud.firestore {
       return signedIn() && data.tenantId == userTenant();
     }
 
-    function isValidTenantLock() {
-      return signedIn() && (
-        isSuperAdmin() || 
-        (request.resource.data.tenantId == userTenant() && 
-        (resource == null || request.resource.data.tenantId == resource.data.tenantId))
-      );
-    }
-
     // ======================
     // COLLECTION RULES
     // ======================
@@ -76,6 +68,12 @@ service cloud.firestore {
     match /parents/{parentId} {
       allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
       allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin() || isAccountant());
+      allow delete: if isSuperAdmin() || isOwner();
+    }
+
+    match /student_parents/{relId} {
+      allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
+      allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
       allow delete: if isSuperAdmin() || isOwner();
     }
 
