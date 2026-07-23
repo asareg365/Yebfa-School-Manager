@@ -18,7 +18,8 @@ import {
   Briefcase,
   Download,
   Filter,
-  MoreVertical
+  MoreVertical,
+  ShieldCheck
 } from "lucide-react"
 import { useFirestore, useCollection } from "@/firebase"
 import { collection, query, where, doc, deleteDoc, orderBy } from "firebase/firestore"
