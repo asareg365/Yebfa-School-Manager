@@ -114,7 +114,7 @@ export default function EditParentPage({ params }: { params: Promise<{ id: strin
                          <SelectContent><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem></SelectContent>
                       </Select>
                    </div>
-                   <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Date of Birth</Label><Input type="date" value={parentForm.dateOfBirth || ""} onChange={e => setParentForm({...parentForm, dateOfBirth: e.target.value})} className="h-11 rounded-xl" /></div>
+                   <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Date of Birth</Label><Input type="date" value={parentForm.dob || ""} onChange={e => setParentForm({...parentForm, dob: e.target.value})} className="h-11 rounded-xl" /></div>
                 </div>
               </TabsContent>
 
@@ -138,7 +138,7 @@ export default function EditParentPage({ params }: { params: Promise<{ id: strin
                    <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Occupation</Label><Input value={parentForm.occupation || ""} onChange={e => setParentForm({...parentForm, occupation: e.target.value})} className="h-11 rounded-xl" /></div>
                    <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Employer</Label><Input value={parentForm.employer || ""} onChange={e => setParentForm({...parentForm, employer: e.target.value})} className="h-11 rounded-xl" /></div>
                 </div>
-                <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Employer Address (Office)</Label><Input value={parentForm.officeAddress || ""} onChange={e => setParentForm({...parentForm, officeAddress: e.target.value})} className="h-11 rounded-xl" /></div>
+                <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Employer Address (Office)</Label><Input value={parentForm.employerAddress || ""} onChange={e => setParentForm({...parentForm, employerAddress: e.target.value})} className="h-11 rounded-xl" /></div>
               </TabsContent>
 
               <TabsContent value="id" className="space-y-6 mt-0">

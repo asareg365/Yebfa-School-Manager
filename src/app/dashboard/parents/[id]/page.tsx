@@ -125,7 +125,7 @@ export default function ParentProfilePage({ params }: { params: Promise<{ id: st
                        <div className="space-y-3">
                           <p className="flex justify-between text-sm"><span>Legal Name</span><span className="font-bold text-primary">{parent.firstName} {parent.middleName} {parent.lastName}</span></p>
                           <p className="flex justify-between text-sm"><span>Gender</span><span className="font-bold">{parent.gender}</span></p>
-                          <p className="flex justify-between text-sm"><span>Date of Birth</span><span className="font-bold">{parent.dateOfBirth || "Not Specified"}</span></p>
+                          <p className="flex justify-between text-sm"><span>Date of Birth</span><span className="font-bold">{parent.dob || "Not Specified"}</span></p>
                           <p className="flex justify-between text-sm"><span>Nationality</span><span className="font-bold">{parent.nationality}</span></p>
                        </div>
                     </section>
@@ -203,7 +203,7 @@ export default function ParentProfilePage({ params }: { params: Promise<{ id: st
                        </div>
                        <div className="space-y-1 md:col-span-2">
                           <p className="text-[10px] font-bold uppercase text-muted-foreground">Employer Office Address</p>
-                          <p className="font-medium text-slate-600 italic">"{parent.officeAddress || "No office address registered."}"</p>
+                          <p className="font-medium text-slate-600 italic">"{parent.employerAddress || "No office address registered."}"</p>
                        </div>
                     </div>
                  </div>

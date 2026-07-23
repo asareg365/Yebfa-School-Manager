@@ -42,9 +42,8 @@ export default function AddParentPage() {
     middleName: "",
     lastName: "",
     gender: "Female",
-    dateOfBirth: "",
+    dob: "",
     nationality: "Ghanaian",
-    photoURL: "",
     // Contact
     phone: "",
     alternatePhone: "",
@@ -52,12 +51,11 @@ export default function AddParentPage() {
     address: "",
     town: "",
     region: "",
-    district: "",
     digitalAddress: "",
     // Employment
     occupation: "",
     employer: "",
-    officeAddress: "",
+    employerAddress: "",
     // Identification
     nationalId: "",
     passportNumber: "",
@@ -65,6 +63,7 @@ export default function AddParentPage() {
     emergencyContact: "",
     emergencyPhone: "",
     emergencyRelationship: "",
+    photoURL: "",
     status: "Active"
   }
 
@@ -91,17 +90,44 @@ export default function AddParentPage() {
     
     setLoading(true)
     try {
-      await addDoc(collection(db, "parents"), {
-        ...parentForm,
+      const parentData = {
         tenantId: institutionId,
-        institutionId,
+        parentNumber: parentForm.parentNumber,
+        firstName: parentForm.firstName,
+        middleName: parentForm.middleName,
+        lastName: parentForm.lastName,
+        gender: parentForm.gender,
+        dob: parentForm.dob,
+        phone: parentForm.phone,
+        alternatePhone: parentForm.alternatePhone,
+        email: parentForm.email,
+        address: parentForm.address,
+        town: parentForm.town,
+        region: parentForm.region,
+        digitalAddress: parentForm.digitalAddress,
+        occupation: parentForm.occupation,
+        employer: parentForm.employer,
+        employerAddress: parentForm.employerAddress,
+        nationalId: parentForm.nationalId,
+        passportNumber: parentForm.passportNumber,
+        emergencyContact: parentForm.emergencyContact,
+        emergencyPhone: parentForm.emergencyPhone,
+        emergencyRelationship: parentForm.emergencyRelationship,
+        photoURL: parentForm.photoURL,
+        status: parentForm.status,
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
+      }
+
+      await addDoc(collection(db, "parents"), parentData)
+      
+      toast({ 
+        title: "Parent Registry Authorized", 
+        description: `${parentForm.firstName} ${parentForm.lastName} has been successfully provisioned.` 
       })
-      toast({ title: "Parent Registered", description: `${parentForm.firstName} ${parentForm.lastName} added to hub.` })
       router.push("/dashboard/parents")
     } catch (e: any) { 
-      toast({ variant: "destructive", title: "Error", description: e.message }) 
+      toast({ variant: "destructive", title: "Registration Error", description: e.message }) 
     } finally { 
       setLoading(false) 
     }
@@ -185,7 +211,7 @@ export default function AddParentPage() {
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-[10px] uppercase font-bold text-muted-foreground">Date of Birth</Label>
-                        <Input type="date" value={parentForm.dateOfBirth} onChange={e => setParentForm({...parentForm, dateOfBirth: e.target.value})} className="h-12 rounded-xl" />
+                        <Input type="date" value={parentForm.dob} onChange={e => setParentForm({...parentForm, dob: e.target.value})} className="h-12 rounded-xl" />
                       </div>
                    </div>
                 </div>
@@ -214,14 +240,10 @@ export default function AddParentPage() {
                   <Label className="text-[10px] uppercase font-bold text-muted-foreground">Residential Address</Label>
                   <Input value={parentForm.address} onChange={e => setParentForm({...parentForm, address: e.target.value})} className="h-12 rounded-xl" placeholder="House No, Street Name" />
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    <div className="space-y-1.5">
                      <Label className="text-[10px] uppercase font-bold text-muted-foreground">Town / City</Label>
                      <Input value={parentForm.town} onChange={e => setParentForm({...parentForm, town: e.target.value})} className="h-12 rounded-xl" />
-                   </div>
-                   <div className="space-y-1.5">
-                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">District</Label>
-                     <Input value={parentForm.district} onChange={e => setParentForm({...parentForm, district: e.target.value})} className="h-12 rounded-xl" />
                    </div>
                    <div className="space-y-1.5">
                      <Label className="text-[10px] uppercase font-bold text-muted-foreground">Region</Label>
@@ -243,7 +265,7 @@ export default function AddParentPage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-[10px] uppercase font-bold text-muted-foreground">Employer Office Address</Label>
-                  <Input value={parentForm.officeAddress} onChange={e => setParentForm({...parentForm, officeAddress: e.target.value})} className="h-12 rounded-xl" placeholder="Location of workplace" />
+                  <Input value={parentForm.employerAddress} onChange={e => setParentForm({...parentForm, employerAddress: e.target.value})} className="h-12 rounded-xl" placeholder="Location of workplace" />
                 </div>
               </TabsContent>
 
@@ -275,10 +297,7 @@ export default function AddParentPage() {
                      <Label className="text-[10px] uppercase font-bold text-muted-foreground">Emergency Contact Phone</Label>
                      <Input type="tel" value={parentForm.emergencyPhone} onChange={e => setParentForm({...parentForm, emergencyPhone: e.target.value})} className="h-12 rounded-xl" />
                    </div>
-                   <div className="space-y-1.5">
-                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Relationship to Parent</Label>
-                     <Input value={parentForm.emergencyRelationship} onChange={e => setParentForm({...parentForm, emergencyRelationship: e.target.value})} className="h-12 rounded-xl" placeholder="e.g. Spouse, Brother, Business Partner" />
-                   </div>
+                   <div className="space-y-1.5 md:col-span-2"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Relationship to Parent</Label><Input value={parentForm.emergencyRelationship} onChange={e => setParentForm({...parentForm, emergencyRelationship: e.target.value})} className="h-12 rounded-xl" placeholder="e.g. Spouse, Brother, Business Partner" /></div>
                 </div>
               </TabsContent>
             </CardContent>
