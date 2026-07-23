@@ -25,13 +25,6 @@ const generateDemoVideoFlow = ai.defineFlow(
     outputSchema: GenerateDemoVideoOutputSchema,
   },
   async () => {
-    // Explicitly use the standardized environment variable
-    const apiKey = process.env.GOOGLE_GENAI_API_KEY;
-    
-    if (!apiKey) {
-      throw new Error('AI Configuration Error: Missing GOOGLE_GENAI_API_KEY. Please ensure it is set in the environment.');
-    }
-
     let { operation } = await ai.generate({
       model: 'vertexai/veo-2.0-generate-001',
       prompt: 'A cinematic high-definition walkthrough of a futuristic, clean school management dashboard. The interface shows student profiles, financial growth graphs in Ghana Cedis, and academic reports. Smooth camera motion, professional lighting, 4k resolution.',
@@ -69,9 +62,8 @@ const generateDemoVideoFlow = ai.defineFlow(
     }
 
     const fetch = (await import('node-fetch')).default;
-    const videoDownloadResponse = await fetch(
-      `${videoPart.media.url}&key=${apiKey}`
-    );
+    // Vertex AI authenticates automatically via service account
+    const videoDownloadResponse = await fetch(videoPart.media.url);
 
     if (!videoDownloadResponse || !videoDownloadResponse.ok || !videoDownloadResponse.body) {
       throw new Error('Failed to download the generated video from the AI provider.');
