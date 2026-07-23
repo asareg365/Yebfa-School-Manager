@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -316,38 +315,42 @@ export default function AdmissionsHubPage() {
 
       {/* New Application Dialog */}
       <Dialog open={isAppOpen} onOpenChange={setIsAppOpen}>
-        <DialogContent className="max-w-2xl rounded-3xl border-none shadow-2xl">
-          <form onSubmit={handleCreateApplication}>
-            <DialogHeader className="p-2">
+        <DialogContent className="max-w-2xl rounded-3xl border-none shadow-2xl p-0 overflow-hidden flex flex-col max-h-[90vh]">
+          <form onSubmit={handleCreateApplication} className="flex flex-col h-full overflow-hidden">
+            <DialogHeader className="p-8 bg-primary text-primary-foreground shrink-0">
               <DialogTitle className="text-2xl font-headline font-bold">New Prospect Application</DialogTitle>
-              <DialogDescription>Initiate the admissions workflow for a new candidate.</DialogDescription>
+              <DialogDescription className="text-primary-foreground/70">Initiate the admissions workflow for a new candidate.</DialogDescription>
             </DialogHeader>
-            <div className="grid gap-6 py-6 px-2">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>First Name</Label><Input required value={appForm.firstName} onChange={e => setAppForm({...appForm, firstName: e.target.value})} className="h-11 rounded-xl" /></div>
-                <div className="space-y-2"><Label>Last Name</Label><Input required value={appForm.lastName} onChange={e => setAppForm({...appForm, lastName: e.target.value})} className="h-11 rounded-xl" /></div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Gender</Label>
-                  <Select value={appForm.gender} onValueChange={v => setAppForm({...appForm, gender: v})}>
-                    <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
-                    <SelectContent><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem></SelectContent>
+            
+            <ScrollArea className="flex-1">
+              <div className="grid gap-6 p-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2"><Label>First Name</Label><Input required value={appForm.firstName} onChange={e => setAppForm({...appForm, firstName: e.target.value})} className="h-11 rounded-xl" /></div>
+                  <div className="space-y-2"><Label>Last Name</Label><Input required value={appForm.lastName} onChange={e => setAppForm({...appForm, lastName: e.target.value})} className="h-11 rounded-xl" /></div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2"><Label>Gender</Label>
+                    <Select value={appForm.gender} onValueChange={v => setAppForm({...appForm, gender: v})}>
+                      <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                      <SelectContent><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem></SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2"><Label>Date of Birth</Label><Input type="date" value={appForm.dateOfBirth} onChange={e => setAppForm({...appForm, dateOfBirth: e.target.value})} className="h-11 rounded-xl" /></div>
+                </div>
+                <div className="space-y-2"><Label>Target Grade Level</Label>
+                  <Select required value={appForm.gradeLevel} onValueChange={v => setAppForm({...appForm, gradeLevel: v})}>
+                    <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Select Grade" /></SelectTrigger>
+                    <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2"><Label>Date of Birth</Label><Input type="date" value={appForm.dateOfBirth} onChange={e => setAppForm({...appForm, dateOfBirth: e.target.value})} className="h-11 rounded-xl" /></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2"><Label>Contact Phone</Label><Input value={appForm.phone} onChange={e => setAppForm({...appForm, phone: e.target.value})} className="h-11 rounded-xl" /></div>
+                  <div className="space-y-2"><Label>Email Address (Optional)</Label><Input type="email" value={appForm.email} onChange={e => setAppForm({...appForm, email: e.target.value})} className="h-11 rounded-xl" /></div>
+                </div>
               </div>
-              <div className="space-y-2"><Label>Target Grade Level</Label>
-                <Select required value={appForm.gradeLevel} onValueChange={v => setAppForm({...appForm, gradeLevel: v})}>
-                  <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Select Grade" /></SelectTrigger>
-                  <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Contact Phone</Label><Input value={appForm.phone} onChange={e => setAppForm({...appForm, phone: e.target.value})} className="h-11 rounded-xl" /></div>
-                <div className="space-y-2"><Label>Email Address (Optional)</Label><Input type="email" value={appForm.email} onChange={e => setAppForm({...appForm, email: e.target.value})} className="h-11 rounded-xl" /></div>
-              </div>
-            </div>
-            <DialogFooter className="p-2">
+            </ScrollArea>
+
+            <DialogFooter className="p-8 bg-slate-50 border-t shrink-0">
               <Button type="submit" disabled={loading} className="w-full h-12 rounded-xl bg-primary font-bold shadow-lg">
                 {loading ? <Loader2 className="animate-spin" /> : <CheckCircle2 className="mr-2" />} Authorize Application
               </Button>
@@ -358,36 +361,40 @@ export default function AdmissionsHubPage() {
 
       {/* Interview Notes Dialog */}
       <Dialog open={isInterviewOpen} onOpenChange={setIsInterviewOpen}>
-        <DialogContent className="max-w-lg rounded-3xl border-none shadow-2xl">
-          <form onSubmit={handleInterviewSave}>
-            <DialogHeader className="p-2">
+        <DialogContent className="max-w-lg rounded-3xl border-none shadow-2xl p-0 overflow-hidden flex flex-col max-h-[90vh]">
+          <form onSubmit={handleInterviewSave} className="flex flex-col h-full overflow-hidden">
+            <DialogHeader className="p-8 bg-slate-50 border-b shrink-0">
               <DialogTitle className="text-2xl font-headline font-bold">Interview Evaluation</DialogTitle>
               <DialogDescription>Evaluation notes for {selectedApp?.firstName} {selectedApp?.lastName}.</DialogDescription>
             </DialogHeader>
-            <div className="py-6 space-y-6 px-2">
-               <div className="space-y-2">
-                 <Label>Interview Status</Label>
-                 <Select value={interviewForm.status} onValueChange={v => setInterviewForm({...interviewForm, status: v})}>
-                    <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                       <SelectItem value="Interviewed">Interviewed / Pending</SelectItem>
-                       <SelectItem value="Accepted">Proceed to Acceptance</SelectItem>
-                       <SelectItem value="Rejected">Decline Application</SelectItem>
-                    </SelectContent>
-                 </Select>
-               </div>
-               <div className="space-y-2">
-                 <Label>Evaluation Summary</Label>
-                 <Textarea 
-                   className="min-h-[150px] rounded-xl" 
-                   placeholder="Enter interview outcomes and observations..." 
-                   value={interviewForm.interviewNotes}
-                   onChange={e => setInterviewForm({...interviewForm, interviewNotes: e.target.value})}
-                 />
-               </div>
-            </div>
-            <DialogFooter className="p-2">
-               <Button type="submit" disabled={loading} className="w-full h-12 rounded-xl bg-primary font-bold">
+            
+            <ScrollArea className="flex-1">
+              <div className="p-8 space-y-6">
+                <div className="space-y-2">
+                  <Label>Interview Status</Label>
+                  <Select value={interviewForm.status} onValueChange={v => setInterviewForm({...interviewForm, status: v})}>
+                      <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Interviewed">Interviewed / Pending</SelectItem>
+                        <SelectItem value="Accepted">Proceed to Acceptance</SelectItem>
+                        <SelectItem value="Rejected">Decline Application</SelectItem>
+                      </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Evaluation Summary</Label>
+                  <Textarea 
+                    className="min-h-[200px] rounded-xl" 
+                    placeholder="Enter interview outcomes and observations..." 
+                    value={interviewForm.interviewNotes}
+                    onChange={e => setInterviewForm({...interviewForm, interviewNotes: e.target.value})}
+                  />
+                </div>
+              </div>
+            </ScrollArea>
+
+            <DialogFooter className="p-8 bg-slate-50 border-t shrink-0">
+               <Button type="submit" disabled={loading} className="w-full h-12 rounded-xl bg-primary font-bold shadow-xl">
                   {loading ? <Loader2 className="animate-spin" /> : "Save Evaluation"}
                </Button>
             </DialogFooter>
