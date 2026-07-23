@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -15,8 +14,7 @@ import {
   Trash2, 
   Pencil,
   User,
-  Eye,
-  ArrowRight
+  Eye
 } from "lucide-react"
 import { useFirestore, useCollection } from "@/firebase"
 import { collection, query, where, doc, deleteDoc } from "firebase/firestore"
@@ -42,7 +40,7 @@ export default function ParentsRegistryPage() {
 
   const filteredParents = useMemo(() => {
     return parents.filter(p => 
-      `${p.firstName} ${p.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      `${p.firstName || ""} ${p.lastName || ""}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.parentNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.phone?.toLowerCase().includes(searchQuery.toLowerCase())
     ).sort((a, b) => (a.parentNumber || "").localeCompare(b.parentNumber || ""))
@@ -71,7 +69,7 @@ export default function ParentsRegistryPage() {
         </Button>
       </div>
 
-      <Card className="border-none shadow-xl rounded-2xl overflow-hidden">
+      <Card className="border-none shadow-xl rounded-2xl overflow-hidden bg-white">
         <CardHeader className="bg-white border-b py-6 p-4 md:p-6">
           <div className="relative max-w-sm">
             <Search className="absolute left-3 top-3.5 size-4 text-muted-foreground" />

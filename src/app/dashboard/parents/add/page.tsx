@@ -1,7 +1,6 @@
-
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -63,7 +62,7 @@ export default function AddParentPage() {
   }, [])
 
   const parentsQuery = useMemo(() => institutionId ? query(collection(db, "parents"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
-  const { data: parents } = useCollection(parentsQuery)
+  const { data: parents = [] } = useCollection(parentsQuery)
 
   useEffect(() => {
     if (institutionId && parents.length >= 0 && !parentForm.parentNumber) {
@@ -71,7 +70,7 @@ export default function AddParentPage() {
       const autoCode = `PAR-${String(count).padStart(6, '0')}`
       setParentForm(prev => ({ ...prev, parentNumber: autoCode }))
     }
-  }, [institutionId, parents.length])
+  }, [institutionId, parents.length, parentForm.parentNumber])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -192,5 +191,3 @@ export default function AddParentPage() {
     </div>
   )
 }
-
-import { useMemo } from "react"

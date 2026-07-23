@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -127,11 +126,11 @@ export default function StudentsPage() {
   const { data: registeredClasses = [] } = useCollection(classesQuery)
   const { data: allRels = [] } = useCollection(relsQuery)
 
-  const students = useMemo(() => {
+  const studentsList = useMemo(() => {
     return rawStudents.filter(s => 
       `${s.firstName || ""} ${s.lastName || ""}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.admissionNumber?.toLowerCase().includes(searchQuery.toLowerCase())
-    ).sort((a, b) => (a.admissionNumber || "").localeCompare(b.admissionNumber || ""));
+    ).sort((a: any, b: any) => (a.admissionNumber || "").localeCompare(b.admissionNumber || ""));
   }, [rawStudents, searchQuery]);
 
   useEffect(() => {
@@ -146,7 +145,7 @@ export default function StudentsPage() {
       const autoCode = `PAR-${String(count).padStart(6, '0')}`;
       setNewParentForm(prev => ({ ...prev, parentNumber: autoCode }));
     }
-  }, [isEnrollOpen, rawStudents.length, parents.length, editingStudent, isNewParent]);
+  }, [isEnrollOpen, rawStudents.length, parents.length, editingStudent, isNewParent, studentForm.admissionNumber, newParentForm.parentNumber]);
 
   const handleEnroll = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -245,12 +244,14 @@ export default function StudentsPage() {
     setActiveStep("identity")
   }
 
+  if (dataLoading) return <div className="p-24 text-center animate-pulse font-bold text-muted-foreground uppercase tracking-widest text-xs">Syncing Registry...</div>
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Student Registry</h1>
-          <p className="text-muted-foreground">Managing {students.length} institutional enrollment records.</p>
+          <p className="text-muted-foreground">Managing {studentsList.length} institutional enrollment records.</p>
         </div>
         <div className="flex flex-wrap gap-3">
           <Button variant="outline" className="h-11 rounded-xl" asChild><Link href="/dashboard/students/id-cards"><IdCard className="size-4 mr-2" /> ID Cards</Link></Button>
@@ -279,7 +280,7 @@ export default function StudentsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {students.map((stu: any) => {
+              {studentsList.map((stu: any) => {
                 const mainRel = allRels.find(r => r.studentId === stu.id && r.primaryContact);
                 const parent = parents.find(p => p.id === mainRel?.parentId);
                 return (
@@ -291,7 +292,7 @@ export default function StudentsPage() {
                         </div>
                         <div className="flex flex-col">
                           <span className="text-[10px] font-mono font-bold text-accent">{stu.admissionNumber}</span>
-                          <span className="font-bold text-primary">{(stu.firstName || "S")} {(stu.lastName || "T")}</span>
+                          <span className="font-bold text-primary">{stu.firstName} {stu.lastName}</span>
                         </div>
                       </div>
                     </TableCell>

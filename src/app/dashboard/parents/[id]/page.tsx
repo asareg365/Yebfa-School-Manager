@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo, use } from "react"
@@ -44,15 +43,14 @@ export default function ParentProfilePage({ params }: { params: Promise<{ id: st
     institutionId ? query(collection(db, "student_parents"), where("parentId", "==", parentId)) : null, 
     [db, parentId, institutionId]
   )
-  const { data: rels } = useCollection(relsQuery)
+  const { data: rels = [] } = useCollection(relsQuery)
 
   const studentsQuery = useMemo(() => {
     if (!institutionId || rels.length === 0) return null
     const ids = rels.map(r => r.studentId)
-    // Firestore "in" query limited to 10. For institutional scales, we handle this carefully.
     return query(collection(db, "students"), where("id", "in", ids))
   }, [db, rels, institutionId])
-  const { data: children } = useCollection(studentsQuery)
+  const { data: children = [] } = useCollection(studentsQuery)
 
   if (pLoading) return (
     <div className="p-24 text-center">
