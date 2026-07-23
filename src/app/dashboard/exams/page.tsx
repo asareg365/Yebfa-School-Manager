@@ -19,6 +19,7 @@ export default function ExaminationCenterPage() {
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [selectedGrade, setSelectedGrade] = useState("")
   const [selectedSubject, setSelectedSubject] = useState("")
+  const [selectedTerm, setSelectedTerm] = useState("")
   const [isSaving, setIsSaving] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiResult, setAiResult] = useState<any>(null)
@@ -32,7 +33,12 @@ export default function ExaminationCenterPage() {
   const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
   const { data: institution } = useDoc(instRef)
   
-  const currentTerm = institution?.currentTerm || "Term 1"
+  // Sync selectedTerm with institution default on load
+  useEffect(() => {
+    if (institution?.currentTerm && !selectedTerm) {
+      setSelectedTerm(institution.currentTerm)
+    }
+  }, [institution, selectedTerm])
 
   const classesQuery = useMemo(() => {
     if (!db || !institutionId) return null;
@@ -50,15 +56,15 @@ export default function ExaminationCenterPage() {
   }, [db, institutionId]);
 
   const existingScoresQuery = useMemo(() => {
-    if (!db || !institutionId || !selectedGrade || !selectedSubject) return null;
+    if (!db || !institutionId || !selectedGrade || !selectedSubject || !selectedTerm) return null;
     return query(
       collection(db, "exam_records"),
       where("tenantId", "==", institutionId),
       where("gradeLevel", "==", selectedGrade),
       where("subjectId", "==", selectedSubject),
-      where("termId", "==", currentTerm)
+      where("termId", "==", selectedTerm)
     );
-  }, [db, institutionId, selectedGrade, selectedSubject, currentTerm]);
+  }, [db, institutionId, selectedGrade, selectedSubject, selectedTerm]);
 
   const { data: classes = [] } = useCollection(classesQuery)
   const { data: students = [] } = useCollection(studentsQuery)
@@ -78,7 +84,7 @@ export default function ExaminationCenterPage() {
     } else {
       setScores({});
     }
-  }, [existingScores, selectedSubject]);
+  }, [existingScores, selectedSubject, selectedTerm]);
 
   const handleScoreChange = (studentId: string, field: 'ca' | 'exam', value: string) => {
     setScores(prev => ({
@@ -91,8 +97,8 @@ export default function ExaminationCenterPage() {
   }
 
   const handleSaveScores = async () => {
-    if (!db || !institutionId || !selectedSubject || !selectedGrade) {
-      toast({ variant: "destructive", title: "Selection Required", description: "Select grade and subject to save scores." })
+    if (!db || !institutionId || !selectedSubject || !selectedGrade || !selectedTerm) {
+      toast({ variant: "destructive", title: "Selection Required", description: "Select grade, subject, and term to save scores." })
       return
     }
 
@@ -106,7 +112,7 @@ export default function ExaminationCenterPage() {
         const exam = parseFloat(studentScores.exam) || 0
         const total = ca + exam
         
-        const recordId = `${stu.id}_${selectedSubject}_${currentTerm.replace(/\s+/g, '')}`
+        const recordId = `${stu.id}_${selectedSubject}_${selectedTerm.replace(/\s+/g, '')}`
         const recordRef = doc(db, "exam_records", recordId)
         
         batch.set(recordRef, {
@@ -116,7 +122,7 @@ export default function ExaminationCenterPage() {
           studentName: `${stu.firstName} ${stu.lastName}`,
           subjectId: selectedSubject,
           gradeLevel: selectedGrade,
-          termId: currentTerm,
+          termId: selectedTerm,
           classScore: ca,
           examScore: exam,
           totalScore: total,
@@ -126,7 +132,7 @@ export default function ExaminationCenterPage() {
       })
 
       await batch.commit()
-      toast({ title: "Scores Finalized", description: `Academic records synchronized for ${students.length} students for ${currentTerm}.` })
+      toast({ title: "Scores Finalized", description: `Academic records synchronized for ${students.length} students for ${selectedTerm}.` })
     } catch (err: any) {
       toast({ variant: "destructive", title: "Save Failed", description: err.message })
     } finally {
@@ -163,7 +169,7 @@ export default function ExaminationCenterPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Examination Center</h1>
-          <p className="text-muted-foreground font-medium">Capture results for <span className="text-accent font-bold uppercase">{currentTerm}</span>.</p>
+          <p className="text-muted-foreground font-medium">Capture results for <span className="text-accent font-bold uppercase">{selectedTerm || institution?.currentTerm || "..."}</span>.</p>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" className="gap-2 h-11 rounded-xl" onClick={handleAiGenerate} disabled={aiLoading}>
@@ -183,6 +189,17 @@ export default function ExaminationCenterPage() {
         <Card className="border-none shadow-md h-fit">
           <CardHeader><CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Exam Context</CardTitle></CardHeader>
           <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-[10px] font-bold uppercase text-muted-foreground">Academic Term</Label>
+              <Select onValueChange={setSelectedTerm} value={selectedTerm}>
+                <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Select Term" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Term 1">Term 1</SelectItem>
+                  <SelectItem value="Term 2">Term 2</SelectItem>
+                  <SelectItem value="Term 3">Term 3</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label className="text-[10px] font-bold uppercase text-muted-foreground">Grade Module</Label>
               <Select onValueChange={setSelectedGrade} value={selectedGrade}>
@@ -241,7 +258,7 @@ export default function ExaminationCenterPage() {
              <CardHeader className="border-b bg-slate-50/50 flex flex-row items-center justify-between">
                 <div>
                   <CardTitle className="text-lg">Score Registry</CardTitle>
-                  <CardDescription>Entering scores for {currentTerm}, 2026 Academic Cycle.</CardDescription>
+                  <CardDescription>Entering scores for {selectedTerm || institution?.currentTerm}, 2026 Academic Cycle.</CardDescription>
                 </div>
                 {selectedSubject && <Badge className="bg-primary/5 text-primary border-none text-[10px] font-bold uppercase tracking-widest px-3">Sync Active</Badge>}
              </CardHeader>
@@ -249,7 +266,7 @@ export default function ExaminationCenterPage() {
                 {!selectedGrade || !selectedSubject ? (
                   <div className="p-32 text-center text-muted-foreground space-y-4">
                     <div className="size-16 rounded-full bg-muted flex items-center justify-center mx-auto opacity-20"><ClipboardList className="size-8" /></div>
-                    <p className="italic text-sm">Select a grade module and subject to record scores.</p>
+                    <p className="italic text-sm">Select a grade module, subject, and term to record scores.</p>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
