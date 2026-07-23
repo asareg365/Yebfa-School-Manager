@@ -21,12 +21,14 @@ import {
   CheckCircle2,
   HeartHandshake,
   Baby,
-  Users
+  Users,
+  Upload,
+  FileSpreadsheet
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection, useUser } from "@/firebase"
 import { collection, addDoc, query, deleteDoc, doc, where, serverTimestamp, updateDoc, writeBatch } from "firebase/firestore"
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
@@ -36,6 +38,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Checkbox } from "@/components/ui/checkbox"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
+import Papa from "papaparse"
 
 export default function StudentsPage() {
   const db = useFirestore()
@@ -43,6 +46,7 @@ export default function StudentsPage() {
   const { user } = useUser()
   const [loading, setLoading] = useState(false)
   const [isEnrollOpen, setIsEnrollOpen] = useState(false)
+  const [isBulkOpen, setIsBulkOpen] = useState(false)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
   const [editingStudent, setEditingStudent] = useState<any>(null)
@@ -51,6 +55,8 @@ export default function StudentsPage() {
   
   const [activeStep, setActiveStep] = useState("identity")
   const steps = ["identity", "academic", "guardian", "finalize"]
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const initialForm = {
     firstName: "",
@@ -134,7 +140,6 @@ export default function StudentsPage() {
     ).sort((a: any, b: any) => (a.admissionNumber || "").localeCompare(b.admissionNumber || ""));
   }, [rawStudents, searchQuery]);
 
-  // Sequential Parent Number Generator for Wizard
   useEffect(() => {
     if (isEnrollOpen && !studentForm.admissionNumber && !editingStudent) {
       const year = new Date().getFullYear();
@@ -228,6 +233,66 @@ export default function StudentsPage() {
     } finally { setLoading(false) }
   }
 
+  const handleBulkEnroll = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !institutionId) return
+
+    setLoading(true)
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const batch = writeBatch(db)
+        const year = new Date().getFullYear()
+        let count = rawStudents.length + 1
+
+        for (const row of results.data as any[]) {
+          const studentRef = doc(collection(db, "students"))
+          const studentId = studentRef.id
+          const admNo = `ADM-${year}-${String(count).padStart(5, '0')}`
+
+          batch.set(studentRef, {
+            firstName: row.firstName || "New",
+            lastName: row.lastName || "Student",
+            gender: row.gender || "Male",
+            dateOfBirth: row.dob || "",
+            admissionNumber: admNo,
+            gradeLevel: row.grade || "",
+            status: "active",
+            tenantId: institutionId,
+            institutionId,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          })
+
+          const ledgerRef = doc(collection(db, "student_ledger"))
+          batch.set(ledgerRef, {
+            tenantId: institutionId,
+            institutionId,
+            studentId,
+            date: new Date().toISOString().split('T')[0],
+            item: "Bulk Account Provisioning",
+            type: "charge",
+            amount: 0,
+            createdAt: serverTimestamp()
+          })
+
+          count++
+        }
+
+        try {
+          await batch.commit()
+          toast({ title: "Bulk Enrollment Complete", description: `Loaded ${results.data.length} students into registry.` })
+          setIsBulkOpen(false)
+        } catch (err: any) {
+          toast({ variant: "destructive", title: "Bulk Upload Failed", description: err.message })
+        } finally {
+          setLoading(false)
+        }
+      }
+    })
+  }
+
   const navigateStep = (direction: 'next' | 'back') => {
     const currentIndex = steps.indexOf(activeStep)
     if (direction === 'next' && currentIndex < steps.length - 1) setActiveStep(steps[currentIndex + 1])
@@ -256,6 +321,9 @@ export default function StudentsPage() {
           <p className="text-muted-foreground">Managing {studentsList.length} institutional enrollment records.</p>
         </div>
         <div className="flex flex-wrap gap-3">
+          <Button variant="outline" className="h-11 rounded-xl gap-2" onClick={() => setIsBulkOpen(true)}>
+            <FileSpreadsheet className="size-4" /> Bulk Enrollment
+          </Button>
           <Button variant="outline" className="h-11 rounded-xl" asChild><Link href="/dashboard/students/id-cards"><IdCard className="size-4 mr-2" /> ID Cards</Link></Button>
           <Button className="bg-primary rounded-xl h-11 shadow-lg gap-2" onClick={() => { setEditingStudent(null); setStudentForm(initialForm); setIsEnrollOpen(true); setActiveStep("identity"); }}>
             <UserPlus className="size-4" /> Enroll Student
@@ -317,6 +385,27 @@ export default function StudentsPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={isBulkOpen} onOpenChange={setIsBulkOpen}>
+        <DialogContent className="max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-headline font-bold">Bulk Student Enrollment</DialogTitle>
+            <DialogDescription>Upload a CSV file to enroll multiple students instantly. Expected columns: firstName, lastName, gender, dob, grade.</DialogDescription>
+          </DialogHeader>
+          <div className="py-12 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-4 bg-muted/5">
+            <Upload className="size-12 text-primary opacity-20" />
+            <div className="text-center space-y-1">
+              <p className="text-sm font-bold">Drop CSV here or click to select</p>
+              <p className="text-xs text-muted-foreground italic">File size limit: 2MB</p>
+            </div>
+            <input type="file" ref={fileInputRef} onChange={handleBulkEnroll} accept=".csv" className="hidden" />
+            <Button className="h-10 px-8 rounded-xl font-bold" onClick={() => fileInputRef.current?.click()} disabled={loading}>
+              {loading ? <Loader2 className="animate-spin mr-2" /> : <Upload className="mr-2 size-4" />}
+              Choose File
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isEnrollOpen} onOpenChange={setIsEnrollOpen}>
         <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded-2xl md:rounded-3xl max-h-[90vh] flex flex-col">
