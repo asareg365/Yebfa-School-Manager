@@ -1,19 +1,14 @@
-import {genkit} from 'genkit';
-import {googleAI} from '@genkit-ai/google-genai';
+import { genkit } from 'genkit';
+import { vertexAI } from '@genkit-ai/vertexai';
 import { GEMINI_MODEL } from '@/lib/ai-config';
-
-/**
- * @fileOverview Genkit Initialization
- * 
- * Configures the Google AI plugin using the standardized GOOGLE_GENAI_API_KEY.
- * Uses the centralized GEMINI_MODEL from ai-config.ts as the default.
- */
 
 export const ai = genkit({
   plugins: [
-    googleAI({
-      apiKey: process.env.GOOGLE_GENAI_API_KEY,
+    vertexAI({
+      projectId: 'yebfa-ai',
+      location: 'us-central1',
     }),
   ],
+
   model: GEMINI_MODEL,
 });

@@ -1,8 +1,5 @@
 /**
- * @fileOverview AI Model Configuration
- * 
- * Centralized constant for the primary Gemini model used across the application.
- * Standardizing on gemini-1.5-flash for maximum regional compatibility and stability.
+ * Centralized AI model configuration
  */
 
-export const GEMINI_MODEL = 'googleai/gemini-2.5-flash';
+export const GEMINI_MODEL = 'gemini-2.5-flash';
