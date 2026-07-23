@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -43,7 +42,7 @@ export default function StaffPage() {
     qualification: "",
     departmentId: "Academics",
     designation: "Teacher",
-    employmentDate: new Date().toISOString().split('T')[0],
+    employmentDate: "",
     salary: "",
     bankName: "",
     bankAccount: "",
@@ -56,6 +55,11 @@ export default function StaffPage() {
 
   useEffect(() => {
     setInstitutionId(localStorage.getItem('selected_institution_id'))
+    // Initialize date on client to avoid hydration mismatch
+    setStaffForm(prev => ({
+      ...prev,
+      employmentDate: new Date().toISOString().split('T')[0]
+    }))
   }, [])
 
   const staffQuery = useMemo(() => {

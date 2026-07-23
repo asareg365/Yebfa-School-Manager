@@ -30,7 +30,8 @@ const nextConfig: NextConfig = {
       },
     ],
   },
- 
+  // Ensure the build artifacts are handled cleanly
+  cleanDistDir: true,
 };
 
 export default nextConfig;

@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -42,7 +41,7 @@ export default function InventoryManagementPage() {
   const [itemForm, setItemForm] = useState({
     name: "",
     category: "Furniture",
-    purchaseDate: new Date().toISOString().split('T')[0],
+    purchaseDate: "",
     purchasePrice: "",
     condition: "New",
     warrantyExpiry: "",
@@ -53,6 +52,11 @@ export default function InventoryManagementPage() {
 
   useEffect(() => {
     setInstitutionId(localStorage.getItem('selected_institution_id'))
+    // Initialize date on client to avoid hydration mismatch
+    setItemForm(prev => ({
+      ...prev,
+      purchaseDate: new Date().toISOString().split('T')[0]
+    }))
   }, [])
 
   const inventoryQuery = useMemo(() => {

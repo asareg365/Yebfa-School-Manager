@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -36,11 +35,16 @@ export default function LibraryTransactionsPage() {
     bookId: "",
     borrowerId: "",
     borrowerName: "",
-    dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    dueDate: ""
   })
 
   useEffect(() => {
     setInstitutionId(localStorage.getItem('selected_institution_id'))
+    // Initialize date on client to avoid hydration mismatch
+    setBorrowForm(prev => ({
+      ...prev,
+      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    }))
   }, [])
 
   const booksQuery = useMemo(() => institutionId ? query(collection(db!, "library_books"), where("tenantId", "==", institutionId), where("availableCopies", ">", 0)) : null, [db, institutionId])
@@ -84,7 +88,12 @@ export default function LibraryTransactionsPage() {
       await batch.commit()
       toast({ title: "Book Issued", description: `Issued to ${selectedStudent.firstName}.` })
       setIsBorrowOpen(false)
-      setBorrowForm({ bookId: "", borrowerId: "", borrowerName: "", dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] })
+      setBorrowForm({ 
+        bookId: "", 
+        borrowerId: "", 
+        borrowerName: "", 
+        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] 
+      })
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: err.message })
     } finally {

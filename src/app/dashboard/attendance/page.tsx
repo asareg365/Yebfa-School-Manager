@@ -17,13 +17,15 @@ export default function AttendancePage() {
   const db = useFirestore()
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [selectedGrade, setSelectedGrade] = useState("")
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+  const [selectedDate, setSelectedDate] = useState("")
   const [presentStudents, setPresentStudents] = useState<Record<string, boolean>>({})
   const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
     const storedId = localStorage.getItem('selected_institution_id')
     if (storedId) setInstitutionId(storedId)
+    // Initialize date on client to avoid hydration mismatch
+    setSelectedDate(new Date().toISOString().split('T')[0])
   }, [])
 
   // Sync with actual registered classes
