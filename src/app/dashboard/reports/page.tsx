@@ -134,12 +134,22 @@ export default function ReportsPage() {
     }
   }
 
-  const handleCopy = () => {
+  const handleCopy = async () => {
     if (result && selectedStudent) {
       const text = `Official Academic Report: ${selectedStudent.firstName} ${selectedStudent.lastName}\n\nSummary: ${result.executiveSummary}\n\nNarrative: ${result.finalGradeNarrative}`
-      navigator.clipboard.writeText(text)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      
+      try {
+        await navigator.clipboard.writeText(text)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      } catch (err) {
+        console.error("Clipboard Error:", err)
+        toast({
+          variant: "destructive",
+          title: "Copy Restricted",
+          description: "Clipboard access is restricted by your browser's security policy. Please select and copy the text manually.",
+        })
+      }
     }
   }
 

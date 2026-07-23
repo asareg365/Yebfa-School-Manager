@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -152,7 +151,7 @@ export default function StudentsPage() {
 
   const students = useMemo(() => {
     return rawStudents.filter(s => 
-      `${s.firstName} ${s.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      `${s.firstName || ""} ${s.lastName || ""}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.admissionNumber?.toLowerCase().includes(searchQuery.toLowerCase())
     ).sort((a, b) => (a.admissionNumber || "").localeCompare(b.admissionNumber || ""));
   }, [rawStudents, searchQuery]);
@@ -315,7 +314,7 @@ export default function StudentsPage() {
                         </div>
                         <div className="flex flex-col">
                           <span className="text-[10px] font-mono font-bold text-accent">{stu.admissionNumber}</span>
-                          <span className="font-bold text-primary">{stu.firstName} {stu.lastName}</span>
+                          <span className="font-bold text-primary">{(stu.firstName || "S")} {(stu.lastName || "T")}</span>
                         </div>
                       </div>
                     </TableCell>

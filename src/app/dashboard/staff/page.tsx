@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
@@ -109,7 +108,7 @@ export default function StaffHRPage() {
 
   const staffList = useMemo(() => {
     return rawStaff.filter(s => 
-      `${s.firstName} ${s.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      `${s.firstName || ""} ${s.lastName || ""}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.staffNumber?.toLowerCase().includes(searchQuery.toLowerCase())
     ).sort((a, b) => (a.staffNumber || "").localeCompare(b.staffNumber || ""));
   }, [rawStaff, searchQuery]);
@@ -231,7 +230,7 @@ export default function StaffHRPage() {
                   <TableCell className="px-6">
                     <div className="flex items-center gap-3">
                       <div className="size-10 rounded-xl bg-primary/5 flex items-center justify-center font-bold text-primary text-xs shrink-0 border">
-                        {s.firstName.charAt(0)}{s.lastName.charAt(0)}
+                        {(s.firstName || "S").charAt(0)}{(s.lastName || "T").charAt(0)}
                       </div>
                       <div className="flex flex-col">
                         <span className="text-[10px] font-mono font-bold text-accent">{s.staffNumber}</span>
@@ -495,7 +494,7 @@ export default function StaffHRPage() {
 
             <DialogFooter className="bg-slate-50 p-8 border-t shrink-0">
               <Button type="submit" disabled={loading} className="w-full h-14 rounded-2xl bg-primary font-bold shadow-xl text-lg gap-2">
-                {loading ? <Loader2 className="animate-spin" /> : <ShieldCheck className="size-5" />} 
+                {loading ? <Loader2 className="mr-2 animate-spin" /> : <ShieldCheck className="size-5" />} 
                 {editingStaff ? "Authorize Registry Update" : "Authorize HR Enrollment"}
               </Button>
             </DialogFooter>
