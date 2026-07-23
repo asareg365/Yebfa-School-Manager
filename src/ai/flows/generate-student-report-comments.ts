@@ -1,94 +1,47 @@
 'use server';
-/**
- * @fileOverview Flow for generating student report comments using Vertex AI.
- */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
-import { GEMINI_MODEL } from '@/lib/ai-config';
+import { ai } from '@/ai/genkit';
+import { z } from 'genkit';
+import { MODELS } from '@/ai/models';
+import { PROMPTS } from '@/ai/prompts';
+import { wrapAIError } from '@/ai/errors';
 
 const GenerateStudentReportCommentsInputSchema = z.object({
-  studentName: z.string().describe("The student's full name."),
-  subject: z.string().describe("The academic subject."),
-  gradeLevel: z.string().describe("The student's current grade level."),
-  examScores: z.array(
-    z.object({
-      name: z.string().describe("Exam name."),
-      score: z.number().describe("Score percentage."),
-    })
-  ).describe("Array of exam results."),
-  attendancePercentage: z.number().min(0).max(100).describe("Attendance percentage."),
-  behaviorNotes: z.string().optional().describe("Notes on behavior and participation."),
+  studentName: z.string(),
+  subject: z.string(),
+  gradeLevel: z.string(),
+  examScores: z.array(z.object({ name: z.string(), score: z.number() })),
+  attendancePercentage: z.number().min(0).max(100),
+  behaviorNotes: z.string().optional(),
 });
-export type GenerateStudentReportCommentsInput = z.infer<typeof GenerateStudentReportCommentsInputSchema>;
 
 const GenerateStudentReportCommentsOutputSchema = z.object({
-  executiveSummary: z.string().optional().describe("A high-level summary of the student's performance."),
-  academicAnalysis: z.string().optional().describe("Detailed analysis of academic strengths and weaknesses based on scores."),
-  personalDevelopment: z.string().optional().describe("Analysis of behavioral and personal growth."),
-  keyStrengths: z.array(z.string()).optional().describe("List of core academic or social strengths."),
-  areasToImprove: z.array(z.string()).optional().describe("Specific targets for growth."),
-  actionableSteps: z.array(z.string()).optional().describe("Concrete steps for the student/parent to take."),
-  finalGradeNarrative: z.string().optional().describe("A warm, parent-friendly paragraph for the final report card."),
-  error: z.string().optional().describe("An error message if the generation failed."),
+  executiveSummary: z.string().optional(),
+  academicAnalysis: z.string().optional(),
+  personalDevelopment: z.string().optional(),
+  keyStrengths: z.array(z.string()).optional(),
+  areasToImprove: z.array(z.string()).optional(),
+  actionableSteps: z.array(z.string()).optional(),
+  finalGradeNarrative: z.string().optional(),
+  error: z.string().optional(),
 });
+
+export type GenerateStudentReportCommentsInput = z.infer<typeof GenerateStudentReportCommentsInputSchema>;
 export type GenerateStudentReportCommentsOutput = z.infer<typeof GenerateStudentReportCommentsOutputSchema>;
 
-const generateStudentReportCommentsPrompt = ai.definePrompt({
-  name: 'generateStudentReportCommentsPrompt',
-  model: GEMINI_MODEL,
-  input: {schema: GenerateStudentReportCommentsInputSchema},
-  output: {schema: GenerateStudentReportCommentsOutputSchema},
-  prompt: `You are an expert educator crafting professional, detailed academic reports.
-Analyze the student's data and provide a comprehensive, well-organized report.
-
-Student: {{{studentName}}}
-Subject: {{{subject}}}
-Grade: {{{gradeLevel}}}
-Attendance: {{{attendancePercentage}}}%
-Exam Scores:
-{{#each examScores}}
-- {{this.name}}: {{this.score}}%
-{{/each}}
-Notes: {{{behaviorNotes}}}
-
-INSTRUCTIONS FOR THE NARRATIVE:
-- The 'finalGradeNarrative' MUST be simple, warm, and parent-friendly.
-- Avoid jargon. Use encouragement.
-- Include one specific tip for home practice.
-- Example: "Ama is improving steadily in Mathematics. Continued practice at home will strengthen her confidence in solving word problems."
-
-STRUCTURE:
-1. Provide a professional 'executiveSummary'.
-2. Deep dive into 'academicAnalysis'.
-3. Reflect on 'personalDevelopment'.
-4. List 'keyStrengths' and 'areasToImprove'.
-5. Provide 'actionableSteps' for future improvement.
-6. End with the warm 'finalGradeNarrative'.
-
-Tone: Professional, supportive, and data-driven.`,
+const prompt = ai.definePrompt({
+  name: 'reportPrompt',
+  model: MODELS.REPORTS,
+  input: { schema: GenerateStudentReportCommentsInputSchema },
+  output: { schema: GenerateStudentReportCommentsOutputSchema },
+  prompt: PROMPTS.REPORT_NARRATIVE,
 });
 
-const generateStudentReportCommentsFlow = ai.defineFlow(
-  {
-    name: 'generateStudentReportCommentsFlow',
-    inputSchema: GenerateStudentReportCommentsInputSchema,
-    outputSchema: GenerateStudentReportCommentsOutputSchema,
-  },
-  async (input) => {
-    try {
-      const {output} = await generateStudentReportCommentsPrompt(input);
-      if (!output) {
-        return { error: "The AI model failed to return a structured performance narrative." };
-      }
-      return output;
-    } catch (err: any) {
-      console.error("AI Flow Error:", err.message);
-      return { error: `AI Error: ${err.message || "An unexpected error occurred."}` };
-    }
-  }
-);
-
 export async function generateStudentReportComments(input: GenerateStudentReportCommentsInput): Promise<GenerateStudentReportCommentsOutput> {
-  return generateStudentReportCommentsFlow(input);
+  try {
+    const { output } = await prompt(input);
+    return output!;
+  } catch (error) {
+    return { error: wrapAIError(error).message };
+  }
 }

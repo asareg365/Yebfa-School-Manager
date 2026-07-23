@@ -1,11 +1,9 @@
 'use server';
-/**
- * @fileOverview A flow to generate professional staff appointment letters using Vertex AI.
- */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
-import { GEMINI_MODEL } from '@/lib/ai-config';
+import { ai } from '@/ai/genkit';
+import { z } from 'genkit';
+import { MODELS } from '@/ai/models';
+import { wrapAIError } from '@/ai/errors';
 
 const GenerateAppointmentLetterInputSchema = z.object({
   staffName: z.string(),
@@ -14,57 +12,27 @@ const GenerateAppointmentLetterInputSchema = z.object({
   institutionName: z.string(),
   joiningDate: z.string(),
 });
-export type GenerateAppointmentLetterInput = z.infer<typeof GenerateAppointmentLetterInputSchema>;
 
 const GenerateAppointmentLetterOutputSchema = z.object({
-  letterContent: z.string().describe("The full text of the appointment letter."),
+  letterContent: z.string(),
 });
+
+export type GenerateAppointmentLetterInput = z.infer<typeof GenerateAppointmentLetterInputSchema>;
 export type GenerateAppointmentLetterOutput = z.infer<typeof GenerateAppointmentLetterOutputSchema>;
 
 const prompt = ai.definePrompt({
-  name: 'generateAppointmentLetterPrompt',
-  model: GEMINI_MODEL,
-  input: {schema: GenerateAppointmentLetterInputSchema},
-  output: {schema: GenerateAppointmentLetterOutputSchema},
-  config: {
-    safetySettings: [
-      { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-    ],
-  },
-  prompt: `You are a professional HR manager for an educational institution in Ghana.
-Write a formal and supportive appointment letter for the following staff member.
-
-Institution: {{{institutionName}}}
-Staff Name: {{{staffName}}}
-Position: {{{role}}}
-Department: {{{department}}}
-Start Date: {{{joiningDate}}}
-
-The letter should include:
-1. Formal salutation.
-2. Statement of appointment.
-3. Brief mention of duties in the {{{department}}} department.
-4. Welcome message.
-5. Placeholder for terms and conditions.
-
-Tone: Formal, welcoming, and professional.`,
+  name: 'appointmentLetterPrompt',
+  model: MODELS.REPORTS,
+  input: { schema: GenerateAppointmentLetterInputSchema },
+  output: { schema: GenerateAppointmentLetterOutputSchema },
+  prompt: `Write a formal appointment letter for {{{staffName}}} as {{{role}}} in the {{{department}}} department at {{{institutionName}}}, starting {{{joiningDate}}}. Tone: Formal and welcoming.`,
 });
 
-const generateAppointmentLetterFlow = ai.defineFlow(
-  {
-    name: 'generateAppointmentLetterFlow',
-    inputSchema: GenerateAppointmentLetterInputSchema,
-    outputSchema: GenerateAppointmentLetterOutputSchema,
-  },
-  async (input) => {
-    const {output} = await prompt(input);
-    return output!;
-  }
-);
-
 export async function generateAppointmentLetter(input: GenerateAppointmentLetterInput): Promise<GenerateAppointmentLetterOutput> {
-  return generateAppointmentLetterFlow(input);
+  try {
+    const { output } = await prompt(input);
+    return output!;
+  } catch (error) {
+    throw wrapAIError(error);
+  }
 }

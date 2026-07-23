@@ -1,13 +1,9 @@
 'use server';
-/**
- * @fileOverview A flow to generate a demo video of the school management system.
- *
- * This flow uses the Veo model to generate a cinematic walkthrough of the platform.
- * It polls for completion and returns a data URI of the generated MP4.
- */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import { MODELS } from '@/ai/models';
+import { wrapAIError } from '@/ai/errors';
 
 const GenerateDemoVideoOutputSchema = z.object({
   videoUrl: z.string().describe("The data URI of the generated MP4 video."),
@@ -15,18 +11,9 @@ const GenerateDemoVideoOutputSchema = z.object({
 export type GenerateDemoVideoOutput = z.infer<typeof GenerateDemoVideoOutputSchema>;
 
 export async function generateDemoVideo(): Promise<GenerateDemoVideoOutput> {
-  return generateDemoVideoFlow();
-}
-
-const generateDemoVideoFlow = ai.defineFlow(
-  {
-    name: 'generateDemoVideoFlow',
-    inputSchema: z.void(),
-    outputSchema: GenerateDemoVideoOutputSchema,
-  },
-  async () => {
+  try {
     let { operation } = await ai.generate({
-      model: 'vertexai/veo-2.0-generate-001',
+      model: MODELS.VIDEO,
       prompt: 'A cinematic high-definition walkthrough of a futuristic, clean school management dashboard. The interface shows student profiles, financial growth graphs in Ghana Cedis, and academic reports. Smooth camera motion, professional lighting, 4k resolution.',
       config: {
         durationSeconds: 5,
@@ -35,38 +22,35 @@ const generateDemoVideoFlow = ai.defineFlow(
     });
 
     if (!operation) {
-      throw new Error('The video generation service did not return an operation. This may be due to rate limits.');
+      throw new Error('The video generation service did not return an operation.');
     }
 
     const startTime = Date.now();
-    const maxDuration = 110000; // 110 seconds
+    const maxDuration = 115000;
 
     while (!operation.done) {
       if (Date.now() - startTime > maxDuration) {
-        throw new Error('Video generation timed out. Please try again.');
+        throw new Error('Video generation timed out.');
       }
-      
       operation = await ai.checkOperation(operation);
       if (operation.done) break;
-      
       await new Promise((resolve) => setTimeout(resolve, 5000));
     }
 
     if (operation.error) {
-      throw new Error('AI Generation failed: ' + operation.error.message);
+      throw new Error(operation.error.message);
     }
 
     const videoPart = operation.output?.message?.content.find((p) => !!p.media);
-    if (!videoPart || !videoPart.media) {
-      throw new Error('The model completed but failed to return a video media part.');
+    if (!videoPart?.media) {
+      throw new Error('Failed to return video media.');
     }
 
     const fetch = (await import('node-fetch')).default;
-    // Vertex AI authenticates automatically via service account in App Hosting
     const videoDownloadResponse = await fetch(videoPart.media.url);
 
-    if (!videoDownloadResponse || !videoDownloadResponse.ok || !videoDownloadResponse.body) {
-      throw new Error('Failed to download the generated video from the AI provider.');
+    if (!videoDownloadResponse.ok) {
+      throw new Error('Failed to download video.');
     }
 
     const arrayBuffer = await videoDownloadResponse.arrayBuffer();
@@ -75,5 +59,7 @@ const generateDemoVideoFlow = ai.defineFlow(
     return {
       videoUrl: `data:video/mp4;base64,${base64Video}`,
     };
+  } catch (error) {
+    throw wrapAIError(error);
   }
-);
+}

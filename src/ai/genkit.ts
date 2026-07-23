@@ -1,14 +1,14 @@
 import { genkit } from 'genkit';
-import { vertexAI } from '@genkit-ai/vertexai';
-import { GEMINI_MODEL } from '@/lib/ai-config';
+import { getPlugins } from './providers';
+import { AI_CONFIG } from './config';
+
+/**
+ * @fileOverview Centralized Genkit Initialization.
+ * 
+ * Every AI feature must import this instance.
+ */
 
 export const ai = genkit({
-  plugins: [
-    vertexAI({
-      projectId: 'yebfa-ai',
-      location: 'us-central1',
-    }),
-  ],
-
-  model: GEMINI_MODEL,
+  plugins: getPlugins(),
+  model: AI_CONFIG.defaultModel,
 });
