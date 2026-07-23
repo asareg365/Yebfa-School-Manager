@@ -29,7 +29,7 @@ const GenerateStudentReportCommentsOutputSchema = z.object({
   keyStrengths: z.array(z.string()).optional().describe("List of core academic or social strengths."),
   areasToImprove: z.array(z.string()).optional().describe("Specific targets for growth."),
   actionableSteps: z.array(z.string()).optional().describe("Concrete steps for the student/parent to take."),
-  finalGradeNarrative: z.string().optional().describe("A concise paragraph for the final report card."),
+  finalGradeNarrative: z.string().optional().describe("A warm, parent-friendly paragraph for the final report card."),
   error: z.string().optional().describe("An error message if the generation failed."),
 });
 export type GenerateStudentReportCommentsOutput = z.infer<typeof GenerateStudentReportCommentsOutputSchema>;
@@ -39,14 +39,6 @@ const generateStudentReportCommentsPrompt = ai.definePrompt({
   model: GEMINI_MODEL,
   input: {schema: GenerateStudentReportCommentsInputSchema},
   output: {schema: GenerateStudentReportCommentsOutputSchema},
-  config: {
-    safetySettings: [
-      { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-    ],
-  },
   prompt: `You are an expert educator crafting professional, detailed academic reports.
 Analyze the student's data and provide a comprehensive, well-organized report.
 
@@ -60,13 +52,19 @@ Exam Scores:
 {{/each}}
 Notes: {{{behaviorNotes}}}
 
-Instructions:
+INSTRUCTIONS FOR THE NARRATIVE:
+- The 'finalGradeNarrative' MUST be simple, warm, and parent-friendly.
+- Avoid jargon. Use encouragement.
+- Include one specific tip for home practice.
+- Example: "Ama is improving steadily in Mathematics. Continued practice at home will strengthen her confidence in solving word problems."
+
+STRUCTURE:
 1. Provide a professional 'executiveSummary'.
 2. Deep dive into 'academicAnalysis'.
 3. Reflect on 'personalDevelopment'.
-4. List 'keyStrengths' and 'areasToImprove' as specific bullet points.
+4. List 'keyStrengths' and 'areasToImprove'.
 5. Provide 'actionableSteps' for future improvement.
-6. End with a 'finalGradeNarrative' suitable for a standard transcript.
+6. End with the warm 'finalGradeNarrative'.
 
 Tone: Professional, supportive, and data-driven.`,
 });
@@ -85,20 +83,8 @@ const generateStudentReportCommentsFlow = ai.defineFlow(
       }
       return output;
     } catch (err: any) {
-      const errMsg = err.message || "";
-      console.error("AI Flow Error:", errMsg);
-
-      if (errMsg.includes('403') || errMsg.includes('blocked') || errMsg.includes('permission')) {
-        return { 
-          error: "AI access is blocked. Please ensure the 'Vertex AI API' is enabled in your Google Cloud Console and the service account has appropriate IAM permissions." 
-        };
-      }
-      if (errMsg.includes('404') || errMsg.includes('not found')) {
-        return {
-          error: `AI Model Not Found (404). The model '${GEMINI_MODEL}' may not be available in your region or project. Please verify your configuration in 'src/lib/ai-config.ts'.`
-        };
-      }
-      return { error: `AI Error: ${errMsg || "An unexpected error occurred during processing."}` };
+      console.error("AI Flow Error:", err.message);
+      return { error: `AI Error: ${err.message || "An unexpected error occurred."}` };
     }
   }
 );

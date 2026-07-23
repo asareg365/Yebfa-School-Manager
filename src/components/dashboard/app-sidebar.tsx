@@ -36,7 +36,8 @@ import {
   Briefcase,
   FilePlus2,
   Bot,
-  TrendingUp
+  TrendingUp,
+  Cpu
 } from "lucide-react"
 
 import {
@@ -104,6 +105,17 @@ export function AppSidebar() {
     return [
       { title: "Overview", url: "/dashboard", icon: LayoutDashboard, visible: true },
       {
+        title: "AI Global Hub",
+        url: "#",
+        icon: Cpu,
+        visible: isSuperAdmin || isOwner || isAdmin,
+        items: [
+          { title: "AI Administrator", url: "/dashboard/ai-admin", icon: Bot, visible: true },
+          { title: "Strategic Insights", url: "/dashboard/academic/insights", icon: TrendingUp, visible: true },
+          { title: "AI Teacher Asst.", url: "/dashboard/academic/ai-assistant", icon: Bot, visible: true },
+        ].filter(i => i.visible),
+      },
+      {
         title: "Admissions",
         url: "/dashboard/admissions",
         icon: FilePlus2,
@@ -150,8 +162,6 @@ export function AppSidebar() {
         icon: GraduationCap,
         visible: isSuperAdmin || isOwner || isAdmin || isTeacher,
         items: [
-          { title: "AI Teacher Assistant", url: "/dashboard/academic/ai-assistant", icon: Bot, visible: true },
-          { title: "Strategic Insights", url: "/dashboard/academic/insights", icon: TrendingUp, visible: true },
           { title: "Exam Center", url: "/dashboard/exams", visible: true },
           { title: "Report Cards", url: "/dashboard/reports", visible: true },
           { title: "Performance Data", url: "/dashboard/analytics", visible: true },
