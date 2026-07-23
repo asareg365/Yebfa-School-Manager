@@ -14,7 +14,9 @@ import {
   Trash2, 
   Pencil,
   User,
-  Eye
+  Eye,
+  Building2,
+  Mail
 } from "lucide-react"
 import { useFirestore, useCollection } from "@/firebase"
 import { collection, query, where, doc, deleteDoc } from "firebase/firestore"
@@ -88,7 +90,7 @@ export default function ParentsRegistryPage() {
                 <TableRow>
                   <TableHead className="py-4 font-bold whitespace-nowrap px-6">ID / GUARDIAN</TableHead>
                   <TableHead className="py-4 font-bold whitespace-nowrap px-4">CONTACT</TableHead>
-                  <TableHead className="py-4 font-bold whitespace-nowrap px-4">LOCATION</TableHead>
+                  <TableHead className="py-4 font-bold whitespace-nowrap px-4">PROFESSION</TableHead>
                   <TableHead className="py-4 font-bold whitespace-nowrap px-4 text-center">CHILDREN</TableHead>
                   <TableHead className="text-right py-4 font-bold px-6">ACTIONS</TableHead>
                 </TableRow>
@@ -100,7 +102,7 @@ export default function ParentsRegistryPage() {
                     <TableRow key={p.id} className="hover:bg-slate-50 transition-colors group">
                       <TableCell className="px-6">
                         <div className="flex items-center gap-3">
-                          <div className="size-10 rounded-full bg-primary/5 flex items-center justify-center font-bold text-primary text-xs shrink-0 border overflow-hidden">
+                          <div className="size-10 rounded-xl bg-primary/5 flex items-center justify-center font-bold text-primary text-xs shrink-0 border overflow-hidden">
                              {p.photoURL ? <img src={p.photoURL} className="w-full h-full object-cover" /> : <User className="size-4" />}
                           </div>
                           <div className="flex flex-col">
@@ -116,9 +118,9 @@ export default function ParentsRegistryPage() {
                         </div>
                       </TableCell>
                       <TableCell className="px-4">
-                         <div className="flex flex-col">
-                            <span className="text-xs font-medium">{p.town || "N/A"}</span>
-                            <span className="text-[9px] text-muted-foreground uppercase font-bold">{p.region}</span>
+                         <div className="flex items-center gap-2">
+                            <Briefcase className="size-3 text-muted-foreground" />
+                            <span className="text-xs font-medium">{p.occupation || "Unspecified"}</span>
                          </div>
                       </TableCell>
                       <TableCell className="px-4 text-center">
@@ -128,17 +130,17 @@ export default function ParentsRegistryPage() {
                       </TableCell>
                       <TableCell className="text-right px-6">
                         <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" asChild>
+                          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" asChild title="View Profile">
                             <Link href={`/dashboard/parents/${p.id}`}>
-                              <Eye className="size-4" />
+                              <Eye className="size-4 text-primary" />
                             </Link>
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" asChild>
+                          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" asChild title="Edit Record">
                             <Link href={`/dashboard/parents/edit/${p.id}`}>
-                              <Pencil className="size-4" />
+                              <Pencil className="size-4 text-primary" />
                             </Link>
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive rounded-xl hover:bg-destructive/10" onClick={() => handleDelete(p.id)}>
+                          <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive rounded-xl hover:bg-destructive/10" onClick={() => handleDelete(p.id)} title="Delete Profile">
                             <Trash2 className="size-4" />
                           </Button>
                         </div>

@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -46,7 +45,7 @@ export default function AddParentPage() {
     dateOfBirth: "",
     nationality: "Ghanaian",
     photoURL: "",
-    // Contact
+    // Contact (Section 2)
     phone: "",
     alternatePhone: "",
     email: "",
@@ -55,14 +54,14 @@ export default function AddParentPage() {
     region: "",
     district: "",
     digitalAddress: "",
-    // Employment
+    // Employment (Section 3)
     occupation: "",
     employer: "",
     officeAddress: "",
-    // Identification
+    // Identification (Section 4)
     nationalId: "",
     passportNumber: "",
-    // Emergency
+    // Emergency (Section 5)
     emergencyContact: "",
     emergencyPhone: "",
     emergencyRelationship: "",
@@ -151,6 +150,7 @@ export default function AddParentPage() {
             </div>
 
             <CardContent className="p-8">
+              {/* Section 1 - Personal Information */}
               <TabsContent value="personal" className="space-y-8 mt-0 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="flex flex-col md:flex-row gap-8 items-start">
                    <div className="size-32 rounded-2xl bg-slate-50 border-2 border-dashed flex flex-col items-center justify-center text-muted-foreground hover:bg-slate-100 transition-colors cursor-pointer shrink-0">
@@ -192,44 +192,98 @@ export default function AddParentPage() {
                 </div>
               </TabsContent>
 
+              {/* Section 2 - Contact Information */}
               <TabsContent value="contact" className="space-y-6 mt-0 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                   <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Primary Phone</Label><Input required type="tel" value={parentForm.phone} onChange={e => setParentForm({...parentForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
-                   <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Alternate Phone</Label><Input type="tel" value={parentForm.alternatePhone} onChange={e => setParentForm({...parentForm, alternatePhone: e.target.value})} className="h-12 rounded-xl" /></div>
-                   <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Email Address</Label><Input type="email" value={parentForm.email} onChange={e => setParentForm({...parentForm, email: e.target.value})} className="h-12 rounded-xl" /></div>
-                   <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Digital Address (GPS)</Label><Input value={parentForm.digitalAddress} onChange={e => setParentForm({...parentForm, digitalAddress: e.target.value})} className="h-12 rounded-xl font-mono" placeholder="e.g. GA-123-4567" /></div>
+                   <div className="space-y-1.5">
+                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Primary Phone</Label>
+                     <Input required type="tel" value={parentForm.phone} onChange={e => setParentForm({...parentForm, phone: e.target.value})} className="h-12 rounded-xl" placeholder="+233..." />
+                   </div>
+                   <div className="space-y-1.5">
+                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Alternative Phone</Label>
+                     <Input type="tel" value={parentForm.alternatePhone} onChange={e => setParentForm({...parentForm, alternatePhone: e.target.value})} className="h-12 rounded-xl" />
+                   </div>
+                   <div className="space-y-1.5">
+                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Email Address</Label>
+                     <Input type="email" value={parentForm.email} onChange={e => setParentForm({...parentForm, email: e.target.value})} className="h-12 rounded-xl" placeholder="example@email.com" />
+                   </div>
+                   <div className="space-y-1.5">
+                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Ghana Digital Address (GPS)</Label>
+                     <Input value={parentForm.digitalAddress} onChange={e => setParentForm({...parentForm, digitalAddress: e.target.value})} className="h-12 rounded-xl font-mono" placeholder="e.g. GA-123-4567" />
+                   </div>
                 </div>
-                <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Residential Address</Label><Input value={parentForm.address} onChange={e => setParentForm({...parentForm, address: e.target.value})} className="h-12 rounded-xl" /></div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] uppercase font-bold text-muted-foreground">Residential Address</Label>
+                  <Input value={parentForm.address} onChange={e => setParentForm({...parentForm, address: e.target.value})} className="h-12 rounded-xl" placeholder="House No, Street Name" />
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                   <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Town / City</Label><Input value={parentForm.town} onChange={e => setParentForm({...parentForm, town: e.target.value})} className="h-12 rounded-xl" /></div>
-                   <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">District</Label><Input value={parentForm.district} onChange={e => setParentForm({...parentForm, district: e.target.value})} className="h-12 rounded-xl" /></div>
-                   <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Region</Label><Input value={parentForm.region} onChange={e => setParentForm({...parentForm, region: e.target.value})} className="h-12 rounded-xl" /></div>
+                   <div className="space-y-1.5">
+                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Town / City</Label>
+                     <Input value={parentForm.town} onChange={e => setParentForm({...parentForm, town: e.target.value})} className="h-12 rounded-xl" />
+                   </div>
+                   <div className="space-y-1.5">
+                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">District</Label>
+                     <Input value={parentForm.district} onChange={e => setParentForm({...parentForm, district: e.target.value})} className="h-12 rounded-xl" />
+                   </div>
+                   <div className="space-y-1.5">
+                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Region</Label>
+                     <Input value={parentForm.region} onChange={e => setParentForm({...parentForm, region: e.target.value})} className="h-12 rounded-xl" />
+                   </div>
                 </div>
               </TabsContent>
 
+              {/* Section 3 - Employment Profile */}
               <TabsContent value="professional" className="space-y-6 mt-0 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                   <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Occupation</Label><Input value={parentForm.occupation} onChange={e => setParentForm({...parentForm, occupation: e.target.value})} className="h-12 rounded-xl" /></div>
-                   <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Employer / Agency</Label><Input value={parentForm.employer} onChange={e => setParentForm({...parentForm, employer: e.target.value})} className="h-12 rounded-xl" /></div>
+                   <div className="space-y-1.5">
+                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Occupation</Label>
+                     <Input value={parentForm.occupation} onChange={e => setParentForm({...parentForm, occupation: e.target.value})} className="h-12 rounded-xl" placeholder="e.g. Civil Servant, Businessman" />
+                   </div>
+                   <div className="space-y-1.5">
+                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Employer / Agency</Label>
+                     <Input value={parentForm.employer} onChange={e => setParentForm({...parentForm, employer: e.target.value})} className="h-12 rounded-xl" />
+                   </div>
                 </div>
-                <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Office Address</Label><Input value={parentForm.officeAddress} onChange={e => setParentForm({...parentForm, officeAddress: e.target.value})} className="h-12 rounded-xl" /></div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] uppercase font-bold text-muted-foreground">Employer Address (Office)</Label>
+                  <Input value={parentForm.officeAddress} onChange={e => setParentForm({...parentForm, officeAddress: e.target.value})} className="h-12 rounded-xl" placeholder="Location of workplace" />
+                </div>
               </TabsContent>
 
+              {/* Section 4 - Identification */}
               <TabsContent value="documents" className="space-y-6 mt-0 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                   <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">National ID (Ghana Card)</Label><Input value={parentForm.nationalId} onChange={e => setParentForm({...parentForm, nationalId: e.target.value})} className="h-12 rounded-xl font-mono" /></div>
-                   <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Passport Number</Label><Input value={parentForm.passportNumber} onChange={e => setParentForm({...parentForm, passportNumber: e.target.value})} className="h-12 rounded-xl font-mono" /></div>
+                   <div className="space-y-1.5">
+                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">National ID (Ghana Card)</Label>
+                     <Input value={parentForm.nationalId} onChange={e => setParentForm({...parentForm, nationalId: e.target.value})} className="h-12 rounded-xl font-mono" placeholder="GHA-XXXXXXXXX-X" />
+                   </div>
+                   <div className="space-y-1.5">
+                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Passport Number</Label>
+                     <Input value={parentForm.passportNumber} onChange={e => setParentForm({...parentForm, passportNumber: e.target.value})} className="h-12 rounded-xl font-mono" />
+                   </div>
                 </div>
-                <div className="p-6 rounded-2xl bg-slate-50 border-2 border-dashed flex flex-col items-center justify-center text-muted-foreground text-center">
-                   <p className="text-xs font-bold uppercase opacity-40">Scan and Upload Identity Documents (Optional)</p>
+                <div className="p-12 rounded-3xl bg-slate-50 border-2 border-dashed flex flex-col items-center justify-center text-muted-foreground text-center">
+                   <IdCard className="size-12 mb-4 opacity-20" />
+                   <p className="text-xs font-bold uppercase tracking-widest opacity-40">Scan and Upload Identity Documents (Optional)</p>
+                   <p className="text-[10px] mt-1 italic">Supported formats: PDF, JPG, PNG</p>
                 </div>
               </TabsContent>
 
+              {/* Section 5 - Emergency Protocol */}
               <TabsContent value="emergency" className="space-y-6 mt-0 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                   <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Secondary Contact Name</Label><Input value={parentForm.emergencyContact} onChange={e => setParentForm({...parentForm, emergencyContact: e.target.value})} className="h-12 rounded-xl" /></div>
-                   <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Secondary Contact Phone</Label><Input type="tel" value={parentForm.emergencyPhone} onChange={e => setParentForm({...parentForm, emergencyPhone: e.target.value})} className="h-12 rounded-xl" /></div>
-                   <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Relationship</Label><Input value={parentForm.emergencyRelationship} onChange={e => setParentForm({...parentForm, emergencyRelationship: e.target.value})} className="h-12 rounded-xl" placeholder="e.g. Uncle, Family Friend" /></div>
+                   <div className="space-y-1.5">
+                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Secondary Contact Name</Label>
+                     <Input value={parentForm.emergencyContact} onChange={e => setParentForm({...parentForm, emergencyContact: e.target.value})} className="h-12 rounded-xl" />
+                   </div>
+                   <div className="space-y-1.5">
+                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Secondary Contact Phone</Label>
+                     <Input type="tel" value={parentForm.emergencyPhone} onChange={e => setParentForm({...parentForm, emergencyPhone: e.target.value})} className="h-12 rounded-xl" />
+                   </div>
+                   <div className="space-y-1.5">
+                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Relationship</Label>
+                     <Input value={parentForm.emergencyRelationship} onChange={e => setParentForm({...parentForm, emergencyRelationship: e.target.value})} className="h-12 rounded-xl" placeholder="e.g. Uncle, Family Friend" />
+                   </div>
                 </div>
               </TabsContent>
             </CardContent>
