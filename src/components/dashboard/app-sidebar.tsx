@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -35,7 +34,8 @@ import {
   MapPin,
   ClipboardCheck,
   Briefcase,
-  FilePlus2
+  FilePlus2,
+  Bot
 } from "lucide-react"
 
 import {
@@ -149,6 +149,7 @@ export function AppSidebar() {
         icon: GraduationCap,
         visible: isSuperAdmin || isOwner || isAdmin || isTeacher,
         items: [
+          { title: "AI Teacher Assistant", url: "/dashboard/academic/ai-assistant", icon: Bot, visible: true },
           { title: "Exam Center", url: "/dashboard/exams", visible: true },
           { title: "Report Cards", url: "/dashboard/reports", visible: true },
           { title: "Performance Data", url: "/dashboard/analytics", visible: true },
