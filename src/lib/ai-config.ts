@@ -1,5 +1,5 @@
 /**
- * Centralized AI model configuration for Vertex AI
+ * @deprecated Legacy AI configuration. 
+ * Use @/ai/models.ts and @/ai/config.ts for all 2026 academic modules.
  */
-
-export const GEMINI_MODEL = 'gemini-2.5-flash';
+export {};
