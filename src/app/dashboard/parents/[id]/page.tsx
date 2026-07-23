@@ -23,12 +23,19 @@ import {
   AlertCircle,
   Plus,
   Sparkles,
-  Bot
+  Bot,
+  Save,
+  CheckCircle2
 } from "lucide-react"
 import { useFirestore, useDoc, useCollection } from "@/firebase"
-import { doc, collection, query, where } from "firebase/firestore"
+import { doc, collection, query, where, writeBatch, serverTimestamp } from "firebase/firestore"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
+import { toast } from "@/hooks/use-toast"
 import Link from "next/link"
 
 export default function ParentProfilePage({ params }: { params: Promise<{ id: string }> }) {
@@ -36,6 +43,15 @@ export default function ParentProfilePage({ params }: { params: Promise<{ id: st
   const db = useFirestore()
   const router = useRouter()
   const [institutionId, setInstitutionId] = useState<string | null>(null)
+  const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false)
+  const [linkLoading, setLinkLoading] = useState(false)
+
+  const [linkForm, setLinkForm] = useState({
+    studentId: "",
+    relationship: "Mother",
+    primaryContact: true,
+    emergencyContact: true
+  })
 
   useEffect(() => {
     setInstitutionId(localStorage.getItem('selected_institution_id'))
@@ -43,6 +59,13 @@ export default function ParentProfilePage({ params }: { params: Promise<{ id: st
 
   const parentRef = useMemo(() => doc(db, "parents", parentId), [db, parentId])
   const { data: parent, loading: pLoading } = useDoc(parentRef)
+
+  // Fetch all students for the dropdown
+  const allStudentsQuery = useMemo(() => 
+    institutionId ? query(collection(db, "students"), where("tenantId", "==", institutionId)) : null, 
+    [db, institutionId]
+  )
+  const { data: allStudents = [] } = useCollection(allStudentsQuery)
 
   // Fetch relationships from junction table
   const relsQuery = useMemo(() => 
@@ -58,6 +81,34 @@ export default function ParentProfilePage({ params }: { params: Promise<{ id: st
     return query(collection(db, "students"), where("id", "in", studentIds))
   }, [db, studentIds, institutionId])
   const { data: children = [], loading: childrenLoading } = useCollection(studentsQuery)
+
+  const handleLinkStudent = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!db || !institutionId || !linkForm.studentId || linkLoading) return
+    
+    setLinkLoading(true)
+    try {
+      const batch = writeBatch(db)
+      const relId = `${linkForm.studentId}_${parentId}`
+      
+      batch.set(doc(db, "student_parents", relId), {
+        ...linkForm,
+        parentId,
+        tenantId: institutionId,
+        institutionId,
+        updatedAt: serverTimestamp()
+      }, { merge: true })
+
+      await batch.commit()
+      toast({ title: "Relationship Authorized", description: "Student successfully linked to guardian." })
+      setIsLinkDialogOpen(false)
+      setLinkForm({ studentId: "", relationship: "Mother", primaryContact: true, emergencyContact: true })
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Linking Failed", description: error.message })
+    } finally {
+      setLinkLoading(false)
+    }
+  }
 
   if (pLoading) return (
     <div className="p-24 text-center">
@@ -157,7 +208,6 @@ export default function ParentProfilePage({ params }: { params: Promise<{ id: st
              </CardContent>
           </Card>
 
-          {/* AI Family Insights Placeholder */}
           <Card className="border-none shadow-md rounded-3xl overflow-hidden bg-white border-2 border-primary/5">
             <CardHeader className="bg-primary text-primary-foreground p-6">
               <div className="flex items-center gap-2 mb-1">
@@ -165,15 +215,19 @@ export default function ParentProfilePage({ params }: { params: Promise<{ id: st
                 <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">AI Strategic Hub</span>
               </div>
               <CardTitle className="text-lg font-headline">Family Insights</CardTitle>
-            </CardHeader>
+            </Header>
             <CardContent className="p-6 text-center space-y-4">
               <div className="size-12 rounded-full bg-primary/5 flex items-center justify-center mx-auto">
                 <Bot className="size-6 text-primary/20" />
               </div>
               <div className="space-y-2">
-                <p className="text-xs font-bold text-primary/60">No linked student data available yet.</p>
+                <p className="text-xs font-bold text-primary/60">
+                  {rels.length === 0 ? "No linked student data available yet." : "Awaiting AI Data Processing"}
+                </p>
                 <p className="text-[10px] text-muted-foreground leading-relaxed">
-                  Link a student to receive AI-generated academic summaries and recommendations.
+                  {rels.length === 0 
+                    ? "Link a student to receive AI-generated academic summaries and recommendations."
+                    : "The AI agent is currently analyzing family performance vectors for the 2026 cycle."}
                 </p>
               </div>
             </CardContent>
@@ -193,9 +247,69 @@ export default function ParentProfilePage({ params }: { params: Promise<{ id: st
                   <h3 className="text-sm font-bold uppercase tracking-widest text-primary flex items-center gap-2">
                     <Baby className="size-4" /> Linked Wards
                   </h3>
-                  <Button variant="outline" size="sm" className="h-8 rounded-lg text-[10px] font-bold uppercase" asChild>
-                    <Link href="/dashboard/students"><Plus className="size-3 mr-1.5" /> Link Student</Link>
-                  </Button>
+                  
+                  <Dialog open={isLinkDialogOpen} onOpenChange={setIsLinkDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-8 rounded-lg text-[10px] font-bold uppercase">
+                        <Plus className="size-3 mr-1.5" /> Link Student
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-md rounded-2xl">
+                      <form onSubmit={handleLinkStudent}>
+                        <DialogHeader>
+                          <DialogTitle className="text-2xl font-headline font-bold">Link Student to Profile</DialogTitle>
+                          <DialogDescription>Associate an existing student record with {parent.firstName} {parent.lastName}.</DialogDescription>
+                        </DialogHeader>
+                        <div className="py-6 space-y-6">
+                          <div className="space-y-2">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Select Student from Registry</Label>
+                            <Select required onValueChange={v => setLinkForm({...linkForm, studentId: v})}>
+                              <SelectTrigger className="h-12 rounded-xl">
+                                <SelectValue placeholder="🔍 Search Students..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {allStudents.map(s => (
+                                  <SelectItem key={s.id} value={s.id}>{s.firstName} {s.lastName} ({s.admissionNumber})</SelectItem>
+                                ))}
+                                {allStudents.length === 0 && <div className="p-4 text-center text-xs">No students in registry.</div>}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Relationship Role</Label>
+                            <Select value={linkForm.relationship} onValueChange={v => setLinkForm({...linkForm, relationship: v})}>
+                              <SelectTrigger className="h-12 rounded-xl">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Mother">Mother</SelectItem>
+                                <SelectItem value="Father">Father</SelectItem>
+                                <SelectItem value="Guardian">Guardian</SelectItem>
+                                <SelectItem value="Uncle">Uncle</SelectItem>
+                                <SelectItem value="Aunt">Aunt</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="flex items-center gap-6 pt-2">
+                             <div className="flex items-center gap-2">
+                                <Checkbox id="primary_link" checked={linkForm.primaryContact} onCheckedChange={v => setLinkForm({...linkForm, primaryContact: !!v})} />
+                                <Label htmlFor="primary_link" className="text-xs font-bold cursor-pointer">Primary</Label>
+                             </div>
+                             <div className="flex items-center gap-2">
+                                <Checkbox id="emergency_link" checked={linkForm.emergencyContact} onCheckedChange={v => setLinkForm({...linkForm, emergencyContact: !!v})} />
+                                <Label htmlFor="emergency_link" className="text-xs font-bold cursor-pointer">Emergency</Label>
+                             </div>
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button type="submit" disabled={linkLoading || !linkForm.studentId} className="w-full h-12 rounded-xl bg-primary font-bold shadow-lg">
+                            {linkLoading ? <Loader2 className="size-4 animate-spin mr-2" /> : <CheckCircle2 className="size-4 mr-2" />}
+                            Authorize Link
+                          </Button>
+                        </DialogFooter>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
                </div>
 
                <div className="grid gap-4">
@@ -236,7 +350,7 @@ export default function ParentProfilePage({ params }: { params: Promise<{ id: st
                        </div>
                        <div className="max-w-xs mx-auto">
                           <h4 className="font-bold text-primary/60 uppercase text-xs tracking-widest">No Children Linked</h4>
-                          <p className="text-[11px] text-muted-foreground mt-1">Visit the Student Registry to authorize a relationship link for this guardian profile.</p>
+                          <p className="text-[11px] text-muted-foreground mt-1">Authorize a relationship link for this guardian profile to start academic monitoring.</p>
                        </div>
                     </div>
                   )}
