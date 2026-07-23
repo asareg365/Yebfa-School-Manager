@@ -1,7 +1,6 @@
 /**
  * @fileOverview Centralized AI Model Registry.
  * Every AI feature should reference models from here.
- * No hardcoded 'googleai/' or 'vertexai/' strings should exist outside this file.
  */
 
 export const MODELS = {
