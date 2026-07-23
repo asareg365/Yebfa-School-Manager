@@ -37,7 +37,8 @@ import {
   FilePlus2,
   Bot,
   TrendingUp,
-  Cpu
+  Cpu,
+  Flag
 } from "lucide-react"
 
 import {
@@ -112,6 +113,7 @@ export function AppSidebar() {
         items: [
           { title: "AI Administrator", url: "/dashboard/ai-admin", icon: Bot, visible: true },
           { title: "Strategic Insights", url: "/dashboard/academic/insights", icon: TrendingUp, visible: true },
+          { title: "Behaviour Analysis", url: "/dashboard/academic/behaviour", icon: Flag, visible: true },
           { title: "AI Teacher Asst.", url: "/dashboard/academic/ai-assistant", icon: Bot, visible: true },
         ].filter(i => i.visible),
       },

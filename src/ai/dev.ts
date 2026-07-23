@@ -10,3 +10,4 @@ import '@/ai/flows/generate-exam-questions.ts';
 import '@/ai/flows/analyze-academic-risk.ts';
 import '@/ai/flows/administrator-chat-flow.ts';
 import '@/ai/flows/optimize-timetable-flow.ts';
+import '@/ai/flows/analyze-behaviour-flow.ts';
