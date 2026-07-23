@@ -13,10 +13,10 @@ By default Genkit loads `.prompt` files from `./prompts`. Configure with the
 
 ```ts
 import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/google-genai';
+import { vertexAI } from '@genkit-ai/vertexai';
 
 const ai = genkit({
-  plugins: [googleAI()],
+  plugins: [vertexAI()],
   promptDir: './prompts', // default
 });
 ```
@@ -26,7 +26,7 @@ const ai = genkit({
 `prompts/recipe.prompt`:
 ```
 ---
-model: googleai/gemini-pro-latest
+model: vertexai/gemini-1.5-pro
 input:
   schema:
     food: string
@@ -128,7 +128,7 @@ You should speak as if you are a {{#if personality}}{{personality}}{{else}}pirat
 `prompts/story.prompt`:
 ```
 ---
-model: googleai/gemini-pro-latest
+model: vertexai/gemini-1.5-pro
 input:
   schema:
     subject: string
@@ -158,7 +158,7 @@ agent-style prompt is fully described in the file:
 
 ```
 ---
-model: googleai/gemini-flash-latest
+model: vertexai/gemini-1.5-flash
 input:
   schema:
     tone: string
@@ -192,7 +192,7 @@ attractions and looking up flight information. Keep your tone {{tone}}.
 import { retry } from '@genkit-ai/middleware';
 
 const ai = genkit({
-  plugins: [googleAI(), retry.plugin()],
+  plugins: [vertexAI(), retry.plugin()],
   promptDir: './prompts',
 });
 ```
@@ -204,4 +204,3 @@ See [Using middleware](middleware.md) for the full list of built-in middleware.
 Agents (`defineAgent`) share the same dotprompt frontmatter — `system`/`prompt`,
 `tools`, `maxTurns`, `returnToolRequests`, and `use`. A `.prompt` file with
 `{{history}}` and tools can back an agent directly. See [Agents](agents.md).
-

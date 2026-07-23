@@ -13,7 +13,7 @@ Genkit v1.x introduced significant API changes. This section covers critical syn
 - **Correct (v1.x)**: Import core functionality (zod, genkit) from the main `genkit` package and plugins from their specific packages.
   ```ts
   import { z, genkit } from 'genkit';
-  import { googleAI } from '@genkit-ai/google-genai';
+  import { vertexAI } from '@genkit-ai/vertexai';
   ```
 
 - **Incorrect (Pre-1.0)**: Importing from `@genkit-ai/ai`, `@genkit-ai/core`, or `@genkit-ai/flow`. These packages are internal/deprecated for direct use.
@@ -27,29 +27,24 @@ Genkit v1.x introduced significant API changes. This section covers critical syn
 - **Correct**: Use plugin-specific model factories or string identifiers (prefaced by plugin name).
   ```ts
   // Using model factory (v1.x - Preferred)
-  await ai.generate({ model: googleAI.model('gemini-flash-latest'), ... });
+  await ai.generate({ model: vertexAI.model('gemini-1.5-flash'), ... });
 
   // Using string identifier
-  await ai.generate({ model: 'googleai/gemini-flash-latest', ...});
-  // Or
-  await ai.generate({ model: 'vertexai/gemini-flash-latest', ...});
+  await ai.generate({ model: 'vertexai/gemini-1.5-flash', ...});
   ```
 - **Incorrect**: Using imported model objects directly or string identifiers without plugin name.
   ```ts
   await ai.generate({ model: gemini15Pro, ... }); // INCORRECT (Pre-1.0)
-  await ai.generate({ model: 'gemini-flash-latest', ... }); // INCORRECT (No plugin prefix)
+  await ai.generate({ model: 'gemini-1.5-flash', ... }); // INCORRECT (No plugin prefix)
   ```
 
 ### Model Selection (Gemini)
 
-- **Preferred**: Use latest model aliases (e.g. `gemini-flash-latest`) for best performance and features.
+- **Preferred**: Use latest stable models or aliases.
   ```ts
-  model: googleAI.model('gemini-flash-latest') // PREFERRED
+  model: vertexAI.model('gemini-1.5-flash') // PREFERRED
   ```
-- **DEPRECATED**: Versioned legacy models (like `gemini-1.5-flash` or `gemini-2.5-flash`) should be updated to latest aliases.
-  ```ts
-  model: googleAI.model('gemini-1.5-flash') // DEPRECATED (Use gemini-flash-latest instead)
-  ```
+- **DEPRECATED**: Legacy models should be updated to supported Vertex AI identifiers.
 
 ### Response Access
 
@@ -116,7 +111,7 @@ You should never import `@genkit-ai/flow`, `@genkit-ai/ai` or `@genkit-ai/core` 
 
 ## Multimodal & Image Generation
 
-- **Missing responseModalities**: When using image generation models (like `gemini-2.5-flash-image`), you **MUST** specify the response modalities in the config.
+- **Missing responseModalities**: When using image generation models, you **MUST** specify the response modalities in the config.
   ```ts
   config: {
     responseModalities: ["TEXT", "IMAGE"]
@@ -126,7 +121,7 @@ You should never import `@genkit-ai/flow`, `@genkit-ai/ai` or `@genkit-ai/core` 
 
 ## Audio & Speech Generation
 
-- **Raw PCM Data vs MP3**: Some providers (e.g., Google GenAI) return raw PCM data, while others (e.g., OpenAI) return MP3.
+- **Raw PCM Data vs MP3**: Some providers return raw PCM data, while others return MP3.
   - **DO NOT assume MP3 format.**
   - **DO NOT embed raw PCM in HTML audio tags.**
   - **Action**: Run `genkit docs:search "speech audio"` to find provider-specific conversion steps (e.g., PCM to WAV).
