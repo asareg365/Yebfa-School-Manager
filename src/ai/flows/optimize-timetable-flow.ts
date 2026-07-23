@@ -11,6 +11,7 @@ const TimetableInputSchema = z.object({
   institutionId: z.string(),
   classId: z.string(),
   gradeName: z.string(),
+  termId: z.string().optional().describe("The active term for which assignments should be pulled."),
   context: z.string().optional(),
 });
 
@@ -19,6 +20,8 @@ const TimetableSlotSchema = z.object({
   time: z.string(),
   subject: z.string(),
   teacher: z.string(),
+  subjectId: z.string().optional(),
+  teacherId: z.string().optional(),
   isDoublePeriod: z.boolean().default(false),
 });
 

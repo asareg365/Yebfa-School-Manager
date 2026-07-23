@@ -11,24 +11,27 @@ import {
   Loader2, 
   Download, 
   Printer, 
-  Filter,
   Grid3X3,
   BookOpen,
   Sparkles,
   Bot,
-  Zap,
   CheckCircle2,
   ShieldCheck,
-  MoreVertical,
-  X
+  User,
+  X,
+  Save,
+  Trash2
 } from "lucide-react"
-import { useFirestore, useCollection } from "@/firebase"
-import { collection, query, where } from "firebase/firestore"
+import { useFirestore, useCollection, useDoc } from "@/firebase"
+import { collection, query, where, doc, setDoc, serverTimestamp, deleteDoc } from "firebase/firestore"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { optimizeTimetable, TimetableOutput } from "@/ai/flows/optimize-timetable-flow"
 import { toast } from "@/hooks/use-toast"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Checkbox } from "@/components/ui/checkbox"
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
 const TIMES = ["08:00 AM", "09:00 AM", "11:00 AM", "01:00 PM", "02:00 PM"]
@@ -38,15 +41,48 @@ export default function TimetablePage() {
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [selectedClassId, setSelectedClassId] = useState("")
   const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [isManualOpen, setIsManualOpen] = useState(false)
+  
   const [aiResult, setAiResult] = useState<TimetableOutput | null>(null)
+
+  const [manualSlot, setManualSlot] = useState({
+    day: "Monday",
+    time: "08:00 AM",
+    subject: "",
+    teacher: "",
+    isDoublePeriod: false
+  })
 
   useEffect(() => {
     setInstitutionId(localStorage.getItem('selected_institution_id'))
   }, [])
 
-  const classesQuery = useMemo(() => institutionId ? query(collection(db, "classes"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
-  const { data: classes = [] } = useCollection(classesQuery)
+  const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
+  const { data: institution } = useDoc(instRef)
+  const currentTerm = institution?.currentTerm || "Term 1"
 
+  const classesQuery = useMemo(() => institutionId ? query(collection(db, "classes"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
+  const subjectsQuery = useMemo(() => institutionId ? query(collection(db, "subjects"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
+  const staffQuery = useMemo(() => institutionId ? query(collection(db, "staff"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
+  
+  // Persistent Timetable Query
+  const timetableQuery = useMemo(() => 
+    institutionId && selectedClassId 
+      ? query(collection(db, "timetables"), 
+          where("tenantId", "==", institutionId), 
+          where("classId", "==", selectedClassId),
+          where("termId", "==", currentTerm))
+      : null, 
+    [db, institutionId, selectedClassId, currentTerm]
+  )
+
+  const { data: classes = [] } = useCollection(classesQuery)
+  const { data: subjects = [] } = useCollection(subjectsQuery)
+  const { data: staff = [] } = useCollection(staffQuery)
+  const { data: persistedTimetables = [], loading: tLoading } = useCollection(timetableQuery)
+
+  const activeTimetable = useMemo(() => persistedTimetables[0] || null, [persistedTimetables])
   const selectedClass = useMemo(() => classes.find(c => c.id === selectedClassId), [classes, selectedClassId])
 
   const handleOptimize = async () => {
@@ -61,10 +97,11 @@ export default function TimetablePage() {
         institutionId,
         classId: selectedClassId,
         gradeName: selectedClass?.name || "Class",
+        termId: currentTerm,
         context: "Prefer math in the morning. Ensure teachers have at least 1 hour gap between long sessions."
       })
       setAiResult(res)
-      toast({ title: "Timetable Optimized", description: "Strategic instructional periods have been mapped." })
+      toast({ title: "Optimized Schedule Ready", description: "Strategic periods have been mapped. Review and save to finalize." })
     } catch (error: any) {
       toast({ variant: "destructive", title: "AI Error", description: error.message })
     } finally {
@@ -72,9 +109,64 @@ export default function TimetablePage() {
     }
   }
 
+  const handleSaveTimetable = async (schedule: any[]) => {
+    if (!institutionId || !selectedClassId) return
+    setSaving(true)
+    try {
+      const timetableId = `${selectedClassId}_${currentTerm.replace(/\s+/g, '')}`
+      await setDoc(doc(db, "timetables", timetableId), {
+        tenantId: institutionId,
+        institutionId,
+        classId: selectedClassId,
+        className: selectedClass?.name,
+        termId: currentTerm,
+        slots: schedule,
+        updatedAt: serverTimestamp()
+      }, { merge: true })
+      
+      toast({ title: "Timetable Finalized", description: "Records synchronized with institutional hub." })
+      setAiResult(null)
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Save Failed", description: error.message })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleAddManualSlot = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!institutionId || !selectedClassId) return
+    
+    setSaving(true)
+    try {
+      const currentSlots = activeTimetable?.slots || []
+      const newSlots = [...currentSlots.filter((s: any) => !(s.day === manualSlot.day && s.time === manualSlot.time)), manualSlot]
+      
+      const timetableId = `${selectedClassId}_${currentTerm.replace(/\s+/g, '')}`
+      await setDoc(doc(db, "timetables", timetableId), {
+        tenantId: institutionId,
+        institutionId,
+        classId: selectedClassId,
+        className: selectedClass?.name,
+        termId: currentTerm,
+        slots: newSlots,
+        updatedAt: serverTimestamp()
+      }, { merge: true })
+
+      toast({ title: "Slot Updated", description: "The manual entry has been registered." })
+      setIsManualOpen(false)
+      setManualSlot({ day: "Monday", time: "08:00 AM", subject: "", teacher: "", isDoublePeriod: false })
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Update Failed" })
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const getSlot = (day: string, timePrefix: string) => {
-    if (!aiResult) return null
-    return aiResult.schedule.find(s => s.day === day && s.time.startsWith(timePrefix))
+    // Show AI result preview if available, otherwise show persisted data
+    const source = aiResult?.schedule || activeTimetable?.slots || []
+    return source.find((s: any) => s.day === day && s.time.startsWith(timePrefix))
   }
 
   return (
@@ -82,20 +174,25 @@ export default function TimetablePage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Timetable Optimizer</h1>
-          <p className="text-muted-foreground font-medium">AI-driven instructional period allocation and faculty workload balancing.</p>
+          <p className="text-muted-foreground font-medium">Strategic period allocation for <span className="text-accent font-bold uppercase">{currentTerm}</span>.</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <Button variant="outline" className="h-11 rounded-xl gap-2" onClick={() => window.print()}>
-            <Printer className="size-4" /> Print Registry
+            <Printer className="size-4" /> Print PDF
           </Button>
           <Button 
             className="bg-primary h-11 rounded-xl shadow-lg gap-2" 
             onClick={handleOptimize}
             disabled={loading || !selectedClassId}
           >
-            {loading ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4 text-accent" />}
-            Authorize AI Optimization
+            {loading ? <Loader2 className="size-4 animate-spin" /> : <Bot className="size-4 text-accent" />}
+            AI Optimize
           </Button>
+          {aiResult && (
+            <Button className="bg-green-600 hover:bg-green-700 h-11 rounded-xl shadow-lg gap-2" onClick={() => handleSaveTimetable(aiResult.schedule)} disabled={saving}>
+              {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Save Preview
+            </Button>
+          )}
         </div>
       </div>
 
@@ -104,14 +201,14 @@ export default function TimetablePage() {
           <Card className="border-none shadow-xl rounded-3xl overflow-hidden bg-white">
             <CardHeader className="bg-primary text-primary-foreground p-8 shrink-0">
                <div className="flex items-center gap-3 mb-2">
-                 <div className="size-8 rounded-xl bg-white/10 flex items-center justify-center"><Bot className="size-5" /></div>
-                 <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Scheduler Parameters</span>
+                 <div className="size-8 rounded-xl bg-white/10 flex items-center justify-center"><Grid3X3 className="size-5" /></div>
+                 <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Control Hub</span>
                </div>
-               <CardTitle className="text-2xl font-headline font-bold">Grade Context</CardTitle>
+               <CardTitle className="text-2xl font-headline font-bold">Parameters</CardTitle>
             </CardHeader>
             <CardContent className="p-8 space-y-6">
               <div className="space-y-2">
-                <Label>Target Grade Module</Label>
+                <Label>Select Grade Module</Label>
                 <Select value={selectedClassId} onValueChange={setSelectedClassId}>
                   <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Choose Class" /></SelectTrigger>
                   <SelectContent>
@@ -120,47 +217,94 @@ export default function TimetablePage() {
                 </Select>
               </div>
 
-              {aiResult && (
+              {(aiResult || activeTimetable) && (
                 <div className="p-6 rounded-2xl bg-slate-50 border border-slate-100 space-y-4 animate-in slide-in-from-top-2">
                    <div className="space-y-2">
                       <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest flex items-center gap-2">
-                        <CheckCircle2 className="size-3 text-green-600" /> Optimization Report
+                        <CheckCircle2 className="size-3 text-green-600" /> Registry Status
                       </p>
                       <p className="text-xs font-medium text-slate-700 leading-relaxed italic">
-                        "{aiResult.optimizationReport.workloadBalance}"
+                        {aiResult ? "AI Preview Active - Unsaved" : "Institutional Record Verified"}
                       </p>
                    </div>
                    <div className="pt-4 border-t flex justify-between items-center">
-                      <span className="text-[10px] font-bold uppercase text-muted-foreground">Conflict Status</span>
-                      <Badge className="bg-green-600 text-white border-none text-[8px] font-bold uppercase">Optimal</Badge>
+                      <span className="text-[10px] font-bold uppercase text-muted-foreground">Sync Year</span>
+                      <Badge className="bg-primary text-white border-none text-[8px] font-bold uppercase">2026/2027</Badge>
                    </div>
                 </div>
               )}
 
-              <div className="pt-4">
-                <Button variant="outline" className="w-full h-11 rounded-xl border-dashed" disabled={loading}>
-                   <Plus className="size-4 mr-2" /> Manual Slot Entry
-                </Button>
-              </div>
+              <Dialog open={isManualOpen} onOpenChange={setIsManualOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="w-full h-11 rounded-xl border-dashed" disabled={loading || !selectedClassId}>
+                     <Plus className="size-4 mr-2" /> Manual Slot Entry
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md rounded-2xl">
+                   <form onSubmit={handleAddManualSlot}>
+                      <DialogHeader>
+                        <DialogTitle className="text-xl font-bold font-headline">Manual Period Allocation</DialogTitle>
+                        <DialogDescription>Assign a specific subject and teacher to a time slot for {selectedClass?.name}.</DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-6 py-6">
+                        <div className="grid grid-cols-2 gap-4">
+                           <div className="space-y-1.5"><Label>Day</Label>
+                              <Select value={manualSlot.day} onValueChange={v => setManualSlot({...manualSlot, day: v as any})}>
+                                 <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                                 <SelectContent>{DAYS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+                              </Select>
+                           </div>
+                           <div className="space-y-1.5"><Label>Time</Label>
+                              <Select value={manualSlot.time} onValueChange={v => setManualSlot({...manualSlot, time: v})}>
+                                 <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                                 <SelectContent>{TIMES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                              </Select>
+                           </div>
+                        </div>
+                        <div className="space-y-1.5"><Label>Subject</Label>
+                           <Select onValueChange={v => setManualSlot({...manualSlot, subject: v})}>
+                              <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Choose Subject" /></SelectTrigger>
+                              <SelectContent>{subjects.map(s => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}</SelectContent>
+                           </Select>
+                        </div>
+                        <div className="space-y-1.5"><Label>Teacher</Label>
+                           <Select onValueChange={v => setManualSlot({...manualSlot, teacher: v})}>
+                              <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Choose Faculty" /></SelectTrigger>
+                              <SelectContent>{staff.map(st => <SelectItem key={st.id} value={`${st.firstName} ${st.lastName}`}>{st.firstName} {st.lastName}</SelectItem>)}</SelectContent>
+                           </Select>
+                        </div>
+                        <div className="flex items-center gap-2 pt-2">
+                           <Checkbox id="double" checked={manualSlot.isDoublePeriod} onCheckedChange={v => setManualSlot({...manualSlot, isDoublePeriod: !!v})} />
+                           <Label htmlFor="double" className="cursor-pointer">Double Period (2 Hours)</Label>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                         <Button type="submit" className="w-full h-12 rounded-xl bg-primary font-bold shadow-lg" disabled={saving}>
+                            {saving ? <Loader2 className="size-4 animate-spin mr-2" /> : "Authorize Slot"}
+                         </Button>
+                      </DialogFooter>
+                   </form>
+                </DialogContent>
+              </Dialog>
             </CardContent>
           </Card>
         </div>
 
         <div className="lg:col-span-3">
-          {!aiResult && !loading ? (
+          {(!aiResult && !activeTimetable && !loading) ? (
             <Card className="border-none shadow-md h-full min-h-[500px] flex flex-col items-center justify-center text-center p-12 space-y-6 rounded-3xl bg-muted/5 border-2 border-dashed">
               <div className="size-24 rounded-full bg-primary/5 flex items-center justify-center">
                 <Calendar className="size-12 text-primary/20" />
               </div>
               <div className="max-w-sm">
-                <h3 className="text-xl font-bold text-primary/60 font-headline">Awaiting Grade Authorization</h3>
+                <h3 className="text-xl font-bold text-primary/60 font-headline">Awaiting Authorization</h3>
                 <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-                  Select a grade module to activate the AI Optimizer. The system will automatically build a balanced schedule based on teacher availability and subject load.
+                  Select a grade module to load the existing timetable or activate the AI Optimizer to compute a balanced schedule.
                 </p>
               </div>
             </Card>
           ) : loading ? (
-            <div className="h-full min-h-[500px] flex flex-col items-center justify-center space-y-6">
+            <div className="h-full min-h-[500px] flex flex-col items-center justify-center space-y-6 bg-white rounded-3xl shadow-xl">
                <div className="relative">
                   <Loader2 className="size-16 animate-spin text-primary" />
                   <Sparkles className="absolute -top-2 -right-2 size-6 text-accent animate-bounce" />
@@ -175,9 +319,10 @@ export default function TimetablePage() {
               <CardHeader className="bg-slate-50 border-b flex flex-row items-center justify-between p-8">
                  <div>
                     <CardTitle className="text-xl font-headline font-bold">Weekly Instructional Grid: {selectedClass?.name}</CardTitle>
-                    <CardDescription>Academic Session 2026/2027 • Term 2 Registry</CardDescription>
+                    <CardDescription>Academic Session 2026/2027 • {currentTerm} Official Registry</CardDescription>
                  </div>
-                 <div className="flex items-center gap-2">
+                 <div className="flex items-center gap-3">
+                    {aiResult && <Badge className="bg-accent text-accent-foreground font-bold uppercase text-[9px] px-3 animate-pulse">Previewing AI Build</Badge>}
                     <Badge variant="outline" className="bg-white text-primary border-primary/20 font-bold uppercase text-[9px] px-3">Synced 2026</Badge>
                  </div>
               </CardHeader>
@@ -190,7 +335,7 @@ export default function TimetablePage() {
                        </tr>
                     </thead>
                     <tbody>
-                       {TIMES.map((time, i) => (
+                       {TIMES.map((time) => (
                          <tr key={time} className="group">
                             <td className="p-6 border-r border-b text-xs font-bold text-muted-foreground bg-slate-50/30">
                                <div className="flex items-center gap-2"><Clock className="size-3" /> {time}</div>
@@ -230,8 +375,4 @@ export default function TimetablePage() {
       </div>
     </div>
   )
-}
-
-function Label({ children }: { children: React.ReactNode }) {
-  return <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 block">{children}</label>
 }

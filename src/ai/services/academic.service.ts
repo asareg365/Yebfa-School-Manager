@@ -14,9 +14,12 @@ export class AcademicService extends BaseAIService {
     return this.getTenantData("subjects", tenantId);
   }
 
-  async getAssignments(tenantId: string, classId?: string) {
+  async getAssignments(tenantId: string, classId?: string, termId?: string) {
     const data = await this.getTenantData("teacher_assignments", tenantId);
-    return classId ? data.filter((d: any) => d.classId === classId) : data;
+    let filtered = data;
+    if (classId) filtered = filtered.filter((d: any) => d.classId === classId);
+    if (termId) filtered = filtered.filter((d: any) => d.termId === termId);
+    return filtered;
   }
 }
 
