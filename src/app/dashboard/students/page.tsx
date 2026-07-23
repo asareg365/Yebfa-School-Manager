@@ -41,9 +41,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 
 export default function StudentsPage() {
   const db = useFirestore()
+  const searchParams = useSearchParams()
   const { user } = useUser()
   const [loading, setLoading] = useState(false)
   const [isEnrollOpen, setIsEnrollOpen] = useState(false)
@@ -97,7 +99,8 @@ export default function StudentsPage() {
       passport: "Pending",
       transferLetter: "N/A",
       previousRecords: "Pending"
-    }
+    },
+    admissionId: "" // Link to admission application if any
   }
 
   const [studentForm, setStudentForm] = useState(initialForm)
@@ -117,7 +120,27 @@ export default function StudentsPage() {
 
   useEffect(() => {
     setInstitutionId(localStorage.getItem('selected_institution_id'))
-  }, [])
+    
+    // Check if we're coming from Admissions Hub
+    const enrollTrigger = searchParams.get('enroll')
+    if (enrollTrigger === 'true') {
+      const pendingData = localStorage.getItem('pending_admission_data')
+      if (pendingData) {
+        const app = JSON.parse(pendingData)
+        setStudentForm(prev => ({
+          ...prev,
+          firstName: app.firstName || "",
+          lastName: app.lastName || "",
+          gender: app.gender || "Male",
+          dateOfBirth: app.dateOfBirth || "",
+          gradeLevel: app.gradeLevel || "",
+          admissionId: app.id
+        }))
+        setIsEnrollOpen(true)
+        localStorage.removeItem('pending_admission_data')
+      }
+    }
+  }, [searchParams])
 
   const studentsQuery = useMemo(() => institutionId ? query(collection(db, "students"), where("tenantId", "==", institutionId)) : null, [db, institutionId]);
   const parentsQuery = useMemo(() => institutionId ? query(collection(db, "parents"), where("tenantId", "==", institutionId)) : null, [db, institutionId]);
@@ -188,6 +211,7 @@ export default function StudentsPage() {
           createdAt: serverTimestamp()
         });
 
+        // Initialize Student Ledger
         const ledgerRef = doc(collection(db, "student_ledger"))
         batch.set(ledgerRef, {
           tenantId: institutionId,
@@ -199,6 +223,14 @@ export default function StudentsPage() {
           amount: 0,
           createdAt: serverTimestamp()
         })
+
+        // Update Admission App status if linked
+        if (studentForm.admissionId) {
+          batch.update(doc(db, "admissions", studentForm.admissionId), {
+            status: "Enrolled",
+            updatedAt: serverTimestamp()
+          })
+        }
       }
 
       await batch.commit()

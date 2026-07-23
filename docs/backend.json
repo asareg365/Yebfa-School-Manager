@@ -34,6 +34,24 @@
       },
       "required": ["name", "tenantId"]
     },
+    "Admission": {
+      "title": "Admission Application",
+      "description": "Candidate application for institutional entry.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tenantId": { "type": "string" },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "gender": { "type": "string" },
+        "dateOfBirth": { "type": "string" },
+        "gradeLevel": { "type": "string" },
+        "status": { "type": "string", "enum": ["Applied", "Interviewed", "Accepted", "Rejected", "Enrolled"] },
+        "interviewNotes": { "type": "string" },
+        "applicationDate": { "type": "string", "format": "date-time" }
+      },
+      "required": ["tenantId", "firstName", "lastName", "gradeLevel", "status"]
+    },
     "Parent": {
       "title": "Parent / Guardian Profile",
       "description": "Consolidated guardian information for one or more students.",
@@ -110,6 +128,7 @@
   "firestore": {
     "/users/{userId}": { "schema": "User" },
     "/institutions/{institutionId}": { "schema": "Institution" },
+    "/admissions/{admissionId}": { "schema": "Admission" },
     "/parents/{parentId}": { "schema": "Parent" },
     "/students/{studentId}": { "schema": "Student" }
   }

@@ -34,7 +34,8 @@ import {
   Bed,
   MapPin,
   ClipboardCheck,
-  Briefcase
+  Briefcase,
+  FilePlus2
 } from "lucide-react"
 
 import {
@@ -101,6 +102,12 @@ export function AppSidebar() {
 
     return [
       { title: "Overview", url: "/dashboard", icon: LayoutDashboard, visible: true },
+      {
+        title: "Admissions",
+        url: "/dashboard/admissions",
+        icon: FilePlus2,
+        visible: isSuperAdmin || isOwner || isAdmin,
+      },
       {
         title: "Academic Foundation",
         url: "#",
