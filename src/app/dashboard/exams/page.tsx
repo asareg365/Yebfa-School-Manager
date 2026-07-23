@@ -5,14 +5,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ClipboardList, Printer, Save, Loader2, Bot, Sparkles, FileText, Download, Wand2, CheckCircle2 } from "lucide-react"
+import { ClipboardList, Printer, Save, Loader2, Bot, Sparkles, FileText, Download, Wand2, CheckCircle2, ListChecks, Target, BrainCircuit, BarChart, X } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection, useDoc } from "@/firebase"
 import { collection, query, where, doc, setDoc, serverTimestamp, writeBatch } from "firebase/firestore"
 import { useState, useMemo, useEffect } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { generateExamQuestions } from "@/ai/flows/generate-exam-questions"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { generateExamQuestions, GenerateExamOutput } from "@/ai/flows/generate-exam-questions"
 
 export default function ExaminationCenterPage() {
   const db = useFirestore()
@@ -22,7 +23,7 @@ export default function ExaminationCenterPage() {
   const [selectedTerm, setSelectedTerm] = useState("")
   const [isSaving, setIsSaving] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
-  const [aiResult, setAiResult] = useState<any>(null)
+  const [aiResult, setAiResult] = useState<GenerateExamOutput | null>(null)
 
   const [scores, setScores] = useState<Record<string, { ca: string, exam: string }>>({})
 
@@ -33,7 +34,6 @@ export default function ExaminationCenterPage() {
   const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
   const { data: institution } = useDoc(instRef)
   
-  // Sync selectedTerm with institution default on load
   useEffect(() => {
     if (institution?.currentTerm && !selectedTerm) {
       setSelectedTerm(institution.currentTerm)
@@ -142,7 +142,7 @@ export default function ExaminationCenterPage() {
 
   const handleAiGenerate = async () => {
     if (!selectedSubject || !selectedGrade) {
-      toast({ variant: "destructive", title: "Selection Required", description: "Select grade and subject." })
+      toast({ variant: "destructive", title: "Selection Required", description: "Select grade and subject to authorize AI generation." })
       return
     }
     setAiLoading(true)
@@ -151,14 +151,14 @@ export default function ExaminationCenterPage() {
       const result = await generateExamQuestions({
         subject: subName,
         gradeLevel: selectedGrade,
-        topic: "Term Review",
+        topic: "Term Review and Core Fundamentals",
         count: 5,
         type: "Mixed"
       })
       setAiResult(result)
-      toast({ title: "AI Generated Paper", description: "Examination questions are ready." })
+      toast({ title: "AI Assessment Generated", description: "Balanced examination paper is ready." })
     } catch (e) {
-      toast({ variant: "destructive", title: "AI Engine Busy" })
+      toast({ variant: "destructive", title: "AI Engine Busy", description: "Please ensure Vertex AI is enabled." })
     } finally {
       setAiLoading(false)
     }
@@ -169,11 +169,11 @@ export default function ExaminationCenterPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Examination Center</h1>
-          <p className="text-muted-foreground font-medium">Capture results for <span className="text-accent font-bold uppercase">{selectedTerm || institution?.currentTerm || "..."}</span>.</p>
+          <p className="text-muted-foreground font-medium">Capturing results and generating assessments for <span className="text-accent font-bold uppercase">{selectedTerm || institution?.currentTerm || "..."}</span>.</p>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" className="gap-2 h-11 rounded-xl" onClick={handleAiGenerate} disabled={aiLoading}>
-            {aiLoading ? <Loader2 className="size-4 animate-spin" /> : <Bot className="size-4 text-accent" />} AI Paper Gen
+            {aiLoading ? <Loader2 className="size-4 animate-spin" /> : <Bot className="size-4 text-accent" />} AI Assessment Assistant
           </Button>
           <Button 
             className="gap-2 bg-primary h-11 rounded-xl shadow-lg" 
@@ -187,7 +187,7 @@ export default function ExaminationCenterPage() {
 
       <div className="grid gap-6 md:grid-cols-4">
         <Card className="border-none shadow-md h-fit">
-          <CardHeader><CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Exam Context</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Exam Context</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label className="text-[10px] font-bold uppercase text-muted-foreground">Academic Term</Label>
@@ -208,7 +208,6 @@ export default function ExaminationCenterPage() {
                   {classes.map(c => (
                     <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
                   ))}
-                  {classes.length === 0 && <div className="p-2 text-center text-xs italic">Establish classes first</div>}
                 </SelectContent>
               </Select>
             </div>
@@ -224,33 +223,88 @@ export default function ExaminationCenterPage() {
 
         <div className="md:col-span-3 space-y-6">
            {aiResult && (
-             <Card className="border-none shadow-xl bg-primary text-primary-foreground overflow-hidden animate-in slide-in-from-top-4 duration-500 rounded-3xl">
-               <CardHeader className="flex flex-row items-center justify-between">
+             <Card className="border-none shadow-2xl overflow-hidden animate-in slide-in-from-top-4 duration-500 rounded-3xl bg-white border-2 border-primary/5">
+               <CardHeader className="bg-primary text-primary-foreground p-8 flex flex-row items-center justify-between shrink-0">
                  <div>
-                   <CardTitle className="text-lg">AI Generated Examination Paper</CardTitle>
-                   <CardDescription className="text-primary-foreground/60">Ready for review and printing.</CardDescription>
+                   <div className="flex items-center gap-2 mb-2">
+                      <Sparkles className="size-4 text-accent" />
+                      <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">AI Strategic Assessment</span>
+                   </div>
+                   <CardTitle className="text-2xl font-headline font-bold">Examination Paper & Scheme</CardTitle>
+                   <CardDescription className="text-primary-foreground/70">Balanced for Bloom's Taxonomy & Grade Difficulty.</CardDescription>
                  </div>
-                 <Sparkles className="size-6 opacity-30" />
+                 <Button variant="secondary" size="icon" className="bg-white/10 text-white hover:bg-white/20 rounded-xl" onClick={() => setAiResult(null)}>
+                    <X className="size-5" />
+                 </Button>
                </CardHeader>
-               <CardContent className="p-2">
-                  <div className="bg-white text-slate-800 p-8 rounded-2xl max-h-[400px] overflow-y-auto">
-                    {aiResult.questions.map((q: any) => (
-                      <div key={q.id} className="space-y-2 border-b pb-4 mb-4 last:border-none last:mb-0">
-                        <p className="font-bold">Q{q.id}. {q.question}</p>
-                        {q.options && (
-                          <div className="grid grid-cols-2 gap-2 text-sm italic ml-4">
-                            {q.options.map((opt: string) => <div key={opt}>• {opt}</div>)}
+               
+               <Tabs defaultValue="questions">
+                 <TabsList className="bg-muted/30 px-8 py-2 border-b shrink-0 flex justify-start gap-4">
+                   <TabsTrigger value="questions" className="gap-2 rounded-lg"><FileText className="size-4" /> Question Paper</TabsTrigger>
+                   <TabsTrigger value="scheme" className="gap-2 rounded-lg"><ListChecks className="size-4" /> Marking Scheme</TabsTrigger>
+                   <TabsTrigger value="analysis" className="gap-2 rounded-lg"><BrainCircuit className="size-4" /> Pedagogical Analysis</TabsTrigger>
+                 </TabsList>
+
+                 <TabsContent value="questions" className="p-8">
+                    <div className="prose prose-slate max-w-none space-y-6">
+                      {aiResult.questions.map((q: any) => (
+                        <div key={q.id} className="p-6 rounded-2xl bg-slate-50 border relative group">
+                          <div className="absolute top-4 right-4 flex gap-2">
+                             <Badge variant="outline" className="text-[8px] bg-white">{q.difficulty}</Badge>
+                             <Badge variant="secondary" className="text-[8px]">{q.marks} Marks</Badge>
                           </div>
-                        )}
-                        <p className="text-[10px] text-green-600 font-bold uppercase mt-2">Correct: {q.correctAnswer}</p>
-                      </div>
-                    ))}
-                  </div>
-               </CardContent>
-               <div className="p-4 flex justify-end gap-3 border-t border-white/10">
-                 <Button variant="ghost" className="text-white hover:bg-white/10" onClick={() => setAiResult(null)}>Discard</Button>
-                 <Button className="bg-white text-primary hover:bg-white/90 gap-2"><Printer className="size-4" /> Print Paper</Button>
-               </div>
+                          <p className="font-bold text-primary mb-4">Q{q.id}. {q.question}</p>
+                          {q.options && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 ml-4 mb-4">
+                              {q.options.map((opt: string, idx: number) => (
+                                <div key={idx} className="text-sm p-2 rounded-lg bg-white border flex items-center gap-3">
+                                   <span className="text-[10px] font-bold text-muted-foreground uppercase">{String.fromCharCode(65 + idx)}</span>
+                                   {opt}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <div className="hidden group-hover:block animate-in fade-in duration-300">
+                             <p className="text-[10px] text-green-600 font-bold uppercase mt-2">Key: {q.correctAnswer}</p>
+                             <p className="text-[10px] text-muted-foreground italic">{q.explanation}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-8 flex justify-end gap-3">
+                       <Button variant="outline" className="gap-2 rounded-xl h-11"><Printer className="size-4" /> Print Paper</Button>
+                       <Button className="bg-primary gap-2 rounded-xl h-11 shadow-lg"><Download className="size-4" /> Export Document</Button>
+                    </div>
+                 </TabsContent>
+
+                 <TabsContent value="scheme" className="p-8">
+                    <div className="p-8 rounded-2xl bg-slate-50 border border-slate-200">
+                       <h4 className="text-xs font-bold uppercase tracking-widest text-primary mb-6 flex items-center gap-2">
+                          <Target className="size-4" /> Points-Based Marking Criteria
+                       </h4>
+                       <div className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700 font-medium">
+                          {aiResult.markingScheme}
+                       </div>
+                    </div>
+                 </TabsContent>
+
+                 <TabsContent value="analysis" className="p-8 space-y-6">
+                    <div className="grid gap-6 md:grid-cols-2">
+                       <Card className="border-none shadow-sm bg-blue-50/50 border-blue-100 p-6 space-y-4">
+                          <h4 className="text-xs font-bold text-blue-900 uppercase tracking-widest flex items-center gap-2">
+                             <BrainCircuit className="size-4" /> Bloom's Taxonomy Analysis
+                          </h4>
+                          <p className="text-sm text-blue-800 leading-relaxed font-medium">{aiResult.assessmentAnalysis.bloomSummary}</p>
+                       </Card>
+                       <Card className="border-none shadow-sm bg-purple-50/50 border-purple-100 p-6 space-y-4">
+                          <h4 className="text-xs font-bold text-purple-900 uppercase tracking-widest flex items-center gap-2">
+                             <BarChart className="size-4" /> Difficulty Summary
+                          </h4>
+                          <p className="text-sm text-purple-800 leading-relaxed font-medium">{aiResult.assessmentAnalysis.difficultyBalance}</p>
+                       </Card>
+                    </div>
+                 </TabsContent>
+               </Tabs>
              </Card>
            )}
 
@@ -258,7 +312,7 @@ export default function ExaminationCenterPage() {
              <CardHeader className="border-b bg-slate-50/50 flex flex-row items-center justify-between">
                 <div>
                   <CardTitle className="text-lg">Score Registry</CardTitle>
-                  <CardDescription>Entering scores for {selectedTerm || institution?.currentTerm}, 2026 Academic Cycle.</CardDescription>
+                  <CardDescription>Recording assessments for {selectedTerm || institution?.currentTerm}, 2026 Academic Cycle.</CardDescription>
                 </div>
                 {selectedSubject && <Badge className="bg-primary/5 text-primary border-none text-[10px] font-bold uppercase tracking-widest px-3">Sync Active</Badge>}
              </CardHeader>
@@ -266,7 +320,7 @@ export default function ExaminationCenterPage() {
                 {!selectedGrade || !selectedSubject ? (
                   <div className="p-32 text-center text-muted-foreground space-y-4">
                     <div className="size-16 rounded-full bg-muted flex items-center justify-center mx-auto opacity-20"><ClipboardList className="size-8" /></div>
-                    <p className="italic text-sm">Select a grade module, subject, and term to record scores.</p>
+                    <p className="italic text-sm">Select a grade module, subject, and term context to record scores.</p>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -288,7 +342,7 @@ export default function ExaminationCenterPage() {
                             <TableRow key={stu.id} className="hover:bg-slate-50/50 transition-colors">
                               <TableCell className="font-bold text-primary flex items-center gap-3 min-w-[200px]">
                                 <div className="size-8 rounded-full bg-primary/5 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
-                                  {stu.firstName.charAt(0)}{stu.lastName.charAt(0)}
+                                  {(stu.firstName || "?").charAt(0)}{(stu.lastName || "?").charAt(0)}
                                 </div>
                                 <span className="truncate">{stu.firstName} {stu.lastName}</span>
                               </TableCell>
