@@ -62,7 +62,7 @@ const generateDemoVideoFlow = ai.defineFlow(
     }
 
     const fetch = (await import('node-fetch')).default;
-    // Vertex AI authenticates automatically via service account
+    // Vertex AI authenticates automatically via service account in App Hosting
     const videoDownloadResponse = await fetch(videoPart.media.url);
 
     if (!videoDownloadResponse || !videoDownloadResponse.ok || !videoDownloadResponse.body) {

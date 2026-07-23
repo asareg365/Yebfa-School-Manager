@@ -177,7 +177,7 @@ export default function ReportsPage() {
                     <ul className="list-disc ml-5 space-y-2 font-medium">
                       <li>Verify the <strong>GEMINI_MODEL</strong> constant in <code>src/lib/ai-config.ts</code>.</li>
                       <li>Standard models include <code>vertexai/gemini-2.5-flash</code> or <code>vertexai/gemini-1.5-flash</code>.</li>
-                      <li>Check the <a href="https://aistudio.google.com/" target="_blank" className="underline font-bold text-primary">Google AI Studio</a> for available models in your region.</li>
+                      <li>Check the <a href="https://console.cloud.google.com/vertex-ai" target="_blank" className="underline font-bold text-primary">Vertex AI Console</a> for model availability in your region.</li>
                     </ul>
                   </div>
                 )}
