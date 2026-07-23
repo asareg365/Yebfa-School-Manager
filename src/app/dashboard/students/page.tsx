@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -133,6 +134,7 @@ export default function StudentsPage() {
     ).sort((a: any, b: any) => (a.admissionNumber || "").localeCompare(b.admissionNumber || ""));
   }, [rawStudents, searchQuery]);
 
+  // Sequential Parent Number Generator for Wizard
   useEffect(() => {
     if (isEnrollOpen && !studentForm.admissionNumber && !editingStudent) {
       const year = new Date().getFullYear();
@@ -141,8 +143,8 @@ export default function StudentsPage() {
       setStudentForm(prev => ({ ...prev, admissionNumber: autoAdm }));
     }
     if (isEnrollOpen && isNewParent && !newParentForm.parentNumber) {
-      const count = parents.length + 1;
-      const autoCode = `PAR-${String(count).padStart(6, '0')}`;
+      const nextCount = parents.length + 1;
+      const autoCode = `PAR-${String(nextCount).padStart(6, '0')}`;
       setNewParentForm(prev => ({ ...prev, parentNumber: autoCode }));
     }
   }, [isEnrollOpen, rawStudents.length, parents.length, editingStudent, isNewParent, studentForm.admissionNumber, newParentForm.parentNumber]);

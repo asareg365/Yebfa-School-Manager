@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -44,7 +45,6 @@ export default function AddParentPage() {
     gender: "Female",
     dob: "",
     nationality: "Ghanaian",
-    // Contact
     phone: "",
     alternatePhone: "",
     email: "",
@@ -52,14 +52,11 @@ export default function AddParentPage() {
     town: "",
     region: "",
     digitalAddress: "",
-    // Employment
     occupation: "",
     employer: "",
     employerAddress: "",
-    // Identification
     nationalId: "",
     passportNumber: "",
-    // Emergency
     emergencyContact: "",
     emergencyPhone: "",
     emergencyRelationship: "",
@@ -76,10 +73,11 @@ export default function AddParentPage() {
   const parentsQuery = useMemo(() => institutionId ? query(collection(db, "parents"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   const { data: parents = [] } = useCollection(parentsQuery)
 
+  // Sequential Parent Number Generator
   useEffect(() => {
     if (institutionId && parents.length >= 0 && !parentForm.parentNumber) {
-      const count = parents.length + 1
-      const autoCode = `PAR-${String(count).padStart(6, '0')}`
+      const nextCount = parents.length + 1
+      const autoCode = `PAR-${String(nextCount).padStart(6, '0')}`
       setParentForm(prev => ({ ...prev, parentNumber: autoCode }))
     }
   }, [institutionId, parents.length, parentForm.parentNumber])
@@ -123,7 +121,7 @@ export default function AddParentPage() {
       
       toast({ 
         title: "Parent Registry Authorized", 
-        description: `${parentForm.firstName} ${parentForm.lastName} has been successfully provisioned.` 
+        description: `${parentForm.firstName} ${parentForm.lastName} has been successfully provisioned with ID ${parentForm.parentNumber}.` 
       })
       router.push("/dashboard/parents")
     } catch (e: any) { 
