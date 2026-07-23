@@ -5,7 +5,13 @@ import { z } from 'genkit';
 import { MODELS } from '@/ai/models';
 import { PROMPTS } from '@/ai/prompts';
 import { wrapAIError } from '@/ai/errors';
-import { getStudentPerformanceTool, getFinancialDefaultsTool, getStaffRegistryTool } from '@/ai/tools/admin.tools';
+import { getStudentPerformanceTool, getFinancialDefaultsTool } from '@/ai/tools/admin.tools';
+import { getStaffRegistryTool } from '@/ai/tools/hr.tools';
+
+/**
+ * @fileOverview Strategic AI Administrator Flow.
+ * Refactored to use modular tool imports and roadmap-aligned services.
+ */
 
 const AdminQueryInputSchema = z.object({
   institutionId: z.string(),
