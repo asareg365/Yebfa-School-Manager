@@ -35,7 +35,8 @@ import {
   ClipboardCheck,
   Briefcase,
   FilePlus2,
-  Bot
+  Bot,
+  TrendingUp
 } from "lucide-react"
 
 import {
@@ -150,6 +151,7 @@ export function AppSidebar() {
         visible: isSuperAdmin || isOwner || isAdmin || isTeacher,
         items: [
           { title: "AI Teacher Assistant", url: "/dashboard/academic/ai-assistant", icon: Bot, visible: true },
+          { title: "Strategic Insights", url: "/dashboard/academic/insights", icon: TrendingUp, visible: true },
           { title: "Exam Center", url: "/dashboard/exams", visible: true },
           { title: "Report Cards", url: "/dashboard/reports", visible: true },
           { title: "Performance Data", url: "/dashboard/analytics", visible: true },
