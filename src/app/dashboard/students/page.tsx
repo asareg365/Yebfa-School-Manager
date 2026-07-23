@@ -13,29 +13,22 @@ import {
   Loader2, 
   User, 
   ShieldCheck, 
-  GraduationCap,
   IdCard,
-  Stethoscope,
-  MapPin,
   RefreshCw,
-  ClipboardList,
   Save,
-  Home,
-  AlertCircle,
-  School,
   ChevronRight,
   ChevronLeft,
   CheckCircle2,
-  FileText,
   HeartHandshake,
-  Baby
+  Baby,
+  Users
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection, useUser } from "@/firebase"
 import { collection, addDoc, query, deleteDoc, doc, where, serverTimestamp, updateDoc, writeBatch } from "firebase/firestore"
 import { useState, useMemo, useEffect } from "react"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -56,9 +49,8 @@ export default function StudentsPage() {
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   
-  // Wizard State
   const [activeStep, setActiveStep] = useState("identity")
-  const steps = ["identity", "academic", "guardian", "medical", "documents", "finalize"]
+  const steps = ["identity", "academic", "guardian", "finalize"]
 
   const initialForm = {
     firstName: "",
@@ -76,24 +68,6 @@ export default function StudentsPage() {
       district: "",
       region: "",
       country: "Ghana"
-    },
-    emergencyContact: {
-      name: "",
-      relationship: "",
-      phone: ""
-    },
-    medical: {
-      bloodGroup: "",
-      allergies: "",
-      specialNeeds: "",
-      disability: "",
-      doctor: ""
-    },
-    documents: {
-      birthCertificate: "Pending",
-      passport: "Pending",
-      transferLetter: "N/A",
-      previousRecords: "Pending"
     },
     admissionId: ""
   }
@@ -184,7 +158,6 @@ export default function StudentsPage() {
       let finalParentId = linkedParentId
       let studentId = editingStudent?.id
 
-      // 1. Handle Parent Profile
       if (isNewParent) {
         const parentRef = doc(collection(db, "parents"))
         finalParentId = parentRef.id
@@ -198,7 +171,6 @@ export default function StudentsPage() {
         })
       }
 
-      // 2. Handle Student Profile
       const studentData = {
         ...studentForm,
         tenantId: institutionId,
@@ -218,7 +190,6 @@ export default function StudentsPage() {
           createdAt: serverTimestamp()
         });
 
-        // Initialize Ledger
         const ledgerRef = doc(collection(db, "student_ledger"))
         batch.set(ledgerRef, {
           tenantId: institutionId,
@@ -236,7 +207,6 @@ export default function StudentsPage() {
         }
       }
 
-      // 3. Handle Relationship Link
       if (finalParentId) {
         const relId = `${studentId}_${finalParentId}`
         batch.set(doc(db, "student_parents", relId), {
@@ -261,6 +231,18 @@ export default function StudentsPage() {
     const currentIndex = steps.indexOf(activeStep)
     if (direction === 'next' && currentIndex < steps.length - 1) setActiveStep(steps[currentIndex + 1])
     else if (direction === 'back' && currentIndex > 0) setActiveStep(steps[currentIndex - 1])
+  }
+
+  const openEdit = (stu: any) => {
+    setEditingStudent(stu)
+    setStudentForm({ ...initialForm, ...stu })
+    const rel = allRels.find(r => r.studentId === stu.id)
+    if (rel) {
+      setLinkedParentId(rel.parentId)
+      setRelationshipData({ ...relationshipData, relationship: rel.relationship, primaryContact: rel.primaryContact })
+    }
+    setIsEnrollOpen(true)
+    setActiveStep("identity")
   }
 
   return (
@@ -355,64 +337,97 @@ export default function StudentsPage() {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="guardian" className="space-y-8 mt-0">
-                   <div className="flex items-center justify-between border-b pb-4">
-                      <div><h3 className="font-bold">Guardian Relationship</h3><p className="text-xs text-muted-foreground">Link student to a shared family registry profile.</p></div>
-                      <Button type="button" variant="outline" size="sm" onClick={() => setIsNewParent(!isNewParent)}>{isNewParent ? "Search Registry" : "New Parent profile"}</Button>
-                   </div>
-                   
-                   {isNewParent ? (
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6 bg-slate-50 rounded-2xl border-2 border-dashed">
-                        <div className="space-y-2"><Label>First Name</Label><Input value={newParentForm.firstName} onChange={e => setNewParentForm({...newParentForm, firstName: e.target.value})} className="h-11" /></div>
-                        <div className="space-y-2"><Label>Last Name</Label><Input value={newParentForm.lastName} onChange={e => setNewParentForm({...newParentForm, lastName: e.target.value})} className="h-11" /></div>
-                        <div className="space-y-2"><Label>Phone</Label><Input value={newParentForm.phone} onChange={e => setNewParentForm({...newParentForm, phone: e.target.value})} className="h-11" /></div>
-                     </div>
-                   ) : (
-                     <div className="space-y-4">
-                        <Select value={linkedParentId} onValueChange={setLinkedParentId}>
-                           <SelectTrigger className="h-12"><SelectValue placeholder="Search existing parents..." /></SelectTrigger>
-                           <SelectContent>{parents.map(p => <SelectItem key={p.id} value={p.id}>{p.firstName} {p.lastName} ({p.phone})</SelectItem>)}</SelectContent>
-                        </Select>
-                     </div>
-                   )}
-
-                   <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-6">
-                      <div className="space-y-2"><Label>Relationship</Label>
-                         <Select value={relationshipData.relationship} onValueChange={v => setRelationshipData({...relationshipData, relationship: v})}>
-                            <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
-                            <SelectContent><SelectItem value="Mother">Mother</SelectItem><SelectItem value="Father">Father</SelectItem><SelectItem value="Guardian">Guardian</SelectItem><SelectItem value="Foster Parent">Foster Parent</SelectItem></SelectContent>
-                         </Select>
-                      </div>
-                      <div className="flex items-center gap-2 pt-8"><Checkbox checked={relationshipData.primaryContact} onCheckedChange={v => setRelationshipData({...relationshipData, primaryContact: !!v})} /><Label>Primary Contact</Label></div>
-                      <div className="flex items-center gap-2 pt-8"><Checkbox checked={relationshipData.emergencyContact} onCheckedChange={v => setRelationshipData({...relationshipData, emergencyContact: !!v})} /><Label>Emergency</Label></div>
-                   </div>
-                </TabsContent>
-                
-                {/* Fallback steps content (simplified for brevity) */}
                 <TabsContent value="academic" className="space-y-6 mt-0">
-                  <div className="space-y-2"><Label>Grade Level</Label>
+                  <div className="space-y-2">
+                    <Label>Assign Grade Level</Label>
                     <Select value={studentForm.gradeLevel} onValueChange={v => setStudentForm({...studentForm, gradeLevel: v})}>
-                      <SelectTrigger className="h-11"><SelectValue placeholder="Select Class" /></SelectTrigger>
+                      <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select Class" /></SelectTrigger>
                       <SelectContent>{registeredClasses.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                 </TabsContent>
 
+                <TabsContent value="guardian" className="space-y-8 mt-0">
+                   <div className="flex items-center justify-between border-b pb-4">
+                      <div>
+                        <h3 className="font-bold flex items-center gap-2 text-primary"><HeartHandshake className="size-4" /> Guardian Link</h3>
+                        <p className="text-xs text-muted-foreground">Search registry for siblings or register a new master profile.</p>
+                      </div>
+                      <Button type="button" variant="outline" size="sm" className="h-9 rounded-lg gap-2" onClick={() => setIsNewParent(!isNewParent)}>
+                        {isNewParent ? <Search className="size-3.5" /> : <UserPlus className="size-3.5" />}
+                        {isNewParent ? "Registry Search" : "Register New Profile"}
+                      </Button>
+                   </div>
+                   
+                   {isNewParent ? (
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6 bg-slate-50 rounded-2xl border-2 border-dashed animate-in fade-in zoom-in-95 duration-200">
+                        <div className="space-y-2"><Label>Master Code</Label><Input readOnly value={newParentForm.parentNumber} className="h-11 bg-white font-bold font-mono" /></div>
+                        <div className="space-y-2"><Label>First Name</Label><Input value={newParentForm.firstName} onChange={e => setNewParentForm({...newParentForm, firstName: e.target.value})} className="h-11 bg-white" /></div>
+                        <div className="space-y-2"><Label>Last Name</Label><Input value={newParentForm.lastName} onChange={e => setNewParentForm({...newParentForm, lastName: e.target.value})} className="h-11 bg-white" /></div>
+                        <div className="space-y-2"><Label>Contact Phone</Label><Input value={newParentForm.phone} onChange={e => setNewParentForm({...newParentForm, phone: e.target.value})} className="h-11 bg-white" /></div>
+                     </div>
+                   ) : (
+                     <div className="space-y-4 animate-in fade-in duration-200">
+                        <Label>Search Existing Parents (Siblings Check)</Label>
+                        <Select value={linkedParentId} onValueChange={setLinkedParentId}>
+                           <SelectTrigger className="h-14 rounded-xl text-primary font-medium">
+                              <SelectValue placeholder="🔍 Search registry by name or phone..." />
+                           </SelectTrigger>
+                           <SelectContent>
+                              {parents.map(p => <SelectItem key={p.id} value={p.id}>{p.firstName} {p.lastName} • {p.phone} ({p.parentNumber})</SelectItem>)}
+                              {parents.length === 0 && <div className="p-4 text-center text-xs text-muted-foreground">No parents registered in the hub.</div>}
+                           </SelectContent>
+                        </Select>
+                     </div>
+                   )}
+
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t">
+                      <div className="space-y-2"><Label>Relationship Type</Label>
+                         <Select value={relationshipData.relationship} onValueChange={v => setRelationshipData({...relationshipData, relationship: v})}>
+                            <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Mother">Mother</SelectItem>
+                              <SelectItem value="Father">Father</SelectItem>
+                              <SelectItem value="Guardian">Guardian</SelectItem>
+                              <SelectItem value="Uncle">Uncle</SelectItem>
+                              <SelectItem value="Aunt">Aunt</SelectItem>
+                              <SelectItem value="Foster Parent">Foster Parent</SelectItem>
+                            </SelectContent>
+                         </Select>
+                      </div>
+                      <div className="flex items-center gap-2 pt-8">
+                        <Checkbox id="primary" checked={relationshipData.primaryContact} onCheckedChange={v => setRelationshipData({...relationshipData, primaryContact: !!v})} />
+                        <Label htmlFor="primary" className="cursor-pointer">Primary Contact</Label>
+                      </div>
+                      <div className="flex items-center gap-2 pt-8">
+                        <Checkbox id="emergency" checked={relationshipData.emergencyContact} onCheckedChange={v => setRelationshipData({...relationshipData, emergencyContact: !!v})} />
+                        <Label htmlFor="emergency" className="cursor-pointer">Emergency Hub</Label>
+                      </div>
+                   </div>
+                </TabsContent>
+
                 <TabsContent value="finalize" className="space-y-8 mt-0 text-center py-10">
                    <div className="size-20 bg-green-50 rounded-full flex items-center justify-center mx-auto text-green-600 mb-4"><CheckCircle2 className="size-12" /></div>
-                   <h3 className="text-xl font-bold font-headline">Registry Entry Authorized</h3>
-                   <p className="text-sm text-muted-foreground max-w-xs mx-auto">Click finalize to establish the student record and relationship links in the institutional hub.</p>
+                   <h3 className="text-xl font-bold font-headline">Institutional Enrollment Authorized</h3>
+                   <p className="text-sm text-muted-foreground max-w-sm mx-auto">Verify the academic grade and relationship links before finalizing the registry entry.</p>
                 </TabsContent>
               </ScrollArea>
             </Tabs>
 
             <DialogFooter className="bg-slate-50 p-8 border-t shrink-0 flex items-center justify-between">
-              <Button type="button" variant="ghost" onClick={() => navigateStep('back')} disabled={activeStep === 'identity'}>Back</Button>
+              <Button type="button" variant="ghost" className="h-12 px-6 rounded-xl" onClick={() => navigateStep('back')} disabled={activeStep === 'identity'}>
+                <ChevronLeft className="size-4 mr-2" /> Back
+              </Button>
               <div className="flex gap-3">
                  {activeStep === "finalize" ? (
-                   <Button type="submit" disabled={loading} className="h-12 px-8 rounded-xl bg-primary font-bold shadow-xl">{loading ? <Loader2 className="animate-spin" /> : "Finalize Enrollment"}</Button>
+                   <Button type="submit" disabled={loading} className="h-12 px-8 rounded-xl bg-primary font-bold shadow-xl">
+                      {loading ? <Loader2 className="size-4 animate-spin mr-2" /> : <Save className="size-4 mr-2" />}
+                      Finalize Enrollment
+                   </Button>
                  ) : (
-                   <Button type="button" className="h-12 px-8 rounded-xl bg-primary font-bold" onClick={() => navigateStep('next')}>Next Step</Button>
+                   <Button type="button" className="h-12 px-8 rounded-xl bg-primary font-bold gap-2" onClick={() => navigateStep('next')}>
+                     Next Step <ChevronRight className="size-4" />
+                   </Button>
                  )}
               </div>
             </DialogFooter>

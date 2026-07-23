@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -38,6 +39,11 @@ export default function LoginPage() {
 
       if (userData.role === "super_admin") {
         router.replace("/admin")
+        return
+      }
+
+      if (userData.role === "parent") {
+        router.replace("/dashboard/parent")
         return
       }
 
@@ -119,7 +125,6 @@ export default function LoginPage() {
       await redirectUser(credential.user)
     } catch (error: any) {
       if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
-        // User closed the popup, silence the error
         return
       }
       

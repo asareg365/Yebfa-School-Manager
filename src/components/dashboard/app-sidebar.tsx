@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -99,8 +100,10 @@ export function AppSidebar() {
   const navigation = React.useMemo(() => {
     if (isParent) {
       return [
-        { title: "My Children", url: "/dashboard/parent", icon: Baby }
-      ]
+        { title: "Dashboard", url: "/dashboard/parent", icon: LayoutDashboard, visible: true },
+        { title: "Announcements", url: "/dashboard/communication", icon: MessageSquare, visible: true },
+        { title: "Child Support", url: "/dashboard/academic/ai-assistant", icon: Bot, visible: true },
+      ].filter(i => i.visible)
     }
 
     return [
