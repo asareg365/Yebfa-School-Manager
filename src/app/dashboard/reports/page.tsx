@@ -169,7 +169,7 @@ export default function ReportsPage() {
                   <p>Standard Troubleshooting:</p>
                   <ul className="list-disc ml-5">
                     <li>Verify Vertex AI enablement in Google Cloud Console.</li>
-                    <li>Confirm <strong>MODELS.REPORTS</strong> registry settings.</li>
+                    <li>Confirm <strong>MODELS.REPORTS</strong> registry settings in src/ai/models.ts.</li>
                   </ul>
                 </div>
               </AlertDescription>
