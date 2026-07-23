@@ -153,18 +153,23 @@ export function AppSidebar() {
       {
         title: "Student Registry",
         url: "#",
-        icon: Users,
+        icon: GraduationCap,
         visible: isSuperAdmin || isOwner || isAdmin || isAccountant,
         items: [
           { title: "Active Enrollment", url: "/dashboard/students", visible: true },
-          { title: "Parent Directory", url: "/dashboard/parents", visible: true },
           { title: "Fee Accounts", url: "/dashboard/students/accounts", visible: true },
         ].filter(i => i.visible),
       },
       {
+        title: "Parents",
+        url: "/dashboard/parents",
+        icon: Users,
+        visible: isSuperAdmin || isOwner || isAdmin || isAccountant,
+      },
+      {
         title: "Academic Analysis",
         url: "#",
-        icon: GraduationCap,
+        icon: FileText,
         visible: isSuperAdmin || isOwner || isAdmin || isTeacher,
         items: [
           { title: "Exam Center", url: "/dashboard/exams", visible: true },
