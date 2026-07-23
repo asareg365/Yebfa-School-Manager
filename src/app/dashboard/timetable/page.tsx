@@ -212,7 +212,7 @@ export default function TimetablePage() {
                 <Select value={selectedClassId} onValueChange={setSelectedClassId}>
                   <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Choose Class" /></SelectTrigger>
                   <SelectContent>
-                    {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name || "Unnamed Class"}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -249,7 +249,7 @@ export default function TimetablePage() {
                       <div className="grid gap-6 py-6">
                         <div className="grid grid-cols-2 gap-4">
                            <div className="space-y-1.5"><Label>Day</Label>
-                              <Select value={manualSlot.day} onValueChange={v => setManualSlot({...manualSlot, day: v as any})}>
+                              <Select value={manualSlot.day} onValueChange={v => setManualSlot({...manualSlot, day: v})}>
                                  <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
                                  <SelectContent>{DAYS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
                               </Select>
@@ -262,15 +262,21 @@ export default function TimetablePage() {
                            </div>
                         </div>
                         <div className="space-y-1.5"><Label>Subject</Label>
-                           <Select onValueChange={v => setManualSlot({...manualSlot, subject: v})}>
+                           <Select onValueChange={v => {
+                             const sub = subjects.find(s => s.id === v);
+                             setManualSlot({...manualSlot, subject: sub?.name || "Unspecified"});
+                           }}>
                               <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Choose Subject" /></SelectTrigger>
-                              <SelectContent>{subjects.map(s => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}</SelectContent>
+                              <SelectContent>{subjects.map(s => <SelectItem key={s.id} value={s.id}>{s.name || "Unnamed Subject"}</SelectItem>)}</SelectContent>
                            </Select>
                         </div>
                         <div className="space-y-1.5"><Label>Teacher</Label>
-                           <Select onValueChange={v => setManualSlot({...manualSlot, teacher: v})}>
+                           <Select onValueChange={v => {
+                             const st = staff.find(s => s.id === v);
+                             setManualSlot({...manualSlot, teacher: st ? `${st.firstName} ${st.lastName}` : "Unspecified"});
+                           }}>
                               <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Choose Faculty" /></SelectTrigger>
-                              <SelectContent>{staff.map(st => <SelectItem key={st.id} value={`${st.firstName} ${st.lastName}`}>{st.firstName} {st.lastName}</SelectItem>)}</SelectContent>
+                              <SelectContent>{staff.map(st => <SelectItem key={st.id} value={st.id}>{st.firstName} {st.lastName}</SelectItem>)}</SelectContent>
                            </Select>
                         </div>
                         <div className="flex items-center gap-2 pt-2">
@@ -280,7 +286,7 @@ export default function TimetablePage() {
                       </div>
                       <DialogFooter>
                          <Button type="submit" className="w-full h-12 rounded-xl bg-primary font-bold shadow-lg" disabled={saving}>
-                            {saving ? <Loader2 className="size-4 animate-spin mr-2" /> : "Authorize Slot"}
+                            {saving ? <Loader2 className="size-4 mr-2" /> : "Authorize Slot"}
                          </Button>
                       </DialogFooter>
                    </form>
