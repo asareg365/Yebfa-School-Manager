@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { MessageSquare, Send, Bell, Mail, Smartphone, Users, Megaphone, Loader2, CheckCircle2, History, Trash2, CalendarHeart } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection } from "@/firebase"
-import { collection, addDoc, query, where, deleteDoc, doc, serverTimestamp, orderBy } from "firebase/firestore"
+import { collection, addDoc, query, where, deleteDoc, doc, serverTimestamp, orderBy, writeBatch } from "firebase/firestore"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -33,14 +33,36 @@ export default function CommunicationCenterPage() {
     if (!db || !institutionId || loading) return
     setLoading(true)
     try {
-      await addDoc(collection(db, "announcements"), {
+      const batch = writeBatch(db)
+
+      // 1. Post to Announcements Collection
+      const annRef = doc(collection(db, "announcements"))
+      batch.set(annRef, {
         ...msgForm,
         tenantId: institutionId,
         createdAt: serverTimestamp()
       })
+
+      // 2. Post to Notifications Collection (for the bell icon)
+      const notifRef = doc(collection(db, "notifications"))
+      batch.set(notifRef, {
+        tenantId: institutionId,
+        title: `Broadcast: ${msgForm.title}`,
+        description: msgForm.content.substring(0, 80) + (msgForm.content.length > 80 ? '...' : ''),
+        type: 'info',
+        createdAt: serverTimestamp(),
+        target: msgForm.target
+      })
+
+      await batch.commit()
+      
       toast({ title: "Broadcast Sent", description: "Notification dispatched to ecosystem." })
       setMsgForm({ title: "", content: "", target: "All" })
-    } catch (e: any) { toast({ variant: "destructive", title: "Dispatch Failed" }) } finally { setLoading(false) }
+    } catch (e: any) { 
+      toast({ variant: "destructive", title: "Dispatch Failed" }) 
+    } finally { 
+      setLoading(false) 
+    }
   }
 
   const handleDelete = async (id: string) => {
@@ -111,7 +133,9 @@ export default function CommunicationCenterPage() {
                       <div className="flex justify-between items-start">
                          <div className="flex items-center gap-3">
                             <Badge className="bg-primary/5 text-primary border-none text-[9px] font-bold uppercase tracking-wider">{ann.target}</Badge>
-                            <span className="text-[10px] text-muted-foreground font-medium uppercase">{new Date(ann.createdAt?.toMillis()).toLocaleString()}</span>
+                            <span className="text-[10px] text-muted-foreground font-medium uppercase">
+                              {ann.createdAt ? new Date(ann.createdAt.toMillis()).toLocaleString() : 'Just now'}
+                            </span>
                          </div>
                          <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-destructive" onClick={() => handleDelete(ann.id)}>
                             <Trash2 className="size-3.5" />

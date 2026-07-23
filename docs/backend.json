@@ -1,5 +1,4 @@
 
-
 {
   "entities": {
     "User": {
@@ -35,120 +34,20 @@
       },
       "required": ["name", "tenantId"]
     },
-    "Admission": {
-      "title": "Admission Application",
-      "description": "Candidate application for institutional entry.",
+    "Notification": {
+      "title": "Notification",
+      "description": "System alerts and broadcast summaries for the notification hub.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
         "tenantId": { "type": "string" },
-        "firstName": { "type": "string" },
-        "lastName": { "type": "string" },
-        "gender": { "type": "string" },
-        "dateOfBirth": { "type": "string" },
-        "gradeLevel": { "type": "string" },
-        "status": { "type": "string", "enum": ["Applied", "Interviewed", "Accepted", "Rejected", "Enrolled"] },
-        "interviewNotes": { "type": "string" },
-        "applicationDate": { "type": "string", "format": "date-time" }
-      },
-      "required": ["tenantId", "firstName", "lastName", "gradeLevel", "status"]
-    },
-    "Parent": {
-      "title": "Parent / Guardian Profile",
-      "description": "Consolidated guardian information for one or more students.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "tenantId": { "type": "string" },
-        "parentNumber": { "type": "string", "description": "Unique code e.g. PAR-000001" },
-        "firstName": { "type": "string" },
-        "middleName": { "type": "string" },
-        "lastName": { "type": "string" },
-        "gender": { "type": "string", "enum": ["Male", "Female"] },
-        "dateOfBirth": { "type": "string", "format": "date" },
-        "nationality": { "type": "string" },
-        "phone": { "type": "string" },
-        "alternatePhone": { "type": "string" },
-        "email": { "type": "string", "format": "email" },
-        "address": { "type": "string" },
-        "town": { "type": "string" },
-        "district": { "type": "string" },
-        "region": { "type": "string" },
-        "digitalAddress": { "type": "string" },
-        "occupation": { "type": "string" },
-        "employer": { "type": "string" },
-        "officeAddress": { "type": "string" },
-        "nationalId": { "type": "string" },
-        "passportNumber": { "type": "string" },
-        "emergencyContact": { "type": "string" },
-        "emergencyPhone": { "type": "string" },
-        "emergencyRelationship": { "type": "string" },
-        "status": { "type": "string", "enum": ["Active", "Inactive"] },
-        "photoURL": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "type": { "type": "string", "enum": ["info", "alert", "success", "error"] },
         "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" }
+        "target": { "type": "string" }
       },
-      "required": ["tenantId", "parentNumber", "firstName", "lastName", "phone"]
-    },
-    "StudentParent": {
-      "title": "Student-Parent Relationship",
-      "description": "Junction table linking students to parents with relationship metadata.",
-      "type": "object",
-      "properties": {
-        "tenantId": { "type": "string" },
-        "studentId": { "type": "string" },
-        "parentId": { "type": "string" },
-        "relationship": { "type": "string" },
-        "primaryContact": { "type": "boolean" },
-        "emergencyContact": { "type": "boolean" },
-        "pickupAuthorized": { "type": "boolean" }
-      },
-      "required": ["tenantId", "studentId", "parentId", "relationship"]
-    },
-    "Student": {
-      "title": "Student Profile",
-      "description": "Complete student record with documents and parent links.",
-      "type": "object",
-      "properties": {
-        "tenantId": { "type": "string" },
-        "institutionId": { "type": "string" },
-        "admissionNumber": { "type": "string" },
-        "firstName": { "type": "string" },
-        "lastName": { "type": "string" },
-        "gender": { "type": "string", "enum": ["Male", "Female"] },
-        "dateOfBirth": { "type": "string", "format": "date" },
-        "gradeLevel": { "type": "string" },
-        "status": { "type": "string", "enum": ["active", "inactive", "suspended", "alumni"] },
-        "address": {
-          "type": "object",
-          "properties": {
-            "digitalAddress": { "type": "string" },
-            "town": { "type": "string" },
-            "district": { "type": "string" },
-            "region": { "type": "string" },
-            "country": { "type": "string" }
-          }
-        },
-        "documents": {
-          "type": "object",
-          "properties": {
-            "birthCertificate": { "type": "string" },
-            "passport": { "type": "string" },
-            "medicalReport": { "type": "string" }
-          }
-        },
-        "medical": {
-          "type": "object",
-          "properties": {
-            "allergies": { "type": "string" },
-            "specialNeeds": { "type": "string" },
-            "disability": { "type": "string" },
-            "doctor": { "type": "string" }
-          }
-        },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["tenantId", "firstName", "lastName", "admissionNumber"]
+      "required": ["tenantId", "title", "type"]
     }
   },
   "auth": {
@@ -157,9 +56,6 @@
   "firestore": {
     "/users/{userId}": { "schema": "User" },
     "/institutions/{institutionId}": { "schema": "Institution" },
-    "/admissions/{admissionId}": { "schema": "Admission" },
-    "/parents/{parentId}": { "schema": "Parent" },
-    "/student_parents/{relId}": { "schema": "StudentParent" },
-    "/students/{studentId}": { "schema": "Student" }
+    "/notifications/{notifId}": { "schema": "Notification" }
   }
 }

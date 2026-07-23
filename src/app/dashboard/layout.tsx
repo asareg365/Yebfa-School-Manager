@@ -3,19 +3,20 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser, useFirestore, useDoc } from "@/firebase";
+import { useUser, useFirestore, useDoc, useCollection } from "@/firebase";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/dashboard/app-sidebar";
 import { Separator } from "@/components/ui/separator";
-import { Bell, Search, Loader2, Info, AlertTriangle, Clock } from "lucide-react";
+import { Bell, Search, Loader2, Info, AlertTriangle, Clock, Trash2, X, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { differenceInDays } from "date-fns";
+import { differenceInDays, formatDistanceToNow } from "date-fns";
 import Link from 'next/link';
-import { doc } from 'firebase/firestore';
+import { doc, collection, query, where, orderBy, deleteDoc, writeBatch, getDocs } from 'firebase/firestore';
+import { toast } from '@/hooks/use-toast';
 
 export default function DashboardLayout({
   children,
@@ -25,8 +26,6 @@ export default function DashboardLayout({
   const { user, loading } = useUser();
   const db = useFirestore();
   const router = useRouter();
-  const [hasNotifications, setHasNotifications] = useState(false);
-  const [notifications, setNotifications] = useState<any[]>([]);
   const [institutionName, setInstitutionName] = useState<string>("Institution Hub");
   const [institutionId, setInstitutionId] = useState<string | null>(null);
 
@@ -38,24 +37,17 @@ export default function DashboardLayout({
   const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId]);
   const { data: institution } = useDoc(instRef);
 
-  useEffect(() => {
-    const isCleared = localStorage.getItem('notifications_cleared_v2') === 'true';
-    if (!isCleared) {
-      const initial = [
-        {
-          id: '1',
-          title: 'New Policy Updated',
-          description: 'The 2026 Academic guidelines have been updated.',
-          time: '2 hours ago',
-          type: 'info',
-          icon: Info,
-          color: 'bg-blue-100 text-blue-600'
-        }
-      ];
-      setNotifications(initial);
-      setHasNotifications(true);
-    }
-  }, []);
+  // Live Notifications Query
+  const notificationsQuery = useMemo(() => {
+    if (!db || !institutionId) return null;
+    return query(
+      collection(db, "notifications"),
+      where("tenantId", "==", institutionId),
+      orderBy("createdAt", "desc")
+    );
+  }, [db, institutionId]);
+
+  const { data: notifications = [] } = useCollection(notificationsQuery);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -82,6 +74,46 @@ export default function DashboardLayout({
     const diff = differenceInDays(new Date(), start);
     return Math.max(0, 30 - diff);
   }, [institution]);
+
+  const handleDeleteNotification = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await deleteDoc(doc(db, "notifications", id));
+    } catch (error) {
+      console.error("Failed to delete notification:", error);
+    }
+  };
+
+  const handleClearAll = async () => {
+    if (!institutionId) return;
+    try {
+      const batch = writeBatch(db);
+      const snap = await getDocs(notificationsQuery!);
+      snap.docs.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+      toast({ title: "Notifications Cleared", description: "Audit history remains in global logs." });
+    } catch (error) {
+      toast({ variant: "destructive", title: "Action Failed" });
+    }
+  };
+
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case 'alert': return <AlertTriangle className="size-4 text-orange-600" />;
+      case 'success': return <CheckCircle2 className="size-4 text-green-600" />;
+      case 'error': return <AlertCircle className="size-4 text-destructive" />;
+      default: return <Info className="size-4 text-blue-600" />;
+    }
+  };
+
+  const getNotificationBg = (type: string) => {
+    switch (type) {
+      case 'alert': return 'bg-orange-100';
+      case 'success': return 'bg-green-100';
+      case 'error': return 'bg-red-100';
+      default: return 'bg-blue-100';
+    }
+  };
 
   if (loading) {
     return (
@@ -133,16 +165,21 @@ export default function DashboardLayout({
               <PopoverTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative transition-transform active:scale-95 shrink-0">
                   <Bell className="h-5 w-5" />
-                  {hasNotifications && notifications.length > 0 && (
+                  {notifications.length > 0 && (
                     <span className="absolute top-2 right-2.5 size-2 bg-accent rounded-full border-2 border-background" />
                   )}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[calc(100vw-2rem)] sm:w-80 p-0 shadow-2xl border-none rounded-xl" align="end">
+              <PopoverContent className="w-[calc(100vw-2rem)] sm:w-96 p-0 shadow-2xl border-none rounded-xl" align="end">
                 <div className="p-4 border-b flex items-center justify-between">
-                  <h4 className="font-bold text-sm">Notifications</h4>
+                  <h4 className="font-bold text-sm">Notifications Hub</h4>
+                  {notifications.length > 0 && (
+                    <Button variant="ghost" className="h-7 text-[10px] font-bold uppercase text-muted-foreground hover:text-destructive" onClick={handleClearAll}>
+                      Clear All
+                    </Button>
+                  )}
                 </div>
-                <ScrollArea className="h-[300px]">
+                <ScrollArea className="h-[400px]">
                   {notifications.length === 0 ? (
                     <div className="p-12 text-center space-y-2">
                       <div className="size-12 rounded-full bg-muted flex items-center justify-center mx-auto">
@@ -152,16 +189,24 @@ export default function DashboardLayout({
                     </div>
                   ) : (
                     <div className="divide-y">
-                      {notifications.map((notif) => (
+                      {notifications.map((notif: any) => (
                         <div key={notif.id} className="p-4 flex gap-3 hover:bg-muted/50 transition-colors group relative">
-                          <div className={`size-8 rounded-full ${notif.color} flex items-center justify-center shrink-0`}>
-                            <notif.icon className="size-4" />
+                          <div className={`size-8 rounded-full ${getNotificationBg(notif.type)} flex items-center justify-center shrink-0`}>
+                            {getNotificationIcon(notif.type)}
                           </div>
-                          <div className="space-y-1 pr-4">
+                          <div className="space-y-1 pr-8 flex-1">
                             <p className="text-xs font-bold">{notif.title}</p>
                             <p className="text-[10px] text-muted-foreground leading-snug">{notif.description}</p>
-                            <p className="text-[9px] font-medium text-primary">{notif.time}</p>
+                            <p className="text-[9px] font-medium text-primary">
+                              {notif.createdAt ? formatDistanceToNow(notif.createdAt.toMillis(), { addSuffix: true }) : 'Just now'}
+                            </p>
                           </div>
+                          <button 
+                            onClick={(e) => handleDeleteNotification(notif.id, e)}
+                            className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-destructive/10 rounded-md text-destructive"
+                          >
+                            <X className="size-3" />
+                          </button>
                         </div>
                       ))}
                     </div>
