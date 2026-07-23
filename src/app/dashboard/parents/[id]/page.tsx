@@ -21,7 +21,9 @@ import {
   HeartHandshake,
   Navigation,
   AlertCircle,
-  Plus
+  Plus,
+  Sparkles,
+  Bot
 } from "lucide-react"
 import { useFirestore, useDoc, useCollection } from "@/firebase"
 import { doc, collection, query, where } from "firebase/firestore"
@@ -153,6 +155,28 @@ export default function ParentProfilePage({ params }: { params: Promise<{ id: st
                 <p className="text-sm font-bold">{parent.emergencyPhone}</p>
                 <p className="text-[10px] uppercase font-bold opacity-70">{parent.emergencyRelationship}</p>
              </CardContent>
+          </Card>
+
+          {/* AI Family Insights Placeholder */}
+          <Card className="border-none shadow-md rounded-3xl overflow-hidden bg-white border-2 border-primary/5">
+            <CardHeader className="bg-primary text-primary-foreground p-6">
+              <div className="flex items-center gap-2 mb-1">
+                <Sparkles className="size-4 text-accent" />
+                <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">AI Strategic Hub</span>
+              </div>
+              <CardTitle className="text-lg font-headline">Family Insights</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 text-center space-y-4">
+              <div className="size-12 rounded-full bg-primary/5 flex items-center justify-center mx-auto">
+                <Bot className="size-6 text-primary/20" />
+              </div>
+              <div className="space-y-2">
+                <p className="text-xs font-bold text-primary/60">No linked student data available yet.</p>
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  Link a student to receive AI-generated academic summaries and recommendations.
+                </p>
+              </div>
+            </CardContent>
           </Card>
         </div>
 
