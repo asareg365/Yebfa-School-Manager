@@ -215,7 +215,7 @@ export default function ParentProfilePage({ params }: { params: Promise<{ id: st
                 <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">AI Strategic Hub</span>
               </div>
               <CardTitle className="text-lg font-headline">Family Insights</CardTitle>
-            </Header>
+            </CardHeader>
             <CardContent className="p-6 text-center space-y-4">
               <div className="size-12 rounded-full bg-primary/5 flex items-center justify-center mx-auto">
                 <Bot className="size-6 text-primary/20" />
