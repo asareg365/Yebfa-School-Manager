@@ -45,7 +45,7 @@ export default function AddParentPage() {
     dateOfBirth: "",
     nationality: "Ghanaian",
     photoURL: "",
-    // Contact (Section 2)
+    // Contact
     phone: "",
     alternatePhone: "",
     email: "",
@@ -54,14 +54,14 @@ export default function AddParentPage() {
     region: "",
     district: "",
     digitalAddress: "",
-    // Employment (Section 3)
+    // Employment
     occupation: "",
     employer: "",
     officeAddress: "",
-    // Identification (Section 4)
+    // Identification
     nationalId: "",
     passportNumber: "",
-    // Emergency (Section 5)
+    // Emergency
     emergencyContact: "",
     emergencyPhone: "",
     emergencyRelationship: "",
@@ -139,18 +139,17 @@ export default function AddParentPage() {
           </CardHeader>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <div className="bg-muted/30 px-8 border-b">
-              <TabsList className="h-16 bg-transparent gap-8 justify-start p-0 overflow-x-auto no-scrollbar">
+            <div className="bg-muted/30 px-8 border-b overflow-x-auto no-scrollbar">
+              <TabsList className="h-16 bg-transparent gap-8 justify-start p-0 min-w-max">
                 <TabsTrigger value="personal" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-2 gap-2 text-xs uppercase font-bold tracking-widest"><Users className="size-4" /> Personal</TabsTrigger>
                 <TabsTrigger value="contact" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-2 gap-2 text-xs uppercase font-bold tracking-widest"><Phone className="size-4" /> Contact</TabsTrigger>
                 <TabsTrigger value="professional" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-2 gap-2 text-xs uppercase font-bold tracking-widest"><Briefcase className="size-4" /> Professional</TabsTrigger>
-                <TabsTrigger value="documents" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-2 gap-2 text-xs uppercase font-bold tracking-widest"><IdCard className="size-4" /> Identification</TabsTrigger>
+                <TabsTrigger value="id" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-2 gap-2 text-xs uppercase font-bold tracking-widest"><IdCard className="size-4" /> Identification</TabsTrigger>
                 <TabsTrigger value="emergency" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-2 gap-2 text-xs uppercase font-bold tracking-widest"><AlertCircle className="size-4" /> Emergency</TabsTrigger>
               </TabsList>
             </div>
 
             <CardContent className="p-8">
-              {/* Section 1 - Personal Information */}
               <TabsContent value="personal" className="space-y-8 mt-0 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="flex flex-col md:flex-row gap-8 items-start">
                    <div className="size-32 rounded-2xl bg-slate-50 border-2 border-dashed flex flex-col items-center justify-center text-muted-foreground hover:bg-slate-100 transition-colors cursor-pointer shrink-0">
@@ -167,7 +166,7 @@ export default function AddParentPage() {
                         <Input required value={parentForm.firstName} onChange={e => setParentForm({...parentForm, firstName: e.target.value})} className="h-12 rounded-xl" />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Middle Name (Optional)</Label>
+                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Middle Name</Label>
                         <Input value={parentForm.middleName} onChange={e => setParentForm({...parentForm, middleName: e.target.value})} className="h-12 rounded-xl" />
                       </div>
                       <div className="space-y-1.5">
@@ -192,7 +191,6 @@ export default function AddParentPage() {
                 </div>
               </TabsContent>
 
-              {/* Section 2 - Contact Information */}
               <TabsContent value="contact" className="space-y-6 mt-0 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    <div className="space-y-1.5">
@@ -232,7 +230,6 @@ export default function AddParentPage() {
                 </div>
               </TabsContent>
 
-              {/* Section 3 - Employment Profile */}
               <TabsContent value="professional" className="space-y-6 mt-0 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    <div className="space-y-1.5">
@@ -245,13 +242,12 @@ export default function AddParentPage() {
                    </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] uppercase font-bold text-muted-foreground">Employer Address (Office)</Label>
+                  <Label className="text-[10px] uppercase font-bold text-muted-foreground">Employer Office Address</Label>
                   <Input value={parentForm.officeAddress} onChange={e => setParentForm({...parentForm, officeAddress: e.target.value})} className="h-12 rounded-xl" placeholder="Location of workplace" />
                 </div>
               </TabsContent>
 
-              {/* Section 4 - Identification */}
-              <TabsContent value="documents" className="space-y-6 mt-0 animate-in fade-in slide-in-from-right-4 duration-300">
+              <TabsContent value="id" className="space-y-6 mt-0 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    <div className="space-y-1.5">
                      <Label className="text-[10px] uppercase font-bold text-muted-foreground">National ID (Ghana Card)</Label>
@@ -264,25 +260,24 @@ export default function AddParentPage() {
                 </div>
                 <div className="p-12 rounded-3xl bg-slate-50 border-2 border-dashed flex flex-col items-center justify-center text-muted-foreground text-center">
                    <IdCard className="size-12 mb-4 opacity-20" />
-                   <p className="text-xs font-bold uppercase tracking-widest opacity-40">Scan and Upload Identity Documents (Optional)</p>
-                   <p className="text-[10px] mt-1 italic">Supported formats: PDF, JPG, PNG</p>
+                   <p className="text-xs font-bold uppercase tracking-widest opacity-40">Identify Document Storage (Optional)</p>
+                   <p className="text-[10px] mt-1 italic">Authorized for legal and safety verification in 2026.</p>
                 </div>
               </TabsContent>
 
-              {/* Section 5 - Emergency Protocol */}
               <TabsContent value="emergency" className="space-y-6 mt-0 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    <div className="space-y-1.5">
-                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Secondary Contact Name</Label>
+                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Emergency Contact Name</Label>
                      <Input value={parentForm.emergencyContact} onChange={e => setParentForm({...parentForm, emergencyContact: e.target.value})} className="h-12 rounded-xl" />
                    </div>
                    <div className="space-y-1.5">
-                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Secondary Contact Phone</Label>
+                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Emergency Contact Phone</Label>
                      <Input type="tel" value={parentForm.emergencyPhone} onChange={e => setParentForm({...parentForm, emergencyPhone: e.target.value})} className="h-12 rounded-xl" />
                    </div>
                    <div className="space-y-1.5">
-                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Relationship</Label>
-                     <Input value={parentForm.emergencyRelationship} onChange={e => setParentForm({...parentForm, emergencyRelationship: e.target.value})} className="h-12 rounded-xl" placeholder="e.g. Uncle, Family Friend" />
+                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Relationship to Parent</Label>
+                     <Input value={parentForm.emergencyRelationship} onChange={e => setParentForm({...parentForm, emergencyRelationship: e.target.value})} className="h-12 rounded-xl" placeholder="e.g. Spouse, Brother, Business Partner" />
                    </div>
                 </div>
               </TabsContent>

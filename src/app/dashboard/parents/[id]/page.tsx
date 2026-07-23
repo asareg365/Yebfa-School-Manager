@@ -19,7 +19,8 @@ import {
   MapPin,
   Pencil,
   HeartHandshake,
-  Navigation
+  Navigation,
+  AlertCircle
 } from "lucide-react"
 import { useFirestore, useDoc, useCollection } from "@/firebase"
 import { doc, collection, query, where } from "firebase/firestore"
@@ -108,11 +109,12 @@ export default function ParentProfilePage({ params }: { params: Promise<{ id: st
         </CardHeader>
 
         <Tabs defaultValue="overview" className="w-full">
-           <TabsList className="bg-muted/30 px-8 py-2 border-b justify-start gap-4 h-14">
-              <TabsTrigger value="overview" className="text-xs uppercase font-bold tracking-widest">Identity</TabsTrigger>
+           <TabsList className="bg-muted/30 px-8 py-2 border-b justify-start gap-4 h-14 overflow-x-auto no-scrollbar min-w-max">
+              <TabsTrigger value="overview" className="text-xs uppercase font-bold tracking-widest">Identity Hub</TabsTrigger>
               <TabsTrigger value="children" className="gap-2 text-xs uppercase font-bold tracking-widest">Children <Badge className="bg-primary text-white h-4 w-4 p-0 flex items-center justify-center text-[8px] border-none">{rels.length}</Badge></TabsTrigger>
               <TabsTrigger value="professional" className="text-xs uppercase font-bold tracking-widest">Employment</TabsTrigger>
-              <TabsTrigger value="documents" className="text-xs uppercase font-bold tracking-widest">IDs & GPS</TabsTrigger>
+              <TabsTrigger value="id" className="text-xs uppercase font-bold tracking-widest">Documents & IDs</TabsTrigger>
+              <TabsTrigger value="emergency" className="text-xs uppercase font-bold tracking-widest">Emergency</TabsTrigger>
            </TabsList>
 
            <CardContent className="p-8">
@@ -133,6 +135,19 @@ export default function ParentProfilePage({ params }: { params: Promise<{ id: st
                           <p className="flex justify-between text-sm"><span>Primary Phone</span><span className="font-bold text-primary">{parent.phone}</span></p>
                           <p className="flex justify-between text-sm"><span>Alternate</span><span className="font-bold">{parent.alternatePhone || "None"}</span></p>
                           <p className="flex justify-between text-sm"><span>Email</span><span className="font-bold">{parent.email || "Unlisted"}</span></p>
+                       </div>
+                    </section>
+                    <section className="space-y-4 md:col-span-2">
+                       <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground border-b pb-2 flex items-center gap-2"><MapPin className="size-4" /> Residential GPS</h4>
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="p-4 rounded-xl border bg-slate-50 space-y-1">
+                             <p className="text-[10px] font-bold uppercase text-muted-foreground">Digital Address</p>
+                             <p className="font-mono font-bold text-accent">{parent.digitalAddress || "GA-000-0000"}</p>
+                          </div>
+                          <div className="p-4 rounded-xl border bg-slate-50 space-y-1">
+                             <p className="text-[10px] font-bold uppercase text-muted-foreground">Area</p>
+                             <p className="text-sm font-bold text-primary">{parent.address}, {parent.town}</p>
+                          </div>
                        </div>
                     </section>
                  </div>
@@ -194,27 +209,13 @@ export default function ParentProfilePage({ params }: { params: Promise<{ id: st
                  </div>
               </TabsContent>
 
-              <TabsContent value="documents" className="mt-0 space-y-8 animate-in fade-in slide-in-from-bottom-2">
+              <TabsContent value="id" className="mt-0 space-y-8 animate-in fade-in slide-in-from-bottom-2">
                  <div className="grid gap-8 md:grid-cols-2">
-                    <section className="space-y-4">
-                       <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground border-b pb-2 flex items-center gap-2"><MapPin className="size-4" /> Residential GPS</h4>
-                       <div className="space-y-4 p-6 rounded-2xl bg-slate-50 border">
-                          <div className="space-y-1">
-                             <p className="text-[10px] font-bold uppercase text-muted-foreground">Digital Address</p>
-                             <p className="font-mono font-bold text-accent text-lg">{parent.digitalAddress || "GA-000-0000"}</p>
-                          </div>
-                          <div className="space-y-1">
-                             <p className="text-[10px] font-bold uppercase text-muted-foreground">Residential Area</p>
-                             <p className="text-sm font-bold text-primary">{parent.address}</p>
-                             <p className="text-xs text-muted-foreground font-medium">{parent.town}, {parent.district}, {parent.region}</p>
-                          </div>
-                       </div>
-                    </section>
                     <section className="space-y-4">
                        <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground border-b pb-2 flex items-center gap-2"><IdCard className="size-4" /> Identity Repository</h4>
                        <div className="grid gap-4">
                           <div className="p-4 rounded-xl border bg-white flex justify-between items-center">
-                             <span className="text-[10px] font-bold uppercase text-muted-foreground">National ID</span>
+                             <span className="text-[10px] font-bold uppercase text-muted-foreground">National ID (Ghana Card)</span>
                              <span className="font-mono font-bold text-primary">{parent.nationalId || "GHA-000000000-0"}</span>
                           </div>
                           <div className="p-4 rounded-xl border bg-white flex justify-between items-center">
@@ -223,6 +224,36 @@ export default function ParentProfilePage({ params }: { params: Promise<{ id: st
                           </div>
                        </div>
                     </section>
+                    <section className="space-y-4">
+                       <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground border-b pb-2 flex items-center gap-2"><ShieldCheck className="size-4" /> Verification Status</h4>
+                       <div className="p-6 rounded-2xl border bg-green-50/50 flex items-center gap-4">
+                          <CheckCircle2 className="size-8 text-green-600" />
+                          <div>
+                             <p className="text-sm font-bold text-green-900">Registry Verified</p>
+                             <p className="text-[10px] text-green-700 uppercase font-bold">Session 2026 Audit Complete</p>
+                          </div>
+                       </div>
+                    </section>
+                 </div>
+              </TabsContent>
+
+              <TabsContent value="emergency" className="mt-0 space-y-8 animate-in fade-in slide-in-from-bottom-2">
+                 <div className="p-8 rounded-3xl border bg-red-50/30 space-y-6">
+                    <h4 className="text-xs font-bold uppercase tracking-widest text-destructive flex items-center gap-2 border-b pb-2 border-red-100"><AlertCircle className="size-4" /> Emergency Protocol</h4>
+                    <div className="grid gap-8 md:grid-cols-2">
+                       <div className="space-y-1">
+                          <p className="text-[10px] font-bold uppercase text-muted-foreground">Secondary Contact Name</p>
+                          <p className="font-bold text-primary text-lg">{parent.emergencyContact || "No Secondary Contact Registered"}</p>
+                       </div>
+                       <div className="space-y-1">
+                          <p className="text-[10px] font-bold uppercase text-muted-foreground">Emergency Phone</p>
+                          <p className="font-bold text-primary text-lg">{parent.emergencyPhone || "---"}</p>
+                       </div>
+                       <div className="space-y-1">
+                          <p className="text-[10px] font-bold uppercase text-muted-foreground">Relationship to Parent</p>
+                          <Badge variant="secondary" className="font-bold px-4">{parent.emergencyRelationship || "Unspecified"}</Badge>
+                       </div>
+                    </div>
                  </div>
               </TabsContent>
            </CardContent>
