@@ -25,7 +25,8 @@ import {
   ShieldAlert,
   ClipboardList,
   User,
-  Medal
+  Medal,
+  CheckCircle2
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection, useDoc } from "@/firebase"
