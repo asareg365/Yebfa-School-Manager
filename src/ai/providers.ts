@@ -9,6 +9,6 @@ import { vertexAI } from '@genkit-ai/vertexai';
 export const getPlugins = () => [
     vertexAI({
     projectId: process.env.GOOGLE_CLOUD_PROJECT || 'yebfa-ai',
-    location: 'us-central1',
+    location: process.env.GOOGLE_CLOUD_LOCATION || 'us-central1',
   }),
 ];
