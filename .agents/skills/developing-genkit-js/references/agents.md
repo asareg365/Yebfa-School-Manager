@@ -34,11 +34,11 @@ Progressive disclosure — read the file for the level you need:
 ```ts
 // genkit.ts — note the `genkit/beta` import (required for agents)
 import { genkit } from 'genkit/beta';
-import { googleAI } from '@genkit-ai/google-genai';
+import { vertexAI } from '@genkit-ai/vertexai';
 
 export const ai = genkit({
-  plugins: [googleAI()],
-  model: googleAI.model('gemini-flash-latest'),
+  plugins: [vertexAI()],
+  model: vertexAI.model('gemini-1.5-flash'),
 });
 ```
 

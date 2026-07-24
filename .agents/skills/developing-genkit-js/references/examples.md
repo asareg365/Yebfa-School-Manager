@@ -2,7 +2,7 @@
 
 This reference contains minimal, reproducible examples (MREs) for common Genkit patterns.
 
-> **Disclaimer**: These examples use **Google AI** models (`googleAI`, `gemini-*`) for demonstration. The patterns apply to **any provider**. To use a different provider:
+> **Disclaimer**: These examples use **Vertex AI** models (`vertexAI`, `gemini-*`) for demonstration. The patterns apply to **any provider**. To use a different provider:
 > 1. Search the docs for the correct plugin: `genkit docs:search "plugins"`.
 > 2. Install and configure the plugin.
 > 3. Swap the model reference in the code.
@@ -11,14 +11,14 @@ This reference contains minimal, reproducible examples (MREs) for common Genkit 
 
 ```ts
 import { genkit } from "genkit";
-import { googleAI } from "@genkit-ai/google-genai";
+import { vertexAI } from "@genkit-ai/vertexai";
 
 const ai = genkit({
-  plugins: [googleAI()],
+  plugins: [vertexAI()],
 });
 
 const { text } = await ai.generate({
-  model: googleAI.model('gemini-flash-latest'),
+  model: vertexAI.model('gemini-1.5-flash'),
   prompt: 'Tell me a story in a pirate accent',
 });
 ```
@@ -34,7 +34,7 @@ const JokeSchema = z.object({
 });
 
 const response = await ai.generate({
-  model: googleAI.model('gemini-flash-latest'),
+  model: vertexAI.model('gemini-1.5-flash'),
   prompt: 'Tell me a joke about developers.',
   output: { schema: JokeSchema },
 });
@@ -50,7 +50,7 @@ if (joke) {
 
 ```ts
 const { stream, response } = ai.generateStream({
-  model: googleAI.model('gemini-flash-latest'),
+  model: vertexAI.model('gemini-1.5-flash'),
   prompt: 'Tell a long story about a developer using Genkit.',
 });
 
@@ -71,7 +71,7 @@ Enable "thinking" process for complex reasoning tasks.
 
 ```ts
 const response = await ai.generate({
-  model: googleAI.model('gemini-pro-latest'),
+  model: vertexAI.model('gemini-1.5-pro'),
   prompt: 'what is heavier, one kilo of steel or one kilo of feathers',
   config: {
     thinkingConfig: {
@@ -88,7 +88,7 @@ Enable models to access current information via Google Search.
 
 ```ts
 const response = await ai.generate({
-  model: googleAI.model('gemini-flash-latest'),
+  model: vertexAI.model('gemini-1.5-flash'),
   prompt: 'What are the top tech news stories this week?',
   config: {
     googleSearchRetrieval: true,
@@ -111,7 +111,7 @@ if (groundingMetadata) {
 ```ts
 // Generate an image
 const { media } = await ai.generate({
-  model: googleAI.model('gemini-2.5-flash-image'),
+  model: vertexAI.model('imagen-3.0-generate-001'),
   config: { responseModalities: ['TEXT', 'IMAGE'] },
   prompt: "generate a picture of a unicorn wearing a space suit on the moon",
 });
@@ -121,7 +121,7 @@ const { media } = await ai.generate({
 ```ts
 // Edit an image
 const { media } = await ai.generate({
-  model: googleAI.model('gemini-2.5-flash-image'),
+  model: vertexAI.model('gemini-1.5-flash-image'),
   config: { responseModalities: ['TEXT', 'IMAGE'] },
   prompt: [
     { text: "change the person's outfit to a banana costume" },
@@ -138,7 +138,7 @@ Generate audio from text.
 import { writeFile } from 'node:fs/promises';
 
 const { media } = await ai.generate({
-  model: googleAI.model('gemini-2.5-flash-preview-tts'),
+  model: vertexAI.model('gemini-1.5-flash-preview-tts'),
   config: {
     responseModalities: ['AUDIO'],
     speechConfig: {

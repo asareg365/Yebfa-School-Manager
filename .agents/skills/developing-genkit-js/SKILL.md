@@ -17,11 +17,11 @@ Ensure the `genkit` CLI is available.
 
 ```ts
 import { z, genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/google-genai';
+import { vertexAI } from '@genkit-ai/vertexai';
 
-// Initialize Genkit with the Google AI plugin
+// Initialize Genkit with the Vertex AI plugin
 const ai = genkit({
-  plugins: [googleAI()],
+  plugins: [vertexAI()],
 });
 
 export const myFlow = ai.defineFlow({
@@ -30,7 +30,7 @@ export const myFlow = ai.defineFlow({
   outputSchema: z.string(),
 }, async (subject) => {
   const response = await ai.generate({
-    model: googleAI.model('gemini-flash-latest'),
+    model: vertexAI.model('gemini-1.5-flash'),
     prompt: `Tell me a joke about ${subject}`,
   });
   return response.text;
@@ -106,8 +106,8 @@ See [Common Errors](references/common-errors.md) for a list of deprecated APIs (
 
 ## Development Workflow
 
-1.  **Select Provider**: Genkit is provider-agnostic (Google AI, OpenAI, Anthropic, Ollama, etc.).
-    -   If the user does not specify a provider, default to **Google AI**.
+1.  **Select Provider**: Genkit is provider-agnostic (Google Cloud Vertex AI, OpenAI, Anthropic, Ollama, etc.).
+    -   If the user does not specify a provider, default to **Vertex AI**.
     -   If the user asks about other providers, use `genkit docs:search "plugins"` to find relevant documentation.
 2.  **Detect Framework**: Check `package.json` to identify the runtime (Next.js, Firebase, Express).
     -   Look for `@genkit-ai/next`, `@genkit-ai/firebase`, or `@genkit-ai/google-cloud`.
