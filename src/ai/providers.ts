@@ -1,4 +1,4 @@
-import { vertexAI } from '@genkit-ai/vertexai';
+import { googleAI } from '@genkit-ai/google-genai';
 
 /**
  * @fileOverview AI Provider Configuration.
@@ -7,8 +7,5 @@ import { vertexAI } from '@genkit-ai/vertexai';
  */
 
 export const getPlugins = () => [
-    vertexAI({
-    projectId: process.env.GOOGLE_CLOUD_PROJECT || 'yebfa-ai',
-    location: process.env.GOOGLE_CLOUD_LOCATION || 'us-central1',
-  }),
+    googleAI(),
 ];
