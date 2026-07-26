@@ -5,12 +5,9 @@ import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
-  BookOpen,
-  ChevronRight,
   LayoutDashboard,
   LogOut,
   Settings,
-  CheckCircle,
   Wallet,
   FileText,
   School,
@@ -19,27 +16,21 @@ import {
   GraduationCap,
   Baby,
   Library,
-  Box,
-  Monitor,
   Package,
   Building2,
-  Bus,
   MessageSquare,
   BarChart3,
   Calendar,
   Layers,
   UserCheck,
   Clock,
-  ClipboardList,
-  Bed,
-  MapPin,
-  ClipboardCheck,
   Briefcase,
   FilePlus2,
   Bot,
   TrendingUp,
   Cpu,
-  Flag
+  Flag,
+  ChevronRight
 } from "lucide-react"
 
 import {
@@ -89,6 +80,7 @@ export function AppSidebar() {
     }
   }
 
+  // Define granular role permissions
   const isSuperAdmin = userRole === "super_admin"
   const isOwner = userRole === "school_owner"
   const isAdmin = userRole === "administrator"
@@ -98,18 +90,20 @@ export function AppSidebar() {
   const isLibrarian = userRole === "librarian"
 
   const navigation = React.useMemo(() => {
+    // Parent Navigation: Only show essentials
     if (isParent) {
       return [
         { title: "Dashboard", url: "/dashboard/parent", icon: LayoutDashboard, visible: true },
         { title: "Announcements", url: "/dashboard/communication", icon: MessageSquare, visible: true },
-        { title: "Child Support", url: "/dashboard/academic/ai-assistant", icon: Bot, visible: true },
+        { title: "AI Child Support", url: "/dashboard/academic/ai-assistant", icon: Bot, visible: true },
       ].filter(i => i.visible)
     }
 
+    // Staff/Owner Navigation
     return [
       { title: "Overview", url: "/dashboard", icon: LayoutDashboard, visible: true },
       {
-        title: "AI Global Hub",
+        title: "AI Strategic Hub",
         url: "#",
         icon: Cpu,
         visible: isSuperAdmin || isOwner || isAdmin,
@@ -132,22 +126,21 @@ export function AppSidebar() {
         icon: School,
         visible: isSuperAdmin || isOwner || isAdmin || isTeacher,
         items: [
-          { title: "Academic Year", url: "/dashboard/academic?tab=cycle", visible: isSuperAdmin || isOwner || isAdmin },
-          { title: "Terms & Sessions", url: "/dashboard/academic?tab=cycle", visible: isSuperAdmin || isOwner || isAdmin },
+          { title: "Academic Cycle", url: "/dashboard/academic?tab=cycle", visible: isSuperAdmin || isOwner || isAdmin },
           { title: "Classes & Sections", url: "/dashboard/academic?tab=classes", visible: isSuperAdmin || isOwner || isAdmin },
-          { title: "Subjects", url: "/dashboard/academic?tab=curriculum", visible: true },
-          { title: "Timetable", url: "/dashboard/timetable", visible: true },
+          { title: "Subjects Registry", url: "/dashboard/academic?tab=curriculum", visible: true },
+          { title: "Weekly Timetable", url: "/dashboard/timetable", visible: true },
         ].filter(i => i.visible),
       },
       {
-        title: "HR Management",
+        title: "HR & Faculty",
         url: "#",
         icon: Briefcase,
         visible: isSuperAdmin || isOwner || isAdmin || isAccountant,
         items: [
           { title: "Staff Directory", url: "/dashboard/staff", visible: true },
           { title: "Payroll Processor", url: "/dashboard/finance/payroll", visible: true },
-          { title: "Attendance Logs", url: "/dashboard/attendance", visible: true },
+          { title: "Daily Attendance", url: "/dashboard/attendance", visible: true },
         ].filter(i => i.visible),
       },
       {
@@ -157,11 +150,11 @@ export function AppSidebar() {
         visible: isSuperAdmin || isOwner || isAdmin || isAccountant,
         items: [
           { title: "Active Enrollment", url: "/dashboard/students", visible: true },
-          { title: "Fee Accounts", url: "/dashboard/students/accounts", visible: true },
+          { title: "Personal Ledgers", url: "/dashboard/students/accounts", visible: true },
         ].filter(i => i.visible),
       },
       {
-        title: "Parents",
+        title: "Guardian Database",
         url: "/dashboard/parents",
         icon: Users,
         visible: isSuperAdmin || isOwner || isAdmin || isAccountant,
@@ -172,35 +165,35 @@ export function AppSidebar() {
         icon: FileText,
         visible: isSuperAdmin || isOwner || isAdmin || isTeacher,
         items: [
-          { title: "Exam Center", url: "/dashboard/exams", visible: true },
-          { title: "Report Cards", url: "/dashboard/reports", visible: true },
-          { title: "Performance Data", url: "/dashboard/analytics", visible: true },
+          { title: "Exams Hub", url: "/dashboard/exams", visible: true },
+          { title: "Quantitative Reports", url: "/dashboard/reports", visible: true },
+          { title: "Strategic Analytics", url: "/dashboard/analytics", visible: true },
         ].filter(i => i.visible),
       },
       {
-        title: "Finance & Accounts",
+        title: "Finance & Treasury",
         url: "#",
         icon: Wallet,
         visible: isSuperAdmin || isOwner || isAccountant,
         items: [
-          { title: "Fees Config", url: "/dashboard/finance/fees", visible: true },
-          { title: "Invoicing", url: "/dashboard/finance/invoices", visible: true },
+          { title: "Fee Configuration", url: "/dashboard/finance/fees", visible: true },
+          { title: "Invoicing & Billing", url: "/dashboard/finance/invoices", visible: true },
           { title: "Payment Hub", url: "/dashboard/finance/payments", visible: true },
-          { title: "Expenses", url: "/dashboard/finance/expenses", visible: true },
+          { title: "Expense Tracking", url: "/dashboard/finance/expenses", visible: true },
           { title: "Profit & Loss", url: "/dashboard/finance/p-and-l", visible: true },
-          { title: "AI Forecast", url: "/dashboard/finance/forecast", visible: true },
+          { title: "AI Solvency Forecast", url: "/dashboard/finance/forecast", visible: true },
         ].filter(i => i.visible),
       },
       {
-        title: "Logistics",
+        title: "Logistics Hub",
         url: "#",
         icon: Package,
         visible: isSuperAdmin || isOwner || isAdmin || isLibrarian,
         items: [
-          { title: "Inventory", url: "/dashboard/inventory", visible: isSuperAdmin || isOwner || isAdmin },
-          { title: "Library Hub", url: "/dashboard/library/books", visible: true },
-          { title: "Transport", url: "/dashboard/transport", visible: isSuperAdmin || isOwner || isAdmin },
-          { title: "Hostels", url: "/dashboard/hostels", visible: isSuperAdmin || isOwner || isAdmin },
+          { title: "Asset Inventory", url: "/dashboard/inventory", visible: isSuperAdmin || isOwner || isAdmin },
+          { title: "Library Catalog", url: "/dashboard/library/books", visible: true },
+          { title: "Transport Fleet", url: "/dashboard/transport", visible: isSuperAdmin || isOwner || isAdmin },
+          { title: "Hostel Registry", url: "/dashboard/hostels", visible: isSuperAdmin || isOwner || isAdmin },
         ].filter(i => i.visible),
       },
       { title: "Communication", url: "/dashboard/communication", icon: MessageSquare, visible: true },
@@ -233,7 +226,7 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Core Operations</SidebarGroupLabel>
+          <SidebarGroupLabel className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Hub Operations</SidebarGroupLabel>
           <SidebarMenu>
             {navigation.map((item) => (
               <SidebarMenuItem key={item.title}>
@@ -275,10 +268,10 @@ export function AppSidebar() {
 
         {isSuperAdmin && (
           <SidebarGroup>
-            <SidebarGroupLabel className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">System Management</SidebarGroupLabel>
+            <SidebarGroupLabel className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Ecosystem Management</SidebarGroupLabel>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={pathname === "/admin"} tooltip="Global Hub" className="text-accent hover:text-accent font-bold">
+                <SidebarMenuButton asChild isActive={pathname === "/admin"} tooltip="SaaS Command Center" className="text-accent hover:text-accent font-bold">
                   <Link href="/admin">
                     <ShieldCheck className="text-accent" />
                     <span>Super Admin Hub</span>
@@ -300,7 +293,7 @@ export function AppSidebar() {
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight ml-2">
                 <div className="flex flex-col">
-                   <span className="truncate font-semibold">{user?.displayName || "Administrator"}</span>
+                   <span className="truncate font-semibold">{user?.displayName || "Registry User"}</span>
                    <Badge variant="secondary" className="text-[8px] h-3 px-1 w-fit uppercase bg-primary/10 text-primary border-none">{userRole.replace('_', ' ')}</Badge>
                 </div>
               </div>

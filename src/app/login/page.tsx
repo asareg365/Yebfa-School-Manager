@@ -37,6 +37,13 @@ export default function LoginPage() {
 
       const userData = userSnap.data()
 
+      // Set tenant context for staff and owners
+      if (userData.tenantId) {
+        localStorage.setItem('selected_institution_id', userData.tenantId)
+        localStorage.setItem('selected_institution_name', userData.institutionName || 'My School')
+      }
+
+      // Role-Based Redirection Logic
       if (userData.role === "super_admin") {
         router.replace("/admin")
         return
@@ -47,14 +54,8 @@ export default function LoginPage() {
         return
       }
 
-      if (userData.tenantId) {
-        localStorage.setItem('selected_institution_id', userData.tenantId)
-        localStorage.setItem('selected_institution_name', userData.institutionName || 'My School')
-        router.replace("/dashboard")
-        return
-      }
-
-      router.replace("/register/institution")
+      // Default dashboard for all institutional staff roles
+      router.replace("/dashboard")
     } catch (error) {
       console.error("Redirection error:", error)
       router.replace("/register/institution")
