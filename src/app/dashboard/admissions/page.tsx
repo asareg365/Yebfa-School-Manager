@@ -41,6 +41,12 @@ import { useRouter } from "next/navigation"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import Link from "next/link"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 
 export default function AdmissionsHubPage() {
   const db = useFirestore()
@@ -120,7 +126,6 @@ export default function AdmissionsHubPage() {
       )
   }, [rawAdmissions, enrolledStudents, searchQuery])
 
-  // Grouping logic for the thumbnail view
   const groupedAdmissions = useMemo(() => {
     const groups: Record<string, any[]> = {}
     admissions.forEach(a => {
@@ -232,113 +237,126 @@ export default function AdmissionsHubPage() {
         </div>
 
         {["all", "Applied", "Interviewed", "Accepted", "Enrolled"].map((status) => (
-          <TabsContent key={status} value={status} className="space-y-12 mt-0">
-             {Object.entries(groupedAdmissions)
-              .sort(([gradeA], [gradeB]) => gradeA.localeCompare(gradeB))
-              .map(([grade, candidates]) => {
-                const filtered = candidates.filter(c => status === "all" || c.status === status)
-                if (filtered.length === 0) return null
+          <TabsContent key={status} value={status} className="mt-0">
+            <Accordion type="multiple" className="w-full space-y-4">
+              {Object.entries(groupedAdmissions)
+                .sort(([gradeA], [gradeB]) => gradeA.localeCompare(gradeB))
+                .map(([grade, candidates]) => {
+                  const filtered = candidates.filter(c => status === "all" || c.status === status)
+                  if (filtered.length === 0) return null
 
-                return (
-                  <div key={grade} className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
-                    <div className="flex items-center gap-3 border-b pb-2">
-                      <div className="size-8 rounded-lg bg-primary/5 flex items-center justify-center">
-                        <Layers className="size-4 text-primary" />
-                      </div>
-                      <h2 className="text-xl font-headline font-bold text-primary">{grade}</h2>
-                      <Badge variant="secondary" className="bg-slate-100 text-slate-600 border-none font-bold text-[10px]">{filtered.length} CANDIDATES</Badge>
-                    </div>
+                  return (
+                    <AccordionItem 
+                      key={grade} 
+                      value={grade} 
+                      className="border-none bg-white rounded-2xl shadow-sm px-6 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300"
+                    >
+                      <AccordionTrigger className="hover:no-underline py-6">
+                        <div className="flex items-center gap-3">
+                          <div className="size-10 rounded-xl bg-primary/5 flex items-center justify-center">
+                            <Layers className="size-5 text-primary" />
+                          </div>
+                          <div className="text-left">
+                            <h2 className="text-lg font-headline font-bold text-primary">{grade}</h2>
+                            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">
+                              {filtered.length} {status === 'all' ? 'Candidates' : status} in this module
+                            </p>
+                          </div>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="pb-8 pt-2">
+                        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                          {filtered.map((a: any) => (
+                            <Card key={a.id} className="border-none shadow-md hover:shadow-xl transition-all duration-300 rounded-2xl overflow-hidden bg-white group border-2 border-transparent hover:border-primary/5">
+                              <CardHeader className="pb-3 flex flex-row items-start justify-between">
+                                <div className="flex items-center gap-3">
+                                  <div className="size-12 rounded-xl bg-primary/5 flex items-center justify-center font-bold text-primary border-2 border-white shadow-sm overflow-hidden group-hover:scale-105 transition-transform">
+                                    {a.firstName?.charAt(0)}{a.lastName?.charAt(0)}
+                                  </div>
+                                  <div className="flex flex-col min-w-0">
+                                    <CardTitle className="text-sm font-bold text-primary truncate leading-tight">{a.firstName} {a.lastName}</CardTitle>
+                                    <Badge variant="outline" className={`mt-1 text-[8px] uppercase font-bold w-fit ${
+                                      a.status === 'Enrolled' ? 'bg-green-50 text-green-600 border-green-200' :
+                                      a.status === 'Accepted' ? 'bg-blue-50 text-blue-600 border-blue-200' :
+                                      a.status === 'Interviewed' ? 'bg-amber-50 text-amber-600 border-amber-200' :
+                                      'bg-slate-50 text-slate-600'
+                                    }`}>
+                                      {a.status}
+                                    </Badge>
+                                  </div>
+                                </div>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
+                                      <MoreVertical className="size-4 text-muted-foreground" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="rounded-xl border-none shadow-xl w-48">
+                                    {a.status === "Applied" && (
+                                      <DropdownMenuItem className="gap-2 text-xs font-bold" onClick={() => { setSelectedApp(a); setInterviewForm({ status: "Interviewed", interviewNotes: a.interviewNotes || "" }); setIsInterviewOpen(true); }}>
+                                        <MessagesSquare className="size-4" /> Record Interview
+                                      </DropdownMenuItem>
+                                    )}
+                                    {a.status === "Interviewed" && (
+                                      <DropdownMenuItem className="gap-2 text-xs font-bold text-blue-600" onClick={() => handleUpdateStatus(a.id, "Accepted")}>
+                                        <CheckCircle2 className="size-4" /> Authorize Acceptance
+                                      </DropdownMenuItem>
+                                    )}
+                                    {a.status === "Accepted" && (
+                                      <DropdownMenuItem className="gap-2 text-xs font-bold text-primary" onClick={() => startEnrollment(a)}>
+                                        <UserPlus className="size-4" /> Finalize Enrollment
+                                      </DropdownMenuItem>
+                                    )}
+                                    {a.status === "Enrolled" && (
+                                      <DropdownMenuItem className="gap-2 text-xs font-bold" asChild>
+                                        <Link href={`/dashboard/students?id=${a.id}`}>
+                                          <RefreshCw className="size-4" /> View in Registry
+                                        </Link>
+                                      </DropdownMenuItem>
+                                    )}
+                                    <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onClick={() => handleDelete(a.id)}>
+                                      <Trash2 className="size-4" /> Remove Application
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </CardHeader>
+                              <CardContent className="space-y-3 pb-4">
+                                <div className="flex items-center gap-2 text-[11px] text-muted-foreground font-medium">
+                                  <Phone className="size-3 text-accent" />
+                                  <span>{a.phone}</span>
+                                </div>
+                                <div className="flex items-center justify-between pt-2 border-t mt-2">
+                                  <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-tighter">Registered</span>
+                                  <span className="text-[9px] font-bold text-primary">
+                                    {a.createdAt ? new Date(a.createdAt.toMillis()).toLocaleDateString() : 'N/A'}
+                                  </span>
+                                </div>
+                              </CardContent>
+                              {a.isRegistrySync && (
+                                <div className="bg-blue-600 py-1 text-center text-[7px] font-bold text-white uppercase tracking-widest">
+                                   Registry Sync Active
+                                </div>
+                              )}
+                            </Card>
+                          ))}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  )
+                })}
+            </Accordion>
 
-                    <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                      {filtered.map((a: any) => (
-                        <Card key={a.id} className="border-none shadow-md hover:shadow-xl transition-all duration-300 rounded-2xl overflow-hidden bg-white group border-2 border-transparent hover:border-primary/5">
-                          <CardHeader className="pb-3 flex flex-row items-start justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="size-12 rounded-xl bg-primary/5 flex items-center justify-center font-bold text-primary border-2 border-white shadow-sm overflow-hidden group-hover:scale-105 transition-transform">
-                                {a.firstName?.charAt(0)}{a.lastName?.charAt(0)}
-                              </div>
-                              <div className="flex flex-col min-w-0">
-                                <CardTitle className="text-sm font-bold text-primary truncate leading-tight">{a.firstName} {a.lastName}</CardTitle>
-                                <Badge variant="outline" className={`mt-1 text-[8px] uppercase font-bold w-fit ${
-                                  a.status === 'Enrolled' ? 'bg-green-50 text-green-600 border-green-200' :
-                                  a.status === 'Accepted' ? 'bg-blue-50 text-blue-600 border-blue-200' :
-                                  a.status === 'Interviewed' ? 'bg-amber-50 text-amber-600 border-amber-200' :
-                                  'bg-slate-50 text-slate-600'
-                                }`}>
-                                  {a.status}
-                                </Badge>
-                              </div>
-                            </div>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
-                                  <MoreVertical className="size-4 text-muted-foreground" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="rounded-xl border-none shadow-xl w-48">
-                                {a.status === "Applied" && (
-                                  <DropdownMenuItem className="gap-2 text-xs font-bold" onClick={() => { setSelectedApp(a); setInterviewForm({ status: "Interviewed", interviewNotes: a.interviewNotes || "" }); setIsInterviewOpen(true); }}>
-                                    <MessagesSquare className="size-4" /> Record Interview
-                                  </DropdownMenuItem>
-                                )}
-                                {a.status === "Interviewed" && (
-                                  <DropdownMenuItem className="gap-2 text-xs font-bold text-blue-600" onClick={() => handleUpdateStatus(a.id, "Accepted")}>
-                                    <CheckCircle2 className="size-4" /> Authorize Acceptance
-                                  </DropdownMenuItem>
-                                )}
-                                {a.status === "Accepted" && (
-                                  <DropdownMenuItem className="gap-2 text-xs font-bold text-primary" onClick={() => startEnrollment(a)}>
-                                    <UserPlus className="size-4" /> Finalize Enrollment
-                                  </DropdownMenuItem>
-                                )}
-                                {a.status === "Enrolled" && (
-                                  <DropdownMenuItem className="gap-2 text-xs font-bold" asChild>
-                                    <Link href={`/dashboard/students?id=${a.id}`}>
-                                      <RefreshCw className="size-4" /> View in Registry
-                                    </Link>
-                                  </DropdownMenuItem>
-                                )}
-                                <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onClick={() => handleDelete(a.id)}>
-                                  <Trash2 className="size-4" /> Remove Application
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </CardHeader>
-                          <CardContent className="space-y-3 pb-4">
-                            <div className="flex items-center gap-2 text-[11px] text-muted-foreground font-medium">
-                              <Phone className="size-3 text-accent" />
-                              <span>{a.phone}</span>
-                            </div>
-                            <div className="flex items-center justify-between pt-2 border-t mt-2">
-                              <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-tighter">Registered</span>
-                              <span className="text-[9px] font-bold text-primary">
-                                {a.createdAt ? new Date(a.createdAt.toMillis()).toLocaleDateString() : 'N/A'}
-                              </span>
-                            </div>
-                          </CardContent>
-                          {a.isRegistrySync && (
-                            <div className="bg-blue-600 py-1 text-center text-[7px] font-bold text-white uppercase tracking-widest">
-                               Registry Sync Active
-                            </div>
-                          )}
-                        </Card>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })}
-
-              {admissions.length === 0 && (
-                <div className="py-40 text-center space-y-4">
-                  <div className="size-20 bg-muted/20 rounded-full flex items-center justify-center mx-auto">
-                    <UserPlus className="size-10 text-muted-foreground/30" />
-                  </div>
-                  <div className="max-w-xs mx-auto">
-                    <h3 className="text-xl font-headline font-bold text-primary/60">Registry Empty</h3>
-                    <p className="text-sm text-muted-foreground italic">No candidates matching current filter detected.</p>
-                  </div>
+            {admissions.length === 0 && (
+              <div className="py-40 text-center space-y-4 bg-white rounded-3xl shadow-sm border border-dashed">
+                <div className="size-20 bg-muted/20 rounded-full flex items-center justify-center mx-auto">
+                  <UserPlus className="size-10 text-muted-foreground/30" />
                 </div>
-              )}
+                <div className="max-w-xs mx-auto">
+                  <h3 className="text-xl font-headline font-bold text-primary/60">Registry Empty</h3>
+                  <p className="text-sm text-muted-foreground italic">No candidates matching current filter detected.</p>
+                </div>
+              </div>
+            )}
           </TabsContent>
         ))}
       </Tabs>
