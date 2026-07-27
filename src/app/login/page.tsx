@@ -55,7 +55,7 @@ export default function LoginPage() {
       const userData = userSnap.data()
       if (userData.tenantId) {
         localStorage.setItem('selected_institution_id', userData.tenantId)
-        localStorage.setItem('selected_institution_name', userData.institutionName || 'YSM Registry Hub')
+        localStorage.setItem('selected_institution_name', userData.institutionName || 'Registry Hub')
       }
 
       if (userData.role === "super_admin") router.replace("/admin")
@@ -198,7 +198,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-muted/30">
       <Link href="/" className="flex items-center gap-2 mb-8 group">
         <div className="size-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-lg group-hover:scale-105 transition-transform"><School className="size-6" /></div>
-        <span className="text-2xl font-headline font-bold text-primary">YSM Gateway</span>
+        <span className="text-2xl font-headline font-bold text-primary">Yebfa School Manager</span>
       </Link>
       
       <Card className="w-full max-w-lg border-none shadow-2xl overflow-hidden rounded-3xl bg-white">
@@ -211,7 +211,7 @@ export default function LoginPage() {
           </TabsList>
 
           <CardHeader className="pb-4 pt-8">
-            <CardTitle className="text-2xl font-bold font-headline text-primary">YSM Institutional Login</CardTitle>
+            <CardTitle className="text-2xl font-bold font-headline text-primary">Institutional Gateway</CardTitle>
             <CardDescription className="text-xs font-medium">Strategic multi-tenant identity verification active.</CardDescription>
           </CardHeader>
 
@@ -266,7 +266,7 @@ export default function LoginPage() {
           </CardContent>
 
           <CardFooter className="bg-muted/30 p-6 flex flex-col gap-4 border-t">
-            <p className="text-[9px] text-center text-muted-foreground uppercase font-bold tracking-widest">Institutional Data Isolation Active • YSM 2026</p>
+            <p className="text-[9px] text-center text-muted-foreground uppercase font-bold tracking-widest">Institutional Data Isolation Active • System 2026</p>
             <Button variant="link" className="w-full gap-2 text-primary font-bold text-xs" asChild><Link href="/register/institution">Register New Institution <ArrowRight className="size-3.5" /></Link></Button>
           </CardFooter>
         </Tabs>

@@ -23,7 +23,7 @@ export default function LandingPage() {
           <div className="size-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-lg">
             <School className="size-6" />
           </div>
-          <span className="text-2xl font-headline font-bold tracking-tight text-primary">YSM <span className="text-accent">|</span> Yebfa School Manager</span>
+          <span className="text-2xl font-headline font-bold tracking-tight text-primary">Yebfa School Manager</span>
         </Link>
         <nav className="hidden md:flex items-center gap-8">
           <Link href="/about" className="text-sm font-medium hover:text-accent transition-colors">About</Link>
@@ -58,13 +58,13 @@ export default function LandingPage() {
           <div className="container px-6 mx-auto relative z-10 text-center space-y-8">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 text-accent text-xs font-bold uppercase tracking-wider animate-in fade-in slide-in-from-top-4 duration-500">
               <Zap className="size-3" />
-              YSM Modern Multi-Tenant SaaS
+              Modern Multi-Tenant SaaS
             </div>
             <h1 className="text-5xl lg:text-7xl font-headline font-bold text-primary leading-tight tracking-tighter animate-in fade-in slide-in-from-bottom-4 duration-700">
               The Operating System for <span className="text-accent italic">Modern Schools.</span>
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-1000">
-              YSM (Yebfa School Manager) is a premium, all-in-one ecosystem for student management, financial forecasting, and academic excellence powered by advanced AI in 2026.
+              Yebfa School Manager is a premium, all-in-one ecosystem for student management, financial forecasting, and academic excellence powered by advanced AI in 2026.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 animate-in fade-in slide-in-from-bottom-12 duration-1000">
               <Button size="lg" className="h-14 px-8 text-lg font-medium bg-primary hover:bg-primary/90 rounded-2xl shadow-xl shadow-primary/20" asChild>
@@ -90,7 +90,7 @@ export default function LandingPage() {
             <div className="size-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground shadow-sm">
               <School className="size-5" />
             </div>
-            <span className="text-xl font-headline font-bold text-primary">YSM | Yebfa School Manager</span>
+            <span className="text-xl font-headline font-bold text-primary">Yebfa School Manager</span>
           </div>
           <p className="text-sm text-muted-foreground">© 2026 Yebfa School Manager. All rights reserved.</p>
           <div className="flex gap-6">

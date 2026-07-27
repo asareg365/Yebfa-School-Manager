@@ -217,7 +217,7 @@ export function AppSidebar() {
           </div>
           {state === "expanded" && (
             <div className="flex flex-col gap-0.5 leading-none">
-              <span className="font-headline font-bold text-lg tracking-tight">YSM <span className="text-accent">|</span> Manager</span>
+              <span className="font-headline font-bold text-lg tracking-tight">Yebfa <span className="text-accent">|</span> Manager</span>
               <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">System 2026</span>
             </div>
           )}
@@ -292,7 +292,7 @@ export function AppSidebar() {
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight ml-2">
                 <div className="flex flex-col">
-                   <span className="truncate font-semibold">{user?.displayName || "YSM User"}</span>
+                   <span className="truncate font-semibold">{user?.displayName || "Registry User"}</span>
                    <Badge variant="secondary" className="text-[8px] h-3 px-1 w-fit uppercase bg-primary/10 text-primary border-none">{userRole.replace('_', ' ')}</Badge>
                 </div>
               </div>
