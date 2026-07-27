@@ -52,17 +52,15 @@ export default function LoginPage() {
         localStorage.setItem('selected_institution_name', userData.institutionName || 'My School')
       }
 
+      // Explicit Role Redirection
       if (userData.role === "super_admin") {
         router.replace("/admin")
-        return
-      }
-
-      if (userData.role === "parent") {
+      } else if (userData.role === "parent") {
         router.replace("/dashboard/parent")
-        return
+      } else {
+        // Staff, Teachers, and Owners go to the Institutional Dashboard
+        router.replace("/dashboard")
       }
-
-      router.replace("/dashboard")
     } catch (error) {
       console.error("Redirection error:", error)
       router.replace("/register/institution")
@@ -108,7 +106,6 @@ export default function LoginPage() {
       const collectionName = type === 'staff' ? "staff" : "parents"
       const idField = type === 'staff' ? "staffNumber" : "parentNumber"
       
-      // Query by ID only first to minimize permission/index issues
       const q = query(
         collection(db, collectionName), 
         where(idField, "==", idNumber)
@@ -132,12 +129,10 @@ export default function LoginPage() {
         throw new Error("Registry record found, but no system email is associated. Contact Admin.");
       }
       
-      // Attempt login with the raw phone number provided by the user as password
       try {
         const credential = await signInWithEmailAndPassword(auth, accountEmail, phoneNumber)
         await redirectUser(credential.user)
       } catch (authErr: any) {
-        // Fallback: try with the stored phone number format if auth failed
         if (authErr.code === 'auth/invalid-credential' || authErr.code === 'auth/wrong-password') {
           const credentialFallback = await signInWithEmailAndPassword(auth, accountEmail, personData.phone)
           await redirectUser(credentialFallback.user)

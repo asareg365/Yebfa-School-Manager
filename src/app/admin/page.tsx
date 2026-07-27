@@ -76,7 +76,12 @@ export default function AdminPortal() {
 
   useEffect(() => {
     if (!authLoading && !profileLoading && user && profile && !isSuperAdmin) {
-      router.replace("/dashboard")
+      // Intelligent redirection if a non-super-admin tries to hit the SaaS hub
+      if (profile.role === 'parent') {
+        router.replace("/dashboard/parent")
+      } else {
+        router.replace("/dashboard")
+      }
     }
   }, [user, authLoading, profileLoading, profile, isSuperAdmin, router])
 

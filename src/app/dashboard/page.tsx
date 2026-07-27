@@ -19,25 +19,37 @@ import {
   ShieldCheck
 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
-import { useUser, useFirestore, useCollection } from "@/firebase"
+import { useUser, useFirestore, useCollection, useDoc } from "@/firebase"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { collection, query, where } from "firebase/firestore"
+import { collection, query, where, doc } from "firebase/firestore"
 import { useEffect, useState, useMemo } from "react"
 import { generateDemoVideo } from "@/ai/flows/generate-demo-video"
 import { toast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
+import { useRouter } from "next/navigation"
 
 export default function Dashboard() {
   const { user, loading: authLoading } = useUser()
   const db = useFirestore()
+  const router = useRouter()
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [videoLoading, setVideoLoading] = useState(false)
+
+  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
+  const { data: profile } = useDoc(userProfileRef)
 
   useEffect(() => {
     const storedId = localStorage.getItem('selected_institution_id')
     if (storedId) setInstitutionId(storedId)
   }, [])
+
+  // Explicit Role Guard: Redirect parents away from the staff-oriented "System Pulse"
+  useEffect(() => {
+    if (profile?.role === 'parent') {
+      router.replace("/dashboard/parent")
+    }
+  }, [profile, router])
 
   // Core Data Queries - Optimized with useMemo
   const studentsQuery = useMemo(() => institutionId ? query(collection(db, "students"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
@@ -100,7 +112,7 @@ export default function Dashboard() {
     }
   }
 
-  if (authLoading) return (
+  if (authLoading || (profile && profile.role === 'parent')) return (
     <div className="p-10 text-center space-y-4">
       <Activity className="size-10 text-primary animate-spin mx-auto" />
       <p className="font-headline font-bold text-muted-foreground animate-pulse">Synchronizing Dashboard...</p>
