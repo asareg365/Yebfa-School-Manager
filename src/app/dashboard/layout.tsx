@@ -30,32 +30,30 @@ export default function DashboardLayout({
   const auth = useAuth();
   const db = useFirestore();
   const router = useRouter();
-  const [institutionName, setInstitutionName] = useState<string>("Institution Hub");
-  const [institutionId, setInstitutionId] = useState<string | null>(null);
   const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user]);
   const { data: profile, loading: profileLoading } = useDoc(userProfileRef);
 
-  useEffect(() => {
-    if (profile?.tenantId) {
-      setInstitutionId(profile.tenantId);
-      localStorage.setItem('selected_institution_id', profile.tenantId);
-      if (profile.institutionName) {
-        localStorage.setItem('selected_institution_name', profile.institutionName);
-        setInstitutionName(profile.institutionName);
-      }
-    } else if (!profileLoading) {
-      // Fallback to localStorage only if profile explicitly finished loading and tenant is missing
-      setInstitutionId(localStorage.getItem('selected_institution_id'));
+  // Durable Tenant Resolution logic for multi-role dashboard
+  const institutionId = useMemo(() => {
+    if (profileLoading || !profile) return null;
+    if (profile.role === 'super_admin') {
+      return typeof window !== 'undefined' ? localStorage.getItem('selected_institution_id') : null;
     }
+    return profile.tenantId || null;
   }, [profile, profileLoading]);
+
+  const institutionName = useMemo(() => {
+    if (profile?.role === 'super_admin') {
+      return typeof window !== 'undefined' ? localStorage.getItem('selected_institution_name') || "Super Admin Node" : "Super Admin Node";
+    }
+    return profile?.institutionName || "Registry Hub";
+  }, [profile]);
 
   const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId]);
   const { data: institution } = useDoc(instRef);
 
-  // CRITICAL: Ensure notificationsQuery is null if profile is still loading
-  // This prevents permission errors where the query fires before the rules can see the tenant context
   const notificationsQuery = useMemo(() => {
     if (!db || !institutionId || profileLoading || !profile) return null;
     return query(

@@ -29,10 +29,11 @@ import {
   KeyRound,
   X,
   LockKeyhole,
-  Key
+  Key,
+  Activity
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useFirestore, useCollection, useUser, useDoc } from "@/firebase"
+import { useUser, useFirestore, useCollection, useDoc } from "@/firebase"
 import { collection, addDoc, query, deleteDoc, doc, where, serverTimestamp, updateDoc, writeBatch, setDoc } from "firebase/firestore"
 import { useState, useMemo, useEffect, useRef } from "react"
 import { Badge } from "@/components/ui/badge"
@@ -65,16 +66,17 @@ export default function StudentsPage() {
   const [activeStep, setActiveStep] = useState("identity")
   const steps = ["identity", "academic", "guardian", "finalize"]
 
-  // Resolve Context from Profile (Most Reliable)
+  // Durable Context Resolver
   const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
   const { data: profile, loading: profileLoading } = useDoc(userProfileRef)
 
   const institutionId = useMemo(() => {
-    if (profile?.role === 'super_admin') {
-      return typeof window !== 'undefined' ? localStorage.getItem('selected_institution_id') : null
+    if (profileLoading || !profile) return null;
+    if (profile.role === 'super_admin') {
+      return typeof window !== 'undefined' ? localStorage.getItem('selected_institution_id') : null;
     }
-    return profile?.tenantId || null
-  }, [profile])
+    return profile.tenantId || null;
+  }, [profile, profileLoading]);
 
   const initialForm = {
     firstName: "",
@@ -169,7 +171,7 @@ export default function StudentsPage() {
 
   const handleSyncCredentials = async () => {
     if (!db || !institutionId || rawStudents.length === 0) return;
-    if (!confirm("This tool will generate Portal PINs and security accounts for students missing them. This is required for ID + PIN login. Proceed?")) return;
+    if (!confirm("This tool will generate Portal PINs and security accounts for students missing them. Proceed?")) return;
 
     setSyncing(true);
     const provisionAppName = `sync-provision-${Date.now()}`;
@@ -440,6 +442,13 @@ export default function StudentsPage() {
     <div className="p-24 text-center">
       <Loader2 className="size-10 animate-spin mx-auto text-primary" />
       <p className="mt-4 font-bold text-muted-foreground animate-pulse uppercase tracking-widest text-xs">Synchronizing Student Registry...</p>
+    </div>
+  )
+
+  if (!institutionId) return (
+    <div className="p-20 text-center space-y-4">
+      <Activity className="size-12 text-primary animate-spin mx-auto" />
+      <p className="font-bold text-muted-foreground uppercase tracking-widest text-xs">Awaiting Institutional Context...</p>
     </div>
   )
 

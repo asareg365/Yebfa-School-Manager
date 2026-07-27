@@ -14,11 +14,12 @@ import {
   Save,
   Briefcase,
   User,
-  CheckCircle2
+  CheckCircle2,
+  Activity
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { toast } from "@/hooks/use-toast"
-import { useFirestore, useCollection, useUser, useDoc } from "@/firebase"
+import { useUser, useFirestore, useCollection, useDoc } from "@/firebase"
 import { collection, query, deleteDoc, doc, where, serverTimestamp, updateDoc, setDoc, writeBatch } from "firebase/firestore"
 import { useState, useMemo, useEffect } from "react"
 import { Badge } from "@/components/ui/badge"
@@ -26,7 +27,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { initializeApp, getApps } from "firebase/app"
+import { initializeApp, getApps, deleteApp } from "firebase/app"
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth"
 import { firebaseConfig } from "@/firebase/config"
 import { generateInstitutionId, normalizeSecurityPhone } from "@/lib/identity-service"
@@ -37,7 +38,6 @@ export default function StaffHRPage() {
   const [loading, setLoading] = useState(false)
   const [isEnrollOpen, setIsEnrollOpen] = useState(false)
   const [editingStaff, setEditingStaff] = useState<any>(null)
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
 
   const initialForm = {
@@ -55,8 +55,19 @@ export default function StaffHRPage() {
 
   const [staffForm, setStaffForm] = useState(initialForm)
 
+  // Durable Context Resolver
+  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
+  const { data: profile, loading: profileLoading } = useDoc(userProfileRef)
+
+  const institutionId = useMemo(() => {
+    if (profileLoading || !profile) return null;
+    if (profile.role === 'super_admin') {
+      return typeof window !== 'undefined' ? localStorage.getItem('selected_institution_id') : null;
+    }
+    return profile.tenantId || null;
+  }, [profile, profileLoading]);
+
   useEffect(() => {
-    setInstitutionId(localStorage.getItem('selected_institution_id'))
     setStaffForm(prev => ({ ...prev, employmentDate: new Date().toISOString().split('T')[0] }))
   }, [])
 
@@ -78,24 +89,35 @@ export default function StaffHRPage() {
     if (!db || !institutionId || loading) return
 
     setLoading(true)
+    const provisionAppName = `staff-provision-${Date.now()}`;
+    const provisionApp = initializeApp(firebaseConfig, provisionAppName);
+    const provisionAuth = getAuth(provisionApp);
+
     try {
       const batch = writeBatch(db)
       let staffId = editingStaff?.id
       let finalStaffNumber = staffForm.staffNumber
 
       if (!editingStaff) {
-        // ID Generation handles missing schoolCode with fallback internally
         finalStaffNumber = await generateInstitutionId('STF', institutionId, institution?.schoolCode);
         
         const cleanPass = normalizeSecurityPhone(staffForm.phone)
-        const secondaryAppName = `secondary-staff-${Date.now()}`
-        const secondaryApp = getApps().find(a => a.name === secondaryAppName) || initializeApp(firebaseConfig, secondaryAppName)
-        const secondaryAuth = getAuth(secondaryApp)
+        const accountEmail = staffForm.email || `${finalStaffNumber.toLowerCase()}@system.yebfa.com`;
         
-        let authUser;
         try {
-          const credential = await createUserWithEmailAndPassword(secondaryAuth, staffForm.email, cleanPass)
-          authUser = credential.user
+          const credential = await createUserWithEmailAndPassword(provisionAuth, accountEmail, cleanPass)
+          const authUser = credential.user
+          
+          batch.set(doc(db, "users", authUser.uid), {
+            uid: authUser.uid,
+            name: `${staffForm.firstName} ${staffForm.lastName}`,
+            email: accountEmail,
+            role: "teacher",
+            tenantId: institutionId,
+            institutionId: institutionId,
+            status: "active",
+            createdAt: serverTimestamp()
+          })
         } catch (authErr: any) {
           if (authErr.code !== 'auth/email-already-in-use') throw authErr;
         }
@@ -113,19 +135,6 @@ export default function StaffHRPage() {
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         });
-
-        if (authUser) {
-          batch.set(doc(db, "users", authUser.uid), {
-            uid: authUser.uid,
-            name: `${staffForm.firstName} ${staffForm.lastName}`,
-            email: staffForm.email,
-            role: "teacher",
-            tenantId: institutionId,
-            institutionId: institutionId,
-            status: "active",
-            createdAt: serverTimestamp()
-          })
-        }
       } else {
         const { id, createdAt, ...sanitizedData } = staffForm as any;
         batch.update(doc(db, "staff", editingStaff.id), { ...sanitizedData, updatedAt: serverTimestamp() });
@@ -136,7 +145,10 @@ export default function StaffHRPage() {
       setIsEnrollOpen(false); setEditingStaff(null); setStaffForm(initialForm);
     } catch (error: any) {
       toast({ variant: "destructive", title: "Action Failed", description: error.message });
-    } finally { setLoading(false) }
+    } finally { 
+      setLoading(false);
+      await deleteApp(provisionApp);
+    }
   }
 
   const openEdit = (s: any) => {
@@ -145,7 +157,14 @@ export default function StaffHRPage() {
     setIsEnrollOpen(true);
   }
 
-  if (dataLoading) return <div className="p-24 text-center font-bold text-muted-foreground uppercase tracking-widest text-xs">Syncing HR Registry...</div>
+  if (profileLoading || dataLoading) return <div className="p-24 text-center font-bold text-muted-foreground uppercase tracking-widest text-xs">Syncing HR Registry...</div>
+
+  if (!institutionId) return (
+    <div className="p-20 text-center space-y-4">
+      <Activity className="size-12 text-primary animate-spin mx-auto" />
+      <p className="font-bold text-muted-foreground uppercase tracking-widest text-xs">Awaiting Institutional Context...</p>
+    </div>
+  )
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-20">
@@ -202,6 +221,9 @@ export default function StaffHRPage() {
                   </TableCell>
                 </TableRow>
               ))}
+              {staffList.length === 0 && (
+                <TableRow><TableCell colSpan={5} className="text-center py-20 text-muted-foreground italic">No faculty records detected for this institution.</TableCell></TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>

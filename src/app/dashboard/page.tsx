@@ -33,23 +33,26 @@ export default function Dashboard() {
   const { user, loading: authLoading } = useUser()
   const db = useFirestore()
   const router = useRouter()
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [videoLoading, setVideoLoading] = useState(false)
 
   const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
-  const { data: profile } = useDoc(userProfileRef)
+  const { data: profile, loading: profileLoading } = useDoc(userProfileRef)
 
-  useEffect(() => {
-    const storedId = localStorage.getItem('selected_institution_id')
-    if (storedId) setInstitutionId(storedId)
-  }, [])
+  // Durable Tenant Resolution for System Pulse
+  const institutionId = useMemo(() => {
+    if (profileLoading || !profile) return null;
+    if (profile.role === 'super_admin') {
+      return typeof window !== 'undefined' ? localStorage.getItem('selected_institution_id') : null;
+    }
+    return profile.tenantId || null;
+  }, [profile, profileLoading]);
 
   // Explicit Role Guard: Redirect parents away from the staff-oriented "System Pulse"
   useEffect(() => {
-    if (profile?.role === 'parent') {
+    if (!profileLoading && profile?.role === 'parent') {
       router.replace("/dashboard/parent")
     }
-  }, [profile, router])
+  }, [profile, profileLoading, router])
 
   // Core Data Queries - Optimized with useMemo
   const studentsQuery = useMemo(() => institutionId ? query(collection(db, "students"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
@@ -112,7 +115,7 @@ export default function Dashboard() {
     }
   }
 
-  if (authLoading || (profile && profile.role === 'parent')) return (
+  if (authLoading || profileLoading || (profile && profile.role === 'parent')) return (
     <div className="p-10 text-center space-y-4">
       <Activity className="size-10 text-primary animate-spin mx-auto" />
       <p className="font-headline font-bold text-muted-foreground animate-pulse">Synchronizing Dashboard...</p>
@@ -139,7 +142,7 @@ export default function Dashboard() {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl md:text-3xl xl:text-4xl font-headline font-bold tracking-tight text-primary">System Pulse</h1>
-          <p className="text-muted-foreground font-medium text-sm md:text-base">Monitoring real-time academic records for {localStorage.getItem('selected_institution_name')}.</p>
+          <p className="text-muted-foreground font-medium text-sm md:text-base">Monitoring real-time academic records for {localStorage.getItem('selected_institution_name') || "Active Registry"}.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button 
