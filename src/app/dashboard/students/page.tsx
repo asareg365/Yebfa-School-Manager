@@ -26,7 +26,8 @@ import {
   FileSpreadsheet,
   Download,
   AlertCircle,
-  KeyRound
+  KeyRound,
+  X
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection, useUser, useDoc } from "@/firebase"
@@ -146,6 +147,15 @@ export default function StudentsPage() {
     ).sort((a: any, b: any) => (a.admissionNumber || "").localeCompare(b.admissionNumber || ""));
   }, [rawStudents, searchQuery]);
 
+  const navigateStep = (direction: 'next' | 'back') => {
+    const currentIndex = steps.indexOf(activeStep)
+    if (direction === 'next' && currentIndex < steps.length - 1) {
+      setActiveStep(steps[currentIndex + 1])
+    } else if (direction === 'back' && currentIndex > 0) {
+      setActiveStep(steps[currentIndex - 1])
+    }
+  }
+
   const handleEnroll = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!db || !institutionId || loading) return
@@ -159,12 +169,10 @@ export default function StudentsPage() {
       let finalAdmissionNumber = studentForm.admissionNumber
       let finalPin = studentForm.studentPin
 
-      // 1. Transactional ID & PIN Generation
       if (!editingStudent) {
         finalAdmissionNumber = await generateInstitutionId('STU', institutionId, institution?.schoolCode);
         finalPin = generateStudentPin();
         
-        // Provision Student Auth Account
         const secondaryAppName = `student-provision-${Date.now()}`
         const secondaryApp = initializeApp(firebaseConfig, secondaryAppName)
         const secondaryAuth = getAuth(secondaryApp)
@@ -189,7 +197,6 @@ export default function StudentsPage() {
         }
       }
 
-      // 2. Handle New Parent Auth Provisioning
       if (isNewParent && !editingStudent) {
         const finalParentNumber = await generateInstitutionId('PAR', institutionId, institution?.schoolCode);
         const cleanPass = normalizeSecurityPhone(newParentForm.phone);
@@ -197,7 +204,6 @@ export default function StudentsPage() {
         const secondaryAppName = `parent-provision-${Date.now()}`
         const secondaryApp = initializeApp(firebaseConfig, secondaryAppName)
         const secondaryAuth = getAuth(secondaryApp)
-        
         const parentEmail = newParentForm.email || `${finalParentNumber.toLowerCase()}@system.yebfa.com`;
         
         try {
@@ -275,6 +281,55 @@ export default function StudentsPage() {
     } finally { setLoading(false) }
   }
 
+  const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !institutionId) return
+
+    setBulkLoading(true)
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        try {
+          const batch = writeBatch(db)
+          const rows = results.data as any[]
+          
+          for (const row of rows) {
+            if (!row.firstName || !row.lastName) continue;
+
+            const finalAdmissionNumber = await generateInstitutionId('STU', institutionId, institution?.schoolCode);
+            const finalPin = generateStudentPin();
+            
+            const studentRef = doc(collection(db, "students"))
+            batch.set(studentRef, {
+              firstName: row.firstName,
+              lastName: row.lastName,
+              gender: row.gender || "Male",
+              gradeLevel: row.grade || row.gradeLevel || "Unassigned",
+              dateOfBirth: row.dob || row.dateOfBirth || "",
+              admissionNumber: finalAdmissionNumber,
+              studentPin: finalPin,
+              tenantId: institutionId,
+              institutionId,
+              status: "active",
+              id: studentRef.id,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp()
+            })
+          }
+
+          await batch.commit()
+          toast({ title: "Bulk Intake Successful", description: `Enrolled ${rows.length} students into the registry.` })
+          setIsBulkOpen(false)
+        } catch (error: any) {
+          toast({ variant: "destructive", title: "Bulk Intake Failed", description: error.message })
+        } finally {
+          setBulkLoading(false)
+        }
+      }
+    })
+  }
+
   const openEdit = (stu: any) => {
     setEditingStudent(stu)
     setStudentForm({ ...initialForm, ...stu })
@@ -309,7 +364,7 @@ export default function StudentsPage() {
         <CardHeader className="border-b py-6 p-4 md:p-6 bg-slate-50/50">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-3.5 size-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
               <Input placeholder="Search records..." className="pl-10 h-12 bg-white border-none rounded-xl shadow-sm" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
             <Badge className="bg-primary/5 text-primary border-none text-[10px] font-bold uppercase tracking-widest px-4 h-10 flex items-center">
@@ -510,6 +565,44 @@ export default function StudentsPage() {
               </div>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Intake Dialog */}
+      <Dialog open={isBulkOpen} onOpenChange={setIsBulkOpen}>
+        <DialogContent className="max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-headline font-bold">Bulk Student Intake</DialogTitle>
+            <DialogDescription>Enroll entire classes using a CSV template. Transactional IDs and PINs will be auto-generated.</DialogDescription>
+          </DialogHeader>
+          <div className="py-12 flex flex-col items-center justify-center border-2 border-dashed rounded-3xl bg-muted/5 space-y-6">
+            <div className="size-20 bg-primary/5 rounded-full flex items-center justify-center text-primary/30">
+               {bulkLoading ? <Loader2 className="size-10 animate-spin" /> : <Upload className="size-10" />}
+            </div>
+            <div className="text-center px-8">
+               <p className="text-sm font-bold text-primary">Upload Enrollment CSV</p>
+               <p className="text-[10px] text-muted-foreground mt-1 uppercase font-bold">Columns: firstName, lastName, gender, grade, dob</p>
+            </div>
+            <div className="relative">
+               <Input 
+                type="file" 
+                accept=".csv" 
+                className="absolute inset-0 opacity-0 cursor-pointer" 
+                onChange={handleBulkUpload}
+                disabled={bulkLoading}
+               />
+               <Button className="bg-primary rounded-xl font-bold shadow-lg" disabled={bulkLoading}>
+                  {bulkLoading ? "Synchronizing Registry..." : "Select File"}
+               </Button>
+            </div>
+          </div>
+          <DialogFooter className="bg-slate-50 p-6 -mx-6 -mb-6 rounded-b-2xl border-t">
+             <Button variant="ghost" className="w-full text-xs font-bold uppercase gap-2" asChild>
+                <a href="data:text/csv;charset=utf-8,firstName,lastName,gender,grade,dob" download="student_enrollment_template.csv">
+                   <Download className="size-4" /> Download Template
+                </a>
+             </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
