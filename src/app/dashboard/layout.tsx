@@ -149,6 +149,7 @@ export default function DashboardLayout({
   if (!user || !profile) return null;
 
   const isTrial = institution?.subscriptionPlan?.toLowerCase().includes('trial');
+  const userDisplayName = profile?.name || user?.displayName || user?.email || "Registry User";
 
   return (
     <SidebarProvider className="print-provider h-screen overflow-hidden">
@@ -171,13 +172,9 @@ export default function DashboardLayout({
           <div className="flex items-center gap-2 md:gap-4">
             <SidebarTrigger />
             <Separator orientation="vertical" className="h-4 hidden xs:block" />
-            <div className="relative hidden lg:block">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search records..."
-                className="w-64 xl:w-80 pl-9 h-10 bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary/20 transition-all"
-              />
+            <div className="flex flex-col">
+               <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground leading-none mb-1">Authenticated As</span>
+               <span className="text-xs md:text-sm font-bold text-primary truncate max-w-[120px] md:max-w-[250px]">{userDisplayName}</span>
             </div>
           </div>
           <div className="flex items-center gap-2 md:gap-4">
@@ -231,11 +228,11 @@ export default function DashboardLayout({
                 </ScrollArea>
               </PopoverContent>
             </Popover>
-            <div className="flex flex-col text-right">
-              <span className="text-xs md:text-sm font-semibold truncate max-w-[120px] md:max-w-[180px] text-primary">{institutionName}</span>
+            <div className="flex flex-col text-right border-l pl-4 border-border/40">
+              <span className="text-xs md:text-sm font-black truncate max-w-[120px] md:max-w-[180px] text-primary uppercase tracking-tighter">{institutionName}</span>
               <div className="flex items-center justify-end gap-1">
                  <Badge variant="outline" className="text-[7px] md:text-[8px] h-3.5 md:h-4 px-1 md:px-1.5 font-bold uppercase tracking-tighter bg-primary/5">{institution?.subscriptionPlan || 'Trial'}</Badge>
-                 <span className="hidden xs:inline text-[9px] text-muted-foreground uppercase font-bold tracking-tighter">Live 2026</span>
+                 <span className="hidden xs:inline text-[9px] text-muted-foreground uppercase font-black tracking-tighter">NODE 2026</span>
               </div>
             </div>
           </div>

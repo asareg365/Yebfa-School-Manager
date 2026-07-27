@@ -31,7 +31,9 @@ import {
   Cpu,
   Flag,
   ChevronRight,
-  User
+  User as UserIcon,
+  BadgeCheck,
+  IdCard
 } from "lucide-react"
 
 import {
@@ -51,10 +53,10 @@ import {
 } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { useUser, useAuth, useFirestore, useDoc } from "@/firebase"
+import { useUser, useAuth, useFirestore, useDoc, useCollection } from "@/firebase"
 import { signOut } from "firebase/auth"
 import { useRouter } from "next/navigation"
-import { doc } from "firebase/firestore"
+import { doc, query, collection, where } from "firebase/firestore"
 import { Badge } from "@/components/ui/badge"
 
 export function AppSidebar() {
@@ -69,6 +71,14 @@ export function AppSidebar() {
   const userProfileRef = React.useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
   const { data: profile } = useDoc(userProfileRef)
   const userRole = profile?.role || "guest"
+
+  // Fetch detailed staff info if role is staff to get the actual designation
+  const staffRef = React.useMemo(() => profile?.staffId ? doc(db, "staff", profile.staffId) : null, [db, profile?.staffId]);
+  const { data: staffData } = useDoc(staffRef);
+
+  // Fetch detailed student info if role is student to get their ID
+  const studentRef = React.useMemo(() => profile?.studentId ? doc(db, "students", profile.studentId) : null, [db, profile?.studentId]);
+  const { data: studentData } = useDoc(studentRef);
 
   React.useEffect(() => {
     setMounted(true)
@@ -94,7 +104,6 @@ export function AppSidebar() {
   const isStaff = isTeacher || isAdmin || isOwner || isAccountant || isLibrarian
 
   const navigation = React.useMemo(() => {
-    // Parent/Student Navigation: Only show essentials
     if (isParent || isStudent) {
       return [
         { title: "Dashboard", url: "/dashboard/parent", icon: LayoutDashboard, visible: true },
@@ -103,10 +112,9 @@ export function AppSidebar() {
       ].filter(i => i.visible)
     }
 
-    // Staff/Owner Navigation
     return [
       { title: "Overview", url: "/dashboard", icon: LayoutDashboard, visible: true },
-      { title: "My Profile", url: "/dashboard/staff/profile", icon: User, visible: isStaff },
+      { title: "My Profile", url: "/dashboard/staff/profile", icon: UserIcon, visible: isStaff },
       {
         title: "AI Strategic Hub",
         url: "#",
@@ -214,6 +222,10 @@ export function AppSidebar() {
     </Sidebar>
   )
 
+  const displayName = profile?.name || user?.displayName || user?.email || "Registry User";
+  const displayID = staffData?.staffNumber || studentData?.admissionNumber || "";
+  const displayDesignation = staffData?.designation || (isSuperAdmin ? "Super Admin" : userRole.replace('_', ' '));
+
   return (
     <Sidebar collapsible="icon" className="border-r border-border/40">
       <SidebarHeader className="h-16 flex items-center px-6">
@@ -290,16 +302,19 @@ export function AppSidebar() {
       <SidebarFooter className="border-t border-border/40 p-4">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" className="hover:bg-accent/10 transition-colors" onClick={handleLogout}>
-              <Avatar className="size-8 rounded-lg">
+            <SidebarMenuButton size="lg" className="hover:bg-accent/10 transition-colors h-auto py-3" onClick={handleLogout}>
+              <Avatar className="size-9 rounded-lg border-2 border-primary/20">
                 <AvatarFallback className="rounded-lg bg-primary text-primary-foreground font-bold">
-                  {user?.email?.charAt(0).toUpperCase() || "U"}
+                  {displayName.charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              <div className="grid flex-1 text-left text-sm leading-tight ml-2">
-                <div className="flex flex-col">
-                   <span className="truncate font-semibold">{user?.displayName || "Registry User"}</span>
-                   <Badge variant="secondary" className="text-[8px] h-3 px-1 w-fit uppercase bg-primary/10 text-primary border-none">{userRole.replace('_', ' ')}</Badge>
+              <div className="grid flex-1 text-left text-sm leading-tight ml-3">
+                <div className="flex flex-col gap-0.5">
+                   <span className="truncate font-bold text-primary">{displayName}</span>
+                   {displayID && <span className="text-[9px] font-mono font-bold text-accent uppercase tracking-tighter">{displayID}</span>}
+                   <Badge variant="secondary" className="text-[8px] h-4 px-2 w-fit uppercase bg-primary/5 text-primary border-none font-black tracking-widest mt-1">
+                      {displayDesignation}
+                   </Badge>
                 </div>
               </div>
               <LogOut className="ml-auto size-4 opacity-50" />
