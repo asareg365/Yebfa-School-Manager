@@ -58,6 +58,7 @@ import { signOut } from "firebase/auth"
 import { useRouter } from "next/navigation"
 import { doc, query, collection, where } from "firebase/firestore"
 import { Badge } from "@/components/ui/badge"
+import { toast } from "@/hooks/use-toast"
 
 export function AppSidebar() {
   const pathname = usePathname()
@@ -88,6 +89,10 @@ export function AppSidebar() {
     if (auth) {
       await signOut(auth)
       router.push("/login")
+      toast({
+        title: "Session Terminated",
+        description: "You have signed out successfully.",
+      });
     }
   }
 
@@ -302,7 +307,7 @@ export function AppSidebar() {
       <SidebarFooter className="border-t border-white/10 p-4">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" className="hover:bg-white/5 transition-colors h-auto py-3" onClick={handleLogout}>
+            <SidebarMenuButton size="lg" className="hover:bg-white/5 transition-colors h-auto py-3 relative group/logout" onClick={handleLogout}>
               <Avatar className="size-9 rounded-lg border border-white/20">
                 <AvatarFallback className="rounded-lg bg-accent text-accent-foreground font-bold">
                   {displayName.charAt(0).toUpperCase()}
@@ -317,7 +322,10 @@ export function AppSidebar() {
                    </Badge>
                 </div>
               </div>
-              <LogOut className="ml-auto size-4 text-white/50" />
+              <div className="ml-auto flex flex-col items-center gap-1">
+                <LogOut className="size-5 text-accent transition-transform group-hover/logout:scale-110" />
+                {state === 'expanded' && <span className="text-[8px] font-bold uppercase text-accent">Logout</span>}
+              </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

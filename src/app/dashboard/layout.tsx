@@ -7,7 +7,7 @@ import { useUser, useFirestore, useDoc, useCollection, useAuth } from "@/firebas
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/dashboard/app-sidebar";
 import { Separator } from "@/components/ui/separator";
-import { Bell, Search, Loader2, Info, AlertTriangle, Clock, Trash2, X, CheckCircle2, AlertCircle, Activity } from "lucide-react";
+import { Bell, Search, Loader2, Info, AlertTriangle, Clock, Trash2, X, CheckCircle2, AlertCircle, Activity, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -70,9 +70,8 @@ export default function DashboardLayout({
       await signOut(auth);
       router.push('/login');
       toast({
-        title: "Session Expired",
-        description: "You have been logged out due to inactivity.",
-        variant: "destructive"
+        title: "Session Terminated",
+        description: "You have signed out successfully.",
       });
     }
   }, [auth, router]);
@@ -228,6 +227,16 @@ export default function DashboardLayout({
                 </ScrollArea>
               </PopoverContent>
             </Popover>
+
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleLogout} 
+              className="hidden sm:flex h-9 rounded-xl gap-2 font-bold text-xs uppercase border-primary text-primary hover:bg-primary/5 transition-all"
+            >
+              <LogOut className="size-3.5" /> Sign Out
+            </Button>
+
             <div className="flex flex-col text-right border-l pl-4 border-border/40">
               <span className="text-xs md:text-sm font-black truncate max-w-[120px] md:max-w-[180px] text-primary uppercase tracking-tighter">{institutionName}</span>
               <div className="flex items-center justify-end gap-1">
