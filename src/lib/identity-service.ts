@@ -19,6 +19,11 @@ export async function generateInstitutionId(
   institutionId: string,
   schoolCode?: string
 ): Promise<string> {
+  if (!institutionId || institutionId === 'null') {
+    throw new Error("Identity Error: Missing Institutional Context. Please select an active school node.");
+  }
+
+  // Counter is unique per institution and per registry type
   const counterRef = doc(db, 'counters', `${institutionId}_${type}`);
   const year = new Date().getFullYear();
 
@@ -27,14 +32,16 @@ export async function generateInstitutionId(
     let nextSeq = 1;
 
     if (counterSnap.exists()) {
-      nextSeq = (counterSnap.data().currentSequence || 0) + 1;
+      const current = counterSnap.data().currentSequence;
+      nextSeq = (typeof current === 'number' ? current : 0) + 1;
     }
 
+    // Atomically update the counter for this specific school node
     transaction.set(counterRef, {
       currentSequence: nextSeq,
       type,
       institutionId,
-      updatedAt: serverTimestamp()
+      lastUpdated: serverTimestamp()
     }, { merge: true });
 
     const sequenceStr = String(nextSeq).padStart(4, '0');

@@ -2,7 +2,7 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Pencil, Loader2, LogOut, Zap, ShieldAlert, Terminal, Save, Megaphone, Server, Globe, ArrowUpRight, Clock, AlertTriangle, Cpu, HardDrive, Network, Settings2, LayoutDashboard } from "lucide-react"
+import { Users, School, Wallet, ShieldCheck, Activity, Plus, Search, Database, Trash2, Pencil, Loader2, LogOut, Zap, ShieldAlert, Terminal, Save, Megaphone, Server, Globe, ArrowUpRight, Clock, AlertTriangle, Cpu, HardDrive, Network, Settings2, LayoutDashboard, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -14,7 +14,7 @@ import { useUser, useFirestore, useCollection, useAuth, useDoc } from "@/firebas
 import { useRouter } from "next/navigation"
 import { useEffect, useState, useMemo } from "react"
 import { toast } from "@/hooks/use-toast"
-import { collection, addDoc, serverTimestamp, query, deleteDoc, doc, updateDoc } from "firebase/firestore"
+import { collection, addDoc, serverTimestamp, query, deleteDoc, doc, updateDoc, setDoc } from "firebase/firestore"
 import { signOut } from "firebase/auth"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { differenceInDays } from "date-fns"
@@ -38,12 +38,14 @@ export default function AdminPortal() {
   const [upgradingSchool, setUpgradingSchool] = useState<any>(null)
   const [editingSchool, setEditingSchool] = useState<any>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  const [activeNodeId, setActiveNodeId] = useState<string | null>(null)
   
   const [newSchool, setNewSchool] = useState({
     name: "",
     ownerEmail: "",
     type: "Secondary",
-    location: "Goaso, Ahafo"
+    location: "Goaso, Ahafo",
+    schoolCode: ""
   })
 
   const [editForm, setEditForm] = useState({
@@ -52,6 +54,10 @@ export default function AdminPortal() {
     location: "",
     status: "active"
   })
+
+  useEffect(() => {
+    setActiveNodeId(localStorage.getItem('selected_institution_id'))
+  }, [])
 
   const institutionsQuery = useMemo(() => {
     if (!db || authLoading || profileLoading || !isSuperAdmin) return null;
@@ -96,31 +102,46 @@ export default function AdminPortal() {
   const handleEnterInstitution = (inst: any) => {
     localStorage.setItem('selected_institution_id', inst.id)
     localStorage.setItem('selected_institution_name', inst.name)
+    setActiveNodeId(inst.id)
     router.push("/dashboard")
-    toast({ title: "Hub Context Switched", description: `Simulating access for ${inst.name}.` })
+    toast({ title: "Hub Context Switched", description: `Active Node: ${inst.name}.` })
   }
 
   const handleManualProvision = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!db || provisioning) return
     setProvisioning(true)
+    
     const instId = doc(collection(db, "institutions")).id
+    const schoolCode = newSchool.schoolCode || newSchool.name.replace(/[^a-zA-Z]/g, '').substring(0, 3).toUpperCase()
+    
     const data = {
       id: instId,
       ...newSchool,
+      schoolCode,
       subscriptionPlan: "Trial",
       status: "active",
       createdAt: serverTimestamp(),
       trialStartDate: serverTimestamp(),
       tenantId: instId
     }
-    addDoc(collection(db, "institutions"), data)
-      .then(() => {
-        toast({ title: "School Provisioned", description: `${newSchool.name} is now live on Trial.` })
-        setIsProvisionDialogOpen(false)
-        setNewSchool({ name: "", ownerEmail: "", type: "Secondary", location: "Goaso, Ahafo" })
-      })
-      .finally(() => setProvisioning(false))
+
+    try {
+      await setDoc(doc(db, "institutions", instId), data)
+      
+      // Auto-switch context to the new institution to ensure IDs start fresh (0001)
+      localStorage.setItem('selected_institution_id', instId)
+      localStorage.setItem('selected_institution_name', newSchool.name)
+      setActiveNodeId(instId)
+
+      toast({ title: "School Provisioned", description: `${newSchool.name} is now live. Registry Node: 0001.` })
+      setIsProvisionDialogOpen(false)
+      setNewSchool({ name: "", ownerEmail: "", type: "Secondary", location: "Goaso, Ahafo", schoolCode: "" })
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Provisioning Failed", description: err.message })
+    } finally {
+      setProvisioning(false)
+    }
   }
 
   const handleUpdateInstitution = async (e: React.FormEvent) => {
@@ -186,6 +207,15 @@ export default function AdminPortal() {
           <p className="text-muted-foreground text-sm">Strategic ecosystem management and global usage analytics.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <div className="bg-white p-3 rounded-2xl border shadow-sm flex items-center gap-3 mr-4">
+             <div className="size-8 bg-green-50 text-green-600 rounded-lg flex items-center justify-center"><Server className="size-4" /></div>
+             <div className="flex flex-col">
+                <span className="text-[8px] font-bold uppercase text-muted-foreground tracking-widest">Active Node Context</span>
+                <span className="text-xs font-bold text-primary truncate max-w-[120px]">
+                   {institutions.find(i => i.id === activeNodeId)?.name || "Unselected"}
+                </span>
+             </div>
+          </div>
           <Button variant="ghost" className="h-11 gap-2 font-bold text-xs" onClick={handleLogout}>
             <LogOut className="size-4" /> Sign Out
           </Button>
@@ -281,10 +311,13 @@ export default function AdminPortal() {
                     </TableHeader>
                     <TableBody>
                       {institutions.map((inst: any) => (
-                        <TableRow key={inst.id} className="hover:bg-slate-50 transition-colors group">
+                        <TableRow key={inst.id} className={`hover:bg-slate-50 transition-colors group ${activeNodeId === inst.id ? 'bg-primary/5 border-l-4 border-primary' : ''}`}>
                           <TableCell className="font-bold text-primary">
                             <div className="flex flex-col">
-                              <span>{inst.name}</span>
+                              <span className="flex items-center gap-2">
+                                 {inst.name}
+                                 {activeNodeId === inst.id && <CheckCircle2 className="size-3 text-green-600" />}
+                              </span>
                               <span className="text-[10px] text-muted-foreground uppercase">{inst.location}</span>
                             </div>
                           </TableCell>
@@ -300,8 +333,13 @@ export default function AdminPortal() {
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1">
-                               <Button variant="ghost" size="sm" className="h-8 px-2 text-[10px] font-bold uppercase text-green-600 hover:text-green-700" onClick={() => handleEnterInstitution(inst)}>
-                                 <LayoutDashboard className="size-3 mr-1" /> <span className="hidden sm:inline">Enter</span>
+                               <Button 
+                                variant={activeNodeId === inst.id ? "secondary" : "ghost"} 
+                                size="sm" 
+                                className={`h-8 px-2 text-[10px] font-bold uppercase ${activeNodeId === inst.id ? 'text-primary' : 'text-green-600 hover:text-green-700'}`} 
+                                onClick={() => handleEnterInstitution(inst)}
+                               >
+                                 <LayoutDashboard className="size-3 mr-1" /> <span className="hidden sm:inline">{activeNodeId === inst.id ? 'Manage' : 'Enter'}</span>
                                </Button>
                                <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => {
                                   setEditingSchool(inst);
@@ -446,6 +484,10 @@ export default function AdminPortal() {
             </DialogHeader>
             <div className="grid gap-6 p-6 md:p-8">
               <div className="space-y-2"><Label>Institution Name</Label><Input required value={newSchool.name} onChange={e => setNewSchool({...newSchool, name: e.target.value})} className="h-11 rounded-xl" /></div>
+              <div className="space-y-2">
+                <Label>School Code Prefix (IDs)</Label>
+                <Input required value={newSchool.schoolCode} onChange={e => setNewSchool({...newSchool, schoolCode: e.target.value.toUpperCase().replace(/\s+/g, '')})} className="h-11 rounded-xl font-mono uppercase" placeholder="e.g. GIS" maxLength={4} />
+              </div>
               <div className="space-y-2"><Label>Owner Email</Label><Input type="email" required value={newSchool.ownerEmail} onChange={e => setNewSchool({...newSchool, ownerEmail: e.target.value})} className="h-11 rounded-xl" /></div>
               <div className="space-y-2"><Label>Location</Label><Input required value={newSchool.location} onChange={e => setNewSchool({...newSchool, location: e.target.value})} className="h-11 rounded-xl" /></div>
             </div>
