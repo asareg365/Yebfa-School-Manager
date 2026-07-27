@@ -45,22 +45,25 @@ export default function DashboardLayout({
         localStorage.setItem('selected_institution_name', profile.institutionName);
         setInstitutionName(profile.institutionName);
       }
-    } else {
+    } else if (!profileLoading) {
+      // Fallback to localStorage only if profile explicitly finished loading and tenant is missing
       setInstitutionId(localStorage.getItem('selected_institution_id'));
     }
-  }, [profile]);
+  }, [profile, profileLoading]);
 
   const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId]);
   const { data: institution } = useDoc(instRef);
 
+  // CRITICAL: Ensure notificationsQuery is null if profile is still loading
+  // This prevents permission errors where the query fires before the rules can see the tenant context
   const notificationsQuery = useMemo(() => {
-    if (!db || !institutionId) return null;
+    if (!db || !institutionId || profileLoading || !profile) return null;
     return query(
       collection(db, "notifications"),
       where("tenantId", "==", institutionId),
       orderBy("createdAt", "desc")
     );
-  }, [db, institutionId]);
+  }, [db, institutionId, profileLoading, profile]);
 
   const { data: notifications = [] } = useCollection(notificationsQuery);
 
@@ -115,10 +118,10 @@ export default function DashboardLayout({
   };
 
   const handleClearAll = async () => {
-    if (!institutionId) return;
+    if (!institutionId || !notificationsQuery) return;
     try {
       const batch = writeBatch(db);
-      const snap = await getDocs(notificationsQuery!);
+      const snap = await getDocs(notificationsQuery);
       snap.docs.forEach((d) => batch.delete(d.ref));
       await batch.commit();
       toast({ title: "Notifications Cleared" });

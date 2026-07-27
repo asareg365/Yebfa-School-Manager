@@ -67,23 +67,31 @@ service cloud.firestore {
       allow update, delete: if isSuperAdmin() || (signedIn() && instId == userTenant() && isOwner());
     }
 
+    match /notifications/{notifId} {
+      allow list: if signedIn() && (isSuperAdmin() || (hasProfile() && resource.data.tenantId == userTenant()));
+      allow get: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
+      allow create: if signedIn();
+      allow update, delete: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
+    }
+
     // Identity Registry Rules - Allows lookup by ID for Login
     match /parents/{parentId} {
-      allow list: if true;
-      allow get: if true;
+      allow list: if signedIn() && (isSuperAdmin() || (hasProfile() && resource.data.tenantId == userTenant()));
+      allow get: if true; // For login verification
       allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
       allow delete: if isSuperAdmin();
     }
 
     match /staff/{staffId} {
-      allow list: if true;
-      allow get: if true;
+      allow list: if signedIn() && (isSuperAdmin() || (hasProfile() && resource.data.tenantId == userTenant()));
+      allow get: if true; // For login verification
       allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
       allow delete: if isSuperAdmin();
     }
 
     match /students/{studentId} {
-      allow list, get: if true;
+      allow list: if signedIn() && (isSuperAdmin() || (hasProfile() && resource.data.tenantId == userTenant()));
+      allow get: if true; // For login verification
       allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin() || isTeacher());
       allow delete: if isSuperAdmin();
     }
