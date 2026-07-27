@@ -88,7 +88,7 @@ export default function LoginPage() {
     if (!auth || configError) return
     setAdminLoading(true)
     try {
-      const credential = await signInWithEmailAndPassword(auth, adminEmail, adminPassword)
+      const credential = await signInWithEmailAndPassword(auth, adminEmail.trim(), adminPassword)
       await redirectUser(credential.user)
     } catch (error: any) {
       toast({ variant: "destructive", title: "Login Failed", description: "Invalid email or security password." })
@@ -134,7 +134,7 @@ export default function LoginPage() {
 
       if (!matchedParent) throw new Error("Verification failed: Phone number not recognized for this student.");
 
-      const parentEmail = matchedParent.email || `${matchedParent.parentNumber.toLowerCase().trim()}@system.yebfa.com`;
+      const parentEmail = matchedParent.email || `${matchedParent.parentNumber.toUpperCase().trim()}@system.yebfa.com`;
       const credential = await signInWithEmailAndPassword(auth, parentEmail, inputPhone)
       await redirectUser(credential.user)
 
@@ -162,7 +162,7 @@ export default function LoginPage() {
         throw new Error("Invalid Student PIN. Please check and try again.");
       }
       
-      const studentEmail = `${normalizedId.toLowerCase().trim()}@system.yebfa.com`;
+      const studentEmail = `${normalizedId.toUpperCase().trim()}@system.yebfa.com`;
       try {
         const credential = await signInWithEmailAndPassword(auth, studentEmail, studentPinInput.trim())
         await redirectUser(credential.user)
@@ -192,16 +192,24 @@ export default function LoginPage() {
       if (snap.empty) throw new Error("Staff ID not found in registry.");
       
       const personData = snap.docs[0].data()
-      // Use the verified email stored in the registry record
-      const accountEmail = personData.email || `${normalizedId.toLowerCase().trim()}@system.yebfa.com`
+      // Use the verified email stored in the registry record, or fallback to the standard system format
+      const accountEmail = personData.email || `${normalizedId.toUpperCase().trim()}@system.yebfa.com`
       
       let cleanCredential = normalizeSecurityPhone(staffPhoneInput)
+      // Standardize padding to match enrollment standard
       if (cleanCredential.length < 6) cleanCredential = cleanCredential.padEnd(6, '0');
 
-      const credential = await signInWithEmailAndPassword(auth, accountEmail, cleanCredential)
-      await redirectUser(credential.user)
+      try {
+        const credential = await signInWithEmailAndPassword(auth, accountEmail, cleanCredential)
+        await redirectUser(credential.user)
+      } catch (authErr: any) {
+        if (authErr.code === 'auth/invalid-credential' || authErr.code === 'auth/user-not-found') {
+          throw new Error("Security verification failed. Please ensure your registered phone number is correct.");
+        }
+        throw authErr;
+      }
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Access Denied", description: "Verification failed. Check your ID and registered phone number." })
+      toast({ variant: "destructive", title: "Access Denied", description: error.message })
     } finally { setStaffLoading(false) }
   }
 
