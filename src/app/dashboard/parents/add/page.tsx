@@ -76,14 +76,14 @@ export default function AddParentPage() {
   const parentsQuery = useMemo(() => institutionId ? query(collection(db, "parents"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   const { data: parents = [], loading: parentsLoading } = useCollection(parentsQuery)
 
-  // Sequential ID Generator: Finds the maximum numeric suffix in the current registry
+  // Hardened Deterministic ID Sequencer
   useEffect(() => {
     if (institutionId && !parentsLoading) {
       const numbers = parents
         .map(p => {
           const raw = p.parentNumber || "";
           const match = raw.match(/(\d+)/);
-          return match ? parseInt(match[0]) : 0;
+          return match ? parseInt(match[0], 10) : 0;
         })
         .filter(n => !isNaN(n));
       
@@ -95,7 +95,15 @@ export default function AddParentPage() {
         setParentForm(prev => ({ ...prev, parentNumber: autoCode }));
       }
     }
-  }, [institutionId, parentsLoading, parents, parentForm.parentNumber])
+  }, [institutionId, parentsLoading, parents]);
+
+  const normalizePhone = (num: string) => {
+    if (!num) return "";
+    let clean = num.replace(/\s+/g, '').replace(/-/g, '').replace(/\(/g, '').replace(/\)/g, '');
+    if (clean.startsWith('+233')) return '0' + clean.slice(4);
+    if (clean.startsWith('233') && clean.length > 9) return '0' + clean.slice(3);
+    return clean;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -108,13 +116,14 @@ export default function AddParentPage() {
 
     setLoading(true)
     try {
-      const secondaryAppName = `secondary-parent-${Date.now()}`
+      const cleanPhone = normalizePhone(parentForm.phone)
+      const secondaryAppName = `secondary-parent-${Date.now()}-${Math.random().toString(36).substring(7)}`
       const secondaryApp = getApps().find(a => a.name === secondaryAppName) || initializeApp(firebaseConfig, secondaryAppName)
       const secondaryAuth = getAuth(secondaryApp)
       
       let authUser;
       try {
-        const credential = await createUserWithEmailAndPassword(secondaryAuth, parentForm.email, parentForm.phone)
+        const credential = await createUserWithEmailAndPassword(secondaryAuth, parentForm.email, cleanPhone)
         authUser = credential.user
       } catch (authErr: any) {
         if (authErr.code !== 'auth/email-already-in-use') throw authErr;
@@ -123,6 +132,7 @@ export default function AddParentPage() {
       const parentRef = doc(collection(db, "parents"))
       const parentData = {
         ...parentForm,
+        phone: cleanPhone,
         id: parentRef.id,
         tenantId: institutionId,
         institutionId,
@@ -156,15 +166,13 @@ export default function AddParentPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-20">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild className="rounded-xl h-11 w-11">
-            <Link href="/dashboard/parents"><ArrowLeft className="size-5" /></Link>
-          </Button>
-          <div>
-            <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Guardian Enrollment</h1>
-            <p className="text-muted-foreground font-medium">Registering a new parent in the institutional hub.</p>
-          </div>
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" asChild className="rounded-xl h-11 w-11">
+          <Link href="/dashboard/parents"><ArrowLeft className="size-5" /></Link>
+        </Button>
+        <div>
+          <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Guardian Enrollment</h1>
+          <p className="text-muted-foreground font-medium">Registering a new parent in the institutional hub.</p>
         </div>
       </div>
 
@@ -192,9 +200,15 @@ export default function AddParentPage() {
             <CardContent className="p-8">
               <TabsContent value="personal" className="space-y-8 mt-0">
                 <div className="flex flex-col md:flex-row gap-8 items-start">
-                   <div className="size-32 rounded-2xl bg-slate-50 border-2 border-dashed flex flex-col items-center justify-center text-muted-foreground shrink-0"><Camera className="size-8 mb-1 opacity-20" /><span className="text-[10px] font-bold">Upload</span></div>
+                   <div className="size-32 rounded-2xl bg-slate-50 border-2 border-dashed flex flex-col items-center justify-center text-muted-foreground shrink-0">
+                     <Camera className="size-8 mb-1 opacity-20" />
+                     <span className="text-[10px] font-bold">Upload</span>
+                   </div>
                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-1.5"><Label className="text-[10px] font-bold">Parent ID Number</Label><Input readOnly value={parentForm.parentNumber} className="h-12 bg-slate-50 font-bold font-mono" /></div>
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-bold">Parent ID Number</Label>
+                        <Input readOnly value={parentsLoading ? "Loading..." : parentForm.parentNumber} className="h-12 bg-slate-50 font-bold font-mono" />
+                      </div>
                       <div className="space-y-1.5"><Label className="text-[10px] font-bold">First Name</Label><Input required value={parentForm.firstName} onChange={e => setParentForm({...parentForm, firstName: e.target.value})} className="h-12 rounded-xl" /></div>
                       <div className="space-y-1.5"><Label className="text-[10px] font-bold">Last Name</Label><Input required value={parentForm.lastName} onChange={e => setParentForm({...parentForm, lastName: e.target.value})} className="h-12 rounded-xl" /></div>
                       <div className="space-y-1.5"><Label className="text-[10px] font-bold">Gender</Label>
@@ -236,7 +250,7 @@ export default function AddParentPage() {
 
             <CardFooter className="bg-slate-50 p-8 border-t flex justify-between">
               <Button type="button" variant="ghost" asChild><Link href="/dashboard/parents">Cancel</Link></Button>
-              <Button type="submit" disabled={loading} className="h-14 px-12 bg-primary font-bold shadow-xl">
+              <Button type="submit" disabled={loading || parentsLoading} className="h-14 px-12 bg-primary font-bold shadow-xl">
                 {loading ? <Loader2 className="mr-2 animate-spin" /> : <Save className="mr-2" />} Authorize Registry Entry
               </Button>
             </CardFooter>

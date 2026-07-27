@@ -34,13 +34,21 @@ export default function DashboardLayout({
   const [institutionId, setInstitutionId] = useState<string | null>(null);
   const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    const storedId = localStorage.getItem('selected_institution_id');
-    setInstitutionId(storedId);
-  }, []);
-
   const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user]);
   const { data: profile, loading: profileLoading } = useDoc(userProfileRef);
+
+  useEffect(() => {
+    if (profile?.tenantId) {
+      setInstitutionId(profile.tenantId);
+      localStorage.setItem('selected_institution_id', profile.tenantId);
+      if (profile.institutionName) {
+        localStorage.setItem('selected_institution_name', profile.institutionName);
+        setInstitutionName(profile.institutionName);
+      }
+    } else {
+      setInstitutionId(localStorage.getItem('selected_institution_id'));
+    }
+  }, [profile]);
 
   const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId]);
   const { data: institution } = useDoc(instRef);
@@ -90,18 +98,6 @@ export default function DashboardLayout({
     }
   }, [user, authLoading, router]);
 
-  useEffect(() => {
-    const updateName = () => {
-      const storedName = localStorage.getItem('selected_institution_name');
-      if (storedName && storedName !== institutionName) {
-        setInstitutionName(storedName);
-      }
-    };
-    updateName();
-    const interval = setInterval(updateName, 2000);
-    return () => clearInterval(interval);
-  }, [institutionName]);
-
   const trialDaysLeft = useMemo(() => {
     if (!institution?.createdAt) return null;
     const start = new Date(institution.createdAt.toMillis());
@@ -144,7 +140,7 @@ export default function DashboardLayout({
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center bg-background gap-4">
         <Activity className="h-10 w-10 animate-spin text-primary" />
-        <p className="font-headline font-bold text-lg animate-pulse uppercase tracking-widest text-xs">Synchronizing Identity Hub...</p>
+        <p className="font-headline font-bold text-lg animate-pulse uppercase tracking-widest text-xs text-primary">Synchronizing Institutional Hub...</p>
       </div>
     );
   }

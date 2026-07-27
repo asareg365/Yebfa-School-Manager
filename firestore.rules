@@ -70,19 +70,15 @@ service cloud.firestore {
     }
 
     match /parents/{parentId} {
-      // Allow unauthenticated lookup for ID-based login, and allow full read for signed-in users in the same tenant
+      // Allow lookup by ID and phone for login verification
       allow list, get: if true; 
-      allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
-      allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin() || isAccountant());
-      allow delete: if isSuperAdmin() || isOwner();
+      allow read, write: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data) || belongsToUserTenant(request.resource.data));
     }
 
     match /staff/{staffId} {
-      // Allow unauthenticated lookup for ID-based login, and allow full read for signed-in users in the same tenant
+      // Allow lookup by ID and phone for login verification
       allow list, get: if true;
-      allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
-      allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin() || isAccountant());
-      allow delete: if isSuperAdmin() || isOwner();
+      allow read, write: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data) || belongsToUserTenant(request.resource.data));
     }
 
     match /student_parents/{relId} {
@@ -92,9 +88,7 @@ service cloud.firestore {
     }
 
     match /students/{studentId} {
-      allow read: if signedIn();
-      allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin() || isTeacher());
-      allow delete: if isSuperAdmin() || isOwner();
+      allow read, write: if signedIn();
     }
 
     // Standard Multi-Tenant Rule Pattern for other modules
