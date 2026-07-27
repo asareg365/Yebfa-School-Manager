@@ -235,15 +235,15 @@ export function AppSidebar() {
           </div>
           {state === "expanded" && (
             <div className="flex flex-col gap-0.5 leading-none">
-              <span className="font-headline font-bold text-lg tracking-tight">Yebfa <span className="text-accent">|</span> Manager</span>
-              <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">System 2026</span>
+              <span className="font-headline font-bold text-lg tracking-tight text-white">Yebfa <span className="text-accent">|</span> Manager</span>
+              <span className="text-[10px] text-white/50 font-bold uppercase tracking-wider">System 2026</span>
             </div>
           )}
         </div>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Hub Operations</SidebarGroupLabel>
+          <SidebarGroupLabel className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white/40">Hub Operations</SidebarGroupLabel>
           <SidebarMenu>
             {navigation.map((item) => (
               <SidebarMenuItem key={item.title}>
@@ -251,7 +251,7 @@ export function AppSidebar() {
                   <Collapsible asChild className="group/collapsible" defaultOpen={pathname.startsWith(item.url !== "#" ? item.url : "/dashboard")}>
                     <div className="flex flex-col">
                       <CollapsibleTrigger asChild>
-                        <SidebarMenuButton tooltip={item.title}>
+                        <SidebarMenuButton tooltip={item.title} className="text-white/80 hover:text-white">
                           {item.icon && <item.icon />}
                           <span className="font-medium">{item.title}</span>
                           <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
@@ -261,7 +261,7 @@ export function AppSidebar() {
                         <SidebarMenuSub>
                           {item.items.map((subItem) => (
                             <SidebarMenuSubItem key={subItem.title}>
-                              <SidebarMenuSubButton asChild isActive={pathname === subItem.url}>
+                              <SidebarMenuSubButton asChild isActive={pathname === subItem.url} className="text-white/60 hover:text-white data-[active=true]:text-accent">
                                 <Link href={subItem.url}>{subItem.title}</Link>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
@@ -271,7 +271,7 @@ export function AppSidebar() {
                     </div>
                   </Collapsible>
                 ) : (
-                  <SidebarMenuButton asChild isActive={pathname === item.url} tooltip={item.title}>
+                  <SidebarMenuButton asChild isActive={pathname === item.url} tooltip={item.title} className="text-white/80 hover:text-white data-[active=true]:text-accent">
                     <Link href={item.url}>
                       {item.icon && <item.icon />}
                       <span className="font-medium">{item.title}</span>
@@ -285,7 +285,7 @@ export function AppSidebar() {
 
         {isSuperAdmin && (
           <SidebarGroup>
-            <SidebarGroupLabel className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Ecosystem Management</SidebarGroupLabel>
+            <SidebarGroupLabel className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white/40">Ecosystem Management</SidebarGroupLabel>
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={pathname === "/admin"} tooltip="SaaS Command Center" className="text-accent hover:text-accent font-bold">
@@ -299,25 +299,25 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
       </SidebarContent>
-      <SidebarFooter className="border-t border-border/40 p-4">
+      <SidebarFooter className="border-t border-white/10 p-4">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" className="hover:bg-accent/10 transition-colors h-auto py-3" onClick={handleLogout}>
-              <Avatar className="size-9 rounded-lg border-2 border-primary/20">
-                <AvatarFallback className="rounded-lg bg-primary text-primary-foreground font-bold">
+            <SidebarMenuButton size="lg" className="hover:bg-white/5 transition-colors h-auto py-3" onClick={handleLogout}>
+              <Avatar className="size-9 rounded-lg border border-white/20">
+                <AvatarFallback className="rounded-lg bg-accent text-accent-foreground font-bold">
                   {displayName.charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight ml-3">
                 <div className="flex flex-col gap-0.5">
-                   <span className="truncate font-bold text-primary">{displayName}</span>
+                   <span className="truncate font-bold text-white">{displayName}</span>
                    {displayID && <span className="text-[9px] font-mono font-bold text-accent uppercase tracking-tighter">{displayID}</span>}
-                   <Badge variant="secondary" className="text-[8px] h-4 px-2 w-fit uppercase bg-primary/5 text-primary border-none font-black tracking-widest mt-1">
+                   <Badge variant="secondary" className="text-[8px] h-4 px-2 w-fit uppercase bg-white/10 text-white border-none font-black tracking-widest mt-1">
                       {displayDesignation}
                    </Badge>
                 </div>
               </div>
-              <LogOut className="ml-auto size-4 opacity-50" />
+              <LogOut className="ml-auto size-4 text-white/50" />
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
