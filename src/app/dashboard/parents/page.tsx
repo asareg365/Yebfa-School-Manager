@@ -24,7 +24,7 @@ import {
   RefreshCw,
   Activity
 } from "lucide-react"
-import { useFirestore, useCollection, useUser, useDoc } from "@/firebase"
+import { useUser, useFirestore, useCollection, useDoc } from "@/firebase"
 import { collection, query, where, doc, deleteDoc, writeBatch, serverTimestamp } from "firebase/firestore"
 import { useState, useMemo, useEffect } from "react"
 import { Badge } from "@/components/ui/badge"
@@ -92,7 +92,8 @@ export default function ParentsRegistryPage() {
       toast({ title: "Authorization Cycle Started", description: "Processing guardian registry..." });
 
       for (const p of parents) {
-        if (!p.parentNumber || p.parentNumber.includes("PENDING")) {
+        // Essential record check: skip pending IDs or missing phones
+        if (!p.parentNumber || p.parentNumber.includes("PENDING") || !p.phone) {
           skippedCount++;
           continue;
         }
@@ -193,7 +194,7 @@ export default function ParentsRegistryPage() {
       <Card className="border-none shadow-xl rounded-2xl overflow-hidden bg-white">
         <CardHeader className="bg-white border-b py-6 px-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="relative flex-1 max-w-md">
+            <div className="relative flex-1 max-md">
               <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
               <Input 
                 placeholder="Search by name, PAR code or phone..." 

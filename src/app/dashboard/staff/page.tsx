@@ -86,9 +86,18 @@ export default function StaffHRPage() {
     ).sort((a, b) => (a.staffNumber || "").localeCompare(b.staffNumber || ""));
   }, [rawStaff, searchQuery]);
 
+  // Deterministic mapping of registry designation to system roles
+  const resolveSystemRole = (designation: string) => {
+    const d = designation?.toLowerCase() || ""
+    if (d === 'head teacher' || d === 'administrator') return 'administrator'
+    if (d === 'accountant') return 'accountant'
+    if (d === 'librarian') return 'librarian'
+    return 'teacher' // Default role
+  }
+
   const handleSyncCredentials = async () => {
     if (!db || !institutionId || rawStaff.length === 0) return;
-    if (!confirm("This will authorize portal access for all staff by creating secure accounts. Proceed?")) return;
+    if (!confirm("This will authorize portal access for all faculty based on their current designations. Proceed?")) return;
 
     setSyncing(true);
     const provisionAppName = `staff-sync-${Date.now()}`;
@@ -103,7 +112,7 @@ export default function StaffHRPage() {
       toast({ title: "Authorization Cycle Started", description: "Processing faculty registry..." });
 
       for (const s of rawStaff) {
-        if (!s.staffNumber || s.staffNumber.includes("PENDING")) {
+        if (!s.staffNumber || s.staffNumber.includes("PENDING") || !s.phone) {
           skippedCount++;
           continue;
         }
@@ -112,7 +121,6 @@ export default function StaffHRPage() {
         const accountEmail = s.email || `${safeId}@system.yebfa.com`;
         let cleanPass = normalizeSecurityPhone(s.phone);
         
-        // Firebase passwords must be >= 6 chars
         if (cleanPass.length < 6) {
           cleanPass = cleanPass.padEnd(6, '0');
         }
@@ -125,7 +133,7 @@ export default function StaffHRPage() {
             uid: authUser.uid,
             name: `${s.firstName} ${s.lastName}`,
             email: accountEmail,
-            role: s.designation?.toLowerCase().includes("teacher") ? "teacher" : "administrator",
+            role: resolveSystemRole(s.designation),
             tenantId: institutionId,
             institutionId: institutionId,
             institutionName: institution?.name || "Academic Hub",
@@ -141,7 +149,6 @@ export default function StaffHRPage() {
           if (e.code === 'auth/email-already-in-use') {
              syncCount++;
           } else {
-             console.error(`Provisioning failure for ${s.staffNumber}:`, e.message);
              skippedCount++;
           }
         }
@@ -150,7 +157,7 @@ export default function StaffHRPage() {
       await batch.commit();
       toast({ 
         title: "Registry Sync Complete", 
-        description: `Successfully provisioned ${syncCount} accounts. ${skippedCount > 0 ? `${skippedCount} records were skipped.` : ''}` 
+        description: `Successfully provisioned ${syncCount} accounts. ${skippedCount > 0 ? `${skippedCount} records skipped.` : ''}` 
       });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Sync Engine Error", description: e.message });
@@ -168,7 +175,7 @@ export default function StaffHRPage() {
     const provisionAppName = `staff-enroll-${Date.now()}`;
     const provisionApp = initializeApp(firebaseConfig, provisionAppName);
     const provisionAuth = getAuth(provisionApp);
-
+    
     try {
       const batch = writeBatch(db)
       let staffId = editingStaff?.id
@@ -194,7 +201,7 @@ export default function StaffHRPage() {
             uid: authUser.uid,
             name: `${staffForm.firstName} ${staffForm.lastName}`,
             email: accountEmail,
-            role: staffForm.designation?.toLowerCase().includes("teacher") ? "teacher" : "administrator",
+            role: resolveSystemRole(staffForm.designation),
             tenantId: institutionId,
             institutionId: institutionId,
             institutionName: institution?.name || "Academic Hub",
