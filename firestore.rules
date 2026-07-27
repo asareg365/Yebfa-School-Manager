@@ -79,24 +79,21 @@ service cloud.firestore {
       allow update, delete: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
     }
 
-    // Identity Registry Rules
+    // Identity Registry Rules - Allowed for unauthenticated identity handshake during login
     match /parents/{parentId} {
-      allow list: if signedIn();
-      allow get: if true;
+      allow list, get: if true;
       allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
       allow delete: if isSuperAdmin();
     }
 
     match /staff/{staffDocId} {
-      allow list: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin() || isAccountant());
-      allow get: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin() || isAccountant() || staffId() == staffDocId);
+      allow list, get: if true;
       allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
       allow delete: if isSuperAdmin();
     }
 
     match /students/{studentId} {
-      allow list: if signedIn();
-      allow get: if true;
+      allow list, get: if true;
       allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin() || isTeacher());
       allow delete: if isSuperAdmin();
     }
