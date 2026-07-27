@@ -6,19 +6,22 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { School, Loader2, AlertCircle, Info, ArrowRight, ShieldCheck } from "lucide-react"
+import { School, Loader2, AlertCircle, Info, ArrowRight, ShieldCheck, User, Users, Briefcase, KeyRound, Smartphone } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail } from "firebase/auth"
-import { doc, getDoc } from "firebase/firestore"
+import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore"
 import { auth, db, useUser } from "@/firebase"
 import { firebaseConfig } from "@/firebase/config"
 import { toast } from "@/hooks/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [idNumber, setIdNumber] = useState("")
+  const [phoneNumber, setPhoneNumber] = useState("")
   const [loading, setLoading] = useState(false)
   const [resetLoading, setResetLoading] = useState(false)
   const [configError, setConfigError] = useState(false)
@@ -37,13 +40,11 @@ export default function LoginPage() {
 
       const userData = userSnap.data()
 
-      // Set tenant context for staff and owners
       if (userData.tenantId) {
         localStorage.setItem('selected_institution_id', userData.tenantId)
         localStorage.setItem('selected_institution_name', userData.institutionName || 'My School')
       }
 
-      // Role-Based Redirection Logic
       if (userData.role === "super_admin") {
         router.replace("/admin")
         return
@@ -54,7 +55,6 @@ export default function LoginPage() {
         return
       }
 
-      // Default dashboard for all institutional staff roles
       router.replace("/dashboard")
     } catch (error) {
       console.error("Redirection error:", error)
@@ -90,6 +90,50 @@ export default function LoginPage() {
     }
   }
 
+  const handleIdLogin = async (type: 'staff' | 'parent') => {
+    if (!idNumber || !phoneNumber) {
+      toast({ variant: "destructive", title: "Missing Credentials", description: "Please enter both your ID and Phone number." })
+      return
+    }
+    
+    setLoading(true)
+    try {
+      const collectionName = type === 'staff' ? "staff" : "parents"
+      const idField = type === 'staff' ? "staffNumber" : "parentNumber"
+      
+      const q = query(
+        collection(db, collectionName), 
+        where(idField, "==", idNumber),
+        where("phone", "==", phoneNumber)
+      )
+      const snap = await getDocs(q)
+      
+      if (snap.empty) {
+        throw new Error("Invalid ID or phone number mismatch. Please verify with administration.")
+      }
+      
+      const personData = snap.docs[0].data()
+      const accountEmail = personData.email
+      
+      if (!accountEmail) {
+        throw new Error("Registry record found, but no system email is associated. Contact Admin for account activation.")
+      }
+      
+      // Use phone number as the initial password for registry-based login
+      const credential = await signInWithEmailAndPassword(auth, accountEmail, phoneNumber)
+      await redirectUser(credential.user)
+      
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Access Denied",
+        description: error.message || "Credential verification failed.",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleForgotPassword = async () => {
     if (!email) {
       toast({
@@ -117,38 +161,6 @@ export default function LoginPage() {
     }
   }
 
-  const handleGoogleLogin = async () => {
-    if (!auth || configError) return
-    setLoading(true)
-    try {
-      const provider = new GoogleAuthProvider()
-      const credential = await signInWithPopup(auth, provider)
-      await redirectUser(credential.user)
-    } catch (error: any) {
-      if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
-        return
-      }
-      
-      console.error("Google Auth Error:", error)
-      
-      if (error.code === 'auth/unauthorized-domain') {
-        toast({
-          variant: "destructive",
-          title: "Domain Not Authorized",
-          description: "Please add this domain to the 'Authorized domains' list in your Firebase Console.",
-        })
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Google Login Failed",
-          description: error.message || "An unexpected authentication error occurred.",
-        })
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
-
   if (authLoading) return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30">
       <div className="flex flex-col items-center gap-4">
@@ -167,99 +179,154 @@ export default function LoginPage() {
         <span className="text-2xl font-headline font-bold tracking-tight text-primary">Yebfa School Manager</span>
       </Link>
       
-      <Card className="w-full max-w-md border-none shadow-xl">
-        <CardHeader className="space-y-1">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-2xl font-bold">Sign In</CardTitle>
-            <div className="size-8 rounded-full bg-primary/5 flex items-center justify-center text-primary">
-              <ShieldCheck className="size-4" />
-            </div>
-          </div>
-          <CardDescription>
-            Secure access to your institutional ecosystem.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {configError ? (
-            <Alert variant="destructive" className="bg-red-50 border-red-200">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle className="font-bold">Configuration Required</AlertTitle>
-              <AlertDescription className="text-xs">
-                Firebase is not configured. Please link a project to activate login.
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <Alert className="bg-blue-50 border-blue-200 text-blue-800">
-              <Info className="h-4 w-4" />
-              <AlertTitle className="text-xs font-bold uppercase tracking-wider">Secure Access</AlertTitle>
-              <AlertDescription className="text-xs">
-                Enter your credentials to access the 2026 academic management tools.
-              </AlertDescription>
-            </Alert>
-          )}
+      <Card className="w-full max-w-lg border-none shadow-2xl overflow-hidden rounded-3xl bg-white">
+        <Tabs defaultValue="admin" className="w-full">
+          <TabsList className="grid grid-cols-3 h-14 bg-muted/50 p-1 rounded-none border-b">
+            <TabsTrigger value="admin" className="rounded-none gap-2 text-[10px] font-bold uppercase tracking-wider">
+              <ShieldCheck className="size-3.5" /> Admin
+            </TabsTrigger>
+            <TabsTrigger value="staff" className="rounded-none gap-2 text-[10px] font-bold uppercase tracking-wider">
+              <Briefcase className="size-3.5" /> Staff
+            </TabsTrigger>
+            <TabsTrigger value="parent" className="rounded-none gap-2 text-[10px] font-bold uppercase tracking-wider">
+              <Users className="size-3.5" /> Parents
+            </TabsTrigger>
+          </TabsList>
 
-          <form onSubmit={handleEmailLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
-              <Input 
-                id="email" 
-                type="email" 
-                placeholder="admin@yebfa.com" 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={configError}
-                className="h-11"
-              />
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Security Password</Label>
-                <button 
-                  type="button" 
-                  onClick={handleForgotPassword}
-                  className="text-[10px] font-bold text-primary hover:underline uppercase tracking-tighter"
-                  disabled={resetLoading}
-                >
-                  {resetLoading ? "Processing..." : "Forgot Password?"}
-                </button>
+          <CardHeader className="space-y-1 pb-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-2xl font-bold">Secure Access</CardTitle>
+              <div className="size-8 rounded-full bg-primary/5 flex items-center justify-center text-primary">
+                <KeyRound className="size-4" />
               </div>
-              <Input 
-                id="password" 
-                type="password" 
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={configError}
-                className="h-11"
-              />
             </div>
-            <Button className="w-full h-11 font-bold" type="submit" disabled={loading || configError}>
-              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Access Dashboard"}
+            <CardDescription>
+              Identify yourself to enter the institutional hub.
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent className="space-y-4">
+            <TabsContent value="admin" className="mt-0 space-y-4 animate-in fade-in duration-300">
+              <form onSubmit={handleEmailLogin} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email Address</Label>
+                  <Input 
+                    id="email" 
+                    type="email" 
+                    placeholder="admin@yebfa.com" 
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    disabled={configError}
+                    className="h-12 rounded-xl"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password">Security Password</Label>
+                    <button 
+                      type="button" 
+                      onClick={handleForgotPassword}
+                      className="text-[10px] font-bold text-primary hover:underline uppercase tracking-tighter"
+                    >
+                      Forgot?
+                    </button>
+                  </div>
+                  <Input 
+                    id="password" 
+                    type="password" 
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    disabled={configError}
+                    className="h-12 rounded-xl"
+                  />
+                </div>
+                <Button className="w-full h-12 font-bold rounded-xl" type="submit" disabled={loading || configError}>
+                  {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Access Dashboard"}
+                </Button>
+              </form>
+            </TabsContent>
+
+            <TabsContent value="staff" className="mt-0 space-y-4 animate-in fade-in duration-300">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Staff Number (EMP ID)</Label>
+                  <div className="relative">
+                    <Briefcase className="absolute left-3 top-3.5 size-4 text-muted-foreground" />
+                    <Input 
+                      placeholder="e.g. EMP-001" 
+                      value={idNumber}
+                      onChange={(e) => setIdNumber(e.target.value)}
+                      className="pl-10 h-12 rounded-xl"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Phone Number</Label>
+                  <div className="relative">
+                    <Smartphone className="absolute left-3 top-3.5 size-4 text-muted-foreground" />
+                    <Input 
+                      type="tel"
+                      placeholder="e.g. 024XXXXXXX" 
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      className="pl-10 h-12 rounded-xl"
+                    />
+                  </div>
+                </div>
+                <Button className="w-full h-12 font-bold rounded-xl bg-primary" onClick={() => handleIdLogin('staff')} disabled={loading}>
+                  {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Verify Faculty Identity"}
+                </Button>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="parent" className="mt-0 space-y-4 animate-in fade-in duration-300">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Parent Number (PAR ID)</Label>
+                  <div className="relative">
+                    <Users className="absolute left-3 top-3.5 size-4 text-muted-foreground" />
+                    <Input 
+                      placeholder="e.g. PAR-000001" 
+                      value={idNumber}
+                      onChange={(e) => setIdNumber(e.target.value)}
+                      className="pl-10 h-12 rounded-xl"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Phone Number</Label>
+                  <div className="relative">
+                    <Smartphone className="absolute left-3 top-3.5 size-4 text-muted-foreground" />
+                    <Input 
+                      type="tel"
+                      placeholder="e.g. 024XXXXXXX" 
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      className="pl-10 h-12 rounded-xl"
+                    />
+                  </div>
+                </div>
+                <Button className="w-full h-12 font-bold rounded-xl bg-primary" onClick={() => handleIdLogin('parent')} disabled={loading}>
+                  {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Verify Guardian Identity"}
+                </Button>
+              </div>
+            </TabsContent>
+          </CardContent>
+
+          <CardFooter className="bg-muted/30 p-6 flex flex-col gap-4 border-t">
+            <p className="text-[10px] text-center text-muted-foreground uppercase font-bold tracking-widest">
+              Institutional Data Isolation Active • System 2026
+            </p>
+            <Button variant="link" className="w-full gap-2 text-primary font-bold text-xs" asChild>
+              <Link href="/register/institution">
+                Register New Institution <ArrowRight className="size-3.5" />
+              </Link>
             </Button>
-          </form>
-          
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground text-[10px] font-bold">Network Provider</span>
-            </div>
-          </div>
-          
-          <Button variant="outline" className="w-full h-11 transition-all active:scale-95" onClick={handleGoogleLogin} disabled={loading || configError}>
-            Continue with Google
-          </Button>
-        </CardContent>
-        <CardFooter className="bg-muted/30 p-4">
-          <Button variant="link" className="w-full gap-2 text-primary font-bold" asChild>
-            <Link href="/register/institution">
-              Register New Institution <ArrowRight className="size-4" />
-            </Link>
-          </Button>
-        </CardFooter>
+          </CardFooter>
+        </Tabs>
       </Card>
       
       <p className="mt-8 text-center text-sm text-muted-foreground">

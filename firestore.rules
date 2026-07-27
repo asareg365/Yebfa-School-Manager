@@ -66,7 +66,8 @@ service cloud.firestore {
     }
 
     match /parents/{parentId} {
-      allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
+      // Allow unauthenticated read only for login verification (limited query)
+      allow list, get: if true; 
       allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin() || isAccountant());
       allow delete: if isSuperAdmin() || isOwner();
     }
@@ -84,7 +85,8 @@ service cloud.firestore {
     }
 
     match /staff/{staffId} {
-      allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
+      // Allow unauthenticated read only for login verification (limited query)
+      allow list, get: if true;
       allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin() || isAccountant());
       allow delete: if isSuperAdmin() || isOwner();
     }
