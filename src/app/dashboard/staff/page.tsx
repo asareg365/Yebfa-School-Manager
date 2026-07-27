@@ -58,7 +58,6 @@ export default function StaffHRPage() {
 
   const [staffForm, setStaffForm] = useState(initialForm)
 
-  // Durable Context Resolver
   const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
   const { data: profile, loading: profileLoading } = useDoc(userProfileRef)
 
@@ -89,7 +88,7 @@ export default function StaffHRPage() {
 
   const handleSyncCredentials = async () => {
     if (!db || !institutionId || rawStaff.length === 0) return;
-    if (!confirm("This will authorize portal access for all staff by creating secure accounts. This process may take a few moments. Proceed?")) return;
+    if (!confirm("This will authorize portal access for all staff by creating secure accounts. Proceed?")) return;
 
     setSyncing(true);
     const provisionAppName = `staff-sync-${Date.now()}`;
@@ -98,27 +97,30 @@ export default function StaffHRPage() {
 
     try {
       let syncCount = 0;
-      let errorCount = 0;
+      let skippedCount = 0;
+      const batch = writeBatch(db);
 
-      toast({ title: "Authorization Cycle Started", description: "Batch provisioning faculty accounts..." });
+      toast({ title: "Authorization Cycle Started", description: "Processing faculty registry..." });
 
       for (const s of rawStaff) {
-        if (!s.staffNumber) continue;
-        
-        const accountEmail = s.email || `${s.staffNumber.toLowerCase().trim()}@system.yebfa.com`;
-        const cleanPass = normalizeSecurityPhone(s.phone);
-        
-        if (cleanPass.length < 6) {
-          console.warn(`Staff ${s.staffNumber} has an invalid security key (phone too short). Skipping.`);
-          errorCount++;
+        if (!s.staffNumber || s.staffNumber.includes("PENDING")) {
+          skippedCount++;
           continue;
+        }
+        
+        const safeId = s.staffNumber.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        const accountEmail = s.email || `${safeId}@system.yebfa.com`;
+        let cleanPass = normalizeSecurityPhone(s.phone);
+        
+        // Firebase passwords must be >= 6 chars
+        if (cleanPass.length < 6) {
+          cleanPass = cleanPass.padEnd(6, '0');
         }
 
         try {
           const credential = await createUserWithEmailAndPassword(provisionAuth, accountEmail, cleanPass);
           const authUser = credential.user;
 
-          const batch = writeBatch(db);
           batch.set(doc(db, "users", authUser.uid), {
             uid: authUser.uid,
             name: `${s.firstName} ${s.lastName}`,
@@ -133,25 +135,22 @@ export default function StaffHRPage() {
             createdAt: serverTimestamp()
           });
           
-          await batch.commit();
-          syncCount++;
-          
-          // Clear session for next user creation
           await signOut(provisionAuth);
+          syncCount++;
         } catch (e: any) {
           if (e.code === 'auth/email-already-in-use') {
-             // Account exists, consider it synced
              syncCount++;
           } else {
              console.error(`Provisioning failure for ${s.staffNumber}:`, e.message);
-             errorCount++;
+             skippedCount++;
           }
         }
       }
       
+      await batch.commit();
       toast({ 
         title: "Registry Sync Complete", 
-        description: `Successfully provisioned ${syncCount} accounts. ${errorCount > 0 ? `${errorCount} records required manual review.` : ''}` 
+        description: `Successfully provisioned ${syncCount} accounts. ${skippedCount > 0 ? `${skippedCount} records were skipped.` : ''}` 
       });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Sync Engine Error", description: e.message });
@@ -178,10 +177,11 @@ export default function StaffHRPage() {
       if (!editingStaff) {
         finalStaffNumber = await generateInstitutionId('STF', institutionId, institution?.schoolCode);
         
-        const cleanPass = normalizeSecurityPhone(staffForm.phone);
-        if (cleanPass.length < 6) throw new Error("Security Key (Phone) must be at least 6 digits.");
+        let cleanPass = normalizeSecurityPhone(staffForm.phone);
+        if (cleanPass.length < 6) cleanPass = cleanPass.padEnd(6, '0');
         
-        const accountEmail = staffForm.email || `${finalStaffNumber.toLowerCase().trim()}@system.yebfa.com`;
+        const safeId = finalStaffNumber.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        const accountEmail = staffForm.email || `${safeId}@system.yebfa.com`;
         
         const staffRef = doc(collection(db, "staff"))
         staffId = staffRef.id
@@ -246,7 +246,7 @@ export default function StaffHRPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to remove this staff member? This does not delete their security account.")) return
+    if (!confirm("Are you sure you want to remove this staff member?")) return
     try {
       await deleteDoc(doc(db!, "staff", id))
       toast({ title: "Profile Removed" })

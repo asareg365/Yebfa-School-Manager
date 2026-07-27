@@ -31,7 +31,7 @@ import { Badge } from "@/components/ui/badge"
 import { toast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { initializeApp, deleteApp } from "firebase/app"
-import { getAuth, createUserWithEmailAndPassword } from "firebase/auth"
+import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth"
 import { firebaseConfig } from "@/firebase/config"
 import { normalizeSecurityPhone } from "@/lib/identity-service"
 
@@ -43,23 +43,22 @@ export default function ParentsRegistryPage() {
   const [syncing, setSyncing] = useState(false)
   
   const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
-  const { data: profile } = useDoc(userProfileRef)
+  const { data: profile, loading: profileLoading } = useDoc(userProfileRef)
 
   useEffect(() => {
+    if (profileLoading) return;
     if (profile?.role === 'super_admin') {
       setInstitutionId(localStorage.getItem('selected_institution_id'))
     } else {
       setInstitutionId(profile?.tenantId || null)
     }
-  }, [profile])
+  }, [profile, profileLoading])
 
-  // Query all parents for the tenant
   const parentsQuery = useMemo(() => 
     institutionId ? query(collection(db, "parents"), where("tenantId", "==", institutionId)) : null, 
     [db, institutionId]
   )
   
-  // Query all relationships to calculate children count
   const relsQuery = useMemo(() => 
     institutionId ? query(collection(db, "student_parents"), where("tenantId", "==", institutionId)) : null, 
     [db, institutionId]
@@ -78,7 +77,7 @@ export default function ParentsRegistryPage() {
 
   const handleSyncCredentials = async () => {
     if (!db || !institutionId || parents.length === 0) return;
-    if (!confirm("This will authorize Portal Access for all guardians using their registered phone numbers as security keys. Proceed?")) return;
+    if (!confirm("This will authorize Portal Access for all guardians. Proceed?")) return;
 
     setSyncing(true);
     const provisionAppName = `parent-sync-${Date.now()}`;
@@ -87,16 +86,29 @@ export default function ParentsRegistryPage() {
 
     try {
       let syncCount = 0;
+      let skippedCount = 0;
+      const batch = writeBatch(db);
+
+      toast({ title: "Authorization Cycle Started", description: "Processing guardian registry..." });
+
       for (const p of parents) {
-        if (!p.parentNumber) continue;
-        const parentEmail = p.email || `${p.parentNumber.toLowerCase()}@system.yebfa.com`;
-        const cleanPass = normalizeSecurityPhone(p.phone);
+        if (!p.parentNumber || p.parentNumber.includes("PENDING")) {
+          skippedCount++;
+          continue;
+        }
+
+        const safeId = p.parentNumber.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        const parentEmail = p.email || `${safeId}@system.yebfa.com`;
+        let cleanPass = normalizeSecurityPhone(p.phone);
+        
+        if (cleanPass.length < 6) {
+          cleanPass = cleanPass.padEnd(6, '0');
+        }
         
         try {
           const credential = await createUserWithEmailAndPassword(provisionAuth, parentEmail, cleanPass);
           const authUser = credential.user;
 
-          const batch = writeBatch(db);
           batch.set(doc(db, "users", authUser.uid), {
             uid: authUser.uid,
             name: `${p.firstName} ${p.lastName}`,
@@ -107,54 +119,25 @@ export default function ParentsRegistryPage() {
             status: "active",
             createdAt: serverTimestamp()
           });
-          await batch.commit();
+          
+          await signOut(provisionAuth);
           syncCount++;
         } catch (e: any) {
-          // Email already in use - skip
+          if (e.code === 'auth/email-already-in-use') {
+             syncCount++;
+          } else {
+             skippedCount++;
+          }
         }
       }
-      toast({ title: "Guardian Access Synced", description: `Authorized portal entry for ${syncCount} parents.` });
+      
+      await batch.commit();
+      toast({ title: "Guardian Access Synced", description: `Authorized ${syncCount} parents. ${skippedCount > 0 ? `${skippedCount} skipped.` : ''}` });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Sync Failed", description: e.message });
     } finally {
       setSyncing(false);
       try { await deleteApp(provisionApp); } catch (e) {}
-    }
-  };
-
-  const handleSyncIDs = async () => {
-    if (!db || !institutionId || parents.length === 0) return;
-    if (!confirm("This will re-sequence all Parent IDs in the registry. Proceed?")) return;
-
-    setSyncing(true);
-    try {
-      const batch = writeBatch(db);
-      const sortedParents = [...parents].sort((a, b) => {
-        const dateA = a.createdAt?.toMillis?.() || 0;
-        const dateB = b.createdAt?.toMillis?.() || 0;
-        return dateA - dateB;
-      });
-
-      let updateCount = 0;
-      sortedParents.forEach((p, index) => {
-        const newID = `PAR-${String(index + 1).padStart(6, '0')}`;
-        if (p.parentNumber !== newID) {
-          batch.update(doc(db, "parents", p.id), {
-            parentNumber: newID,
-            updatedAt: serverTimestamp()
-          });
-          updateCount++;
-        }
-      });
-
-      if (updateCount > 0) {
-        await batch.commit();
-        toast({ title: "Registry Synchronized", description: `${updateCount} records updated.` });
-      }
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Sync Failed", description: e.message });
-    } finally {
-      setSyncing(false);
     }
   };
 
@@ -168,10 +151,17 @@ export default function ParentsRegistryPage() {
     }
   }
 
-  if (!institutionId && !pLoading) return (
+  if (profileLoading || pLoading) return (
+    <div className="p-20 text-center space-y-4">
+      <Loader2 className="size-12 text-primary animate-spin mx-auto" />
+      <p className="font-bold text-muted-foreground uppercase tracking-widest text-xs">Syncing Registry...</p>
+    </div>
+  )
+
+  if (!institutionId) return (
     <div className="p-20 text-center space-y-4">
       <Activity className="size-12 text-primary animate-spin mx-auto" />
-      <p className="font-bold text-muted-foreground uppercase tracking-widest text-xs">Resolving Context...</p>
+      <p className="font-bold text-muted-foreground uppercase tracking-widest text-xs">Awaiting Institutional Context...</p>
     </div>
   )
 
@@ -191,14 +181,6 @@ export default function ParentsRegistryPage() {
           >
             {syncing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
             Sync Access
-          </Button>
-          <Button 
-            variant="outline" 
-            className="h-11 rounded-xl gap-2 text-xs font-bold uppercase hidden sm:flex" 
-            onClick={handleSyncIDs}
-            disabled={syncing}
-          >
-            <ShieldCheck className="size-4" /> Re-Sequence
           </Button>
           <Button className="bg-primary h-11 rounded-xl shadow-lg gap-2" asChild>
             <Link href="/dashboard/parents/add">
