@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -75,13 +76,13 @@ export default function AddParentPage() {
   const parentsQuery = useMemo(() => institutionId ? query(collection(db, "parents"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   const { data: parents = [], loading: parentsLoading } = useCollection(parentsQuery)
 
-  // Robust ID generation to prevent duplicates by finding the max value in the current set
+  // Sequential ID Generator: Finds the maximum numeric suffix in the current registry
   useEffect(() => {
     if (institutionId && !parentsLoading) {
       const numbers = parents
         .map(p => {
           const raw = p.parentNumber || "";
-          const match = raw.match(/\d+/);
+          const match = raw.match(/(\d+)/);
           return match ? parseInt(match[0]) : 0;
         })
         .filter(n => !isNaN(n));
@@ -90,7 +91,6 @@ export default function AddParentPage() {
       const nextNum = maxNum + 1;
       const autoCode = `PAR-${String(nextNum).padStart(6, '0')}`;
       
-      // Update form if calculation differs (prevents stuck at 000001)
       if (parentForm.parentNumber !== autoCode) {
         setParentForm(prev => ({ ...prev, parentNumber: autoCode }));
       }
@@ -102,13 +102,12 @@ export default function AddParentPage() {
     if (!db || !institutionId || loading) return
     
     if (!parentForm.email) {
-      toast({ variant: "destructive", title: "Email Required", description: "Parents must have an email to access their portal." })
+      toast({ variant: "destructive", title: "Email Required", description: "Parents must have an email for portal access." })
       return
     }
 
     setLoading(true)
     try {
-      // 1. Create Auth Account using Secondary App to prevent admin sign-out
       const secondaryAppName = `secondary-parent-${Date.now()}`
       const secondaryApp = getApps().find(a => a.name === secondaryAppName) || initializeApp(firebaseConfig, secondaryAppName)
       const secondaryAuth = getAuth(secondaryApp)
@@ -118,14 +117,9 @@ export default function AddParentPage() {
         const credential = await createUserWithEmailAndPassword(secondaryAuth, parentForm.email, parentForm.phone)
         authUser = credential.user
       } catch (authErr: any) {
-        if (authErr.code === 'auth/email-already-in-use') {
-          console.warn("Auth user already exists. Proceeding with record creation.");
-        } else {
-          throw authErr;
-        }
+        if (authErr.code !== 'auth/email-already-in-use') throw authErr;
       }
 
-      // 2. Create Firestore Records
       const parentRef = doc(collection(db, "parents"))
       const parentData = {
         ...parentForm,
@@ -138,7 +132,6 @@ export default function AddParentPage() {
 
       await setDoc(parentRef, parentData)
 
-      // 3. Create User Profile
       if (authUser) {
         await setDoc(doc(db, "users", authUser.uid), {
           uid: authUser.uid,
@@ -152,10 +145,7 @@ export default function AddParentPage() {
         })
       }
       
-      toast({ 
-        title: "Parent Registry Authorized", 
-        description: `${parentForm.firstName} ${parentForm.lastName} is now active and can login with ID ${parentForm.parentNumber}.` 
-      })
+      toast({ title: "Parent Registered", description: `Record active with ID ${parentForm.parentNumber}.` })
       router.push("/dashboard/parents")
     } catch (e: any) { 
       toast({ variant: "destructive", title: "Registration Error", description: e.message }) 
@@ -169,18 +159,12 @@ export default function AddParentPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild className="rounded-xl h-11 w-11">
-            <Link href="/dashboard/parents">
-              <ArrowLeft className="size-5" />
-            </Link>
+            <Link href="/dashboard/parents"><ArrowLeft className="size-5" /></Link>
           </Button>
           <div>
             <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Guardian Enrollment</h1>
-            <p className="text-muted-foreground font-medium">Authorizing a new guardian master profile in the registry.</p>
+            <p className="text-muted-foreground font-medium">Registering a new parent in the institutional hub.</p>
           </div>
-        </div>
-        <div className="hidden md:flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/5 text-primary border border-primary/10">
-          <ShieldCheck className="size-4" />
-          <span className="text-[10px] font-bold uppercase tracking-widest">Multi-Tenant Partition Active</span>
         </div>
       </div>
 
@@ -192,165 +176,73 @@ export default function AddParentPage() {
               <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Strategic HR Operations</span>
             </div>
             <CardTitle className="text-3xl font-headline font-bold">New Parent Entry</CardTitle>
-            <CardDescription className="text-primary-foreground/70">Building a comprehensive relationship record for the institutional hub.</CardDescription>
           </CardHeader>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <div className="bg-muted/30 px-8 border-b overflow-x-auto no-scrollbar">
               <TabsList className="h-16 bg-transparent gap-8 justify-start p-0 min-w-max">
-                <TabsTrigger value="personal" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-2 gap-2 text-xs uppercase font-bold tracking-widest"><Users className="size-4" /> Personal</TabsTrigger>
-                <TabsTrigger value="contact" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-2 gap-2 text-xs uppercase font-bold tracking-widest"><Phone className="size-4" /> Contact</TabsTrigger>
-                <TabsTrigger value="professional" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-2 gap-2 text-xs uppercase font-bold tracking-widest"><Briefcase className="size-4" /> Professional</TabsTrigger>
-                <TabsTrigger value="id" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-2 gap-2 text-xs uppercase font-bold tracking-widest"><IdCard className="size-4" /> Identification</TabsTrigger>
-                <TabsTrigger value="emergency" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-2 gap-2 text-xs uppercase font-bold tracking-widest"><AlertCircle className="size-4" /> Emergency</TabsTrigger>
+                <TabsTrigger value="personal" className="gap-2 text-xs uppercase font-bold"><Users className="size-4" /> Personal</TabsTrigger>
+                <TabsTrigger value="contact" className="gap-2 text-xs uppercase font-bold"><Phone className="size-4" /> Contact</TabsTrigger>
+                <TabsTrigger value="professional" className="gap-2 text-xs uppercase font-bold"><Briefcase className="size-4" /> Professional</TabsTrigger>
+                <TabsTrigger value="id" className="gap-2 text-xs uppercase font-bold"><IdCard className="size-4" /> Identification</TabsTrigger>
+                <TabsTrigger value="emergency" className="gap-2 text-xs uppercase font-bold"><AlertCircle className="size-4" /> Emergency</TabsTrigger>
               </TabsList>
             </div>
 
             <CardContent className="p-8">
-              <TabsContent value="personal" className="space-y-8 mt-0 animate-in fade-in slide-in-from-right-4 duration-300">
+              <TabsContent value="personal" className="space-y-8 mt-0">
                 <div className="flex flex-col md:flex-row gap-8 items-start">
-                   <div className="size-32 rounded-2xl bg-slate-50 border-2 border-dashed flex flex-col items-center justify-center text-muted-foreground hover:bg-slate-100 transition-colors cursor-pointer shrink-0">
-                      <Camera className="size-8 mb-1 opacity-20" />
-                      <span className="text-[10px] font-bold uppercase">Upload Photo</span>
-                   </div>
+                   <div className="size-32 rounded-2xl bg-slate-50 border-2 border-dashed flex flex-col items-center justify-center text-muted-foreground shrink-0"><Camera className="size-8 mb-1 opacity-20" /><span className="text-[10px] font-bold">Upload</span></div>
                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Parent ID Number</Label>
-                        <Input readOnly value={parentForm.parentNumber} className="h-12 bg-slate-50 font-bold font-mono border-none text-primary" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">First Name</Label>
-                        <Input required value={parentForm.firstName} onChange={e => setParentForm({...parentForm, firstName: e.target.value})} className="h-12 rounded-xl" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Middle Name</Label>
-                        <Input value={parentForm.middleName} onChange={e => setParentForm({...parentForm, middleName: e.target.value})} className="h-12 rounded-xl" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Last Name</Label>
-                        <Input required value={parentForm.lastName} onChange={e => setParentForm({...parentForm, lastName: e.target.value})} className="h-12 rounded-xl" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Gender</Label>
-                        <Select value={parentForm.gender} onValueChange={v => setParentForm({...parentForm, gender: v})}>
-                           <SelectTrigger className="h-12 rounded-xl"><SelectValue /></SelectTrigger>
-                           <SelectContent>
-                              <SelectItem value="Male">Male</SelectItem>
-                              <SelectItem value="Female">Female</SelectItem>
-                           </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Date of Birth</Label>
-                        <Input type="date" value={parentForm.dob} onChange={e => setParentForm({...parentForm, dob: e.target.value})} className="h-12 rounded-xl" />
+                      <div className="space-y-1.5"><Label className="text-[10px] font-bold">Parent ID Number</Label><Input readOnly value={parentForm.parentNumber} className="h-12 bg-slate-50 font-bold font-mono" /></div>
+                      <div className="space-y-1.5"><Label className="text-[10px] font-bold">First Name</Label><Input required value={parentForm.firstName} onChange={e => setParentForm({...parentForm, firstName: e.target.value})} className="h-12 rounded-xl" /></div>
+                      <div className="space-y-1.5"><Label className="text-[10px] font-bold">Last Name</Label><Input required value={parentForm.lastName} onChange={e => setParentForm({...parentForm, lastName: e.target.value})} className="h-12 rounded-xl" /></div>
+                      <div className="space-y-1.5"><Label className="text-[10px] font-bold">Gender</Label>
+                        <Select value={parentForm.gender} onValueChange={v => setParentForm({...parentForm, gender: v})}><SelectTrigger className="h-12"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem></SelectContent></Select>
                       </div>
                    </div>
                 </div>
               </TabsContent>
 
-              <TabsContent value="contact" className="space-y-6 mt-0 animate-in fade-in slide-in-from-right-4 duration-300">
+              <TabsContent value="contact" className="space-y-6 mt-0">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                   <div className="space-y-1.5">
-                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Primary Phone</Label>
-                     <Input required type="tel" value={parentForm.phone} onChange={e => setParentForm({...parentForm, phone: e.target.value})} className="h-12 rounded-xl" placeholder="+233..." />
-                   </div>
-                   <div className="space-y-1.5">
-                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Alternative Phone</Label>
-                     <Input type="tel" value={parentForm.alternatePhone} onChange={e => setParentForm({...parentForm, alternatePhone: e.target.value})} className="h-12 rounded-xl" />
-                   </div>
-                   <div className="space-y-1.5">
-                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Email Address (Registry Login)</Label>
-                     <Input type="email" required value={parentForm.email} onChange={e => setParentForm({...parentForm, email: e.target.value})} className="h-12 rounded-xl" placeholder="example@email.com" />
-                   </div>
-                   <div className="space-y-1.5">
-                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Ghana Digital Address (GPS)</Label>
-                     <Input value={parentForm.digitalAddress} onChange={e => setParentForm({...parentForm, digitalAddress: e.target.value})} className="h-12 rounded-xl font-mono" placeholder="e.g. GA-123-4567" />
-                   </div>
+                   <div className="space-y-1.5"><Label className="text-[10px] font-bold">Primary Phone</Label><Input required value={parentForm.phone} onChange={e => setParentForm({...parentForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
+                   <div className="space-y-1.5"><Label className="text-[10px] font-bold">Email Address</Label><Input type="email" required value={parentForm.email} onChange={e => setParentForm({...parentForm, email: e.target.value})} className="h-12 rounded-xl" /></div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] uppercase font-bold text-muted-foreground">Residential Address</Label>
-                  <Input value={parentForm.address} onChange={e => setParentForm({...parentForm, address: e.target.value})} className="h-12 rounded-xl" placeholder="House No, Street Name" />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                   <div className="space-y-1.5">
-                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Town / City</Label>
-                     <Input value={parentForm.town} onChange={e => setParentForm({...parentForm, town: e.target.value})} className="h-12 rounded-xl" />
-                   </div>
-                   <div className="space-y-1.5">
-                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Region</Label>
-                     <Input value={parentForm.region} onChange={e => setParentForm({...parentForm, region: e.target.value})} className="h-12 rounded-xl" />
-                   </div>
-                </div>
+                <div className="space-y-1.5"><Label className="text-[10px] font-bold">Residential Address</Label><Input value={parentForm.address} onChange={e => setParentForm({...parentForm, address: e.target.value})} className="h-12 rounded-xl" /></div>
               </TabsContent>
 
-              <TabsContent value="professional" className="space-y-6 mt-0 animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                   <div className="space-y-1.5">
-                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Occupation</Label>
-                     <Input value={parentForm.occupation} onChange={e => setParentForm({...parentForm, occupation: e.target.value})} className="h-12 rounded-xl" placeholder="e.g. Civil Servant, Businessman" />
-                   </div>
-                   <div className="space-y-1.5">
-                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Employer / Agency</Label>
-                     <Input value={parentForm.employer} onChange={e => setParentForm({...parentForm, employer: e.target.value})} className="h-12 rounded-xl" />
-                   </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] uppercase font-bold text-muted-foreground">Employer Office Address</Label>
-                  <Input value={parentForm.employerAddress} onChange={e => setParentForm({...parentForm, employerAddress: e.target.value})} className="h-12 rounded-xl" placeholder="Location of workplace" />
-                </div>
+              <TabsContent value="professional" className="space-y-6 mt-0">
+                 <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-1.5"><Label className="text-[10px] font-bold">Occupation</Label><Input value={parentForm.occupation} onChange={e => setParentForm({...parentForm, occupation: e.target.value})} className="h-12 rounded-xl" /></div>
+                    <div className="space-y-1.5"><Label className="text-[10px] font-bold">Employer</Label><Input value={parentForm.employer} onChange={e => setParentForm({...parentForm, employer: e.target.value})} className="h-12 rounded-xl" /></div>
+                 </div>
               </TabsContent>
 
-              <TabsContent value="id" className="space-y-6 mt-0 animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                   <div className="space-y-1.5">
-                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">National ID (Ghana Card)</Label>
-                     <Input value={parentForm.nationalId} onChange={e => setParentForm({...parentForm, nationalId: e.target.value})} className="h-12 rounded-xl font-mono" placeholder="GHA-XXXXXXXXX-X" />
-                   </div>
-                   <div className="space-y-1.5">
-                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Passport Number</Label>
-                     <Input value={parentForm.passportNumber} onChange={e => setParentForm({...parentForm, passportNumber: e.target.value})} className="h-12 rounded-xl font-mono" />
-                   </div>
-                </div>
-                <div className="p-12 rounded-3xl bg-slate-50 border-2 border-dashed flex flex-col items-center justify-center text-muted-foreground text-center">
-                   <IdCard className="size-12 mb-4 opacity-20" />
-                   <p className="text-xs font-bold uppercase tracking-widest opacity-40">Identify Document Storage (Optional)</p>
-                   <p className="text-[10px] mt-1 italic">Authorized for legal and safety verification in 2026.</p>
-                </div>
+              <TabsContent value="id" className="space-y-6 mt-0">
+                 <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-1.5"><Label className="text-[10px] font-bold">Ghana Card ID</Label><Input value={parentForm.nationalId} onChange={e => setParentForm({...parentForm, nationalId: e.target.value})} className="h-12 rounded-xl font-mono" /></div>
+                    <div className="space-y-1.5"><Label className="text-[10px] font-bold">Passport #</Label><Input value={parentForm.passportNumber} onChange={e => setParentForm({...parentForm, passportNumber: e.target.value})} className="h-12 rounded-xl font-mono" /></div>
+                 </div>
               </TabsContent>
 
-              <TabsContent value="emergency" className="space-y-6 mt-0 animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                   <div className="space-y-1.5">
-                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Emergency Contact Name</Label>
-                     <Input value={parentForm.emergencyContact} onChange={e => setParentForm({...parentForm, emergencyContact: e.target.value})} className="h-12 rounded-xl" />
-                   </div>
-                   <div className="space-y-1.5">
-                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Emergency Contact Phone</Label>
-                     <Input type="tel" value={parentForm.emergencyPhone} onChange={e => setParentForm({...parentForm, emergencyPhone: e.target.value})} className="h-12 rounded-xl" />
-                   </div>
-                   <div className="space-y-1.5 md:col-span-2"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Relationship to Parent</Label><Input value={parentForm.emergencyRelationship} onChange={e => setParentForm({...parentForm, emergencyRelationship: e.target.value})} className="h-12 rounded-xl" placeholder="e.g. Spouse, Brother, Business Partner" /></div>
-                </div>
+              <TabsContent value="emergency" className="space-y-6 mt-0">
+                 <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-1.5"><Label className="text-[10px] font-bold">Contact Name</Label><Input value={parentForm.emergencyContact} onChange={e => setParentForm({...parentForm, emergencyContact: e.target.value})} className="h-12 rounded-xl" /></div>
+                    <div className="space-y-1.5"><Label className="text-[10px] font-bold">Phone</Label><Input value={parentForm.emergencyPhone} onChange={e => setParentForm({...parentForm, emergencyPhone: e.target.value})} className="h-12 rounded-xl" /></div>
+                 </div>
               </TabsContent>
             </CardContent>
 
-            <CardFooter className="bg-slate-50 p-8 border-t flex items-center justify-between">
-              <Button type="button" variant="ghost" className="h-12 rounded-xl font-bold px-8 text-xs uppercase tracking-widest" asChild>
-                <Link href="/dashboard/parents">Cancel Enrollment</Link>
-              </Button>
-              <Button type="submit" disabled={loading || parentsLoading} className="h-14 px-12 rounded-2xl bg-primary text-lg font-bold shadow-2xl transition-all active:scale-[0.98]">
-                {loading ? <Loader2 className="mr-2 animate-spin" /> : <Save className="mr-2" />}
-                Authorize Registry Entry
+            <CardFooter className="bg-slate-50 p-8 border-t flex justify-between">
+              <Button type="button" variant="ghost" asChild><Link href="/dashboard/parents">Cancel</Link></Button>
+              <Button type="submit" disabled={loading} className="h-14 px-12 bg-primary font-bold shadow-xl">
+                {loading ? <Loader2 className="mr-2 animate-spin" /> : <Save className="mr-2" />} Authorize Registry Entry
               </Button>
             </CardFooter>
           </Tabs>
         </Card>
       </form>
-      
-      <div className="flex justify-center mt-12">
-        <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter flex items-center gap-2">
-          <CheckCircle2 className="size-3 text-green-600" /> Authorized Institutional Access • Global Registry 2026
-        </p>
-      </div>
     </div>
   )
 }

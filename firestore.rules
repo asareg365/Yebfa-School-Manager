@@ -70,15 +70,17 @@ service cloud.firestore {
     }
 
     match /parents/{parentId} {
-      // Allow unauthenticated lookup for ID-based login
+      // Allow unauthenticated lookup for ID-based login, and allow full read for signed-in users in the same tenant
       allow list, get: if true; 
+      allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
       allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin() || isAccountant());
       allow delete: if isSuperAdmin() || isOwner();
     }
 
     match /staff/{staffId} {
-      // Allow unauthenticated lookup for ID-based login
+      // Allow unauthenticated lookup for ID-based login, and allow full read for signed-in users in the same tenant
       allow list, get: if true;
+      allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
       allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin() || isAccountant());
       allow delete: if isSuperAdmin() || isOwner();
     }

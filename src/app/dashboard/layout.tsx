@@ -7,7 +7,7 @@ import { useUser, useFirestore, useDoc, useCollection, useAuth } from "@/firebas
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/dashboard/app-sidebar";
 import { Separator } from "@/components/ui/separator";
-import { Bell, Search, Loader2, Info, AlertTriangle, Clock, Trash2, X, CheckCircle2, AlertCircle } from "lucide-react";
+import { Bell, Search, Loader2, Info, AlertTriangle, Clock, Trash2, X, CheckCircle2, AlertCircle, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -19,14 +19,14 @@ import { doc, collection, query, where, orderBy, deleteDoc, writeBatch, getDocs 
 import { toast } from '@/hooks/use-toast';
 import { signOut } from 'firebase/auth';
 
-const IDLE_TIMEOUT = 1800000; // 30 minutes in milliseconds
+const IDLE_TIMEOUT = 1800000; // 30 minutes
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const { user, loading } = useUser();
+  const { user, loading: authLoading } = useUser();
   const auth = useAuth();
   const db = useFirestore();
   const router = useRouter();
@@ -39,10 +39,12 @@ export default function DashboardLayout({
     setInstitutionId(storedId);
   }, []);
 
+  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user]);
+  const { data: profile, loading: profileLoading } = useDoc(userProfileRef);
+
   const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId]);
   const { data: institution } = useDoc(instRef);
 
-  // Live Notifications Query
   const notificationsQuery = useMemo(() => {
     if (!db || !institutionId) return null;
     return query(
@@ -54,7 +56,6 @@ export default function DashboardLayout({
 
   const { data: notifications = [] } = useCollection(notificationsQuery);
 
-  // Idle Timeout Logic
   const handleLogout = useCallback(async () => {
     if (auth) {
       await signOut(auth);
@@ -74,12 +75,9 @@ export default function DashboardLayout({
 
   useEffect(() => {
     if (!user) return;
-
     const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
     events.forEach(event => document.addEventListener(event, resetTimer));
-    
     resetTimer();
-
     return () => {
       events.forEach(event => document.removeEventListener(event, resetTimer));
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
@@ -87,10 +85,10 @@ export default function DashboardLayout({
   }, [user, resetTimer]);
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!authLoading && !user) {
       router.push('/login');
     }
-  }, [user, loading, router]);
+  }, [user, authLoading, router]);
 
   useEffect(() => {
     const updateName = () => {
@@ -99,7 +97,6 @@ export default function DashboardLayout({
         setInstitutionName(storedName);
       }
     };
-    
     updateName();
     const interval = setInterval(updateName, 2000);
     return () => clearInterval(interval);
@@ -128,7 +125,7 @@ export default function DashboardLayout({
       const snap = await getDocs(notificationsQuery!);
       snap.docs.forEach((d) => batch.delete(d.ref));
       await batch.commit();
-      toast({ title: "Notifications Cleared", description: "Audit history remains in global logs." });
+      toast({ title: "Notifications Cleared" });
     } catch (error) {
       toast({ variant: "destructive", title: "Action Failed" });
     }
@@ -143,27 +140,16 @@ export default function DashboardLayout({
     }
   };
 
-  const getNotificationBg = (type: string) => {
-    switch (type) {
-      case 'alert': return 'bg-orange-100';
-      case 'success': return 'bg-green-100';
-      case 'error': return 'bg-red-100';
-      default: return 'bg-blue-100';
-    }
-  };
-
-  if (loading) {
+  if (authLoading || profileLoading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
-          <p className="font-headline font-bold text-lg animate-pulse">Establishing Secure Session...</p>
-        </div>
+      <div className="flex h-screen w-full flex-col items-center justify-center bg-background gap-4">
+        <Activity className="h-10 w-10 animate-spin text-primary" />
+        <p className="font-headline font-bold text-lg animate-pulse uppercase tracking-widest text-xs">Synchronizing Identity Hub...</p>
       </div>
     );
   }
 
-  if (!user) return null;
+  if (!user || !profile) return null;
 
   const isTrial = institution?.subscriptionPlan?.toLowerCase().includes('trial');
 
@@ -228,7 +214,7 @@ export default function DashboardLayout({
                     <div className="divide-y">
                       {notifications.map((notif: any) => (
                         <div key={notif.id} className="p-4 flex gap-3 hover:bg-muted/50 transition-colors group relative">
-                          <div className={`size-8 rounded-full ${getNotificationBg(notif.type)} flex items-center justify-center shrink-0`}>
+                          <div className={`size-8 rounded-full ${notif.type === 'alert' ? 'bg-orange-100' : notif.type === 'success' ? 'bg-green-100' : notif.type === 'error' ? 'bg-red-100' : 'bg-blue-100'} flex items-center justify-center shrink-0`}>
                             {getNotificationIcon(notif.type)}
                           </div>
                           <div className="space-y-1 pr-8 flex-1">
@@ -238,10 +224,7 @@ export default function DashboardLayout({
                               {notif.createdAt ? formatDistanceToNow(notif.createdAt.toMillis(), { addSuffix: true }) : 'Just now'}
                             </p>
                           </div>
-                          <button 
-                            onClick={(e) => handleDeleteNotification(notif.id, e)}
-                            className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-destructive/10 rounded-md text-destructive"
-                          >
+                          <button onClick={(e) => handleDeleteNotification(notif.id, e)} className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-destructive/10 rounded-md text-destructive">
                             <X className="size-3" />
                           </button>
                         </div>
