@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
@@ -111,6 +112,7 @@ export default function StaffHRPage() {
         finalStaffNumber = await generateInstitutionId('STF', institutionId, institution?.schoolCode);
         
         let cleanPass = normalizeSecurityPhone(staffForm.phone);
+        // Firebase Auth passwords must be at least 6 characters
         if (cleanPass.length < 6) cleanPass = cleanPass.padEnd(6, '0');
         
         const safeId = finalStaffNumber.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
@@ -138,7 +140,11 @@ export default function StaffHRPage() {
           })
           await signOut(provisionAuth);
         } catch (authErr: any) {
-          if (authErr.code !== 'auth/email-already-in-use') throw authErr;
+          if (authErr.code === 'auth/email-already-in-use') {
+             // Continue if account exists
+          } else {
+             throw authErr;
+          }
         }
 
         batch.set(staffRef, {

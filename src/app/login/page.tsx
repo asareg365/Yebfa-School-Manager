@@ -101,7 +101,9 @@ export default function LoginPage() {
       
       if (relsSnap.empty) throw new Error("No guardians are linked to this student ID.");
 
-      const inputPhone = normalizeSecurityPhone(parentPhoneInput)
+      let inputPhone = normalizeSecurityPhone(parentPhoneInput)
+      if (inputPhone.length < 6) inputPhone = inputPhone.padEnd(6, '0');
+      
       let matchedParent = null;
 
       for (const relDoc of relsSnap.docs) {
@@ -109,7 +111,7 @@ export default function LoginPage() {
         const parentSnap = await getDoc(doc(db, "parents", parentId));
         if (parentSnap.exists()) {
           const parentData = parentSnap.data();
-          if (normalizeSecurityPhone(parentData.phone) === inputPhone) {
+          if (normalizeSecurityPhone(parentData.phone) === normalizeSecurityPhone(parentPhoneInput)) {
             matchedParent = parentData;
             break;
           }
@@ -177,7 +179,8 @@ export default function LoginPage() {
       
       const personData = snap.docs[0].data()
       const accountEmail = personData.email || `${normalizedId.toLowerCase().trim()}@system.yebfa.com`
-      const cleanCredential = normalizeSecurityPhone(staffPhoneInput)
+      let cleanCredential = normalizeSecurityPhone(staffPhoneInput)
+      if (cleanCredential.length < 6) cleanCredential = cleanCredential.padEnd(6, '0');
 
       const credential = await signInWithEmailAndPassword(auth, accountEmail, cleanCredential)
       await redirectUser(credential.user)
@@ -254,13 +257,13 @@ export default function LoginPage() {
             <TabsContent value="student" className="mt-0 space-y-4 animate-in fade-in">
               <div className="space-y-4">
                 <div className="space-y-2"><Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Student ID (STU)</Label><Input placeholder="ABC-STU-2026-XXXX" value={studentIdInput} onChange={e => setStudentIdInput(e.target.value)} className="h-12 rounded-xl font-mono" /></div>
-                <div className="space-y-2"><Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Student PIN</Label><Input type="password" maxLength={4} placeholder="XXXX" value={studentPinInput} onChange={e => setStudentPinInput(e.target.value)} className="h-12 rounded-xl text-center text-2xl tracking-[1em]" /></div>
+                <div className="space-y-2"><Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Student PIN (6 Digits)</Label><Input type="password" maxLength={6} placeholder="XXXXXX" value={studentPinInput} onChange={e => setStudentPinInput(e.target.value)} className="h-12 rounded-xl text-center text-2xl tracking-[0.5em]" /></div>
                 <Button className="w-full h-14 font-bold rounded-2xl bg-primary shadow-xl shadow-primary/20" onClick={handleStudentLogin} disabled={studentLoading}>
                   {studentLoading ? <Loader2 className="animate-spin mr-2" /> : "Verify Student Identity"}
                 </Button>
                 <div className="p-4 rounded-xl bg-slate-50 border flex gap-3">
                    <KeyRound className="size-4 text-primary shrink-0 mt-0.5" />
-                   <p className="text-[10px] text-muted-foreground leading-relaxed font-medium">Use the 4-digit PIN generated during your enrollment.</p>
+                   <p className="text-[10px] text-muted-foreground leading-relaxed font-medium">Use the 6-digit PIN generated during your enrollment.</p>
                 </div>
               </div>
             </TabsContent>

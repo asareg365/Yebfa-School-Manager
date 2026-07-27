@@ -45,10 +45,11 @@ export async function generateInstitutionId(
 }
 
 /**
- * Generates a random 4-digit PIN for student access.
+ * Generates a random 6-digit PIN for student access.
+ * Upgraded from 4 to 6 digits to satisfy Firebase Auth password length requirements.
  */
 export function generateStudentPin(): string {
-  return Math.floor(1000 + Math.random() * 9000).toString();
+  return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
 /**

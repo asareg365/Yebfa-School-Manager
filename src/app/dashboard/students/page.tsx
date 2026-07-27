@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -185,10 +186,11 @@ export default function StudentsPage() {
 
       if (!editingStudent) {
         finalAdmissionNumber = await generateInstitutionId('STU', institutionId, institution?.schoolCode);
-        finalPin = generateStudentPin();
+        finalPin = generateStudentPin(); // Now 6 digits
         const studentEmail = `${finalAdmissionNumber.toLowerCase().trim()}@system.yebfa.com`;
         
         try {
+          // finalPin is guaranteed 6 digits by generateStudentPin()
           const credential = await createUserWithEmailAndPassword(provisionAuth, studentEmail, finalPin)
           const authUser = credential.user
           
@@ -210,7 +212,10 @@ export default function StudentsPage() {
 
       if (isNewParent && !editingStudent) {
         const finalParentNumber = await generateInstitutionId('PAR', institutionId, institution?.schoolCode);
-        const cleanPass = normalizeSecurityPhone(newParentForm.phone);
+        let cleanPass = normalizeSecurityPhone(newParentForm.phone);
+        // Ensure parent password is at least 6 characters
+        if (cleanPass.length < 6) cleanPass = cleanPass.padEnd(6, '0');
+        
         const parentEmail = newParentForm.email || `${finalParentNumber.toLowerCase().trim()}@system.yebfa.com`;
         
         try {
@@ -314,7 +319,7 @@ export default function StudentsPage() {
             if (!row.firstName || !row.lastName) continue;
 
             const finalAdmissionNumber = await generateInstitutionId('STU', institutionId, institution?.schoolCode);
-            const finalPin = generateStudentPin();
+            const finalPin = generateStudentPin(); // Now 6 digits
             const studentEmail = `${finalAdmissionNumber.toLowerCase().trim()}@system.yebfa.com`;
             
             try {
@@ -514,10 +519,10 @@ export default function StudentsPage() {
                        </div>
                     </div>
                     <div className="space-y-2">
-                       <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Portal Access PIN</Label>
+                       <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Portal Access PIN (6 Digits)</Label>
                        <div className="h-11 px-4 rounded-xl bg-slate-50 flex items-center border border-dashed border-slate-200">
                           <Badge className="font-mono text-xs font-bold uppercase bg-primary text-white border-none shadow-sm px-3">
-                             {studentForm.studentPin || '----'}
+                             {studentForm.studentPin || '------'}
                           </Badge>
                        </div>
                     </div>
@@ -606,7 +611,7 @@ export default function StudentsPage() {
                 <TabsContent value="finalize" className="space-y-8 mt-0 text-center py-10">
                    <div className="size-20 bg-green-50 rounded-full flex items-center justify-center mx-auto text-green-600 mb-4"><CheckCircle2 className="size-12" /></div>
                    <h3 className="text-xl font-bold font-headline">Institutional Enrollment Authorized</h3>
-                   <p className="text-sm text-muted-foreground max-sm mx-auto">A unique Student ID and Portal PIN will be generated and secure access will be granted immediately.</p>
+                   <p className="text-sm text-muted-foreground max-sm mx-auto">A unique Student ID and 6-digit Portal PIN will be generated and secure access will be granted immediately.</p>
                    <div className="p-4 bg-slate-50 rounded-2xl border flex items-center justify-center gap-3">
                       <KeyRound className="size-5 text-primary" />
                       <span className="text-xs font-bold text-primary uppercase">Direct Portal Access Active</span>
