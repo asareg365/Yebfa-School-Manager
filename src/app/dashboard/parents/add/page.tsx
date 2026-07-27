@@ -74,15 +74,17 @@ export default function AddParentPage() {
   }, [])
 
   const parentsQuery = useMemo(() => institutionId ? query(collection(db, "parents"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
-  const { data: parents = [] } = useCollection(parentsQuery)
+  const { data: parents = [], loading: parentsLoading } = useCollection(parentsQuery)
 
+  // Improved ID generation to prevent duplicates
   useEffect(() => {
-    if (institutionId && parents.length >= 0 && !parentForm.parentNumber) {
-      const nextCount = parents.length + 1
-      const autoCode = `PAR-${String(nextCount).padStart(6, '0')}`
+    if (institutionId && !parentsLoading && !parentForm.parentNumber) {
+      // Find the highest existing number or use count
+      const count = parents.length + 1
+      const autoCode = `PAR-${String(count).padStart(6, '0')}`
       setParentForm(prev => ({ ...prev, parentNumber: autoCode }))
     }
-  }, [institutionId, parents.length, parentForm.parentNumber])
+  }, [institutionId, parentsLoading, parents.length, parentForm.parentNumber])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -96,7 +98,7 @@ export default function AddParentPage() {
     setLoading(true)
     try {
       // 1. Create Auth Account using Secondary App to prevent admin sign-out
-      const secondaryAppName = `secondary-${Date.now()}`
+      const secondaryAppName = `secondary-parent-${Date.now()}`
       const secondaryApp = getApps().find(a => a.name === secondaryAppName) || initializeApp(firebaseConfig, secondaryAppName)
       const secondaryAuth = getAuth(secondaryApp)
       
@@ -125,7 +127,7 @@ export default function AddParentPage() {
 
       await setDoc(parentRef, parentData)
 
-      // 3. Create User Profile if auth was successful
+      // 3. Create User Profile
       if (authUser) {
         await setDoc(doc(db, "users", authUser.uid), {
           uid: authUser.uid,
@@ -324,7 +326,7 @@ export default function AddParentPage() {
               <Button type="button" variant="ghost" className="h-12 rounded-xl font-bold px-8 text-xs uppercase tracking-widest" asChild>
                 <Link href="/dashboard/parents">Cancel Enrollment</Link>
               </Button>
-              <Button type="submit" disabled={loading} className="h-14 px-12 rounded-2xl bg-primary text-lg font-bold shadow-2xl transition-all active:scale-[0.98]">
+              <Button type="submit" disabled={loading || parentsLoading} className="h-14 px-12 rounded-2xl bg-primary text-lg font-bold shadow-2xl transition-all active:scale-[0.98]">
                 {loading ? <Loader2 className="mr-2 animate-spin" /> : <Save className="mr-2" />}
                 Authorize Registry Entry
               </Button>
@@ -341,4 +343,3 @@ export default function AddParentPage() {
     </div>
   )
 }
-

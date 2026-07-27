@@ -45,7 +45,11 @@ service cloud.firestore {
     // ======================
 
     function belongsToUserTenant(data) {
-      return signedIn() && (data.tenantId == userTenant() || data.institutionId == userTenant());
+      return signedIn() && (
+        data.tenantId == userTenant() || 
+        data.institutionId == userTenant() || 
+        (hasProfile() && data.tenantId == userProfile().institutionId)
+      );
     }
 
     // ======================
@@ -53,41 +57,41 @@ service cloud.firestore {
     // ======================
 
     match /users/{userId} {
-      allow read: if signedIn() && (request.auth.uid == userId || isSuperAdmin() || belongsToUserTenant(resource.data));
+      allow read: if signedIn() && (request.auth.uid == userId || isSuperAdmin() || (hasProfile() && resource.data.tenantId == userTenant()));
       allow create: if signedIn() && request.auth.uid == userId;
       allow update: if signedIn() && (request.auth.uid == userId || isSuperAdmin());
       allow delete: if isSuperAdmin();
     }
 
     match /institutions/{instId} {
-      allow read: if signedIn() && (isSuperAdmin() || instId == userTenant());
-      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow read: if signedIn() || (request.auth != null); 
+      allow create: if signedIn();
       allow update, delete: if isSuperAdmin() || (signedIn() && instId == userTenant() && (isOwner() || isAdmin()));
     }
 
     match /parents/{parentId} {
-      // Allow unauthenticated list/get for login verification (searching by parentNumber)
+      // Allow unauthenticated lookup for ID-based login
       allow list, get: if true; 
       allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin() || isAccountant());
       allow delete: if isSuperAdmin() || isOwner();
     }
 
+    match /staff/{staffId} {
+      // Allow unauthenticated lookup for ID-based login
+      allow list, get: if true;
+      allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin() || isAccountant());
+      allow delete: if isSuperAdmin() || isOwner();
+    }
+
     match /student_parents/{relId} {
-      allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
+      allow read: if signedIn();
       allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
       allow delete: if isSuperAdmin() || isOwner();
     }
 
     match /students/{studentId} {
-      allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
+      allow read: if signedIn();
       allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin() || isTeacher());
-      allow delete: if isSuperAdmin() || isOwner();
-    }
-
-    match /staff/{staffId} {
-      // Allow unauthenticated list/get for login verification (searching by staffNumber)
-      allow list, get: if true;
-      allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin() || isAccountant());
       allow delete: if isSuperAdmin() || isOwner();
     }
 

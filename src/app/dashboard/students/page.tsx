@@ -131,8 +131,8 @@ export default function StudentsPage() {
   const classesQuery = useMemo(() => institutionId ? query(collection(db, "classes"), where("tenantId", "==", institutionId)) : null, [db, institutionId]);
   const relsQuery = useMemo(() => institutionId ? query(collection(db, "student_parents"), where("tenantId", "==", institutionId)) : null, [db, institutionId]);
 
-  const { data: rawStudents = [], loading: dataLoading } = useCollection(studentsQuery)
-  const { data: parents = [] } = useCollection(parentsQuery)
+  const { data: rawStudents = [], loading: studentsLoading } = useCollection(studentsQuery)
+  const { data: parents = [], loading: parentsLoading } = useCollection(parentsQuery)
   const { data: registeredClasses = [] } = useCollection(classesQuery)
   const { data: allRels = [] } = useCollection(relsQuery)
 
@@ -143,19 +143,20 @@ export default function StudentsPage() {
     ).sort((a: any, b: any) => (a.admissionNumber || "").localeCompare(b.admissionNumber || ""));
   }, [rawStudents, searchQuery]);
 
+  // Unique ID Generation logic
   useEffect(() => {
-    if (isEnrollOpen && !studentForm.admissionNumber && !editingStudent) {
+    if (isEnrollOpen && !studentsLoading && !studentForm.admissionNumber && !editingStudent) {
       const year = new Date().getFullYear();
       const count = rawStudents.length + 1;
       const autoAdm = `ADM-${year}-${String(count).padStart(5, '0')}`;
       setStudentForm(prev => ({ ...prev, admissionNumber: autoAdm }));
     }
-    if (isEnrollOpen && isNewParent && !newParentForm.parentNumber) {
+    if (isEnrollOpen && !parentsLoading && isNewParent && !newParentForm.parentNumber) {
       const nextCount = parents.length + 1;
       const autoCode = `PAR-${String(nextCount).padStart(6, '0')}`;
       setNewParentForm(prev => ({ ...prev, parentNumber: autoCode }));
     }
-  }, [isEnrollOpen, rawStudents.length, parents.length, editingStudent, isNewParent, studentForm.admissionNumber, newParentForm.parentNumber]);
+  }, [isEnrollOpen, studentsLoading, parentsLoading, rawStudents.length, parents.length, editingStudent, isNewParent, studentForm.admissionNumber, newParentForm.parentNumber]);
 
   const handleEnroll = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -175,7 +176,7 @@ export default function StudentsPage() {
 
       // 1. Handle New Parent Auth Provisioning
       if (isNewParent) {
-        const secondaryAppName = `secondary-enroll-${Date.now()}`
+        const secondaryAppName = `secondary-parent-wizard-${Date.now()}`
         const secondaryApp = getApps().find(a => a.name === secondaryAppName) || initializeApp(firebaseConfig, secondaryAppName)
         const secondaryAuth = getAuth(secondaryApp)
         
@@ -350,7 +351,7 @@ export default function StudentsPage() {
     setActiveStep("identity")
   }
 
-  if (dataLoading) return <div className="p-24 text-center animate-pulse font-bold text-muted-foreground uppercase tracking-widest text-xs">Syncing Registry...</div>
+  if (studentsLoading) return <div className="p-24 text-center animate-pulse font-bold text-muted-foreground uppercase tracking-widest text-xs">Syncing Registry...</div>
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-20">
