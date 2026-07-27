@@ -23,7 +23,7 @@ export default function LandingPage() {
           <div className="size-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-lg">
             <School className="size-6" />
           </div>
-          <span className="text-2xl font-headline font-bold tracking-tight text-primary">Yebfa School Manager</span>
+          <span className="text-2xl font-headline font-bold tracking-tight text-primary">YSM <span className="text-accent">|</span> Yebfa School Manager</span>
         </Link>
         <nav className="hidden md:flex items-center gap-8">
           <Link href="/about" className="text-sm font-medium hover:text-accent transition-colors">About</Link>
@@ -37,7 +37,7 @@ export default function LandingPage() {
           {authLoading || profileLoading ? (
             <Loader2 className="size-5 animate-spin text-muted-foreground" />
           ) : user ? (
-            <Button className="bg-primary hover:bg-primary/90" asChild>
+            <Button className="bg-primary hover:bg-primary/90 rounded-xl" asChild>
               <Link href="/dashboard">Dashboard</Link>
             </Button>
           ) : (
@@ -45,7 +45,7 @@ export default function LandingPage() {
               <Button variant="ghost" asChild>
                 <Link href="/login">Sign In</Link>
               </Button>
-              <Button className="bg-primary hover:bg-primary/90" asChild>
+              <Button className="bg-primary hover:bg-primary/90 rounded-xl shadow-lg" asChild>
                 <Link href="/register/institution">Get Started</Link>
               </Button>
             </>
@@ -58,21 +58,21 @@ export default function LandingPage() {
           <div className="container px-6 mx-auto relative z-10 text-center space-y-8">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 text-accent text-xs font-bold uppercase tracking-wider animate-in fade-in slide-in-from-top-4 duration-500">
               <Zap className="size-3" />
-              Modern Multi-Tenant SaaS
+              YSM Modern Multi-Tenant SaaS
             </div>
             <h1 className="text-5xl lg:text-7xl font-headline font-bold text-primary leading-tight tracking-tighter animate-in fade-in slide-in-from-bottom-4 duration-700">
               The Operating System for <span className="text-accent italic">Modern Schools.</span>
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-1000">
-              A premium, all-in-one ecosystem for student management, financial forecasting, and academic excellence powered by advanced AI in 2026.
+              YSM (Yebfa School Manager) is a premium, all-in-one ecosystem for student management, financial forecasting, and academic excellence powered by advanced AI in 2026.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 animate-in fade-in slide-in-from-bottom-12 duration-1000">
-              <Button size="lg" className="h-14 px-8 text-lg font-medium bg-primary hover:bg-primary/90" asChild>
+              <Button size="lg" className="h-14 px-8 text-lg font-medium bg-primary hover:bg-primary/90 rounded-2xl shadow-xl shadow-primary/20" asChild>
                 <Link href={user ? "/dashboard" : "/register/institution"}>
                   {user ? "Enter Dashboard" : "Register Institution"} <ArrowRight className="ml-2 size-5" />
                 </Link>
               </Button>
-              <Button size="lg" variant="outline" className="h-14 px-8 text-lg font-medium gap-2" asChild>
+              <Button size="lg" variant="outline" className="h-14 px-8 text-lg font-medium gap-2 rounded-2xl" asChild>
                 <Link href="/about">Learn More</Link>
               </Button>
             </div>
@@ -87,10 +87,10 @@ export default function LandingPage() {
       <footer className="py-12 border-t border-border/40 bg-muted/30">
         <div className="container px-6 mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="flex items-center gap-2">
-            <div className="size-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground">
+            <div className="size-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground shadow-sm">
               <School className="size-5" />
             </div>
-            <span className="text-xl font-headline font-bold text-primary">Yebfa School Manager</span>
+            <span className="text-xl font-headline font-bold text-primary">YSM | Yebfa School Manager</span>
           </div>
           <p className="text-sm text-muted-foreground">© 2026 Yebfa School Manager. All rights reserved.</p>
           <div className="flex gap-6">

@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -56,7 +55,7 @@ export default function LoginPage() {
       const userData = userSnap.data()
       if (userData.tenantId) {
         localStorage.setItem('selected_institution_id', userData.tenantId)
-        localStorage.setItem('selected_institution_name', userData.institutionName || 'Registry Hub')
+        localStorage.setItem('selected_institution_name', userData.institutionName || 'YSM Registry Hub')
       }
 
       if (userData.role === "super_admin") router.replace("/admin")
@@ -90,14 +89,12 @@ export default function LoginPage() {
     setParentLoading(true)
     const normalizedStudentId = parentStudentId.trim().toUpperCase()
     try {
-      // 1. Find Student by Admission Number
       const studentQ = query(collection(db, "students"), where("admissionNumber", "==", normalizedStudentId))
       const studentSnap = await getDocs(studentQ)
       
       if (studentSnap.empty) throw new Error("Student ID not found in registry.");
       const studentDocId = studentSnap.docs[0].id;
 
-      // 2. Find Linked Guardians
       const relsQ = query(collection(db, "student_parents"), where("studentId", "==", studentDocId))
       const relsSnap = await getDocs(relsQ)
       
@@ -106,7 +103,6 @@ export default function LoginPage() {
       const inputPhone = normalizeSecurityPhone(parentPhoneInput)
       let matchedParent = null;
 
-      // 3. Verify Phone against Registry
       for (const relDoc of relsSnap.docs) {
         const parentId = relDoc.data().parentId;
         const parentSnap = await getDoc(doc(db, "parents", parentId));
@@ -121,7 +117,6 @@ export default function LoginPage() {
 
       if (!matchedParent) throw new Error("Verification failed: Phone number not recognized for this student.");
 
-      // 4. Construct Portal Auth Email
       const parentEmail = matchedParent.email || `${matchedParent.parentNumber.toLowerCase()}@system.yebfa.com`;
       const credential = await signInWithEmailAndPassword(auth, parentEmail, inputPhone)
       await redirectUser(credential.user)
@@ -140,19 +135,16 @@ export default function LoginPage() {
     setStudentLoading(true)
     const normalizedId = studentIdInput.trim().toUpperCase()
     try {
-      // 1. Verify Student in Registry
       const studentQ = query(collection(db, "students"), where("admissionNumber", "==", normalizedId))
       const studentSnap = await getDocs(studentQ)
       
       if (studentSnap.empty) throw new Error("Student ID not recognized in current registry.");
       const studentData = studentSnap.docs[0].data();
 
-      // 2. Check PIN against Database Record
       if (studentData.studentPin !== studentPinInput.trim()) {
         throw new Error("Invalid Student PIN. Please check and try again.");
       }
       
-      // 3. Authorize Auth Session
       const studentEmail = `${normalizedId.toLowerCase()}@system.yebfa.com`;
       try {
         const credential = await signInWithEmailAndPassword(auth, studentEmail, studentPinInput.trim())
@@ -206,7 +198,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-muted/30">
       <Link href="/" className="flex items-center gap-2 mb-8 group">
         <div className="size-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-lg group-hover:scale-105 transition-transform"><School className="size-6" /></div>
-        <span className="text-2xl font-headline font-bold text-primary">Yebfa School Manager</span>
+        <span className="text-2xl font-headline font-bold text-primary">YSM Gateway</span>
       </Link>
       
       <Card className="w-full max-w-lg border-none shadow-2xl overflow-hidden rounded-3xl bg-white">
@@ -219,7 +211,7 @@ export default function LoginPage() {
           </TabsList>
 
           <CardHeader className="pb-4 pt-8">
-            <CardTitle className="text-2xl font-bold font-headline">Institutional Gateway</CardTitle>
+            <CardTitle className="text-2xl font-bold font-headline text-primary">YSM Institutional Login</CardTitle>
             <CardDescription className="text-xs font-medium">Strategic multi-tenant identity verification active.</CardDescription>
           </CardHeader>
 
@@ -228,7 +220,7 @@ export default function LoginPage() {
               <form onSubmit={handleAdminLogin} className="space-y-4">
                 <div className="space-y-2"><Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Master Email</Label><Input type="email" value={adminEmail} onChange={e => setAdminEmail(e.target.value)} required className="h-12 rounded-xl" /></div>
                 <div className="space-y-2"><Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Security Key</Label><Input type="password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} required className="h-12 rounded-xl" /></div>
-                <Button className="w-full h-14 font-bold rounded-2xl bg-primary shadow-xl" type="submit" disabled={adminLoading}>
+                <Button className="w-full h-14 font-bold rounded-2xl bg-primary shadow-xl shadow-primary/20" type="submit" disabled={adminLoading}>
                   {adminLoading ? <Loader2 className="animate-spin mr-2" /> : "Access Command Center"}
                 </Button>
               </form>
@@ -238,7 +230,7 @@ export default function LoginPage() {
               <div className="space-y-4">
                 <div className="space-y-2"><Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Staff ID (STF)</Label><Input placeholder="ABC-STF-2026-XXXX" value={staffIdInput} onChange={e => setStaffIdInput(e.target.value)} className="h-12 rounded-xl font-mono" /></div>
                 <div className="space-y-2"><Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Registered Phone</Label><Input type="tel" value={staffPhoneInput} onChange={e => setStaffPhoneInput(e.target.value)} className="h-12 rounded-xl" /></div>
-                <Button className="w-full h-14 font-bold rounded-2xl bg-primary shadow-xl" onClick={handleStaffLogin} disabled={staffLoading}>
+                <Button className="w-full h-14 font-bold rounded-2xl bg-primary shadow-xl shadow-primary/20" onClick={handleStaffLogin} disabled={staffLoading}>
                   {staffLoading ? <Loader2 className="animate-spin mr-2" /> : "Verify Staff Access"}
                 </Button>
               </div>
@@ -248,7 +240,7 @@ export default function LoginPage() {
               <div className="space-y-4">
                 <div className="space-y-2"><Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Child's Student ID (STU)</Label><Input placeholder="ABC-STU-2026-XXXX" value={parentStudentId} onChange={e => setParentStudentId(e.target.value)} className="h-12 rounded-xl font-mono" /></div>
                 <div className="space-y-2"><Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Parent Phone Number</Label><Input type="tel" placeholder="024XXXXXXX" value={parentPhoneInput} onChange={e => setParentPhoneInput(e.target.value)} className="h-12 rounded-xl" /></div>
-                <Button className="w-full h-14 font-bold rounded-2xl bg-primary shadow-xl" onClick={handleParentLogin} disabled={parentLoading}>
+                <Button className="w-full h-14 font-bold rounded-2xl bg-primary shadow-xl shadow-primary/20" onClick={handleParentLogin} disabled={parentLoading}>
                   {parentLoading ? <Loader2 className="animate-spin mr-2" /> : "Authorize Guardian Portal"}
                 </Button>
                 <div className="p-4 rounded-xl bg-blue-50 border border-blue-100 flex gap-3">
@@ -262,7 +254,7 @@ export default function LoginPage() {
               <div className="space-y-4">
                 <div className="space-y-2"><Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Student ID (STU)</Label><Input placeholder="ABC-STU-2026-XXXX" value={studentIdInput} onChange={e => setStudentIdInput(e.target.value)} className="h-12 rounded-xl font-mono" /></div>
                 <div className="space-y-2"><Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Student PIN</Label><Input type="password" maxLength={4} placeholder="XXXX" value={studentPinInput} onChange={e => setStudentPinInput(e.target.value)} className="h-12 rounded-xl text-center text-2xl tracking-[1em]" /></div>
-                <Button className="w-full h-14 font-bold rounded-2xl bg-primary shadow-xl" onClick={handleStudentLogin} disabled={studentLoading}>
+                <Button className="w-full h-14 font-bold rounded-2xl bg-primary shadow-xl shadow-primary/20" onClick={handleStudentLogin} disabled={studentLoading}>
                   {studentLoading ? <Loader2 className="animate-spin mr-2" /> : "Verify Student Identity"}
                 </Button>
                 <div className="p-4 rounded-xl bg-slate-50 border flex gap-3">
@@ -274,7 +266,7 @@ export default function LoginPage() {
           </CardContent>
 
           <CardFooter className="bg-muted/30 p-6 flex flex-col gap-4 border-t">
-            <p className="text-[9px] text-center text-muted-foreground uppercase font-bold tracking-widest">Institutional Data Isolation Active • System 2026</p>
+            <p className="text-[9px] text-center text-muted-foreground uppercase font-bold tracking-widest">Institutional Data Isolation Active • YSM 2026</p>
             <Button variant="link" className="w-full gap-2 text-primary font-bold text-xs" asChild><Link href="/register/institution">Register New Institution <ArrowRight className="size-3.5" /></Link></Button>
           </CardFooter>
         </Tabs>

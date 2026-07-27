@@ -4,8 +4,32 @@ import {Toaster} from '@/components/ui/toaster';
 import {FirebaseClientProvider} from '@/firebase/client-provider';
 
 export const metadata: Metadata = {
-  title: 'Yebfa School Manager | Enterprise SaaS',
-  description: 'A modern, multi-tenant school management system with AI insights.',
+  title: 'YSM - Yebfa School Manager | Enterprise SaaS',
+  description: 'YSM (Yebfa School Manager) is a modern, multi-tenant school management system with AI-driven insights for student management, financial forecasting, and academic excellence in 2026.',
+  keywords: ['YSM', 'Yebfa School Manager', 'School Management System', 'SaaS', 'Education AI', 'Ghana Education', 'Ahafo Region'],
+  authors: [{ name: 'Yebfa Technology Hub' }],
+  openGraph: {
+    title: 'YSM - Yebfa School Manager',
+    description: 'The Operating System for Modern Schools. AI-powered student registry, financial modeling, and academic reporting.',
+    url: 'https://ysm.yebfa.com',
+    siteName: 'YSM Yebfa School Manager',
+    images: [
+      {
+        url: 'https://picsum.photos/seed/ysm-og/1200/630',
+        width: 1200,
+        height: 630,
+        alt: 'YSM Dashboard Preview',
+      },
+    ],
+    locale: 'en_GH',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'YSM - Yebfa School Manager',
+    description: 'The Operating System for Modern Schools. AI-powered student registry, financial modeling, and academic reporting.',
+    images: ['https://picsum.photos/seed/ysm-og/1200/630'],
+  },
 };
 
 export default function RootLayout({
