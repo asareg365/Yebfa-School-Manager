@@ -77,14 +77,23 @@ export default function AddParentPage() {
 
   // Robust ID generation to prevent duplicates by finding the max value in the current set
   useEffect(() => {
-    if (institutionId && !parentsLoading && !parentForm.parentNumber) {
+    if (institutionId && !parentsLoading) {
       const numbers = parents
-        .map(p => parseInt(p.parentNumber?.split('-')[1] || "0"))
+        .map(p => {
+          const raw = p.parentNumber || "";
+          const match = raw.match(/\d+/);
+          return match ? parseInt(match[0]) : 0;
+        })
         .filter(n => !isNaN(n));
+      
       const maxNum = numbers.length > 0 ? Math.max(...numbers) : 0;
       const nextNum = maxNum + 1;
       const autoCode = `PAR-${String(nextNum).padStart(6, '0')}`;
-      setParentForm(prev => ({ ...prev, parentNumber: autoCode }));
+      
+      // Update form if calculation differs (prevents stuck at 000001)
+      if (parentForm.parentNumber !== autoCode) {
+        setParentForm(prev => ({ ...prev, parentNumber: autoCode }));
+      }
     }
   }, [institutionId, parentsLoading, parents, parentForm.parentNumber])
 

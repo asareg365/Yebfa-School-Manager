@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
@@ -117,13 +116,26 @@ export default function StaffHRPage() {
     ).sort((a, b) => (a.staffNumber || "").localeCompare(b.staffNumber || ""));
   }, [rawStaff, searchQuery]);
 
+  // Robust ID Generation logic
   useEffect(() => {
-    if (isEnrollOpen && !staffForm.staffNumber && !editingStaff) {
-      const count = rawStaff.length + 1;
-      const autoId = `EMP-${String(count).padStart(3, '0')}`;
-      setStaffForm(prev => ({ ...prev, staffNumber: autoId }));
+    if (isEnrollOpen && !dataLoading && !editingStaff) {
+      const numbers = rawStaff
+        .map(s => {
+          const raw = s.staffNumber || "";
+          const match = raw.match(/\d+/);
+          return match ? parseInt(match[0]) : 0;
+        })
+        .filter(n => !isNaN(n));
+      
+      const maxNum = numbers.length > 0 ? Math.max(...numbers) : 0;
+      const nextNum = maxNum + 1;
+      const autoId = `EMP-${String(nextNum).padStart(3, '0')}`;
+      
+      if (staffForm.staffNumber !== autoId) {
+        setStaffForm(prev => ({ ...prev, staffNumber: autoId }));
+      }
     }
-  }, [isEnrollOpen, rawStaff.length, editingStaff]);
+  }, [isEnrollOpen, dataLoading, rawStaff, editingStaff, staffForm.staffNumber]);
 
   const handleEnroll = async (e: React.FormEvent) => {
     e.preventDefault()

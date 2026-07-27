@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -143,20 +142,45 @@ export default function StudentsPage() {
     ).sort((a: any, b: any) => (a.admissionNumber || "").localeCompare(b.admissionNumber || ""));
   }, [rawStudents, searchQuery]);
 
-  // Unique ID Generation logic
+  // Robust ID Generation logic (IDENTIFY MAX + 1)
   useEffect(() => {
-    if (isEnrollOpen && !studentsLoading && !studentForm.admissionNumber && !editingStudent) {
+    if (isEnrollOpen && !studentsLoading && !editingStudent) {
+      const numbers = rawStudents
+        .map(s => {
+          const raw = s.admissionNumber || "";
+          const match = raw.match(/\d+$/); // match the end sequence
+          return match ? parseInt(match[0]) : 0;
+        })
+        .filter(n => !isNaN(n));
+      
+      const maxNum = numbers.length > 0 ? Math.max(...numbers) : 0;
+      const nextNum = maxNum + 1;
       const year = new Date().getFullYear();
-      const count = rawStudents.length + 1;
-      const autoAdm = `ADM-${year}-${String(count).padStart(5, '0')}`;
-      setStudentForm(prev => ({ ...prev, admissionNumber: autoAdm }));
+      const autoAdm = `ADM-${year}-${String(nextNum).padStart(5, '0')}`;
+      
+      if (studentForm.admissionNumber !== autoAdm) {
+        setStudentForm(prev => ({ ...prev, admissionNumber: autoAdm }));
+      }
     }
-    if (isEnrollOpen && !parentsLoading && isNewParent && !newParentForm.parentNumber) {
-      const nextCount = parents.length + 1;
-      const autoCode = `PAR-${String(nextCount).padStart(6, '0')}`;
-      setNewParentForm(prev => ({ ...prev, parentNumber: autoCode }));
+
+    if (isEnrollOpen && !parentsLoading && isNewParent) {
+      const pNumbers = parents
+        .map(p => {
+          const raw = p.parentNumber || "";
+          const match = raw.match(/\d+/);
+          return match ? parseInt(match[0]) : 0;
+        })
+        .filter(n => !isNaN(n));
+      
+      const maxPNum = pNumbers.length > 0 ? Math.max(...pNumbers) : 0;
+      const nextPNum = maxPNum + 1;
+      const autoCode = `PAR-${String(nextPNum).padStart(6, '0')}`;
+      
+      if (newParentForm.parentNumber !== autoCode) {
+        setNewParentForm(prev => ({ ...prev, parentNumber: autoCode }));
+      }
     }
-  }, [isEnrollOpen, studentsLoading, parentsLoading, rawStudents.length, parents.length, editingStudent, isNewParent, studentForm.admissionNumber, newParentForm.parentNumber]);
+  }, [isEnrollOpen, studentsLoading, parentsLoading, rawStudents, parents, editingStudent, isNewParent, studentForm.admissionNumber, newParentForm.parentNumber]);
 
   const handleEnroll = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -284,7 +308,17 @@ export default function StudentsPage() {
       complete: async (results) => {
         const batch = writeBatch(db)
         const year = new Date().getFullYear()
-        let count = rawStudents.length + 1
+        
+        // Find current max to prevent duplicates in bulk
+        const numbers = rawStudents
+          .map(s => {
+            const raw = s.admissionNumber || "";
+            const match = raw.match(/\d+$/);
+            return match ? parseInt(match[0]) : 0;
+          })
+          .filter(n => !isNaN(n));
+        
+        let count = numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
 
         for (const row of results.data as any[]) {
           const studentRef = doc(collection(db, "students"))
