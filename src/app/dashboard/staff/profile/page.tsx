@@ -22,7 +22,8 @@ import {
   Loader2, 
   Clock,
   IdCard,
-  Building2
+  Building2,
+  AlertCircle
 } from "lucide-react";
 
 export default function StaffProfilePage() {
@@ -31,6 +32,8 @@ export default function StaffProfilePage() {
 
   const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user]);
   const { data: profile, loading: profileLoading } = useDoc(userProfileRef);
+
+  const isStaff = profile?.role && ['teacher', 'administrator', 'school_owner', 'accountant', 'librarian'].includes(profile.role);
 
   const staffRef = useMemo(() => 
     profile?.staffId ? doc(db, "staff", profile.staffId) : null
@@ -47,6 +50,18 @@ export default function StaffProfilePage() {
     );
   }
 
+  if (!isStaff) {
+    return (
+      <div className="p-12 text-center space-y-6">
+        <AlertCircle className="size-20 text-destructive/20 mx-auto" />
+        <div className="max-w-md mx-auto space-y-2">
+          <h2 className="text-2xl font-bold font-headline text-primary">Personnel View Restricted</h2>
+          <p className="text-sm text-muted-foreground">This portal hub is strictly for institutional faculty. Students and guardians should use their respective dashboards.</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!profile?.staffId || !staff) {
     return (
       <div className="p-12 text-center space-y-6">
@@ -56,7 +71,7 @@ export default function StaffProfilePage() {
         <div className="max-w-md mx-auto space-y-2">
           <h2 className="text-2xl font-bold font-headline text-primary">Registry Link Not Found</h2>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Your portal account is not yet linked to an institutional staff record. Please contact your administrator to 'Sync Access' in the Staff Registry to authorize your profile details.
+            Your portal account is not yet linked to an institutional staff record. Please contact your administrator to verify your identity in the Staff Registry.
           </p>
         </div>
       </div>

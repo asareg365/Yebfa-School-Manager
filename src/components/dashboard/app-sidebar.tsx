@@ -88,22 +88,25 @@ export function AppSidebar() {
   const isAccountant = userRole === "accountant"
   const isTeacher = userRole === "teacher"
   const isParent = userRole === "parent"
+  const isStudent = userRole === "student"
   const isLibrarian = userRole === "librarian"
 
+  const isStaff = isTeacher || isAdmin || isOwner || isAccountant || isLibrarian
+
   const navigation = React.useMemo(() => {
-    // Parent Navigation: Only show essentials
-    if (isParent) {
+    // Parent/Student Navigation: Only show essentials
+    if (isParent || isStudent) {
       return [
         { title: "Dashboard", url: "/dashboard/parent", icon: LayoutDashboard, visible: true },
         { title: "Announcements", url: "/dashboard/communication", icon: MessageSquare, visible: true },
-        { title: "AI Child Support", url: "/dashboard/academic/ai-assistant", icon: Bot, visible: true },
+        { title: "AI Academic Support", url: "/dashboard/academic/ai-assistant", icon: Bot, visible: true },
       ].filter(i => i.visible)
     }
 
     // Staff/Owner Navigation
     return [
       { title: "Overview", url: "/dashboard", icon: LayoutDashboard, visible: true },
-      { title: "My Profile", url: "/dashboard/staff/profile", icon: User, visible: userRole !== 'super_admin' },
+      { title: "My Profile", url: "/dashboard/staff/profile", icon: User, visible: isStaff },
       {
         title: "AI Strategic Hub",
         url: "#",
@@ -201,7 +204,7 @@ export function AppSidebar() {
       { title: "Communication", url: "/dashboard/communication", icon: MessageSquare, visible: true },
       { title: "Settings", url: "/dashboard/settings", icon: Settings, visible: isSuperAdmin || isOwner || isAdmin },
     ].filter(item => item.visible)
-  }, [userRole, isSuperAdmin, isOwner, isAdmin, isAccountant, isTeacher, isParent, isLibrarian])
+  }, [userRole, isSuperAdmin, isOwner, isAdmin, isAccountant, isTeacher, isParent, isStudent, isLibrarian, isStaff])
 
   if (!mounted) return (
     <Sidebar collapsible="icon" className="border-r border-border/40">

@@ -184,13 +184,15 @@ export default function StudentsPage() {
       let finalAdmissionNumber = studentForm.admissionNumber
       let finalPin = studentForm.studentPin
 
+      const studentRef = editingStudent ? doc(db, "students", editingStudent.id) : doc(collection(db, "students"))
+      studentId = studentRef.id
+
       if (!editingStudent) {
         finalAdmissionNumber = await generateInstitutionId('STU', institutionId, institution?.schoolCode);
-        finalPin = generateStudentPin(); // Now 6 digits
+        finalPin = generateStudentPin(); 
         const studentEmail = `${finalAdmissionNumber.toLowerCase().trim()}@system.yebfa.com`;
         
         try {
-          // finalPin is guaranteed 6 digits by generateStudentPin()
           const credential = await createUserWithEmailAndPassword(provisionAuth, studentEmail, finalPin)
           const authUser = credential.user
           
@@ -199,6 +201,7 @@ export default function StudentsPage() {
             name: `${studentForm.firstName} ${studentForm.lastName}`,
             email: studentEmail,
             role: "student",
+            studentId: studentId, // CRITICAL: Link the security account to the registry record
             tenantId: institutionId,
             institutionId: institutionId,
             status: "active",
@@ -213,7 +216,6 @@ export default function StudentsPage() {
       if (isNewParent && !editingStudent) {
         const finalParentNumber = await generateInstitutionId('PAR', institutionId, institution?.schoolCode);
         let cleanPass = normalizeSecurityPhone(newParentForm.phone);
-        // Ensure parent password is at least 6 characters
         if (cleanPass.length < 6) cleanPass = cleanPass.padEnd(6, '0');
         
         const parentEmail = newParentForm.email || `${finalParentNumber.toLowerCase().trim()}@system.yebfa.com`;
@@ -263,10 +265,8 @@ export default function StudentsPage() {
 
       if (editingStudent) {
         const { id, createdAt, ...sanitizedData } = studentData as any;
-        batch.update(doc(db, "students", studentId), sanitizedData);
+        batch.update(studentRef, sanitizedData);
       } else {
-        const studentRef = doc(collection(db, "students"))
-        studentId = studentRef.id
         batch.set(studentRef, {
           ...studentData,
           id: studentId,
@@ -319,7 +319,7 @@ export default function StudentsPage() {
             if (!row.firstName || !row.lastName) continue;
 
             const finalAdmissionNumber = await generateInstitutionId('STU', institutionId, institution?.schoolCode);
-            const finalPin = generateStudentPin(); // Now 6 digits
+            const finalPin = generateStudentPin(); 
             const studentEmail = `${finalAdmissionNumber.toLowerCase().trim()}@system.yebfa.com`;
             
             try {
@@ -327,6 +327,8 @@ export default function StudentsPage() {
                const authUser = credential.user;
 
                const studentRef = doc(collection(db, "students"))
+               const studentId = studentRef.id;
+
                batch.set(studentRef, {
                  firstName: row.firstName,
                  lastName: row.lastName,
@@ -338,7 +340,7 @@ export default function StudentsPage() {
                  tenantId: institutionId,
                  institutionId,
                  status: "active",
-                 id: studentRef.id,
+                 id: studentId,
                  createdAt: serverTimestamp(),
                  updatedAt: serverTimestamp()
                });
@@ -348,6 +350,7 @@ export default function StudentsPage() {
                  name: `${row.firstName} ${row.lastName}`,
                  email: studentEmail,
                  role: "student",
+                 studentId: studentId,
                  tenantId: institutionId,
                  institutionId: institutionId,
                  status: "active",
@@ -384,6 +387,16 @@ export default function StudentsPage() {
     }
     setIsEnrollOpen(true)
     setActiveStep("identity")
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to remove this student?")) return
+    try {
+      await deleteDoc(doc(db!, "students", id))
+      toast({ title: "Record Removed" })
+    } catch (e) { 
+      toast({ variant: "destructive", title: "Action Failed" }) 
+    }
   }
 
   if (profileLoading || studentsLoading) return (
@@ -484,7 +497,7 @@ export default function StudentsPage() {
                     <TableCell className="text-right px-6">
                        <div className="flex items-center justify-end gap-1">
                           <Button variant="ghost" size="icon" onClick={() => openEdit(stu)}><Pencil className="size-4" /></Button>
-                          <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteDoc(doc(db!, "students", stu.id))}><Trash2 className="size-4" /></Button>
+                          <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(stu.id)}><Trash2 className="size-4" /></Button>
                        </div>
                     </TableCell>
                   </TableRow>

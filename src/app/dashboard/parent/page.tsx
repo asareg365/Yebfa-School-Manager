@@ -20,7 +20,8 @@ import {
   ClipboardList,
   Receipt,
   CreditCard,
-  AlertTriangle
+  AlertTriangle,
+  GraduationCap
 } from "lucide-react"
 import { useUser, useFirestore, useCollection, useDoc } from "@/firebase"
 import { query, collection, where, doc } from "firebase/firestore"
@@ -33,21 +34,36 @@ export default function StudentReportsPortal() {
   const db = useFirestore()
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
 
-  // 1. Fetch children linked to this parent
+  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
+  const { data: profile } = useDoc(userProfileRef)
+  
+  const isStudent = profile?.role === 'student'
+  const isParent = profile?.role === 'parent'
+
+  // 1. Resolve student identity based on role
   const relsQuery = useMemo(() => {
-    if (!db || !user?.uid) return null
+    if (!db || !user?.uid || !isParent) return null
     return query(collection(db, "student_parents"), where("parentId", "==", user.uid))
-  }, [db, user?.uid])
+  }, [db, user?.uid, isParent])
 
   const { data: relations, loading: relsLoading } = useCollection(relsQuery)
 
   const studentsQuery = useMemo(() => {
-    if (!db || relations.length === 0) return null
-    const studentIds = relations.map(r => r.studentId)
-    return query(collection(db, "students"), where("id", "in", studentIds))
-  }, [db, relations])
+    if (!db || !profile) return null
+    if (isStudent) {
+       // If student, they only see themselves
+       const sId = profile.studentId;
+       if (!sId) return null;
+       return query(collection(db, "students"), where("id", "==", sId))
+    }
+    if (isParent && relations.length > 0) {
+      const studentIds = relations.map(r => r.studentId)
+      return query(collection(db, "students"), where("id", "in", studentIds))
+    }
+    return null;
+  }, [db, relations, isStudent, isParent, profile])
 
-  const { data: children, loading: childrenLoading } = useCollection(studentsQuery)
+  const { data: children = [], loading: childrenLoading } = useCollection(studentsQuery)
 
   useEffect(() => {
     if (children.length > 0 && !selectedStudentId) {
@@ -94,22 +110,14 @@ export default function StudentReportsPortal() {
 
   // 4. Quantitative Computations
   const computedData = useMemo(() => {
-    if (exams.length === 0 && invoices.length === 0) {
-       // Still try to compute ledger balance and attendance if available
-       const attSummary = calculateAttendanceSummary(attendance);
-       const balance = ledger.reduce((acc, curr: any) => curr.type === 'charge' ? acc + curr.amount : acc - curr.amount, 0);
-       return {
-         results: [],
-         average: 0,
-         attendance: attSummary,
-         balance
-       };
+    if (exams.length === 0 && invoices.length === 0 && attendance.length === 0) {
+       return { results: [], average: 0, attendance: { percentage: 0, present: 0 }, balance: 0 };
     }
     
     const results = exams.map((e: any) => {
       const gradeInfo = calculateGrade(e.totalScore);
       return {
-        subject: e.subjectId, // Subject ID used as display name here
+        subject: e.subjectId, 
         total: e.totalScore,
         grade: gradeInfo.grade,
         remark: gradeInfo.remark
@@ -132,19 +140,21 @@ export default function StudentReportsPortal() {
   if (childrenLoading || relsLoading) return (
     <div className="p-24 text-center">
       <Loader2 className="size-10 animate-spin mx-auto text-primary" />
-      <p className="mt-4 font-bold text-muted-foreground animate-pulse uppercase tracking-widest text-xs">Syncing Family Hub...</p>
+      <p className="mt-4 font-bold text-muted-foreground animate-pulse uppercase tracking-widest text-xs">Syncing Portal Identity...</p>
     </div>
   )
 
   if (children.length === 0) return (
     <div className="p-24 text-center space-y-6">
       <div className="size-20 bg-muted rounded-full flex items-center justify-center mx-auto text-muted-foreground/30">
-        <Baby className="size-10" />
+        <GraduationCap className="size-10" />
       </div>
       <div className="max-w-md mx-auto space-y-2">
-         <h2 className="text-2xl font-headline font-bold text-primary">No Wards Registered</h2>
+         <h2 className="text-2xl font-headline font-bold text-primary">Identity Not Linked</h2>
          <p className="text-sm text-muted-foreground leading-relaxed">
-           Your portal account is not yet linked to any student records. Please contact the school administration to authorize your guardian identity in the registry.
+           {isStudent 
+             ? "Your security account is not yet linked to an institutional student record. Contact the registry office to authorize your profile link."
+             : "Your portal account is not yet linked to any student records. Contact the school administration to authorize your guardian identity."}
          </p>
       </div>
     </div>
@@ -154,24 +164,26 @@ export default function StudentReportsPortal() {
     <div className="space-y-8 animate-in fade-in duration-500 pb-24">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Parent Portal</h1>
+          <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">{isStudent ? "My Academic Hub" : "Parent Portal"}</h1>
           <p className="text-muted-foreground font-medium">Monitoring academic and financial status for {currentTerm}, 2026.</p>
         </div>
-        <div className="flex gap-2 p-1 bg-muted/50 rounded-2xl border shadow-sm">
-          {children.map((child: any) => (
-            <button
-              key={child.id}
-              onClick={() => setSelectedStudentId(child.id)}
-              className={`px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
-                selectedStudentId === child.id 
-                ? 'bg-primary shadow-lg text-white' 
-                : 'text-muted-foreground hover:bg-white/80'
-              }`}
-            >
-              {child.firstName}
-            </button>
-          ))}
-        </div>
+        {!isStudent && children.length > 1 && (
+          <div className="flex gap-2 p-1 bg-muted/50 rounded-2xl border shadow-sm">
+            {children.map((child: any) => (
+              <button
+                key={child.id}
+                onClick={() => setSelectedStudentId(child.id)}
+                className={`px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
+                  selectedStudentId === child.id 
+                  ? 'bg-primary shadow-lg text-white' 
+                  : 'text-muted-foreground hover:bg-white/80'
+                }`}
+              >
+                {child.firstName}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {selectedChild && (
@@ -343,7 +355,7 @@ export default function StudentReportsPortal() {
                      <Card className="border-none shadow-md p-12 text-center bg-white rounded-3xl border-2 border-dashed">
                         <Calendar className="size-16 mx-auto text-primary/10 mb-4" />
                         <h3 className="text-xl font-bold font-headline text-primary/70">Institutional Presence Log</h3>
-                        <p className="text-sm text-muted-foreground max-w-sm mx-auto mt-2">Quantitative attendance tracking for Term Cycle verified by the registry.</p>
+                        <p className="text-sm text-muted-foreground max-sm mx-auto mt-2">Quantitative attendance tracking for Term Cycle verified by the registry.</p>
                         <div className="mt-10 flex justify-center gap-16">
                            <div className="text-center group"><p className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest mb-1 group-hover:text-primary transition-colors">Present</p><p className="text-3xl font-bold text-primary">{computedData?.attendance.present}</p></div>
                            <div className="text-center group"><p className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest mb-1 group-hover:text-destructive transition-colors">Absent</p><p className="text-3xl font-bold text-destructive">{computedData?.attendance.absent}</p></div>
@@ -399,7 +411,7 @@ export default function StudentReportsPortal() {
 
           <div className="pt-12 border-t flex justify-center">
              <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter flex items-center gap-2">
-                <CheckCircle2 className="size-3 text-green-600" /> Authorized Guardian Data Context • 2026 Institutional Registry
+                <CheckCircle2 className="size-3 text-green-600" /> Authorized Registry Context • 2026 Institutional Hub
              </p>
           </div>
         </div>
