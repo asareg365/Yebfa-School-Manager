@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -25,7 +26,7 @@ import {
   FileSpreadsheet
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useFirestore, useCollection, useUser } from "@/firebase"
+import { useFirestore, useCollection, useUser, useDoc } from "@/firebase"
 import { collection, addDoc, query, deleteDoc, doc, where, serverTimestamp, updateDoc, writeBatch, setDoc } from "firebase/firestore"
 import { useState, useMemo, useEffect, useRef } from "react"
 import { Badge } from "@/components/ui/badge"
@@ -41,6 +42,7 @@ import Papa from "papaparse"
 import { initializeApp, getApp, getApps } from "firebase/app"
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth"
 import { firebaseConfig } from "@/firebase/config"
+import { generateInstitutionId, normalizeSecurityPhone } from "@/lib/identity-service"
 
 export default function StudentsPage() {
   const db = useFirestore()
@@ -65,7 +67,7 @@ export default function StudentsPage() {
     lastName: "",
     gender: "Male",
     dateOfBirth: "",
-    admissionNumber: "",
+    admissionNumber: "GENERATING...",
     gradeLevel: "",
     status: "active",
     house: "",
@@ -92,7 +94,7 @@ export default function StudentsPage() {
   })
 
   const [newParentForm, setNewParentForm] = useState({
-    parentNumber: "",
+    parentNumber: "GENERATING...",
     firstName: "",
     lastName: "",
     gender: "Female",
@@ -125,13 +127,16 @@ export default function StudentsPage() {
     }
   }, [searchParams])
 
+  const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
+  const { data: institution } = useDoc(instRef)
+
   const studentsQuery = useMemo(() => institutionId ? query(collection(db, "students"), where("tenantId", "==", institutionId)) : null, [db, institutionId]);
   const parentsQuery = useMemo(() => institutionId ? query(collection(db, "parents"), where("tenantId", "==", institutionId)) : null, [db, institutionId]);
   const classesQuery = useMemo(() => institutionId ? query(collection(db, "classes"), where("tenantId", "==", institutionId)) : null, [db, institutionId]);
   const relsQuery = useMemo(() => institutionId ? query(collection(db, "student_parents"), where("tenantId", "==", institutionId)) : null, [db, institutionId]);
 
-  const { data: rawStudents = [], loading: studentsLoading } = useCollection(studentsQuery)
-  const { data: parents = [], loading: parentsLoading } = useCollection(parentsQuery)
+  const { data: rawStudents = [] } = useCollection(studentsQuery)
+  const { data: parents = [] } = useCollection(parentsQuery)
   const { data: registeredClasses = [] } = useCollection(classesQuery)
   const { data: allRels = [] } = useCollection(relsQuery)
 
@@ -142,49 +147,12 @@ export default function StudentsPage() {
     ).sort((a: any, b: any) => (a.admissionNumber || "").localeCompare(b.admissionNumber || ""));
   }, [rawStudents, searchQuery]);
 
-  // Robust ID Generation logic (IDENTIFY MAX + 1)
-  useEffect(() => {
-    if (isEnrollOpen && !studentsLoading && !editingStudent) {
-      const numbers = rawStudents
-        .map(s => {
-          const raw = s.admissionNumber || "";
-          const match = raw.match(/\d+$/); // match the end sequence
-          return match ? parseInt(match[0]) : 0;
-        })
-        .filter(n => !isNaN(n));
-      
-      const maxNum = numbers.length > 0 ? Math.max(...numbers) : 0;
-      const nextNum = maxNum + 1;
-      const year = new Date().getFullYear();
-      const autoAdm = `ADM-${year}-${String(nextNum).padStart(5, '0')}`;
-      
-      if (studentForm.admissionNumber !== autoAdm) {
-        setStudentForm(prev => ({ ...prev, admissionNumber: autoAdm }));
-      }
-    }
-
-    if (isEnrollOpen && !parentsLoading && isNewParent) {
-      const pNumbers = parents
-        .map(p => {
-          const raw = p.parentNumber || "";
-          const match = raw.match(/\d+/);
-          return match ? parseInt(match[0]) : 0;
-        })
-        .filter(n => !isNaN(n));
-      
-      const maxPNum = pNumbers.length > 0 ? Math.max(...pNumbers) : 0;
-      const nextPNum = maxPNum + 1;
-      const autoCode = `PAR-${String(nextPNum).padStart(6, '0')}`;
-      
-      if (newParentForm.parentNumber !== autoCode) {
-        setNewParentForm(prev => ({ ...prev, parentNumber: autoCode }));
-      }
-    }
-  }, [isEnrollOpen, studentsLoading, parentsLoading, rawStudents, parents, editingStudent, isNewParent, studentForm.admissionNumber, newParentForm.parentNumber]);
-
   const handleEnroll = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!db || !institutionId || loading) return
+    if (!db || !institutionId || loading || !institution?.schoolCode) {
+      toast({ variant: "destructive", title: "Configuration Error", description: "Institution profile missing school code." })
+      return
+    }
 
     if (isNewParent && !newParentForm.email) {
       toast({ variant: "destructive", title: "Guardian Email Required", description: "Parents must have an email for portal access." });
@@ -197,29 +165,36 @@ export default function StudentsPage() {
       const batch = writeBatch(db)
       let finalParentId = linkedParentId
       let studentId = editingStudent?.id
+      let finalAdmissionNumber = studentForm.admissionNumber
 
-      // 1. Handle New Parent Auth Provisioning
-      if (isNewParent) {
+      // 1. Transactional ID Generation
+      if (!editingStudent) {
+        finalAdmissionNumber = await generateInstitutionId('STU', institutionId, institution.schoolCode);
+      }
+
+      // 2. Handle New Parent Auth Provisioning
+      if (isNewParent && !editingStudent) {
+        const finalParentNumber = await generateInstitutionId('PAR', institutionId, institution.schoolCode);
+        const cleanPass = normalizeSecurityPhone(newParentForm.phone);
+        
         const secondaryAppName = `secondary-parent-wizard-${Date.now()}`
         const secondaryApp = getApps().find(a => a.name === secondaryAppName) || initializeApp(firebaseConfig, secondaryAppName)
         const secondaryAuth = getAuth(secondaryApp)
         
         let parentAuthUser;
         try {
-          const credential = await createUserWithEmailAndPassword(secondaryAuth, newParentForm.email, newParentForm.phone)
+          const credential = await createUserWithEmailAndPassword(secondaryAuth, newParentForm.email, cleanPass)
           parentAuthUser = credential.user
         } catch (authErr: any) {
-          if (authErr.code === 'auth/email-already-in-use') {
-            console.warn("Parent Auth record exists.");
-          } else {
-            throw authErr;
-          }
+          if (authErr.code !== 'auth/email-already-in-use') throw authErr;
         }
 
         const parentRef = doc(collection(db, "parents"))
         finalParentId = parentRef.id
         batch.set(parentRef, {
           ...newParentForm,
+          parentNumber: finalParentNumber,
+          phone: normalizeSecurityPhone(newParentForm.phone),
           id: finalParentId,
           tenantId: institutionId,
           institutionId: institutionId,
@@ -243,6 +218,7 @@ export default function StudentsPage() {
 
       const studentData = {
         ...studentForm,
+        admissionNumber: finalAdmissionNumber,
         tenantId: institutionId,
         institutionId,
         updatedAt: serverTimestamp()
@@ -260,6 +236,7 @@ export default function StudentsPage() {
           createdAt: serverTimestamp()
         });
 
+        // Initialize empty ledger
         const ledgerRef = doc(collection(db, "student_ledger"))
         batch.set(ledgerRef, {
           tenantId: institutionId,
@@ -290,81 +267,11 @@ export default function StudentsPage() {
       }
 
       await batch.commit()
-      toast({ title: editingStudent ? "Registry Synchronized" : "Student Enrolled" })
+      toast({ title: editingStudent ? "Registry Synchronized" : `Enrolled: ${finalAdmissionNumber}` })
       setIsEnrollOpen(false); setEditingStudent(null); setStudentForm(initialForm); setActiveStep("identity")
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Action Failed", description: error.message });
+      toast({ variant: "destructive", title: "Enrollment Failed", description: error.message });
     } finally { setLoading(false) }
-  }
-
-  const handleBulkEnroll = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !institutionId) return
-
-    setLoading(true)
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: async (results) => {
-        const batch = writeBatch(db)
-        const year = new Date().getFullYear()
-        
-        // Find current max to prevent duplicates in bulk
-        const numbers = rawStudents
-          .map(s => {
-            const raw = s.admissionNumber || "";
-            const match = raw.match(/\d+$/);
-            return match ? parseInt(match[0]) : 0;
-          })
-          .filter(n => !isNaN(n));
-        
-        let count = numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
-
-        for (const row of results.data as any[]) {
-          const studentRef = doc(collection(db, "students"))
-          const studentId = studentRef.id
-          const admNo = `ADM-${year}-${String(count).padStart(5, '0')}`
-
-          batch.set(studentRef, {
-            firstName: row.firstName || "New",
-            lastName: row.lastName || "Student",
-            gender: row.gender || "Male",
-            dateOfBirth: row.dob || "",
-            admissionNumber: admNo,
-            gradeLevel: row.grade || "",
-            status: "active",
-            tenantId: institutionId,
-            institutionId,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp()
-          })
-
-          const ledgerRef = doc(collection(db, "student_ledger"))
-          batch.set(ledgerRef, {
-            tenantId: institutionId,
-            institutionId,
-            studentId,
-            date: new Date().toISOString().split('T')[0],
-            item: "Bulk Account Provisioning",
-            type: "charge",
-            amount: 0,
-            createdAt: serverTimestamp()
-          })
-
-          count++
-        }
-
-        try {
-          await batch.commit()
-          toast({ title: "Bulk Enrollment Complete", description: `Loaded ${results.data.length} students into registry.` })
-          setIsBulkOpen(false)
-        } catch (err: any) {
-          toast({ variant: "destructive", title: "Bulk Upload Failed", description: err.message })
-        } finally {
-          setLoading(false)
-        }
-      }
-    })
   }
 
   const navigateStep = (direction: 'next' | 'back') => {
@@ -384,8 +291,6 @@ export default function StudentsPage() {
     setIsEnrollOpen(true)
     setActiveStep("identity")
   }
-
-  if (studentsLoading) return <div className="p-24 text-center animate-pulse font-bold text-muted-foreground uppercase tracking-widest text-xs">Syncing Registry...</div>
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-20">
@@ -416,7 +321,7 @@ export default function StudentsPage() {
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow>
-                <TableHead className="py-4 font-bold px-6">ADM # / STUDENT</TableHead>
+                <TableHead className="py-4 font-bold px-6">ID / STUDENT</TableHead>
                 <TableHead className="py-4 font-bold">GRADE</TableHead>
                 <TableHead className="py-4 font-bold">GUARDIAN LINK</TableHead>
                 <TableHead className="py-4 font-bold">STATUS</TableHead>
@@ -460,27 +365,6 @@ export default function StudentsPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={isBulkOpen} onOpenChange={setIsBulkOpen}>
-        <DialogContent className="max-w-md rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-headline font-bold">Bulk Student Enrollment</DialogTitle>
-            <DialogDescription>Upload a CSV file to enroll multiple students instantly. Expected columns: firstName, lastName, gender, dob, grade.</DialogDescription>
-          </DialogHeader>
-          <div className="py-12 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-4 bg-muted/5">
-            <Upload className="size-12 text-primary opacity-20" />
-            <div className="text-center space-y-1">
-              <p className="text-sm font-bold">Drop CSV here or click to select</p>
-              <p className="text-xs text-muted-foreground italic">File size limit: 2MB</p>
-            </div>
-            <input type="file" ref={fileInputRef} onChange={handleBulkEnroll} accept=".csv" className="hidden" />
-            <Button className="h-10 px-8 rounded-xl font-bold" onClick={() => fileInputRef.current?.click()} disabled={loading}>
-              {loading ? <Loader2 className="animate-spin mr-2" /> : <Upload className="mr-2 size-4" />}
-              Choose File
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
       <Dialog open={isEnrollOpen} onOpenChange={setIsEnrollOpen}>
         <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded-2xl md:rounded-3xl max-h-[90vh] flex flex-col">
           <form onSubmit={handleEnroll} className="flex flex-col h-full overflow-hidden">
@@ -493,7 +377,7 @@ export default function StudentsPage() {
               <ScrollArea className="flex-1 p-8">
                 <TabsContent value="identity" className="space-y-6 mt-0">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2"><Label>Admission #</Label><Input readOnly value={studentForm.admissionNumber} className="h-11 rounded-xl bg-slate-50 font-bold" /></div>
+                    <div className="space-y-2"><Label>Admission # (Sequential)</Label><Input readOnly value={editingStudent ? studentForm.admissionNumber : "AUTO-ASSIGNED ON SAVE"} className="h-11 rounded-xl bg-slate-50 font-bold" /></div>
                     <div className="space-y-2"><Label>First Name</Label><Input required value={studentForm.firstName} onChange={e => setStudentForm({...studentForm, firstName: e.target.value})} className="h-11 rounded-xl" /></div>
                     <div className="space-y-2"><Label>Last Name</Label><Input required value={studentForm.lastName} onChange={e => setStudentForm({...studentForm, lastName: e.target.value})} className="h-11 rounded-xl" /></div>
                     <div className="space-y-2"><Label>Gender</Label>
@@ -517,7 +401,7 @@ export default function StudentsPage() {
                    <div className="flex items-center justify-between border-b pb-4">
                       <div>
                         <h3 className="font-bold flex items-center gap-2 text-primary"><HeartHandshake className="size-4" /> Guardian Link</h3>
-                        <p className="text-xs text-muted-foreground">Search registry for siblings or register a new master profile.</p>
+                        <p className="text-xs text-muted-foreground">Transactional IDs ensure unique parent profiles.</p>
                       </div>
                       <Button type="button" variant="outline" size="sm" className="h-9 rounded-lg gap-2" onClick={() => setIsNewParent(!isNewParent)}>
                         {isNewParent ? <Search className="size-3.5" /> : <UserPlus className="size-3.5" />}
@@ -527,7 +411,7 @@ export default function StudentsPage() {
                    
                    {isNewParent ? (
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6 bg-slate-50 rounded-2xl border-2 border-dashed animate-in fade-in zoom-in-95 duration-200">
-                        <div className="space-y-2"><Label>Master Code</Label><Input readOnly value={newParentForm.parentNumber} className="h-11 bg-white font-bold font-mono" /></div>
+                        <div className="space-y-2"><Label>Master Code</Label><Input readOnly value="AUTO-ASSIGNED" className="h-11 bg-white font-bold font-mono" /></div>
                         <div className="space-y-2"><Label>First Name</Label><Input value={newParentForm.firstName} onChange={e => setNewParentForm({...newParentForm, firstName: e.target.value})} className="h-11 bg-white" /></div>
                         <div className="space-y-2"><Label>Last Name</Label><Input value={newParentForm.lastName} onChange={e => setNewParentForm({...newParentForm, lastName: e.target.value})} className="h-11 bg-white" /></div>
                         <div className="space-y-2"><Label>Contact Phone</Label><Input value={newParentForm.phone} onChange={e => setNewParentForm({...newParentForm, phone: e.target.value})} className="h-11 bg-white" /></div>
@@ -538,11 +422,10 @@ export default function StudentsPage() {
                         <Label>Search Existing Parents (Siblings Check)</Label>
                         <Select value={linkedParentId} onValueChange={setLinkedParentId}>
                            <SelectTrigger className="h-14 rounded-xl text-primary font-medium">
-                              <SelectValue placeholder="🔍 Search registry by name or phone..." />
+                              <SelectValue placeholder="🔍 Search registry by name or ID..." />
                            </SelectTrigger>
                            <SelectContent>
-                              {parents.map(p => <SelectItem key={p.id} value={p.id}>{p.firstName} {p.lastName} • {p.phone} ({p.parentNumber})</SelectItem>)}
-                              {parents.length === 0 && <div className="p-4 text-center text-xs text-muted-foreground">No parents registered in the hub.</div>}
+                              {parents.map(p => <SelectItem key={p.id} value={p.id}>{p.firstName} {p.lastName} • {p.parentNumber}</SelectItem>)}
                            </SelectContent>
                         </Select>
                      </div>
@@ -556,9 +439,6 @@ export default function StudentsPage() {
                               <SelectItem value="Mother">Mother</SelectItem>
                               <SelectItem value="Father">Father</SelectItem>
                               <SelectItem value="Guardian">Guardian</SelectItem>
-                              <SelectItem value="Uncle">Uncle</SelectItem>
-                              <SelectItem value="Aunt">Aunt</SelectItem>
-                              <SelectItem value="Foster Parent">Foster Parent</SelectItem>
                             </SelectContent>
                          </Select>
                       </div>
@@ -576,7 +456,7 @@ export default function StudentsPage() {
                 <TabsContent value="finalize" className="space-y-8 mt-0 text-center py-10">
                    <div className="size-20 bg-green-50 rounded-full flex items-center justify-center mx-auto text-green-600 mb-4"><CheckCircle2 className="size-12" /></div>
                    <h3 className="text-xl font-bold font-headline">Institutional Enrollment Authorized</h3>
-                   <p className="text-sm text-muted-foreground max-w-sm mx-auto">Verify the academic grade and relationship links before finalizing the registry entry.</p>
+                   <p className="text-sm text-muted-foreground max-w-sm mx-auto">Transactional IDs will be assigned upon confirmation to maintain sequence integrity.</p>
                 </TabsContent>
               </ScrollArea>
             </Tabs>
@@ -599,75 +479,6 @@ export default function StudentsPage() {
               </div>
             </DialogFooter>
           </form>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Profile Detail Dialog */}
-      <Dialog open={isProfileOpen} onOpenChange={setIsProfileOpen}>
-        <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded-3xl max-h-[90vh] flex flex-col bg-background">
-          <div className="flex flex-col h-full overflow-hidden">
-             <DialogHeader className="bg-primary text-primary-foreground p-8 shrink-0 flex flex-row items-center gap-6">
-                <div className="size-20 rounded-2xl bg-white/10 flex items-center justify-center shrink-0 border-2 border-white/20 overflow-hidden">
-                  {selectedStudent?.photoUrl ? <img src={selectedStudent.photoUrl} className="w-full h-full object-cover" /> : <User className="size-10 opacity-50" />}
-                </div>
-                <div>
-                   <span className="text-[10px] font-bold uppercase tracking-widest text-accent mb-1 block">Institutional Profile</span>
-                   <DialogTitle className="text-2xl font-headline font-bold">{selectedStudent?.firstName} {selectedStudent?.lastName}</DialogTitle>
-                   <DialogDescription className="text-primary-foreground/70 mt-1 flex items-center gap-4">
-                      <span className="flex items-center gap-1.5 font-mono text-xs"><ShieldCheck className="size-3" /> {selectedStudent?.admissionNumber}</span>
-                      <Badge variant="outline" className="bg-white/10 text-white border-white/20 text-[10px]">{selectedStudent?.gradeLevel}</Badge>
-                   </DialogDescription>
-                </div>
-             </DialogHeader>
-
-             <Tabs defaultValue="overview" className="flex-1 flex flex-col overflow-hidden">
-                <TabsList className="bg-muted/30 px-8 py-2 border-b shrink-0 overflow-x-auto no-scrollbar justify-start gap-4">
-                   <TabsTrigger value="overview">Identity</TabsTrigger>
-                   <TabsTrigger value="family">Family & Guardians</TabsTrigger>
-                   <TabsTrigger value="health">Medical</TabsTrigger>
-                </TabsList>
-
-                <ScrollArea className="flex-1 p-8">
-                   <TabsContent value="overview" className="mt-0 space-y-6">
-                      <div className="grid gap-6 md:grid-cols-2">
-                         <div className="p-4 rounded-xl border bg-slate-50 space-y-1">
-                            <Label className="text-[9px] uppercase font-bold text-muted-foreground">Full Name</Label>
-                            <p className="font-bold text-primary">{selectedStudent?.firstName} {selectedStudent?.lastName}</p>
-                         </div>
-                         <div className="p-4 rounded-xl border bg-slate-50 space-y-1">
-                            <Label className="text-[9px] uppercase font-bold text-muted-foreground">Gender & DOB</Label>
-                            <p className="font-bold text-primary">{selectedStudent?.gender} • {selectedStudent?.dateOfBirth}</p>
-                         </div>
-                      </div>
-                   </TabsContent>
-
-                   <TabsContent value="family" className="mt-0 space-y-6">
-                      <div className="grid gap-4">
-                         {allRels.filter(r => r.studentId === selectedStudent?.id).map((r: any) => {
-                            const p = parents.find(parent => parent.id === r.parentId);
-                            return (
-                              <Card key={r.id} className="border-none shadow-sm bg-slate-50/50 hover:bg-slate-50 transition-colors">
-                                 <CardContent className="p-4 flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                       <div className="size-10 rounded-full bg-primary/5 flex items-center justify-center font-bold text-primary border">{p?.firstName?.charAt(0)}</div>
-                                       <div>
-                                          <p className="font-bold text-sm">{p?.firstName} {p?.lastName}</p>
-                                          <p className="text-[10px] text-muted-foreground font-bold uppercase">{r.relationship} • {p?.phone}</p>
-                                       </div>
-                                    </div>
-                                    <div className="flex gap-1.5">
-                                       {r.primaryContact && <Badge className="bg-green-600 text-white text-[7px] uppercase font-bold">Primary</Badge>}
-                                       {r.emergencyContact && <Badge className="bg-orange-500 text-white text-[7px] uppercase font-bold">Emergency</Badge>}
-                                    </div>
-                                 </CardContent>
-                              </Card>
-                            )
-                         })}
-                      </div>
-                   </TabsContent>
-                </ScrollArea>
-             </Tabs>
-          </div>
         </DialogContent>
       </Dialog>
     </div>

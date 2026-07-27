@@ -13,83 +13,57 @@ import {
   Search,
   Save,
   Briefcase,
-  GraduationCap,
-  Calendar,
-  Wallet,
-  Clock,
-  History,
-  TrendingUp,
-  FileText,
   User,
-  MoreVertical,
-  CheckCircle2,
-  AlertCircle,
-  Building2,
-  Award
+  CheckCircle2
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { toast } from "@/hooks/use-toast"
-import { useFirestore, useCollection, useUser } from "@/firebase"
-import { collection, addDoc, query, deleteDoc, doc, where, serverTimestamp, updateDoc, setDoc } from "firebase/firestore"
+import { useFirestore, useCollection, useUser, useDoc } from "@/firebase"
+import { collection, query, deleteDoc, doc, where, serverTimestamp, updateDoc, setDoc, writeBatch } from "firebase/firestore"
 import { useState, useMemo, useEffect } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { initializeApp, getApp, getApps } from "firebase/app"
+import { initializeApp, getApps, getApp } from "firebase/app"
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth"
 import { firebaseConfig } from "@/firebase/config"
+import { generateInstitutionId, normalizeSecurityPhone } from "@/lib/identity-service"
 
 export default function StaffHRPage() {
   const db = useFirestore()
+  const { user } = useUser()
   const [loading, setLoading] = useState(false)
   const [isEnrollOpen, setIsEnrollOpen] = useState(false)
-  const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [editingStaff, setEditingStaff] = useState<any>(null)
-  const [selectedStaff, setSelectedStaff] = useState<any>(null)
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
 
   const initialForm = {
-    staffNumber: "",
+    staffNumber: "AUTO-ASSIGNED",
     firstName: "",
     lastName: "",
     gender: "Male",
     phone: "",
     email: "",
-    qualification: "Bachelor of Education",
-    departmentId: "Academics",
     designation: "Teacher",
     employmentDate: "",
     salary: "",
-    salaryScale: "Senior Staff",
-    bankName: "",
-    bankAccount: "",
-    ssnitNumber: "",
-    tin: "",
-    status: "active",
-    promotionHistory: [],
-    leaveBalance: 20
+    status: "active"
   }
 
   const [staffForm, setStaffForm] = useState(initialForm)
 
   useEffect(() => {
     setInstitutionId(localStorage.getItem('selected_institution_id'))
-    setStaffForm(prev => ({
-      ...prev,
-      employmentDate: new Date().toISOString().split('T')[0]
-    }))
+    setStaffForm(prev => ({ ...prev, employmentDate: new Date().toISOString().split('T')[0] }))
   }, [])
 
-  // Core Queries
-  const staffQuery = useMemo(() => {
-    if (!db || !institutionId) return null;
-    return query(collection(db, "staff"), where("tenantId", "==", institutionId));
-  }, [db, institutionId]);
+  const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
+  const { data: institution } = useDoc(instRef)
 
+  const staffQuery = useMemo(() => institutionId ? query(collection(db, "staff"), where("tenantId", "==", institutionId)) : null, [db, institutionId]);
   const { data: rawStaff = [], loading: dataLoading } = useCollection(staffQuery)
 
   const staffList = useMemo(() => {
@@ -99,107 +73,69 @@ export default function StaffHRPage() {
     ).sort((a, b) => (a.staffNumber || "").localeCompare(b.staffNumber || ""));
   }, [rawStaff, searchQuery]);
 
-  // Robust ID Generation logic (Identify Max + 1)
-  useEffect(() => {
-    if (isEnrollOpen && !dataLoading && !editingStaff && institutionId) {
-      const numbers = rawStaff
-        .map(s => {
-          const raw = s.staffNumber || "";
-          const match = raw.match(/(\d+)/);
-          return match ? parseInt(match[0], 10) : 0;
-        })
-        .filter(n => !isNaN(n));
-      
-      const maxNum = numbers.length > 0 ? Math.max(...numbers) : 0;
-      const nextNum = maxNum + 1;
-      const autoId = `EMP-${String(nextNum).padStart(3, '0')}`;
-      
-      if (staffForm.staffNumber !== autoId) {
-        setStaffForm(prev => ({ ...prev, staffNumber: autoId }));
-      }
-    }
-  }, [isEnrollOpen, dataLoading, rawStaff, editingStaff, institutionId]);
-
-  const normalizePhone = (num: string) => {
-    if (!num) return "";
-    let clean = num.replace(/\s+/g, '').replace(/-/g, '').replace(/\(/g, '').replace(/\)/g, '');
-    if (clean.startsWith('+233')) return '0' + clean.slice(4);
-    if (clean.startsWith('233') && clean.length > 9) return '0' + clean.slice(3);
-    return clean;
-  }
-
   const handleEnroll = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!db || !institutionId || loading) return
-
-    if (!staffForm.email) {
-      toast({ variant: "destructive", title: "Email Required", description: "Staff must have an email for system authentication." });
-      return;
-    }
+    if (!db || !institutionId || loading || !institution?.schoolCode) return
 
     setLoading(true)
     try {
-      const cleanPhone = normalizePhone(staffForm.phone)
-      
-      // 1. Handle Auth Provisioning for new staff
-      let authUser;
+      const batch = writeBatch(db)
+      let staffId = editingStaff?.id
+      let finalStaffNumber = staffForm.staffNumber
+
       if (!editingStaff) {
-        const secondaryAppName = `secondary-staff-${Date.now()}-${Math.random().toString(36).substring(7)}`
+        finalStaffNumber = await generateInstitutionId('STF', institutionId, institution.schoolCode);
+        
+        const cleanPass = normalizeSecurityPhone(staffForm.phone)
+        const secondaryAppName = `secondary-staff-${Date.now()}`
         const secondaryApp = getApps().find(a => a.name === secondaryAppName) || initializeApp(firebaseConfig, secondaryAppName)
         const secondaryAuth = getAuth(secondaryApp)
         
+        let authUser;
         try {
-          const credential = await createUserWithEmailAndPassword(secondaryAuth, staffForm.email, cleanPhone)
+          const credential = await createUserWithEmailAndPassword(secondaryAuth, staffForm.email, cleanPass)
           authUser = credential.user
         } catch (authErr: any) {
           if (authErr.code !== 'auth/email-already-in-use') throw authErr;
         }
-      }
 
-      // 2. Sync Firestore Registry
-      const data = {
-        ...staffForm,
-        phone: cleanPhone,
-        salary: parseFloat(staffForm.salary as string) || 0,
-        tenantId: institutionId,
-        institutionId: institutionId,
-        updatedAt: serverTimestamp()
-      }
-
-      if (editingStaff) {
-        const { id, createdAt, ...sanitizedData } = data as any;
-        await updateDoc(doc(db, "staff", editingStaff.id), sanitizedData);
-        toast({ title: "HR Registry Synchronized" });
-      } else {
         const staffRef = doc(collection(db, "staff"))
-        await setDoc(staffRef, {
-          ...data,
-          id: staffRef.id,
-          createdAt: serverTimestamp()
+        staffId = staffRef.id
+        batch.set(staffRef, {
+          ...staffForm,
+          staffNumber: finalStaffNumber,
+          phone: normalizeSecurityPhone(staffForm.phone),
+          salary: parseFloat(staffForm.salary as string) || 0,
+          id: staffId,
+          tenantId: institutionId,
+          institutionId: institutionId,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
         });
 
         if (authUser) {
-          await setDoc(doc(db, "users", authUser.uid), {
+          batch.set(doc(db, "users", authUser.uid), {
             uid: authUser.uid,
             name: `${staffForm.firstName} ${staffForm.lastName}`,
             email: staffForm.email,
-            role: staffForm.designation.toLowerCase().includes('teacher') ? "teacher" : "administrator",
+            role: "teacher",
             tenantId: institutionId,
             institutionId: institutionId,
             status: "active",
             createdAt: serverTimestamp()
           })
         }
-        toast({ title: "Staff Managed", description: `${staffForm.firstName} enrolled.` });
+      } else {
+        const { id, createdAt, ...sanitizedData } = staffForm as any;
+        batch.update(doc(db, "staff", editingStaff.id), { ...sanitizedData, updatedAt: serverTimestamp() });
       }
-      setIsEnrollOpen(false);
-      setEditingStaff(null);
-      setStaffForm(initialForm);
+
+      await batch.commit()
+      toast({ title: editingStaff ? "Registry Updated" : `Enrolled: ${finalStaffNumber}` })
+      setIsEnrollOpen(false); setEditingStaff(null); setStaffForm(initialForm);
     } catch (error: any) {
       toast({ variant: "destructive", title: "Action Failed", description: error.message });
-    } finally {
-      setLoading(false)
-    }
+    } finally { setLoading(false) }
   }
 
   const openEdit = (s: any) => {
@@ -208,19 +144,14 @@ export default function StaffHRPage() {
     setIsEnrollOpen(true);
   }
 
-  if (dataLoading) return (
-    <div className="p-24 text-center space-y-4">
-      <Loader2 className="size-10 animate-spin text-primary mx-auto" />
-      <p className="font-headline font-bold text-primary animate-pulse uppercase tracking-widest text-xs">Syncing HR Registry...</p>
-    </div>
-  )
+  if (dataLoading) return <div className="p-24 text-center font-bold text-muted-foreground uppercase tracking-widest text-xs">Syncing HR Registry...</div>
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">HR Management Hub</h1>
-          <p className="text-muted-foreground">Strategic oversight of faculty registry and payroll.</p>
+          <p className="text-muted-foreground">Strategic oversight of faculty registry and transactional IDs.</p>
         </div>
         <Button className="gap-2 bg-primary rounded-xl h-12 shadow-lg px-6 font-bold" onClick={() => { setEditingStaff(null); setStaffForm(initialForm); setIsEnrollOpen(true); }}>
           <UserPlus className="size-5" /> Enroll Faculty
@@ -231,12 +162,7 @@ export default function StaffHRPage() {
         <CardHeader className="border-b py-6 bg-slate-50/50">
           <div className="relative max-w-sm">
             <Search className="absolute left-3 top-3.5 size-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search by name or EMP ID..." 
-              className="pl-10 h-12 bg-white border-none rounded-xl shadow-sm" 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+            <Input placeholder="Search by name or ID..." className="pl-10 h-12 bg-white border-none rounded-xl shadow-sm" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </div>
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
@@ -252,11 +178,11 @@ export default function StaffHRPage() {
             </TableHeader>
             <TableBody>
               {staffList.map((s: any) => (
-                <TableRow key={s.id} className="hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => { setSelectedStaff(s); setIsProfileOpen(true); }}>
+                <TableRow key={s.id} className="hover:bg-slate-50 transition-colors">
                   <TableCell className="px-6">
                     <div className="flex items-center gap-3">
-                      <div className="size-10 rounded-xl bg-primary/5 flex items-center justify-center font-bold text-primary text-xs shrink-0 border">
-                        {(s.firstName || "S").charAt(0)}{(s.lastName || "T").charAt(0)}
+                      <div className="size-10 rounded-xl bg-primary/5 flex items-center justify-center font-bold text-primary text-xs border">
+                        {s.firstName?.charAt(0)}{s.lastName?.charAt(0)}
                       </div>
                       <div className="flex flex-col">
                         <span className="text-[10px] font-mono font-bold text-accent">{s.staffNumber}</span>
@@ -266,8 +192,8 @@ export default function StaffHRPage() {
                   </TableCell>
                   <TableCell><span className="text-xs font-bold text-slate-700">{s.designation}</span></TableCell>
                   <TableCell><span className="text-xs font-medium">{s.phone}</span></TableCell>
-                  <TableCell><Badge variant="outline" className="text-[9px] uppercase font-bold text-green-600 border-green-200 bg-green-50">{s.status}</Badge></TableCell>
-                  <TableCell className="text-right px-6" onClick={(e) => e.stopPropagation()}>
+                  <TableCell><Badge variant="outline" className="text-[9px] uppercase font-bold text-green-600 bg-green-50">{s.status}</Badge></TableCell>
+                  <TableCell className="text-right px-6">
                     <div className="flex items-center justify-end gap-1">
                       <Button variant="ghost" size="icon" onClick={() => openEdit(s)}><Pencil className="size-4" /></Button>
                       <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteDoc(doc(db!, "staff", s.id))}><Trash2 className="size-4" /></Button>
@@ -275,40 +201,35 @@ export default function StaffHRPage() {
                   </TableCell>
                 </TableRow>
               ))}
-              {staffList.length === 0 && (
-                <TableRow><TableCell colSpan={5} className="text-center py-32 text-muted-foreground italic">No professional records detected.</TableCell></TableRow>
-              )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
 
-      {/* Enrollment Wizard Dialog */}
       <Dialog open={isEnrollOpen} onOpenChange={setIsEnrollOpen}>
         <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded-3xl max-h-[90vh] flex flex-col">
           <form onSubmit={handleEnroll} className="flex flex-col h-full overflow-hidden">
             <DialogHeader className="bg-primary text-primary-foreground p-8 shrink-0">
               <DialogTitle className="text-2xl font-headline font-bold">{editingStaff ? "Update Registry" : "Faculty HR Enrollment"}</DialogTitle>
-              <DialogDescription className="text-primary-foreground/70">Building a strategic professional record.</DialogDescription>
+              <DialogDescription className="text-primary-foreground/70">Unique IDs are transactional and immutable.</DialogDescription>
             </DialogHeader>
 
             <ScrollArea className="flex-1 p-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2"><Label>EMP Number (Auto)</Label><Input readOnly value={dataLoading ? "Calculating..." : staffForm.staffNumber} className="h-12 rounded-xl bg-slate-50 font-bold font-mono" /></div>
+                <div className="space-y-2"><Label>Staff Number (Transactional)</Label><Input readOnly value={staffForm.staffNumber} className="h-12 rounded-xl bg-slate-50 font-bold font-mono" /></div>
                 <div className="space-y-2"><Label>First Name</Label><Input required value={staffForm.firstName} onChange={e => setStaffForm({...staffForm, firstName: e.target.value})} className="h-12 rounded-xl" /></div>
                 <div className="space-y-2"><Label>Last Name</Label><Input required value={staffForm.lastName} onChange={e => setStaffForm({...staffForm, lastName: e.target.value})} className="h-12 rounded-xl" /></div>
                 <div className="space-y-2"><Label>Phone Number</Label><Input required value={staffForm.phone} onChange={e => setStaffForm({...staffForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
-                <div className="space-y-2 md:col-span-2"><Label>Email Address (Portal ID)</Label><Input type="email" required value={staffForm.email} onChange={e => setStaffForm({...staffForm, email: e.target.value})} className="h-12 rounded-xl" /></div>
-                <div className="space-y-2"><Label>Employment Date</Label><Input type="date" value={staffForm.employmentDate} onChange={e => setStaffForm({...staffForm, employmentDate: e.target.value})} className="h-12 rounded-xl" /></div>
+                <div className="space-y-2 md:col-span-2"><Label>Email Address</Label><Input type="email" required value={staffForm.email} onChange={e => setStaffForm({...staffForm, email: e.target.value})} className="h-12 rounded-xl" /></div>
                 <div className="space-y-2"><Label>Monthly Salary (GH₵)</Label><Input type="number" required value={staffForm.salary} onChange={e => setStaffForm({...staffForm, salary: e.target.value})} className="h-12 rounded-xl" /></div>
-                <div className="space-y-2"><Label>Professional Designation</Label><Input required value={staffForm.designation} onChange={e => setStaffForm({...staffForm, designation: e.target.value})} className="h-12 rounded-xl" /></div>
+                <div className="space-y-2"><Label>Designation</Label><Input required value={staffForm.designation} onChange={e => setStaffForm({...staffForm, designation: e.target.value})} className="h-12 rounded-xl" /></div>
               </div>
             </ScrollArea>
 
             <DialogFooter className="bg-slate-50 p-8 border-t shrink-0">
-              <Button type="submit" disabled={loading || dataLoading} className="w-full h-14 rounded-2xl bg-primary font-bold shadow-xl text-lg gap-2">
+              <Button type="submit" disabled={loading} className="w-full h-14 rounded-2xl bg-primary font-bold shadow-xl text-lg gap-2">
                 {loading ? <Loader2 className="mr-2 animate-spin" /> : <ShieldCheck className="size-5" />} 
-                Authorize Registry Entry
+                Authorize Enrollment
               </Button>
             </DialogFooter>
           </form>

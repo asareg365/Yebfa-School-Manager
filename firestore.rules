@@ -38,7 +38,6 @@ service cloud.firestore {
     function isAccountant() { return signedIn() && userRole() == "accountant"; }
     function isTeacher() { return signedIn() && userRole() == "teacher"; }
     function isParent() { return signedIn() && userRole() == "parent"; }
-    function isLibrarian() { return signedIn() && userRole() == "librarian"; }
     
     // ======================
     // TENANT ISOLATION LOGIC
@@ -47,8 +46,7 @@ service cloud.firestore {
     function belongsToUserTenant(data) {
       return signedIn() && (
         data.tenantId == userTenant() || 
-        data.institutionId == userTenant() || 
-        (hasProfile() && data.tenantId == userProfile().institutionId)
+        data.institutionId == userTenant()
       );
     }
 
@@ -58,44 +56,52 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if signedIn() && (request.auth.uid == userId || isSuperAdmin() || (hasProfile() && resource.data.tenantId == userTenant()));
-      allow create: if signedIn() && request.auth.uid == userId;
+      allow create: if true; // Allow initial user creation during registration
       allow update: if signedIn() && (request.auth.uid == userId || isSuperAdmin());
       allow delete: if isSuperAdmin();
     }
 
     match /institutions/{instId} {
-      allow read: if signedIn() || (request.auth != null); 
-      allow create: if signedIn();
-      allow update, delete: if isSuperAdmin() || (signedIn() && instId == userTenant() && (isOwner() || isAdmin()));
+      allow read: if true; // Allow lookup during login and registration
+      allow create: if true;
+      allow update, delete: if isSuperAdmin() || (signedIn() && instId == userTenant() && isOwner());
     }
 
+    // Identity Registry Rules - Allows lookup by ID for Login
     match /parents/{parentId} {
-      // Allow lookup by ID and phone for login verification
-      allow list, get: if true; 
-      allow read, write: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data) || belongsToUserTenant(request.resource.data));
+      allow list: if true;
+      allow get: if true;
+      allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
+      allow delete: if isSuperAdmin();
     }
 
     match /staff/{staffId} {
-      // Allow lookup by ID and phone for login verification
-      allow list, get: if true;
-      allow read, write: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data) || belongsToUserTenant(request.resource.data));
-    }
-
-    match /student_parents/{relId} {
-      allow read: if signedIn();
+      allow list: if true;
+      allow get: if true;
       allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
-      allow delete: if isSuperAdmin() || isOwner();
+      allow delete: if isSuperAdmin();
     }
 
     match /students/{studentId} {
+      allow list, get: if true;
+      allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin() || isTeacher());
+      allow delete: if isSuperAdmin();
+    }
+
+    // ID Counters - Transactional Updates
+    match /counters/{counterId} {
       allow read, write: if signedIn();
     }
 
-    // Standard Multi-Tenant Rule Pattern for other modules
+    match /student_parents/{relId} {
+      allow read, write: if signedIn();
+    }
+
+    // Global Tenant Rule for modules
     match /{collectionName}/{docId} {
       allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
       allow create, update: if signedIn() && (isSuperAdmin() || belongsToUserTenant(request.resource.data));
-      allow delete: if signedIn() && (isSuperAdmin() || (belongsToUserTenant(resource.data) && (isOwner() || isAdmin())));
+      allow delete: if signedIn() && isSuperAdmin();
     }
   }
 }

@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -52,6 +53,14 @@ export default function InstitutionRegistrationPage() {
     }
   }, [user])
 
+  const generateSchoolCode = (name: string) => {
+    const words = name.trim().split(/\s+/);
+    if (words.length >= 3) {
+      return (words[0][0] + words[1][0] + words[2][0]).toUpperCase();
+    }
+    return name.trim().substring(0, 3).toUpperCase();
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -87,6 +96,7 @@ export default function InstitutionRegistrationPage() {
 
       const institutionRef = doc(collection(db, "institutions"))
       const tenantId = institutionRef.id
+      const schoolCode = generateSchoolCode(formData.name)
 
       const batch = writeBatch(db)
 
@@ -96,6 +106,7 @@ export default function InstitutionRegistrationPage() {
           id: tenantId,
           tenantId,
           name: formData.name,
+          schoolCode: schoolCode,
           type: formData.gradeLevel,
           gradeLevel: formData.gradeLevel,
           specificGrades: formData.specificGrades,
@@ -120,6 +131,7 @@ export default function InstitutionRegistrationPage() {
           tenantId,
           institutionId: tenantId,
           institutionName: formData.name,
+          schoolCode: schoolCode,
           status: "active",
           createdAt: serverTimestamp()
         }
@@ -129,6 +141,7 @@ export default function InstitutionRegistrationPage() {
         tenantId,
         institutionId: tenantId,
         schoolName: formData.name,
+        schoolCode: schoolCode,
         academicYear: "2026/2027",
         currentTerm: "Term 1",
         createdAt: serverTimestamp()
@@ -144,10 +157,11 @@ export default function InstitutionRegistrationPage() {
 
       localStorage.setItem('selected_institution_id', tenantId)
       localStorage.setItem('selected_institution_name', formData.name)
+      localStorage.setItem('selected_school_code', schoolCode)
 
       toast({
         title: "Workspace Provisioned",
-        description: "Welcome to the ecosystem. Your registry is now live."
+        description: `Welcome. Your School Code is ${schoolCode}.`
       })
 
       router.replace("/dashboard")

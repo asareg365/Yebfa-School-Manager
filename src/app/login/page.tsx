@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { School, Loader2, AlertCircle, Info, ArrowRight, ShieldCheck, User, Users, Briefcase, KeyRound, Smartphone } from "lucide-react"
+import { School, Loader2, KeyRound, Smartphone, ShieldCheck, Briefcase, Users, GraduationCap, ArrowRight } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth"
@@ -15,343 +15,147 @@ import { auth, db, useUser } from "@/firebase"
 import { firebaseConfig } from "@/firebase/config"
 import { toast } from "@/hooks/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { normalizeSecurityPhone } from "@/lib/identity-service"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [idNumber, setIdNumber] = useState("")
-  const [phoneNumber, setPhoneNumber] = useState("")
+  const [securityCredential, setSecurityCredential] = useState("")
   const [loading, setLoading] = useState(false)
-  const [resetLoading, setResetLoading] = useState(false)
   const [configError, setConfigError] = useState(false)
   const router = useRouter()
   const { user, loading: authLoading } = useUser()
-
-  const normalizePhone = (num: string) => {
-    if (!num) return "";
-    let clean = num.replace(/\s+/g, '').replace(/-/g, '').replace(/\(/g, '').replace(/\)/g, '');
-    if (clean.startsWith('+233')) return '0' + clean.slice(4);
-    if (clean.startsWith('233') && clean.length > 9) return '0' + clean.slice(3);
-    return clean;
-  }
-
-  const redirectUser = async (firebaseUser: any) => {
-    try {
-      const userRef = doc(db, "users", firebaseUser.uid)
-      const userSnap = await getDoc(userRef)
-
-      if (!userSnap.exists()) {
-        router.push("/register/institution")
-        return
-      }
-
-      const userData = userSnap.data()
-
-      if (userData.tenantId) {
-        localStorage.setItem('selected_institution_id', userData.tenantId)
-        localStorage.setItem('selected_institution_name', userData.institutionName || 'My School')
-      }
-
-      // Explicit Role Redirection
-      if (userData.role === "super_admin") {
-        router.replace("/admin")
-      } else if (userData.role === "parent") {
-        router.replace("/dashboard/parent")
-      } else {
-        // Staff, Teachers, and Owners go to the Institutional Dashboard
-        router.replace("/dashboard")
-      }
-    } catch (error) {
-      console.error("Redirection error:", error)
-      router.replace("/register/institution")
-    }
-  }
 
   useEffect(() => {
     if (firebaseConfig.apiKey === "REPLACEME" || !firebaseConfig.apiKey) {
       setConfigError(true)
     }
-    if (!authLoading && user) {
-      redirectUser(user)
-    }
-  }, [user, authLoading])
+  }, [])
+
+  const redirectUser = async (firebaseUser: any) => {
+    try {
+      const userSnap = await getDoc(doc(db, "users", firebaseUser.uid))
+      if (!userSnap.exists()) { router.push("/register/institution"); return; }
+
+      const userData = userSnap.data()
+      if (userData.tenantId) {
+        localStorage.setItem('selected_institution_id', userData.tenantId)
+        localStorage.setItem('selected_institution_name', userData.institutionName || 'Registry Hub')
+      }
+
+      if (userData.role === "super_admin") router.replace("/admin")
+      else if (userData.role === "parent") router.replace("/dashboard/parent")
+      else router.replace("/dashboard")
+    } catch (e) { router.replace("/register/institution") }
+  }
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!auth || configError) return
     setLoading(true)
-    
     try {
       const credential = await signInWithEmailAndPassword(auth, email, password)
       await redirectUser(credential.user)
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Login Failed",
-        description: "Invalid email or security password.",
-      })
-    } finally {
-      setLoading(false)
-    }
+      toast({ variant: "destructive", title: "Login Failed", description: "Invalid email or security password." })
+    } finally { setLoading(false) }
   }
 
-  const handleIdLogin = async (type: 'staff' | 'parent') => {
-    if (!idNumber || !phoneNumber) {
-      toast({ variant: "destructive", title: "Missing Credentials", description: "Please enter both your ID and Phone number." })
+  const handleRegistryLogin = async (type: 'STF' | 'PAR' | 'STU') => {
+    if (!idNumber || !securityCredential) {
+      toast({ variant: "destructive", title: "Credentials Required" })
       return
     }
     
     setLoading(true)
     try {
-      const collectionName = type === 'staff' ? "staff" : "parents"
-      const idField = type === 'staff' ? "staffNumber" : "parentNumber"
+      const collectionName = type === 'STF' ? "staff" : type === 'PAR' ? "parents" : "students"
+      const idField = type === 'STF' ? "staffNumber" : type === 'PAR' ? "parentNumber" : "admissionNumber"
       
-      const q = query(
-        collection(db, collectionName), 
-        where(idField, "==", idNumber.trim())
-      )
+      const q = query(collection(db, collectionName), where(idField, "==", idNumber.trim().toUpperCase()))
       const snap = await getDocs(q)
       
-      if (snap.empty) {
-        throw new Error(`Invalid ID. No record found for ${idNumber}.`);
-      }
+      if (snap.empty) throw new Error(`Invalid ID. Record ${idNumber} not found.`);
       
       const personData = snap.docs[0].data()
-      const storedPhone = normalizePhone(personData.phone)
-      const inputPhone = normalizePhone(phoneNumber)
+      const accountEmail = personData.email || `${idNumber.toLowerCase()}@system.yebfa.com`
+      const cleanCredential = normalizeSecurityPhone(securityCredential)
 
-      if (storedPhone !== inputPhone) {
-        throw new Error("Phone number mismatch. The number provided does not match our registry.");
-      }
-
-      const accountEmail = personData.email
-      if (!accountEmail) {
-        throw new Error("Registry record found, but no system email is associated. Please contact your school administrator.");
-      }
-      
-      // Use Phone Number as Password
       try {
-        const credential = await signInWithEmailAndPassword(auth, accountEmail, phoneNumber.trim())
+        const credential = await signInWithEmailAndPassword(auth, accountEmail, cleanCredential)
         await redirectUser(credential.user)
-      } catch (authErr: any) {
-        // Retry with raw stored phone if normalized fails
-        try {
-          const credentialFallback = await signInWithEmailAndPassword(auth, accountEmail, personData.phone.trim())
-          await redirectUser(credentialFallback.user)
-        } catch (finalErr: any) {
-          throw new Error("Access Denied: Your security credentials could not be verified. Ensure your phone number is identical to the one used during enrollment.");
-        }
+      } catch (authErr) {
+        throw new Error("Access Denied: Security credentials could not be verified. Ensure your phone/PIN matches the registry.");
       }
-      
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Access Denied",
-        description: error.message || "Credential verification failed.",
-      })
-    } finally {
-      setLoading(false)
-    }
+      toast({ variant: "destructive", title: "Access Denied", description: error.message })
+    } finally { setLoading(false) }
   }
 
-  const handleForgotPassword = async () => {
-    if (!email) {
-      toast({
-        variant: "destructive",
-        title: "Email Required",
-        description: "Please enter your email address to receive a reset link.",
-      })
-      return
-    }
-    setResetLoading(true)
-    try {
-      await sendPasswordResetEmail(auth, email)
-      toast({
-        title: "Reset Link Sent",
-        description: "Check your inbox for password recovery instructions.",
-      })
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Reset Failed",
-        description: error.message,
-      })
-    } finally {
-      setResetLoading(false)
-    }
-  }
-
-  if (authLoading) return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/30">
-      <div className="flex flex-col items-center gap-4">
-        <Loader2 className="size-8 animate-spin text-primary" />
-        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Synchronizing Global Identity...</p>
-      </div>
-    </div>
-  )
+  if (authLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-muted/30">
       <Link href="/" className="flex items-center gap-2 mb-8">
-        <div className="size-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-lg">
-          <School className="size-6" />
-        </div>
-        <span className="text-2xl font-headline font-bold tracking-tight text-primary">Yebfa School Manager</span>
+        <div className="size-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-lg"><School className="size-6" /></div>
+        <span className="text-2xl font-headline font-bold text-primary">Yebfa School Manager</span>
       </Link>
       
       <Card className="w-full max-w-lg border-none shadow-2xl overflow-hidden rounded-3xl bg-white">
-        <Tabs defaultValue="admin" className="w-full">
-          <TabsList className="grid grid-cols-3 h-14 bg-muted/50 p-1 rounded-none border-b">
-            <TabsTrigger value="admin" className="rounded-none gap-2 text-[10px] font-bold uppercase tracking-wider">
-              <ShieldCheck className="size-3.5" /> Admin
-            </TabsTrigger>
-            <TabsTrigger value="staff" className="rounded-none gap-2 text-[10px] font-bold uppercase tracking-wider">
-              <Briefcase className="size-3.5" /> Staff
-            </TabsTrigger>
-            <TabsTrigger value="parent" className="rounded-none gap-2 text-[10px] font-bold uppercase tracking-wider">
-              <Users className="size-3.5" /> Parents
-            </TabsTrigger>
+        <Tabs defaultValue="admin">
+          <TabsList className="grid grid-cols-4 h-14 bg-muted/50 p-1 border-b">
+            <TabsTrigger value="admin" className="text-[10px] font-bold uppercase"><ShieldCheck className="size-3.5 mr-1" /> Admin</TabsTrigger>
+            <TabsTrigger value="staff" className="text-[10px] font-bold uppercase"><Briefcase className="size-3.5 mr-1" /> Staff</Trigger>
+            <TabsTrigger value="parent" className="text-[10px] font-bold uppercase"><Users className="size-3.5 mr-1" /> Parent</TabsTrigger>
+            <TabsTrigger value="student" className="text-[10px] font-bold uppercase"><GraduationCap className="size-3.5 mr-1" /> Student</TabsTrigger>
           </TabsList>
 
-          <CardHeader className="space-y-1 pb-4">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-2xl font-bold">Secure Access</CardTitle>
-              <div className="size-8 rounded-full bg-primary/5 flex items-center justify-center text-primary">
-                <KeyRound className="size-4" />
-              </div>
-            </div>
-            <CardDescription>
-              Identify yourself to enter the institutional hub.
-            </CardDescription>
+          <CardHeader className="pb-4">
+            <CardTitle className="text-2xl font-bold">Secure Access</CardTitle>
+            <CardDescription>Multi-tenant identity verification active.</CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-4">
-            <TabsContent value="admin" className="mt-0 space-y-4 animate-in fade-in duration-300">
+            <TabsContent value="admin" className="mt-0 space-y-4 animate-in fade-in">
               <form onSubmit={handleEmailLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input 
-                    id="email" 
-                    type="email" 
-                    placeholder="admin@yebfa.com" 
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    disabled={configError}
-                    className="h-12 rounded-xl"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="password">Security Password</Label>
-                    <button 
-                      type="button" 
-                      onClick={handleForgotPassword}
-                      className="text-[10px] font-bold text-primary hover:underline uppercase tracking-tighter"
-                    >
-                      Forgot?
-                    </button>
-                  </div>
-                  <Input 
-                    id="password" 
-                    type="password" 
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    disabled={configError}
-                    className="h-12 rounded-xl"
-                  />
-                </div>
-                <Button className="w-full h-12 font-bold rounded-xl" type="submit" disabled={loading || configError}>
-                  {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Access Dashboard"}
-                </Button>
+                <div className="space-y-2"><Label>Email Address</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} required className="h-12 rounded-xl" /></div>
+                <div className="space-y-2"><Label>Password</Label><Input type="password" value={password} onChange={e => setPassword(e.target.value)} required className="h-12 rounded-xl" /></div>
+                <Button className="w-full h-12 font-bold rounded-xl" type="submit" disabled={loading}>Access Dashboard</Button>
               </form>
             </TabsContent>
 
-            <TabsContent value="staff" className="mt-0 space-y-4 animate-in fade-in duration-300">
+            <TabsContent value="staff" className="mt-0 space-y-4 animate-in fade-in">
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Staff Number (EMP ID)</Label>
-                  <div className="relative">
-                    <Briefcase className="absolute left-3 top-3.5 size-4 text-muted-foreground" />
-                    <Input 
-                      placeholder="e.g. EMP-001" 
-                      value={idNumber}
-                      onChange={(e) => setIdNumber(e.target.value)}
-                      className="pl-10 h-12 rounded-xl"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Phone Number</Label>
-                  <div className="relative">
-                    <Smartphone className="absolute left-3 top-3.5 size-4 text-muted-foreground" />
-                    <Input 
-                      type="tel"
-                      placeholder="e.g. 024XXXXXXX or +233..." 
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
-                      className="pl-10 h-12 rounded-xl"
-                    />
-                  </div>
-                </div>
-                <Button className="w-full h-12 font-bold rounded-xl bg-primary" onClick={() => handleIdLogin('staff')} disabled={loading}>
-                  {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Verify Faculty Identity"}
-                </Button>
+                <div className="space-y-2"><Label>Staff ID (STF)</Label><Input placeholder="ABC-STF-2026-0001" value={idNumber} onChange={e => setIdNumber(e.target.value)} className="h-12 rounded-xl" /></div>
+                <div className="space-y-2"><Label>Security Phone</Label><Input type="tel" value={securityCredential} onChange={e => setSecurityCredential(e.target.value)} className="h-12 rounded-xl" /></div>
+                <Button className="w-full h-12 font-bold rounded-xl bg-primary" onClick={() => handleRegistryLogin('STF')} disabled={loading}>Verify Staff Identity</Button>
               </div>
             </TabsContent>
 
-            <TabsContent value="parent" className="mt-0 space-y-4 animate-in fade-in duration-300">
+            <TabsContent value="parent" className="mt-0 space-y-4 animate-in fade-in">
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Parent Number (PAR ID)</Label>
-                  <div className="relative">
-                    <Users className="absolute left-3 top-3.5 size-4 text-muted-foreground" />
-                    <Input 
-                      placeholder="e.g. PAR-000001" 
-                      value={idNumber}
-                      onChange={(e) => setIdNumber(e.target.value)}
-                      className="pl-10 h-12 rounded-xl"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Phone Number</Label>
-                  <div className="relative">
-                    <Smartphone className="absolute left-3 top-3.5 size-4 text-muted-foreground" />
-                    <Input 
-                      type="tel"
-                      placeholder="e.g. 024XXXXXXX or +233..." 
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
-                      className="pl-10 h-12 rounded-xl"
-                    />
-                  </div>
-                </div>
-                <Button className="w-full h-12 font-bold rounded-xl bg-primary" onClick={() => handleIdLogin('parent')} disabled={loading}>
-                  {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Verify Guardian Identity"}
-                </Button>
+                <div className="space-y-2"><Label>Parent ID (PAR)</Label><Input placeholder="ABC-PAR-2026-0001" value={idNumber} onChange={e => setIdNumber(e.target.value)} className="h-12 rounded-xl" /></div>
+                <div className="space-y-2"><Label>Security Phone</Label><Input type="tel" value={securityCredential} onChange={e => setSecurityCredential(e.target.value)} className="h-12 rounded-xl" /></div>
+                <Button className="w-full h-12 font-bold rounded-xl bg-primary" onClick={() => handleRegistryLogin('PAR')} disabled={loading}>Verify Guardian Identity</Button>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="student" className="mt-0 space-y-4 animate-in fade-in">
+              <div className="space-y-4">
+                <div className="space-y-2"><Label>Student ID (STU)</Label><Input placeholder="ABC-STU-2026-0001" value={idNumber} onChange={e => setIdNumber(e.target.value)} className="h-12 rounded-xl" /></div>
+                <div className="space-y-2"><Label>Access PIN / Phone</Label><Input type="password" value={securityCredential} onChange={e => setSecurityCredential(e.target.value)} className="h-12 rounded-xl" /></div>
+                <Button className="w-full h-12 font-bold rounded-xl bg-primary" onClick={() => handleRegistryLogin('STU')} disabled={loading}>Enter Student Portal</Button>
               </div>
             </TabsContent>
           </CardContent>
 
           <CardFooter className="bg-muted/30 p-6 flex flex-col gap-4 border-t">
-            <p className="text-[10px] text-center text-muted-foreground uppercase font-bold tracking-widest">
-              Institutional Data Isolation Active • System 2026
-            </p>
-            <Button variant="link" className="w-full gap-2 text-primary font-bold text-xs" asChild>
-              <Link href="/register/institution">
-                Register New Institution <ArrowRight className="size-3.5" />
-              </Link>
-            </Button>
+            <p className="text-[10px] text-center text-muted-foreground uppercase font-bold">Institutional Data Isolation Active • System 2026</p>
+            <Button variant="link" className="w-full gap-2 text-primary font-bold text-xs" asChild><Link href="/register/institution">Register New Institution <ArrowRight className="size-3.5" /></Link></Button>
           </CardFooter>
         </Tabs>
       </Card>
-      
-      <p className="mt-8 text-center text-sm text-muted-foreground">
-        Ahafo Region Technical Support: <Link href="/contact" className="text-primary hover:underline font-medium">support@yebfa.com</Link>
-      </p>
     </div>
   )
 }

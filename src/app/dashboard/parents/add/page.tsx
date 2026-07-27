@@ -11,7 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { 
   ArrowLeft, 
   Loader2, 
-  ShieldCheck, 
   HeartHandshake,
   Users,
   Phone,
@@ -19,19 +18,18 @@ import {
   IdCard,
   AlertCircle,
   Camera,
-  MapPin,
-  Save,
-  CheckCircle2
+  Save
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useFirestore, useCollection } from "@/firebase"
-import { collection, addDoc, serverTimestamp, query, where, setDoc, doc } from "firebase/firestore"
+import { useFirestore, useDoc } from "@/firebase"
+import { collection, serverTimestamp, doc, setDoc } from "firebase/firestore"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Link from "next/link"
-import { initializeApp, getApp, getApps } from "firebase/app"
+import { initializeApp, getApps } from "firebase/app"
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth"
 import { firebaseConfig } from "@/firebase/config"
+import { generateInstitutionId, normalizeSecurityPhone } from "@/lib/identity-service"
 
 export default function AddParentPage() {
   const db = useFirestore()
@@ -40,107 +38,57 @@ export default function AddParentPage() {
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState("personal")
 
-  const initialForm = {
-    parentNumber: "",
-    firstName: "",
-    middleName: "",
-    lastName: "",
-    gender: "Female",
-    dob: "",
-    nationality: "Ghanaian",
-    phone: "",
-    alternatePhone: "",
-    email: "",
-    address: "",
-    town: "",
-    region: "",
-    digitalAddress: "",
-    occupation: "",
-    employer: "",
-    employerAddress: "",
-    nationalId: "",
-    passportNumber: "",
-    emergencyContact: "",
-    emergencyPhone: "",
-    emergencyRelationship: "",
-    photoURL: "",
-    status: "Active"
-  }
-
-  const [parentForm, setParentForm] = useState(initialForm)
-
   useEffect(() => {
     setInstitutionId(localStorage.getItem('selected_institution_id'))
   }, [])
 
-  const parentsQuery = useMemo(() => institutionId ? query(collection(db, "parents"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
-  const { data: parents = [], loading: parentsLoading } = useCollection(parentsQuery)
+  const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
+  const { data: institution } = useDoc(instRef)
 
-  // Hardened Deterministic ID Sequencer
-  useEffect(() => {
-    if (institutionId && !parentsLoading) {
-      const numbers = parents
-        .map(p => {
-          const raw = p.parentNumber || "";
-          const match = raw.match(/(\d+)/);
-          return match ? parseInt(match[0], 10) : 0;
-        })
-        .filter(n => !isNaN(n));
-      
-      const maxNum = numbers.length > 0 ? Math.max(...numbers) : 0;
-      const nextNum = maxNum + 1;
-      const autoCode = `PAR-${String(nextNum).padStart(6, '0')}`;
-      
-      if (parentForm.parentNumber !== autoCode) {
-        setParentForm(prev => ({ ...prev, parentNumber: autoCode }));
-      }
-    }
-  }, [institutionId, parentsLoading, parents]);
-
-  const normalizePhone = (num: string) => {
-    if (!num) return "";
-    let clean = num.replace(/\s+/g, '').replace(/-/g, '').replace(/\(/g, '').replace(/\)/g, '');
-    if (clean.startsWith('+233')) return '0' + clean.slice(4);
-    if (clean.startsWith('233') && clean.length > 9) return '0' + clean.slice(3);
-    return clean;
-  }
+  const [parentForm, setParentForm] = useState({
+    parentNumber: "AUTO-ASSIGNED",
+    firstName: "",
+    lastName: "",
+    gender: "Female",
+    phone: "",
+    email: "",
+    occupation: "",
+    address: "",
+    status: "Active"
+  })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!db || !institutionId || loading) return
+    if (!db || !institutionId || loading || !institution?.schoolCode) return
     
-    if (!parentForm.email) {
-      toast({ variant: "destructive", title: "Email Required", description: "Parents must have an email for portal access." })
-      return
-    }
-
     setLoading(true)
     try {
-      const cleanPhone = normalizePhone(parentForm.phone)
-      const secondaryAppName = `secondary-parent-${Date.now()}-${Math.random().toString(36).substring(7)}`
-      const secondaryApp = getApps().find(a => a.name === secondaryAppName) || initializeApp(firebaseConfig, secondaryAppName)
+      const finalParentNumber = await generateInstitutionId('PAR', institutionId, institution.schoolCode);
+      const cleanPass = normalizeSecurityPhone(parentForm.phone)
+      
+      const secondaryAppName = `sec-par-add-${Date.now()}`
+      const secondaryApp = initializeApp(firebaseConfig, secondaryAppName)
       const secondaryAuth = getAuth(secondaryApp)
       
       let authUser;
       try {
-        const credential = await createUserWithEmailAndPassword(secondaryAuth, parentForm.email, cleanPhone)
+        const credential = await createUserWithEmailAndPassword(secondaryAuth, parentForm.email, cleanPass)
         authUser = credential.user
       } catch (authErr: any) {
         if (authErr.code !== 'auth/email-already-in-use') throw authErr;
       }
 
       const parentRef = doc(collection(db, "parents"))
-      const parentData = {
+      await setDoc(parentRef, {
         ...parentForm,
-        phone: cleanPhone,
+        parentNumber: finalParentNumber,
+        phone: normalizeSecurityPhone(parentForm.phone),
         id: parentRef.id,
         tenantId: institutionId,
         institutionId,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-      }
-
-      await setDoc(parentRef, parentData)
+      })
 
       if (authUser) {
         await setDoc(doc(db, "users", authUser.uid), {
@@ -155,7 +103,7 @@ export default function AddParentPage() {
         })
       }
       
-      toast({ title: "Parent Registered", description: `Record active with ID ${parentForm.parentNumber}.` })
+      toast({ title: "Guardian Registered", description: `Assigned ID: ${finalParentNumber}` })
       router.push("/dashboard/parents")
     } catch (e: any) { 
       toast({ variant: "destructive", title: "Registration Error", description: e.message }) 
@@ -167,94 +115,32 @@ export default function AddParentPage() {
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-20">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild className="rounded-xl h-11 w-11">
-          <Link href="/dashboard/parents"><ArrowLeft className="size-5" /></Link>
-        </Button>
+        <Button variant="ghost" size="icon" asChild className="rounded-xl h-11 w-11"><Link href="/dashboard/parents"><ArrowLeft className="size-5" /></Link></Button>
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Guardian Enrollment</h1>
-          <p className="text-muted-foreground font-medium">Registering a new parent in the institutional hub.</p>
+          <p className="text-muted-foreground font-medium">Transactional IDs ensure unique institutional records.</p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit}>
         <Card className="max-w-5xl mx-auto border-none shadow-2xl overflow-hidden rounded-3xl bg-white">
           <CardHeader className="bg-primary text-primary-foreground p-8">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="size-8 rounded-xl bg-white/10 flex items-center justify-center text-accent"><HeartHandshake className="size-5" /></div>
-              <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Strategic HR Operations</span>
-            </div>
             <CardTitle className="text-3xl font-headline font-bold">New Parent Entry</CardTitle>
           </CardHeader>
-
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <div className="bg-muted/30 px-8 border-b overflow-x-auto no-scrollbar">
-              <TabsList className="h-16 bg-transparent gap-8 justify-start p-0 min-w-max">
-                <TabsTrigger value="personal" className="gap-2 text-xs uppercase font-bold"><Users className="size-4" /> Personal</TabsTrigger>
-                <TabsTrigger value="contact" className="gap-2 text-xs uppercase font-bold"><Phone className="size-4" /> Contact</TabsTrigger>
-                <TabsTrigger value="professional" className="gap-2 text-xs uppercase font-bold"><Briefcase className="size-4" /> Professional</TabsTrigger>
-                <TabsTrigger value="id" className="gap-2 text-xs uppercase font-bold"><IdCard className="size-4" /> Identification</TabsTrigger>
-                <TabsTrigger value="emergency" className="gap-2 text-xs uppercase font-bold"><AlertCircle className="size-4" /> Emergency</TabsTrigger>
-              </TabsList>
+          <CardContent className="p-8 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+               <div className="space-y-1.5"><Label>Parent ID (Transactional)</Label><Input readOnly value={parentForm.parentNumber} className="h-12 bg-slate-50 font-bold font-mono" /></div>
+               <div className="space-y-1.5"><Label>First Name</Label><Input required value={parentForm.firstName} onChange={e => setParentForm({...parentForm, firstName: e.target.value})} className="h-12 rounded-xl" /></div>
+               <div className="space-y-1.5"><Label>Last Name</Label><Input required value={parentForm.lastName} onChange={e => setParentForm({...parentForm, lastName: e.target.value})} className="h-12 rounded-xl" /></div>
+               <div className="space-y-1.5"><Label>Phone Number</Label><Input required value={parentForm.phone} onChange={e => setParentForm({...parentForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
+               <div className="space-y-1.5 md:col-span-2"><Label>Email Address (Portal ID)</Label><Input type="email" required value={parentForm.email} onChange={e => setParentForm({...parentForm, email: e.target.value})} className="h-12 rounded-xl" /></div>
             </div>
-
-            <CardContent className="p-8">
-              <TabsContent value="personal" className="space-y-8 mt-0">
-                <div className="flex flex-col md:flex-row gap-8 items-start">
-                   <div className="size-32 rounded-2xl bg-slate-50 border-2 border-dashed flex flex-col items-center justify-center text-muted-foreground shrink-0">
-                     <Camera className="size-8 mb-1 opacity-20" />
-                     <span className="text-[10px] font-bold">Upload</span>
-                   </div>
-                   <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] font-bold">Parent ID Number</Label>
-                        <Input readOnly value={parentsLoading ? "Loading..." : parentForm.parentNumber} className="h-12 bg-slate-50 font-bold font-mono" />
-                      </div>
-                      <div className="space-y-1.5"><Label className="text-[10px] font-bold">First Name</Label><Input required value={parentForm.firstName} onChange={e => setParentForm({...parentForm, firstName: e.target.value})} className="h-12 rounded-xl" /></div>
-                      <div className="space-y-1.5"><Label className="text-[10px] font-bold">Last Name</Label><Input required value={parentForm.lastName} onChange={e => setParentForm({...parentForm, lastName: e.target.value})} className="h-12 rounded-xl" /></div>
-                      <div className="space-y-1.5"><Label className="text-[10px] font-bold">Gender</Label>
-                        <Select value={parentForm.gender} onValueChange={v => setParentForm({...parentForm, gender: v})}><SelectTrigger className="h-12"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem></SelectContent></Select>
-                      </div>
-                   </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="contact" className="space-y-6 mt-0">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                   <div className="space-y-1.5"><Label className="text-[10px] font-bold">Primary Phone</Label><Input required value={parentForm.phone} onChange={e => setParentForm({...parentForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
-                   <div className="space-y-1.5"><Label className="text-[10px] font-bold">Email Address</Label><Input type="email" required value={parentForm.email} onChange={e => setParentForm({...parentForm, email: e.target.value})} className="h-12 rounded-xl" /></div>
-                </div>
-                <div className="space-y-1.5"><Label className="text-[10px] font-bold">Residential Address</Label><Input value={parentForm.address} onChange={e => setParentForm({...parentForm, address: e.target.value})} className="h-12 rounded-xl" /></div>
-              </TabsContent>
-
-              <TabsContent value="professional" className="space-y-6 mt-0">
-                 <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-1.5"><Label className="text-[10px] font-bold">Occupation</Label><Input value={parentForm.occupation} onChange={e => setParentForm({...parentForm, occupation: e.target.value})} className="h-12 rounded-xl" /></div>
-                    <div className="space-y-1.5"><Label className="text-[10px] font-bold">Employer</Label><Input value={parentForm.employer} onChange={e => setParentForm({...parentForm, employer: e.target.value})} className="h-12 rounded-xl" /></div>
-                 </div>
-              </TabsContent>
-
-              <TabsContent value="id" className="space-y-6 mt-0">
-                 <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-1.5"><Label className="text-[10px] font-bold">Ghana Card ID</Label><Input value={parentForm.nationalId} onChange={e => setParentForm({...parentForm, nationalId: e.target.value})} className="h-12 rounded-xl font-mono" /></div>
-                    <div className="space-y-1.5"><Label className="text-[10px] font-bold">Passport #</Label><Input value={parentForm.passportNumber} onChange={e => setParentForm({...parentForm, passportNumber: e.target.value})} className="h-12 rounded-xl font-mono" /></div>
-                 </div>
-              </TabsContent>
-
-              <TabsContent value="emergency" className="space-y-6 mt-0">
-                 <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-1.5"><Label className="text-[10px] font-bold">Contact Name</Label><Input value={parentForm.emergencyContact} onChange={e => setParentForm({...parentForm, emergencyContact: e.target.value})} className="h-12 rounded-xl" /></div>
-                    <div className="space-y-1.5"><Label className="text-[10px] font-bold">Phone</Label><Input value={parentForm.emergencyPhone} onChange={e => setParentForm({...parentForm, emergencyPhone: e.target.value})} className="h-12 rounded-xl" /></div>
-                 </div>
-              </TabsContent>
-            </CardContent>
-
-            <CardFooter className="bg-slate-50 p-8 border-t flex justify-between">
-              <Button type="button" variant="ghost" asChild><Link href="/dashboard/parents">Cancel</Link></Button>
-              <Button type="submit" disabled={loading || parentsLoading} className="h-14 px-12 bg-primary font-bold shadow-xl">
-                {loading ? <Loader2 className="mr-2 animate-spin" /> : <Save className="mr-2" />} Authorize Registry Entry
-              </Button>
-            </CardFooter>
-          </Tabs>
+          </CardContent>
+          <CardFooter className="bg-slate-50 p-8 border-t">
+            <Button type="submit" disabled={loading} className="w-full h-14 bg-primary font-bold shadow-xl text-lg">
+              {loading ? <Loader2 className="mr-2 animate-spin" /> : <Save className="mr-2" />} Authorize Registration
+            </Button>
+          </CardFooter>
         </Card>
       </form>
     </div>
