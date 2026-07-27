@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -76,15 +75,18 @@ export default function AddParentPage() {
   const parentsQuery = useMemo(() => institutionId ? query(collection(db, "parents"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   const { data: parents = [], loading: parentsLoading } = useCollection(parentsQuery)
 
-  // Improved ID generation to prevent duplicates
+  // Robust ID generation to prevent duplicates by finding the max value in the current set
   useEffect(() => {
     if (institutionId && !parentsLoading && !parentForm.parentNumber) {
-      // Find the highest existing number or use count
-      const count = parents.length + 1
-      const autoCode = `PAR-${String(count).padStart(6, '0')}`
-      setParentForm(prev => ({ ...prev, parentNumber: autoCode }))
+      const numbers = parents
+        .map(p => parseInt(p.parentNumber?.split('-')[1] || "0"))
+        .filter(n => !isNaN(n));
+      const maxNum = numbers.length > 0 ? Math.max(...numbers) : 0;
+      const nextNum = maxNum + 1;
+      const autoCode = `PAR-${String(nextNum).padStart(6, '0')}`;
+      setParentForm(prev => ({ ...prev, parentNumber: autoCode }));
     }
-  }, [institutionId, parentsLoading, parents.length, parentForm.parentNumber])
+  }, [institutionId, parentsLoading, parents, parentForm.parentNumber])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

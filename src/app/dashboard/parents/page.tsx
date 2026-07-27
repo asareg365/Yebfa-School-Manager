@@ -19,10 +19,11 @@ import {
   Download,
   Filter,
   MoreVertical,
-  ShieldCheck
+  ShieldCheck,
+  RefreshCw
 } from "lucide-react"
 import { useFirestore, useCollection } from "@/firebase"
-import { collection, query, where, doc, deleteDoc, orderBy } from "firebase/firestore"
+import { collection, query, where, doc, deleteDoc, writeBatch, serverTimestamp } from "firebase/firestore"
 import { useState, useMemo, useEffect } from "react"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/hooks/use-toast"
@@ -32,6 +33,7 @@ export default function ParentsRegistryPage() {
   const db = useFirestore()
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  const [syncing, setSyncing] = useState(false)
   
   useEffect(() => {
     setInstitutionId(localStorage.getItem('selected_institution_id'))
@@ -60,6 +62,45 @@ export default function ParentsRegistryPage() {
     ).sort((a, b) => (a.parentNumber || "").localeCompare(b.parentNumber || ""))
   }, [parents, searchQuery])
 
+  const handleSyncIDs = async () => {
+    if (!db || !institutionId || parents.length === 0) return;
+    if (!confirm("This will re-sequence all Parent IDs in the registry to be strictly sequential (PAR-000001, PAR-000002, etc.) based on their registration date. This is recommended to fix repetitions. Proceed?")) return;
+
+    setSyncing(true);
+    try {
+      const batch = writeBatch(db);
+      // Sort by creation date to maintain historical order
+      const sortedParents = [...parents].sort((a, b) => {
+        const dateA = a.createdAt?.toMillis?.() || 0;
+        const dateB = b.createdAt?.toMillis?.() || 0;
+        return dateA - dateB;
+      });
+
+      let updateCount = 0;
+      sortedParents.forEach((p, index) => {
+        const newID = `PAR-${String(index + 1).padStart(6, '0')}`;
+        if (p.parentNumber !== newID) {
+          batch.update(doc(db, "parents", p.id), {
+            parentNumber: newID,
+            updatedAt: serverTimestamp()
+          });
+          updateCount++;
+        }
+      });
+
+      if (updateCount > 0) {
+        await batch.commit();
+        toast({ title: "Registry Synchronized", description: `${updateCount} records have been updated with sequential IDs.` });
+      } else {
+        toast({ title: "Registry Healthy", description: "All IDs are already correctly sequenced." });
+      }
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Sync Failed", description: e.message });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to remove this parent from the registry? This will not remove linked students but will break the guardian link.")) return
     
@@ -82,7 +123,16 @@ export default function ParentsRegistryPage() {
           <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Parent Registry</h1>
           <p className="text-muted-foreground font-medium">Master database of guardians and family relationships.</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button 
+            variant="outline" 
+            className="h-11 rounded-xl gap-2 text-xs font-bold uppercase" 
+            onClick={handleSyncIDs}
+            disabled={syncing || pLoading}
+          >
+            {syncing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+            Sync Sequence
+          </Button>
           <Button variant="outline" className="h-11 rounded-xl gap-2 text-xs font-bold uppercase hidden sm:flex" onClick={handleExport}>
             <Download className="size-4" /> Export CSV
           </Button>
