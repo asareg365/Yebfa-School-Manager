@@ -192,7 +192,7 @@ export default function LoginPage() {
       if (snap.empty) throw new Error("Staff ID not found in registry.");
       
       const personData = snap.docs[0].data()
-      // Prioritize saved email from registry record, fallback to standardized system format
+      // Use the verified email stored in the registry record
       const accountEmail = personData.email || `${normalizedId.toLowerCase().trim()}@system.yebfa.com`
       
       let cleanCredential = normalizeSecurityPhone(staffPhoneInput)
@@ -201,7 +201,7 @@ export default function LoginPage() {
       const credential = await signInWithEmailAndPassword(auth, accountEmail, cleanCredential)
       await redirectUser(credential.user)
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Access Denied", description: error.message })
+      toast({ variant: "destructive", title: "Access Denied", description: "Verification failed. Check your ID and registered phone number." })
     } finally { setStaffLoading(false) }
   }
 

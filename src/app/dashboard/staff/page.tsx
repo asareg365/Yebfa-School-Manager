@@ -107,18 +107,20 @@ export default function StaffHRPage() {
       const batch = writeBatch(db)
       let staffId = editingStaff?.id
       let finalStaffNumber = staffForm.staffNumber
+      let accountEmail = staffForm.email
 
       const staffRef = editingStaff ? doc(db, "staff", editingStaff.id) : doc(collection(db, "staff"))
       staffId = staffRef.id
 
       if (!editingStaff) {
+        // Deterministic ID generation only for NEW records
         finalStaffNumber = await generateInstitutionId('STF', institutionId, institution?.schoolCode);
         
         let cleanPass = normalizeSecurityPhone(staffForm.phone);
         if (cleanPass.length < 6) cleanPass = cleanPass.padEnd(6, '0');
         
         // System Email: standardized to lowercase raw ID
-        const accountEmail = staffForm.email || `${finalStaffNumber.toLowerCase().trim()}@system.yebfa.com`;
+        accountEmail = staffForm.email || `${finalStaffNumber.toLowerCase().trim()}@system.yebfa.com`;
         
         try {
           const credential = await createUserWithEmailAndPassword(provisionAuth, accountEmail, cleanPass)
@@ -146,7 +148,7 @@ export default function StaffHRPage() {
           ...staffForm,
           staffNumber: finalStaffNumber,
           phone: normalizeSecurityPhone(staffForm.phone),
-          email: accountEmail, // Explicitly save the generated email
+          email: accountEmail,
           salary: parseFloat(staffForm.salary as string) || 0,
           id: staffId,
           tenantId: institutionId,
@@ -155,7 +157,7 @@ export default function StaffHRPage() {
           updatedAt: serverTimestamp()
         });
       } else {
-        const { id, createdAt, ...sanitizedData } = staffForm as any;
+        const { id, createdAt, tenantId, institutionId: instId, ...sanitizedData } = staffForm as any;
         batch.update(staffRef, { 
           ...sanitizedData, 
           salary: parseFloat(staffForm.salary as string) || 0,
