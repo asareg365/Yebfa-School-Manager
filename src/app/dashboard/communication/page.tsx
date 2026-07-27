@@ -50,7 +50,10 @@ export default function CommunicationCenterPage() {
   // Resolve Profile for Permissions
   const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
   const { data: profile } = useDoc(userProfileRef)
+  
   const isParent = profile?.role === 'parent'
+  const isStudent = profile?.role === 'student'
+  const isRestricted = isParent || isStudent
 
   useEffect(() => {
     setInstitutionId(localStorage.getItem('selected_institution_id'))
@@ -58,8 +61,8 @@ export default function CommunicationCenterPage() {
 
   // 1. Fetch Students for Staff (Targeting)
   const studentsQuery = useMemo(() => 
-    institutionId && !isParent ? query(collection(db, "students"), where("tenantId", "==", institutionId)) : null, 
-    [db, institutionId, isParent]
+    institutionId && !isRestricted ? query(collection(db, "students"), where("tenantId", "==", institutionId)) : null, 
+    [db, institutionId, isRestricted]
   )
   const { data: students = [] } = useCollection(studentsQuery)
 
@@ -85,19 +88,31 @@ export default function CommunicationCenterPage() {
   )
   const { data: allAnnouncements = [] } = useCollection(annQuery)
 
-  // 4. Client-side filtering for Parents
+  // 4. Client-side filtering for Students & Parents
   const announcements = useMemo(() => {
-    if (!isParent) return allAnnouncements
+    if (!isRestricted) return allAnnouncements
     return allAnnouncements.filter((ann: any) => {
-      if (ann.target === 'All' || ann.target === 'Parents') return true
-      if (ann.target === 'StudentParent' && childrenIds.includes(ann.targetStudentId)) return true
+      // Show Global
+      if (ann.target === 'All') return true
+      
+      // Parent Logic
+      if (isParent) {
+        if (ann.target === 'Parents') return true
+        if (ann.target === 'StudentParent' && childrenIds.includes(ann.targetStudentId)) return true
+      }
+
+      // Student Logic
+      if (isStudent) {
+        if (ann.target === 'StudentParent' && ann.targetStudentId === profile?.studentId) return true
+      }
+
       return false
     })
-  }, [allAnnouncements, isParent, childrenIds])
+  }, [allAnnouncements, isRestricted, isParent, isStudent, childrenIds, profile?.studentId])
 
   const handleBroadcast = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!db || !institutionId || loading) return
+    if (!db || !institutionId || loading || isRestricted) return
     if (msgForm.target === 'StudentParent' && !msgForm.targetStudentId) {
       toast({ variant: "destructive", title: "Student Selection Required" })
       return
@@ -142,6 +157,7 @@ export default function CommunicationCenterPage() {
   }
 
   const handleDelete = async (id: string) => {
+    if (isRestricted) return
     try {
       await deleteDoc(doc(db, "announcements", id))
       toast({ title: "Record Removed" })
@@ -153,14 +169,14 @@ export default function CommunicationCenterPage() {
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Communication Hub</h1>
         <p className="text-muted-foreground font-medium">
-          {isParent 
+          {isRestricted 
             ? "Official school announcements and personal academic notifications." 
             : "Strategic engagement for parents, staff, and students."}
         </p>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-3">
-        {!isParent && (
+        {!isRestricted && (
           <div className="lg:col-span-1 space-y-6">
             <Card className="border-none shadow-xl rounded-3xl overflow-hidden bg-white">
               <CardHeader className="bg-primary text-primary-foreground p-8 shrink-0">
@@ -180,7 +196,7 @@ export default function CommunicationCenterPage() {
                         <SelectItem value="All">Global (Everyone)</SelectItem>
                         <SelectItem value="Parents">All Guardians</SelectItem>
                         <SelectItem value="Teachers">All Faculty</SelectItem>
-                        <SelectItem value="StudentParent">Specific Student's Parent</SelectItem>
+                        <SelectItem value="StudentParent">Specific Student / Parent</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -238,18 +254,18 @@ export default function CommunicationCenterPage() {
                <CardContent className="px-6 pb-6 space-y-4">
                   <div className="flex items-start gap-3">
                      <ShieldCheck className="size-5 shrink-0" />
-                     <p className="text-xs leading-relaxed font-medium">Personal messages to specific student parents are isolated and only visible to the linked guardians.</p>
+                     <p className="text-xs leading-relaxed font-medium">Personal messages to specific students are isolated and only visible to the respective student and their authorized guardians.</p>
                   </div>
                </CardContent>
             </Card>
           </div>
         )}
 
-        <div className={isParent ? "lg:col-span-3 space-y-6" : "lg:col-span-2 space-y-6"}>
+        <div className={isRestricted ? "lg:col-span-3 space-y-6" : "lg:col-span-2 space-y-6"}>
           <Tabs defaultValue="announcements" className="w-full">
             <TabsList className="bg-muted/50 p-1 rounded-2xl mb-8 flex-wrap h-auto">
               <TabsTrigger value="announcements" className="rounded-xl gap-2 px-8 py-3 text-xs font-bold uppercase tracking-widest"><Bell className="size-4" /> Announcements Registry</TabsTrigger>
-              {!isParent && (
+              {!isRestricted && (
                 <TabsTrigger value="reminders" className="rounded-xl gap-2 px-8 py-3 text-xs font-bold uppercase tracking-widest"><CalendarHeart className="size-4" /> Automated Triggers</TabsTrigger>
               )}
             </TabsList>
@@ -269,7 +285,7 @@ export default function CommunicationCenterPage() {
                               {ann.createdAt ? new Date(ann.createdAt.toMillis()).toLocaleString() : 'Just now'}
                             </span>
                          </div>
-                         {!isParent && (
+                         {!isRestricted && (
                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:bg-destructive/5" onClick={() => handleDelete(ann.id)}>
                               <Trash2 className="size-4" />
                            </Button>
@@ -298,14 +314,14 @@ export default function CommunicationCenterPage() {
                     </div>
                     <div className="max-w-xs mx-auto">
                        <h3 className="text-xl font-headline font-bold text-primary/60">Registry Empty</h3>
-                       <p className="text-sm text-muted-foreground italic mt-2">No relevant announcements or personal information detected in your current 2026 cycle feed.</p>
+                       <p className="text-sm text-muted-foreground italic mt-2">No relevant announcements or personal information detected in your current cycle feed.</p>
                     </div>
                   </div>
                 )}
               </div>
             </TabsContent>
 
-            {!isParent && (
+            {!isRestricted && (
               <TabsContent value="reminders" className="mt-0">
                  <Card className="border-none shadow-md bg-white p-12 text-center space-y-6 rounded-3xl border-2 border-dashed">
                     <div className="size-24 rounded-full bg-primary/5 flex items-center justify-center mx-auto text-primary/30"><History className="size-12" /></div>
