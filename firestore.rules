@@ -38,6 +38,7 @@ service cloud.firestore {
     function isAccountant() { return signedIn() && userRole() == "accountant"; }
     function isTeacher() { return signedIn() && userRole() == "teacher"; }
     function isParent() { return signedIn() && userRole() == "parent"; }
+    function isStudent() { return signedIn() && userRole() == "student"; }
     
     // ======================
     // TENANT ISOLATION LOGIC
@@ -68,32 +69,37 @@ service cloud.firestore {
     }
 
     match /notifications/{notifId} {
-      allow list: if signedIn() && (isSuperAdmin() || (hasProfile() && resource.data.tenantId == userTenant()));
+      allow list: if signedIn() && (isSuperAdmin() || (hasProfile() && (resource.data.tenantId == userTenant() || resource.data.targetStudentId == request.auth.uid)));
       allow get: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
       allow create: if signedIn();
       allow update, delete: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
     }
 
-    // Identity Registry Rules - Allows lookup by ID for Login
+    // Identity Registry Rules - Essential for ID + PIN / Phone Login
     match /parents/{parentId} {
-      allow list: if signedIn() && (isSuperAdmin() || (hasProfile() && resource.data.tenantId == userTenant()));
-      allow get: if true; // For login verification
+      allow list: if true; // Public list allowed for ID lookup (server-side query filters)
+      allow get: if true;  // For login verification
       allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
       allow delete: if isSuperAdmin();
     }
 
     match /staff/{staffId} {
-      allow list: if signedIn() && (isSuperAdmin() || (hasProfile() && resource.data.tenantId == userTenant()));
-      allow get: if true; // For login verification
+      allow list: if true; // Public list allowed for ID lookup
+      allow get: if true;  // For login verification
       allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
       allow delete: if isSuperAdmin();
     }
 
     match /students/{studentId} {
-      allow list: if signedIn() && (isSuperAdmin() || (hasProfile() && resource.data.tenantId == userTenant()));
-      allow get: if true; // For login verification
+      allow list: if true; // Public list allowed for ID lookup
+      allow get: if true;  // For login verification
       allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin() || isTeacher());
       allow delete: if isSuperAdmin();
+    }
+
+    match /student_parents/{relId} {
+      allow list, get: if true; // Required to find linked parents during login
+      allow write: if signedIn();
     }
 
     // ID Counters - Transactional Updates
@@ -101,11 +107,7 @@ service cloud.firestore {
       allow read, write: if signedIn();
     }
 
-    match /student_parents/{relId} {
-      allow read, write: if signedIn();
-    }
-
-    // Global Tenant Rule for modules
+    // Global Tenant Rule for modules (Grades, Exams, Finance etc)
     match /{collectionName}/{docId} {
       allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
       allow create, update: if signedIn() && (isSuperAdmin() || belongsToUserTenant(request.resource.data));
