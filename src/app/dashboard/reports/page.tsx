@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
@@ -29,7 +30,7 @@ import { calculateGrade, calculatePositions, calculateAttendanceSummary, DEFAULT
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ResponsiveContainer, BarChart as ReBarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts"
 
-export default function QuantitativeReportsPage() {
+export default function StudentReportsPage() {
   const db = useFirestore()
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [selectedGrade, setSelectedGrade] = useState("")
@@ -143,7 +144,7 @@ export default function QuantitativeReportsPage() {
     <div className="space-y-8 animate-in fade-in duration-500 pb-24">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Quantitative Report Hub</h1>
+          <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Student Report Hub</h1>
           <p className="text-muted-foreground font-medium">Deterministic academic computation for <span className="text-accent font-bold uppercase">{currentTerm}</span>.</p>
         </div>
         <div className="flex gap-3 no-print">

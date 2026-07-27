@@ -1,9 +1,9 @@
 
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser, useFirestore, useDoc, useCollection } from "@/firebase";
+import { useUser, useFirestore, useDoc, useCollection, useAuth } from "@/firebase";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/dashboard/app-sidebar";
 import { Separator } from "@/components/ui/separator";
@@ -17,6 +17,9 @@ import { differenceInDays, formatDistanceToNow } from "date-fns";
 import Link from 'next/link';
 import { doc, collection, query, where, orderBy, deleteDoc, writeBatch, getDocs } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
+import { signOut } from 'firebase/auth';
+
+const IDLE_TIMEOUT = 1800000; // 30 minutes in milliseconds
 
 export default function DashboardLayout({
   children,
@@ -24,10 +27,12 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const { user, loading } = useUser();
+  const auth = useAuth();
   const db = useFirestore();
   const router = useRouter();
   const [institutionName, setInstitutionName] = useState<string>("Institution Hub");
   const [institutionId, setInstitutionId] = useState<string | null>(null);
+  const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const storedId = localStorage.getItem('selected_institution_id');
@@ -48,6 +53,38 @@ export default function DashboardLayout({
   }, [db, institutionId]);
 
   const { data: notifications = [] } = useCollection(notificationsQuery);
+
+  // Idle Timeout Logic
+  const handleLogout = useCallback(async () => {
+    if (auth) {
+      await signOut(auth);
+      router.push('/login');
+      toast({
+        title: "Session Expired",
+        description: "You have been logged out due to inactivity.",
+        variant: "destructive"
+      });
+    }
+  }, [auth, router]);
+
+  const resetTimer = useCallback(() => {
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    idleTimerRef.current = setTimeout(handleLogout, IDLE_TIMEOUT);
+  }, [handleLogout]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    events.forEach(event => document.addEventListener(event, resetTimer));
+    
+    resetTimer();
+
+    return () => {
+      events.forEach(event => document.removeEventListener(event, resetTimer));
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    };
+  }, [user, resetTimer]);
 
   useEffect(() => {
     if (!loading && !user) {

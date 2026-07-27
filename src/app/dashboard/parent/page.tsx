@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -24,7 +25,7 @@ import { Progress } from "@/components/ui/progress"
 import { calculateGrade, calculateAttendanceSummary, calculatePositions } from "@/lib/academic-engine"
 import { ResponsiveContainer, BarChart as ReBarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts"
 
-export default function QuantitativeParentPortal() {
+export default function StudentReportsPortal() {
   const { user } = useUser()
   const db = useFirestore()
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
@@ -117,7 +118,7 @@ export default function QuantitativeParentPortal() {
     <div className="space-y-8 animate-in fade-in duration-500 pb-24">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Parent Portal</h1>
+          <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Student Reports</h1>
           <p className="text-muted-foreground font-medium">Monitoring academic performance for {currentTerm}, 2026 Cycle.</p>
         </div>
         <div className="flex gap-2 p-1 bg-muted/50 rounded-2xl border shadow-sm">

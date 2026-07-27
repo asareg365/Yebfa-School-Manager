@@ -166,7 +166,7 @@ export function AppSidebar() {
         visible: isSuperAdmin || isOwner || isAdmin || isTeacher,
         items: [
           { title: "Exams Hub", url: "/dashboard/exams", visible: true },
-          { title: "Quantitative Reports", url: "/dashboard/reports", visible: true },
+          { title: "Student Reports", url: "/dashboard/reports", visible: true },
           { title: "Strategic Analytics", url: "/dashboard/analytics", visible: true },
         ].filter(i => i.visible),
       },
