@@ -27,7 +27,8 @@ import {
   Download,
   AlertCircle,
   KeyRound,
-  X
+  X,
+  LockKeyhole
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection, useUser, useDoc } from "@/firebase"
@@ -56,6 +57,7 @@ export default function StudentsPage() {
   const [isEnrollOpen, setIsEnrollOpen] = useState(false)
   const [isBulkOpen, setIsBulkOpen] = useState(false)
   const [bulkLoading, setBulkLoading] = useState(false)
+  const [syncing, setSyncing] = useState(false)
   const [editingStudent, setEditingStudent] = useState<any>(null)
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
@@ -155,6 +157,39 @@ export default function StudentsPage() {
       setActiveStep(steps[currentIndex - 1])
     }
   }
+
+  const handleSyncCredentials = async () => {
+    if (!db || !institutionId || rawStudents.length === 0) return;
+    if (!confirm("This tool will generate Portal PINs for any students missing them and synchronize their identity handshake. This allows legacy students to log in using 'Student ID + PIN'. Proceed?")) return;
+
+    setSyncing(true);
+    try {
+      const batch = writeBatch(db);
+      let syncCount = 0;
+
+      for (const stu of rawStudents) {
+        if (!stu.studentPin) {
+          const newPin = generateStudentPin();
+          batch.update(doc(db, "students", stu.id), {
+            studentPin: newPin,
+            updatedAt: serverTimestamp()
+          });
+          syncCount++;
+        }
+      }
+
+      if (syncCount > 0) {
+        await batch.commit();
+        toast({ title: "Credentials Synchronized", description: `${syncCount} students have been assigned secure login PINs.` });
+      } else {
+        toast({ title: "Registry Healthy", description: "All students already have valid Portal PINs." });
+      }
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Sync Failed", description: e.message });
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const handleEnroll = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -350,6 +385,15 @@ export default function StudentsPage() {
           <p className="text-muted-foreground font-medium">Strategic institutional enrollment and ID/PIN management.</p>
         </div>
         <div className="flex flex-wrap gap-3">
+          <Button 
+            variant="outline" 
+            className="h-11 rounded-xl gap-2 text-xs font-bold uppercase"
+            onClick={handleSyncCredentials}
+            disabled={syncing || rawStudents.length === 0}
+          >
+            {syncing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+            Sync Credentials
+          </Button>
           <Button variant="outline" className="h-11 rounded-xl" onClick={() => setIsBulkOpen(true)}>
             <FileSpreadsheet className="size-4 mr-2" /> Bulk Intake
           </Button>
@@ -367,9 +411,15 @@ export default function StudentsPage() {
               <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
               <Input placeholder="Search records..." className="pl-10 h-12 bg-white border-none rounded-xl shadow-sm" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
-            <Badge className="bg-primary/5 text-primary border-none text-[10px] font-bold uppercase tracking-widest px-4 h-10 flex items-center">
-              {rawStudents.length} Students Total
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge className="bg-primary/5 text-primary border-none text-[10px] font-bold uppercase tracking-widest px-4 h-10 flex items-center">
+                {rawStudents.length} Students Total
+              </Badge>
+              <div className="flex items-center gap-1 p-2 bg-blue-50 text-blue-700 rounded-xl border border-blue-100">
+                <LockKeyhole className="size-3.5" />
+                <span className="text-[10px] font-bold uppercase">PIN Protection Active</span>
+              </div>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
@@ -397,7 +447,9 @@ export default function StudentsPage() {
                         <div className="flex flex-col">
                           <div className="flex items-center gap-2">
                              <span className="text-[10px] font-mono font-bold text-accent">{stu.admissionNumber}</span>
-                             <Badge variant="outline" className="h-4 px-1 text-[8px] font-mono border-primary/20 text-primary">PIN: {stu.studentPin || '----'}</Badge>
+                             <Badge className="h-5 px-2 text-[10px] font-mono bg-primary text-white border-none shadow-sm">
+                               PIN: {stu.studentPin || '----'}
+                             </Badge>
                           </div>
                           <span className="font-bold text-primary">{stu.firstName} {stu.lastName}</span>
                         </div>
@@ -410,7 +462,9 @@ export default function StudentsPage() {
                         <span className="text-muted-foreground text-[10px] uppercase font-bold">{mainRel?.relationship || "Unlinked"}</span>
                       </div>
                     </TableCell>
-                    <TableCell><Badge variant="outline" className="text-[9px] uppercase font-bold text-green-600 bg-green-50">{stu.status}</Badge></TableCell>
+                    <TableCell><Badge variant="outline" className={`text-[9px] uppercase font-bold ${stu.status === 'active' ? 'text-green-600 bg-green-50' : 'text-slate-500 bg-slate-50'}`}>
+                      {stu.status}
+                    </Badge></TableCell>
                     <TableCell className="text-right px-6">
                        <div className="flex items-center justify-end gap-1">
                           <Button variant="ghost" size="icon" onClick={() => openEdit(stu)}><Pencil className="size-4" /></Button>
@@ -420,6 +474,9 @@ export default function StudentsPage() {
                   </TableRow>
                 );
               })}
+              {studentsList.length === 0 && (
+                <TableRow><TableCell colSpan={5} className="text-center py-32 text-muted-foreground italic">No student roster detected in your institutional registry.</TableCell></TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -448,7 +505,7 @@ export default function StudentsPage() {
                     <div className="space-y-2">
                        <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Portal Access PIN</Label>
                        <div className="h-11 px-4 rounded-xl bg-slate-50 flex items-center border border-dashed border-slate-200">
-                          <Badge variant="secondary" className="font-mono text-xs font-bold uppercase bg-slate-200 text-primary border-none">
+                          <Badge className="font-mono text-xs font-bold uppercase bg-primary text-white border-none shadow-sm px-3">
                              {studentForm.studentPin}
                           </Badge>
                        </div>
@@ -584,7 +641,7 @@ export default function StudentsPage() {
                <p className="text-[10px] text-muted-foreground mt-1 uppercase font-bold">Columns: firstName, lastName, gender, grade, dob</p>
             </div>
             <div className="relative">
-               <Input 
+               <input 
                 type="file" 
                 accept=".csv" 
                 className="absolute inset-0 opacity-0 cursor-pointer" 
