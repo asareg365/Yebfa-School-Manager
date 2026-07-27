@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Printer, ArrowLeft, User, Search, School as SchoolIcon, Phone, MapPin, Badge as BadgeIcon } from "lucide-react"
+import { Printer, ArrowLeft, User, Search, School as SchoolIcon, Phone, MapPin, ShieldCheck } from "lucide-react"
 import { useFirestore, useCollection, useDoc } from "@/firebase"
 import { collection, query, where, doc } from "firebase/firestore"
 import { useState, useMemo, useEffect } from "react"
@@ -28,7 +28,7 @@ export default function StudentIDCardsPage() {
     return query(collection(db, "students"), where("tenantId", "==", institutionId));
   }, [db, institutionId]);
 
-  const { data: students } = useCollection(studentsQuery)
+  const { data: students = [] } = useCollection(studentsQuery)
 
   const filteredStudents = useMemo(() => {
     return students.filter(s => 
