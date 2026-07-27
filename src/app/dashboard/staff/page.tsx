@@ -16,7 +16,8 @@ import {
   User,
   CheckCircle2,
   Activity,
-  RefreshCw
+  RefreshCw,
+  AlertTriangle
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { toast } from "@/hooks/use-toast"
@@ -88,7 +89,7 @@ export default function StaffHRPage() {
 
   const handleSyncCredentials = async () => {
     if (!db || !institutionId || rawStaff.length === 0) return;
-    if (!confirm("This will authorize portal access for all staff by creating security accounts. Proceed?")) return;
+    if (!confirm("This will authorize portal access for all staff by creating secure accounts. This process may take a few moments. Proceed?")) return;
 
     setSyncing(true);
     const provisionAppName = `staff-sync-${Date.now()}`;
@@ -97,11 +98,22 @@ export default function StaffHRPage() {
 
     try {
       let syncCount = 0;
+      let errorCount = 0;
+
+      toast({ title: "Authorization Cycle Started", description: "Batch provisioning faculty accounts..." });
+
       for (const s of rawStaff) {
         if (!s.staffNumber) continue;
-        const accountEmail = s.email || `${s.staffNumber.toLowerCase()}@system.yebfa.com`;
+        
+        const accountEmail = s.email || `${s.staffNumber.toLowerCase().trim()}@system.yebfa.com`;
         const cleanPass = normalizeSecurityPhone(s.phone);
         
+        if (cleanPass.length < 6) {
+          console.warn(`Staff ${s.staffNumber} has an invalid security key (phone too short). Skipping.`);
+          errorCount++;
+          continue;
+        }
+
         try {
           const credential = await createUserWithEmailAndPassword(provisionAuth, accountEmail, cleanPass);
           const authUser = credential.user;
@@ -114,20 +126,35 @@ export default function StaffHRPage() {
             role: s.designation?.toLowerCase().includes("teacher") ? "teacher" : "administrator",
             tenantId: institutionId,
             institutionId: institutionId,
-            staffId: s.id, // Linked to registry for granular permissions
+            institutionName: institution?.name || "Academic Hub",
+            schoolCode: institution?.schoolCode || "SCH",
+            staffId: s.id,
             status: "active",
             createdAt: serverTimestamp()
           });
+          
           await batch.commit();
           syncCount++;
+          
+          // Clear session for next user creation
           await signOut(provisionAuth);
         } catch (e: any) {
-          // Skip already existing accounts
+          if (e.code === 'auth/email-already-in-use') {
+             // Account exists, consider it synced
+             syncCount++;
+          } else {
+             console.error(`Provisioning failure for ${s.staffNumber}:`, e.message);
+             errorCount++;
+          }
         }
       }
-      toast({ title: "HR Sync Complete", description: `Authorized portal access for ${syncCount} faculty members.` });
+      
+      toast({ 
+        title: "Registry Sync Complete", 
+        description: `Successfully provisioned ${syncCount} accounts. ${errorCount > 0 ? `${errorCount} records required manual review.` : ''}` 
+      });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Sync Failed", description: e.message });
+      toast({ variant: "destructive", title: "Sync Engine Error", description: e.message });
     } finally {
       setSyncing(false);
       try { await deleteApp(provisionApp); } catch (e) {}
@@ -139,7 +166,7 @@ export default function StaffHRPage() {
     if (!db || !institutionId || loading) return
 
     setLoading(true)
-    const provisionAppName = `staff-provision-${Date.now()}`;
+    const provisionAppName = `staff-enroll-${Date.now()}`;
     const provisionApp = initializeApp(firebaseConfig, provisionAppName);
     const provisionAuth = getAuth(provisionApp);
 
@@ -151,8 +178,10 @@ export default function StaffHRPage() {
       if (!editingStaff) {
         finalStaffNumber = await generateInstitutionId('STF', institutionId, institution?.schoolCode);
         
-        const cleanPass = normalizeSecurityPhone(staffForm.phone)
-        const accountEmail = staffForm.email || `${finalStaffNumber.toLowerCase()}@system.yebfa.com`;
+        const cleanPass = normalizeSecurityPhone(staffForm.phone);
+        if (cleanPass.length < 6) throw new Error("Security Key (Phone) must be at least 6 digits.");
+        
+        const accountEmail = staffForm.email || `${finalStaffNumber.toLowerCase().trim()}@system.yebfa.com`;
         
         const staffRef = doc(collection(db, "staff"))
         staffId = staffRef.id
@@ -165,10 +194,12 @@ export default function StaffHRPage() {
             uid: authUser.uid,
             name: `${staffForm.firstName} ${staffForm.lastName}`,
             email: accountEmail,
-            role: "teacher",
+            role: staffForm.designation?.toLowerCase().includes("teacher") ? "teacher" : "administrator",
             tenantId: institutionId,
             institutionId: institutionId,
-            staffId: staffId, // Locked to staff registry ID
+            institutionName: institution?.name || "Academic Hub",
+            schoolCode: institution?.schoolCode || "SCH",
+            staffId: staffId,
             status: "active",
             createdAt: serverTimestamp()
           })
@@ -190,11 +221,15 @@ export default function StaffHRPage() {
         });
       } else {
         const { id, createdAt, ...sanitizedData } = staffForm as any;
-        batch.update(doc(db, "staff", editingStaff.id), { ...sanitizedData, updatedAt: serverTimestamp() });
+        batch.update(doc(db, "staff", editingStaff.id), { 
+          ...sanitizedData, 
+          salary: parseFloat(staffForm.salary as string) || 0,
+          updatedAt: serverTimestamp() 
+        });
       }
 
       await batch.commit()
-      toast({ title: editingStaff ? "Registry Updated" : `Enrolled with Transactional ID: ${finalStaffNumber}` })
+      toast({ title: editingStaff ? "Registry Updated" : `Faculty Enrolled: ${finalStaffNumber}` })
       setIsEnrollOpen(false); setEditingStaff(null); setStaffForm(initialForm);
     } catch (error: any) {
       toast({ variant: "destructive", title: "Action Failed", description: error.message });
@@ -210,7 +245,22 @@ export default function StaffHRPage() {
     setIsEnrollOpen(true);
   }
 
-  if (profileLoading || dataLoading) return <div className="p-24 text-center font-bold text-muted-foreground uppercase tracking-widest text-xs">Syncing HR Registry...</div>
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to remove this staff member? This does not delete their security account.")) return
+    try {
+      await deleteDoc(doc(db!, "staff", id))
+      toast({ title: "Profile Removed" })
+    } catch (e) { 
+      toast({ variant: "destructive", title: "Action Failed" }) 
+    }
+  }
+
+  if (profileLoading || dataLoading) return (
+    <div className="p-24 text-center">
+      <Loader2 className="size-10 animate-spin mx-auto text-primary" />
+      <p className="mt-4 font-bold text-muted-foreground animate-pulse uppercase tracking-widest text-xs">Syncing HR Registry...</p>
+    </div>
+  )
 
   if (!institutionId) return (
     <div className="p-20 text-center space-y-4">
@@ -244,9 +294,16 @@ export default function StaffHRPage() {
 
       <Card className="border-none shadow-xl rounded-2xl overflow-hidden bg-white">
         <CardHeader className="border-b py-6 bg-slate-50/50">
-          <div className="relative max-sm w-full sm:max-w-sm">
-            <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
-            <Input placeholder="Search by name or ID..." className="pl-10 h-12 bg-white border-none rounded-xl shadow-sm" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="relative max-sm w-full sm:max-w-sm">
+              <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
+              <Input placeholder="Search by name or ID..." className="pl-10 h-12 bg-white border-none rounded-xl shadow-sm" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+            </div>
+            <div className="flex items-center gap-3">
+               <Badge className="bg-primary/5 text-primary border-none text-[10px] font-bold uppercase tracking-widest px-4 h-10 flex items-center">
+                 {rawStaff.length} Records Active
+               </Badge>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
@@ -262,7 +319,7 @@ export default function StaffHRPage() {
             </TableHeader>
             <TableBody>
               {staffList.map((s: any) => (
-                <TableRow key={s.id} className="hover:bg-slate-50 transition-colors">
+                <TableRow key={s.id} className="hover:bg-slate-50 transition-colors group">
                   <TableCell className="px-6">
                     <div className="flex items-center gap-3">
                       <div className="size-10 rounded-xl bg-primary/5 flex items-center justify-center font-bold text-primary text-xs border">
@@ -280,7 +337,7 @@ export default function StaffHRPage() {
                   <TableCell className="text-right px-6">
                     <div className="flex items-center justify-end gap-1">
                       <Button variant="ghost" size="icon" onClick={() => openEdit(s)}><Pencil className="size-4" /></Button>
-                      <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteDoc(doc(db!, "staff", s.id))}><Trash2 className="size-4" /></Button>
+                      <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(s.id)}><Trash2 className="size-4" /></Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -314,9 +371,21 @@ export default function StaffHRPage() {
                 <div className="space-y-2"><Label>First Name</Label><Input required value={staffForm.firstName} onChange={e => setStaffForm({...staffForm, firstName: e.target.value})} className="h-12 rounded-xl" /></div>
                 <div className="space-y-2"><Label>Last Name</Label><Input required value={staffForm.lastName} onChange={e => setStaffForm({...staffForm, lastName: e.target.value})} className="h-12 rounded-xl" /></div>
                 <div className="space-y-2"><Label>Phone Number</Label><Input required value={staffForm.phone} onChange={e => setStaffForm({...staffForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
-                <div className="space-y-2 md:col-span-2"><Label>Email Address</Label><Input type="email" required value={staffForm.email} onChange={e => setStaffForm({...staffForm, email: e.target.value})} className="h-12 rounded-xl" /></div>
+                <div className="space-y-2 md:col-span-2"><Label>Email Address (Optional)</Label><Input type="email" value={staffForm.email} onChange={e => setStaffForm({...staffForm, email: e.target.value})} className="h-12 rounded-xl" placeholder="Leave blank for system auto-email" /></div>
                 <div className="space-y-2"><Label>Monthly Salary (GH₵)</Label><Input type="number" required value={staffForm.salary} onChange={e => setStaffForm({...staffForm, salary: e.target.value})} className="h-12 rounded-xl" /></div>
-                <div className="space-y-2"><Label>Designation</Label><Input required value={staffForm.designation} onChange={e => setStaffForm({...staffForm, designation: e.target.value})} className="h-12 rounded-xl" /></div>
+                <div className="space-y-2"><Label>Designation</Label>
+                   <Select value={staffForm.designation} onValueChange={v => setStaffForm({...staffForm, designation: v})}>
+                      <SelectTrigger className="h-12 rounded-xl"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                         <SelectItem value="Teacher">Teacher</SelectItem>
+                         <SelectItem value="Head Teacher">Head Teacher</SelectItem>
+                         <SelectItem value="Administrator">Administrator</SelectItem>
+                         <SelectItem value="Accountant">Accountant</SelectItem>
+                         <SelectItem value="Librarian">Librarian</SelectItem>
+                         <SelectItem value="Security">Security / Staff</SelectItem>
+                      </SelectContent>
+                   </Select>
+                </div>
               </div>
             </ScrollArea>
 
