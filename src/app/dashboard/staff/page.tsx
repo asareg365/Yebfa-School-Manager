@@ -15,7 +15,8 @@ import {
   Briefcase,
   User,
   CheckCircle2,
-  Activity
+  Activity,
+  RefreshCw
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { toast } from "@/hooks/use-toast"
@@ -36,6 +37,7 @@ export default function StaffHRPage() {
   const db = useFirestore()
   const { user } = useUser()
   const [loading, setLoading] = useState(false)
+  const [syncing, setSyncing] = useState(false)
   const [isEnrollOpen, setIsEnrollOpen] = useState(false)
   const [editingStaff, setEditingStaff] = useState<any>(null)
   const [searchQuery, setSearchQuery] = useState("")
@@ -83,6 +85,52 @@ export default function StaffHRPage() {
       s.staffNumber?.toLowerCase().includes(searchQuery.toLowerCase())
     ).sort((a, b) => (a.staffNumber || "").localeCompare(b.staffNumber || ""));
   }, [rawStaff, searchQuery]);
+
+  const handleSyncCredentials = async () => {
+    if (!db || !institutionId || rawStaff.length === 0) return;
+    if (!confirm("This will authorize portal access for all staff by creating security accounts. Proceed?")) return;
+
+    setSyncing(true);
+    const provisionAppName = `staff-sync-${Date.now()}`;
+    const provisionApp = initializeApp(firebaseConfig, provisionAppName);
+    const provisionAuth = getAuth(provisionApp);
+
+    try {
+      let syncCount = 0;
+      for (const s of rawStaff) {
+        if (!s.staffNumber) continue;
+        const accountEmail = s.email || `${s.staffNumber.toLowerCase()}@system.yebfa.com`;
+        const cleanPass = normalizeSecurityPhone(s.phone);
+        
+        try {
+          const credential = await createUserWithEmailAndPassword(provisionAuth, accountEmail, cleanPass);
+          const authUser = credential.user;
+
+          const batch = writeBatch(db);
+          batch.set(doc(db, "users", authUser.uid), {
+            uid: authUser.uid,
+            name: `${s.firstName} ${s.lastName}`,
+            email: accountEmail,
+            role: s.designation?.toLowerCase().includes("teacher") ? "teacher" : "administrator",
+            tenantId: institutionId,
+            institutionId: institutionId,
+            status: "active",
+            createdAt: serverTimestamp()
+          });
+          await batch.commit();
+          syncCount++;
+        } catch (e: any) {
+          // Skip already existing accounts
+        }
+      }
+      toast({ title: "HR Sync Complete", description: `Authorized portal access for ${syncCount} faculty members.` });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Sync Failed", description: e.message });
+    } finally {
+      setSyncing(false);
+      try { await deleteApp(provisionApp); } catch (e) {}
+    }
+  };
 
   const handleEnroll = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -147,7 +195,7 @@ export default function StaffHRPage() {
       toast({ variant: "destructive", title: "Action Failed", description: error.message });
     } finally { 
       setLoading(false);
-      await deleteApp(provisionApp);
+      try { await deleteApp(provisionApp); } catch (e) {}
     }
   }
 
@@ -173,9 +221,20 @@ export default function StaffHRPage() {
           <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">HR Management Hub</h1>
           <p className="text-muted-foreground font-medium">Strategic oversight of faculty registry and transactional IDs.</p>
         </div>
-        <Button className="gap-2 bg-primary rounded-xl h-12 shadow-lg px-6 font-bold" onClick={() => { setEditingStaff(null); setStaffForm(initialForm); setIsEnrollOpen(true); }}>
-          <UserPlus className="size-5" /> Enroll Faculty
-        </Button>
+        <div className="flex flex-wrap gap-3">
+          <Button 
+            variant="outline" 
+            className="h-12 rounded-xl gap-2 text-xs font-bold uppercase"
+            onClick={handleSyncCredentials}
+            disabled={syncing || rawStaff.length === 0}
+          >
+            {syncing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+            Sync Access
+          </Button>
+          <Button className="gap-2 bg-primary rounded-xl h-12 shadow-lg px-6 font-bold" onClick={() => { setEditingStaff(null); setStaffForm(initialForm); setIsEnrollOpen(true); }}>
+            <UserPlus className="size-5" /> Enroll Faculty
+          </Button>
+        </div>
       </div>
 
       <Card className="border-none shadow-xl rounded-2xl overflow-hidden bg-white">
@@ -212,7 +271,7 @@ export default function StaffHRPage() {
                   </TableCell>
                   <TableCell><span className="text-xs font-bold text-slate-700">{s.designation}</span></TableCell>
                   <TableCell><span className="text-xs font-medium">{s.phone}</span></TableCell>
-                  <TableCell><Badge variant="outline" className="text-[9px] uppercase font-bold text-green-600 bg-green-50">{s.status}</Badge></TableCell>
+                  <TableCell><Badge variant="outline" className={`text-[9px] uppercase font-bold ${s.status === 'active' ? 'text-green-600 bg-green-50' : 'text-slate-500'}`}>{s.status}</Badge></TableCell>
                   <TableCell className="text-right px-6">
                     <div className="flex items-center justify-end gap-1">
                       <Button variant="ghost" size="icon" onClick={() => openEdit(s)}><Pencil className="size-4" /></Button>

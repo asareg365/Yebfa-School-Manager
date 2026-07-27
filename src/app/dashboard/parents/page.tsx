@@ -24,23 +24,34 @@ import {
   RefreshCw,
   Activity
 } from "lucide-react"
-import { useFirestore, useCollection } from "@/firebase"
+import { useFirestore, useCollection, useUser, useDoc } from "@/firebase"
 import { collection, query, where, doc, deleteDoc, writeBatch, serverTimestamp } from "firebase/firestore"
 import { useState, useMemo, useEffect } from "react"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/hooks/use-toast"
 import Link from "next/link"
+import { initializeApp, deleteApp } from "firebase/app"
+import { getAuth, createUserWithEmailAndPassword } from "firebase/auth"
+import { firebaseConfig } from "@/firebase/config"
+import { normalizeSecurityPhone } from "@/lib/identity-service"
 
 export default function ParentsRegistryPage() {
   const db = useFirestore()
+  const { user } = useUser()
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [syncing, setSyncing] = useState(false)
   
+  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
+  const { data: profile } = useDoc(userProfileRef)
+
   useEffect(() => {
-    const storedId = localStorage.getItem('selected_institution_id')
-    if (storedId) setInstitutionId(storedId)
-  }, [])
+    if (profile?.role === 'super_admin') {
+      setInstitutionId(localStorage.getItem('selected_institution_id'))
+    } else {
+      setInstitutionId(profile?.tenantId || null)
+    }
+  }, [profile])
 
   // Query all parents for the tenant
   const parentsQuery = useMemo(() => 
@@ -54,8 +65,8 @@ export default function ParentsRegistryPage() {
     [db, institutionId]
   )
   
-  const { data: parents, loading: pLoading } = useCollection(parentsQuery)
-  const { data: rels, loading: rLoading } = useCollection(relsQuery)
+  const { data: parents = [], loading: pLoading } = useCollection(parentsQuery)
+  const { data: rels = [] } = useCollection(relsQuery)
 
   const filteredParents = useMemo(() => {
     return parents.filter(p => 
@@ -65,9 +76,55 @@ export default function ParentsRegistryPage() {
     ).sort((a, b) => (a.parentNumber || "").localeCompare(b.parentNumber || ""))
   }, [parents, searchQuery])
 
+  const handleSyncCredentials = async () => {
+    if (!db || !institutionId || parents.length === 0) return;
+    if (!confirm("This will authorize Portal Access for all guardians using their registered phone numbers as security keys. Proceed?")) return;
+
+    setSyncing(true);
+    const provisionAppName = `parent-sync-${Date.now()}`;
+    const provisionApp = initializeApp(firebaseConfig, provisionAppName);
+    const provisionAuth = getAuth(provisionApp);
+
+    try {
+      let syncCount = 0;
+      for (const p of parents) {
+        if (!p.parentNumber) continue;
+        const parentEmail = p.email || `${p.parentNumber.toLowerCase()}@system.yebfa.com`;
+        const cleanPass = normalizeSecurityPhone(p.phone);
+        
+        try {
+          const credential = await createUserWithEmailAndPassword(provisionAuth, parentEmail, cleanPass);
+          const authUser = credential.user;
+
+          const batch = writeBatch(db);
+          batch.set(doc(db, "users", authUser.uid), {
+            uid: authUser.uid,
+            name: `${p.firstName} ${p.lastName}`,
+            email: parentEmail,
+            role: "parent",
+            tenantId: institutionId,
+            institutionId: institutionId,
+            status: "active",
+            createdAt: serverTimestamp()
+          });
+          await batch.commit();
+          syncCount++;
+        } catch (e: any) {
+          // Email already in use - skip
+        }
+      }
+      toast({ title: "Guardian Access Synced", description: `Authorized portal entry for ${syncCount} parents.` });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Sync Failed", description: e.message });
+    } finally {
+      setSyncing(false);
+      try { await deleteApp(provisionApp); } catch (e) {}
+    }
+  };
+
   const handleSyncIDs = async () => {
     if (!db || !institutionId || parents.length === 0) return;
-    if (!confirm("This will re-sequence all Parent IDs in the registry to be strictly sequential (PAR-000001, PAR-000002, etc.) based on their registration date. This is recommended to fix repetitions. Proceed?")) return;
+    if (!confirm("This will re-sequence all Parent IDs in the registry. Proceed?")) return;
 
     setSyncing(true);
     try {
@@ -92,9 +149,7 @@ export default function ParentsRegistryPage() {
 
       if (updateCount > 0) {
         await batch.commit();
-        toast({ title: "Registry Synchronized", description: `${updateCount} records have been updated with sequential IDs.` });
-      } else {
-        toast({ title: "Registry Healthy", description: "All IDs are already correctly sequenced." });
+        toast({ title: "Registry Synchronized", description: `${updateCount} records updated.` });
       }
     } catch (e: any) {
       toast({ variant: "destructive", title: "Sync Failed", description: e.message });
@@ -104,24 +159,19 @@ export default function ParentsRegistryPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to remove this parent from the registry? This will not remove linked students but will break the guardian link.")) return
-    
+    if (!confirm("Are you sure you want to remove this parent?")) return
     try {
       await deleteDoc(doc(db!, "parents", id))
-      toast({ title: "Profile Removed", description: "The guardian record has been deleted from the registry." })
+      toast({ title: "Profile Removed" })
     } catch (e) { 
-      toast({ variant: "destructive", title: "Action Failed", description: "You do not have permission to delete registry records." }) 
+      toast({ variant: "destructive", title: "Action Failed" }) 
     }
-  }
-
-  const handleExport = () => {
-    toast({ title: "Export Initiated", description: "Compiling parent registry into CSV format..." })
   }
 
   if (!institutionId && !pLoading) return (
     <div className="p-20 text-center space-y-4">
       <Activity className="size-12 text-primary animate-spin mx-auto" />
-      <p className="font-bold text-muted-foreground uppercase tracking-widest text-xs">Resolving Institutional Context...</p>
+      <p className="font-bold text-muted-foreground uppercase tracking-widest text-xs">Resolving Context...</p>
     </div>
   )
 
@@ -136,14 +186,19 @@ export default function ParentsRegistryPage() {
           <Button 
             variant="outline" 
             className="h-11 rounded-xl gap-2 text-xs font-bold uppercase" 
-            onClick={handleSyncIDs}
-            disabled={syncing || pLoading}
+            onClick={handleSyncCredentials}
+            disabled={syncing || parents.length === 0}
           >
             {syncing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-            Sync Sequence
+            Sync Access
           </Button>
-          <Button variant="outline" className="h-11 rounded-xl gap-2 text-xs font-bold uppercase hidden sm:flex" onClick={handleExport}>
-            <Download className="size-4" /> Export CSV
+          <Button 
+            variant="outline" 
+            className="h-11 rounded-xl gap-2 text-xs font-bold uppercase hidden sm:flex" 
+            onClick={handleSyncIDs}
+            disabled={syncing}
+          >
+            <ShieldCheck className="size-4" /> Re-Sequence
           </Button>
           <Button className="bg-primary h-11 rounded-xl shadow-lg gap-2" asChild>
             <Link href="/dashboard/parents/add">
@@ -157,7 +212,7 @@ export default function ParentsRegistryPage() {
         <CardHeader className="bg-white border-b py-6 px-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-3.5 size-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
               <Input 
                 placeholder="Search by name, PAR code or phone..." 
                 className="pl-10 h-12 bg-slate-50 border-none rounded-xl text-sm" 
@@ -165,11 +220,9 @@ export default function ParentsRegistryPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <div className="flex items-center gap-2">
-               <Badge className="bg-primary/5 text-primary border-none text-[10px] font-bold uppercase tracking-widest px-4 h-10 flex items-center">
-                 {parents.length} Records Active
-               </Badge>
-            </div>
+            <Badge className="bg-primary/5 text-primary border-none text-[10px] font-bold uppercase tracking-widest px-4 h-10 flex items-center">
+              {parents.length} Records Active
+            </Badge>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -219,7 +272,7 @@ export default function ParentsRegistryPage() {
                          </Badge>
                       </TableCell>
                       <TableCell className="px-4">
-                        <Badge variant="outline" className={`text-[9px] uppercase font-bold ${p.status === 'Active' ? 'text-green-600 bg-green-50 border-green-200' : 'text-slate-500'}`}>
+                        <Badge variant="outline" className={`text-[9px] uppercase font-bold ${p.status === 'Active' ? 'text-green-600 bg-green-50' : 'text-slate-500'}`}>
                           {p.status}
                         </Badge>
                       </TableCell>
@@ -243,28 +296,11 @@ export default function ParentsRegistryPage() {
                     </TableRow>
                   );
                 })}
-                {filteredParents.length === 0 && !pLoading && (
-                  <TableRow><TableCell colSpan={7} className="text-center py-24 text-muted-foreground italic">No guardian records found matching your search.</TableCell></TableRow>
-                )}
-                {pLoading && (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-24">
-                      <Loader2 className="size-8 animate-spin mx-auto text-primary" />
-                      <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mt-4">Syncing Registry...</p>
-                    </TableCell>
-                  </TableRow>
-                )}
               </TableBody>
             </Table>
           </div>
         </CardContent>
       </Card>
-      
-      <div className="flex justify-center mt-6">
-        <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter flex items-center gap-2">
-           <ShieldCheck className="size-3 text-green-600" /> Authorized Institutional Audit • 2026 Registry Hub
-        </p>
-      </div>
     </div>
   )
 }

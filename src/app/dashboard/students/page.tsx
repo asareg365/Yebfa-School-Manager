@@ -170,8 +170,17 @@ export default function StudentsPage() {
   }
 
   const handleSyncCredentials = async () => {
-    if (!db || !institutionId || rawStudents.length === 0) return;
-    if (!confirm("This tool will generate Portal PINs and security accounts for students missing them. Proceed?")) return;
+    if (!db || !institutionId) {
+      toast({ variant: "destructive", title: "Missing Context", description: "Select an institution context first." });
+      return;
+    }
+    
+    if (rawStudents.length === 0) {
+      toast({ title: "Registry Empty", description: "No student records found to synchronize." });
+      return;
+    }
+
+    if (!confirm("This will repair Portal Access for all students by generating missing PINs and creating security accounts. Proceed?")) return;
 
     setSyncing(true);
     const provisionAppName = `sync-provision-${Date.now()}`;
@@ -180,49 +189,58 @@ export default function StudentsPage() {
 
     try {
       let syncCount = 0;
+      let existingCount = 0;
 
       for (const stu of rawStudents) {
-        if (!stu.studentPin || stu.studentPin === "----" || stu.studentPin === "") {
-          const newPin = generateStudentPin();
-          const studentEmail = `${stu.admissionNumber.toLowerCase()}@system.yebfa.com`;
-          
-          try {
-             const credential = await createUserWithEmailAndPassword(provisionAuth, studentEmail, newPin);
-             const authUser = credential.user;
+        const needsPin = !stu.studentPin || stu.studentPin === "----" || stu.studentPin === "";
+        const finalPin = needsPin ? generateStudentPin() : stu.studentPin;
+        
+        if (!stu.admissionNumber) continue;
 
-             const batch = writeBatch(db);
-             batch.update(doc(db, "students", stu.id), {
-               studentPin: newPin,
-               updatedAt: serverTimestamp()
-             });
+        const studentEmail = `${stu.admissionNumber.toLowerCase()}@system.yebfa.com`;
+        
+        try {
+           const credential = await createUserWithEmailAndPassword(provisionAuth, studentEmail, finalPin);
+           const authUser = credential.user;
 
-             batch.set(doc(db, "users", authUser.uid), {
-               uid: authUser.uid,
-               name: `${stu.firstName} ${stu.lastName}`,
-               email: studentEmail,
-               role: "student",
-               tenantId: institutionId,
-               institutionId: institutionId,
-               status: "active",
-               createdAt: serverTimestamp()
-             });
+           const batch = writeBatch(db);
+           batch.update(doc(db, "students", stu.id), {
+             studentPin: finalPin,
+             updatedAt: serverTimestamp()
+           });
 
-             await batch.commit();
-             syncCount++;
-          } catch (e: any) {
-             if (e.code === 'auth/email-already-in-use') {
-                await updateDoc(doc(db, "students", stu.id), { studentPin: "CONTACT ADMIN", updatedAt: serverTimestamp() });
-             }
-          }
+           batch.set(doc(db, "users", authUser.uid), {
+             uid: authUser.uid,
+             name: `${stu.firstName} ${stu.lastName}`,
+             email: studentEmail,
+             role: "student",
+             tenantId: institutionId,
+             institutionId: institutionId,
+             status: "active",
+             createdAt: serverTimestamp()
+           });
+
+           await batch.commit();
+           syncCount++;
+        } catch (e: any) {
+           if (e.code === 'auth/email-already-in-use') {
+              if (needsPin) {
+                await updateDoc(doc(db, "students", stu.id), { studentPin: "SEE ADMIN", updatedAt: serverTimestamp() });
+              }
+              existingCount++;
+           }
         }
       }
 
-      toast({ title: "Sync Complete", description: `${syncCount} students provisioned with secure Portal PINs.` });
+      toast({ 
+        title: "Synchronization Finalized", 
+        description: `Successfully provisioned ${syncCount} students. ${existingCount} already verified.` 
+      });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Sync Failed", description: e.message });
     } finally {
       setSyncing(false);
-      await deleteApp(provisionApp);
+      try { await deleteApp(provisionApp); } catch (e) {}
     }
   };
 
@@ -345,7 +363,7 @@ export default function StudentsPage() {
       toast({ variant: "destructive", title: "Enrollment Failed", description: error.message });
     } finally { 
       setLoading(false);
-      await deleteApp(provisionApp);
+      try { await deleteApp(provisionApp); } catch (e) {}
     }
   }
 
@@ -420,7 +438,7 @@ export default function StudentsPage() {
           toast({ variant: "destructive", title: "Bulk Intake Failed", description: error.message })
         } finally {
           setBulkLoading(false)
-          await deleteApp(provisionApp);
+          try { await deleteApp(provisionApp); } catch (e) {}
         }
       }
     })
