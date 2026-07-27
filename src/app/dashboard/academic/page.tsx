@@ -18,7 +18,8 @@ import {
   GraduationCap,
   Settings2,
   ChevronRight,
-  MoreVertical
+  MoreVertical,
+  X
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
@@ -60,7 +61,7 @@ export default function AcademicFoundationPage() {
     setInstitutionId(localStorage.getItem('selected_institution_id'))
   }, [])
 
-  // Foundation Queries - Removed orderBy to prevent index errors
+  // Foundation Queries
   const yearsQuery = useMemo(() => institutionId ? query(collection(db, "academic_years"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   const termsQuery = useMemo(() => institutionId ? query(collection(db, "terms"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   const classesQuery = useMemo(() => institutionId ? query(collection(db, "classes"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
@@ -78,10 +79,10 @@ export default function AcademicFoundationPage() {
   const { data: assignments = [] } = useCollection(assignmentsQuery)
 
   // In-memory sorting for stability
-  const years = useMemo(() => [...rawYears].sort((a, b) => b.year.localeCompare(a.year)), [rawYears])
-  const terms = useMemo(() => [...rawTerms].sort((a, b) => a.name.localeCompare(b.name)), [rawTerms])
-  const classes = useMemo(() => [...rawClasses].sort((a, b) => a.name.localeCompare(b.name)), [rawClasses])
-  const subjects = useMemo(() => [...rawSubjects].sort((a, b) => a.name.localeCompare(b.name)), [rawSubjects])
+  const years = useMemo(() => [...rawYears].sort((a: any, b: any) => b.year.localeCompare(a.year)), [rawYears])
+  const terms = useMemo(() => [...rawTerms].sort((a: any, b: any) => a.name.localeCompare(b.name)), [rawTerms])
+  const classes = useMemo(() => [...rawClasses].sort((a: any, b: any) => a.name.localeCompare(b.name)), [rawClasses])
+  const subjects = useMemo(() => [...rawSubjects].sort((a: any, b: any) => a.name.localeCompare(b.name)), [rawSubjects])
 
   const handleCreate = async (coll: string, data: any, reset: () => void) => {
     if (!institutionId) return
@@ -142,7 +143,7 @@ export default function AcademicFoundationPage() {
                   </Button>
                 </div>
                 <div className="space-y-3">
-                  {years.map(y => (
+                  {years.map((y: any) => (
                     <div key={y.id} className="flex items-center justify-between p-4 rounded-xl border bg-slate-50/50">
                       <div className="flex items-center gap-3">
                         <Calendar className="size-4 text-primary" />
@@ -164,14 +165,14 @@ export default function AcademicFoundationPage() {
               <CardContent className="space-y-6">
                 <div className="grid gap-4">
                    <Select 
-                    key={years.length} // Force re-render when years list updates
+                    key={years.length} 
                     onValueChange={v => setTermForm({...termForm, academicYearId: v})} 
                     value={termForm.academicYearId}
                    >
                      <SelectTrigger><SelectValue placeholder="Select Academic Year" /></SelectTrigger>
                      <SelectContent>
                         {years.length > 0 ? (
-                          years.map(y => <SelectItem key={y.id} value={y.id}>{y.year}</SelectItem>)
+                          years.map((y: any) => <SelectItem key={y.id} value={y.id}>{y.year}</SelectItem>)
                         ) : (
                           <div className="p-2 text-center text-xs text-muted-foreground">No years found</div>
                         )}
@@ -183,11 +184,11 @@ export default function AcademicFoundationPage() {
                    </Button>
                 </div>
                 <div className="space-y-3">
-                  {terms.map(t => (
+                  {terms.map((t: any) => (
                     <div key={t.id} className="flex items-center justify-between p-4 rounded-xl border bg-white">
                       <div>
                         <p className="font-bold text-sm">{t.name}</p>
-                        <p className="text-[10px] text-muted-foreground uppercase font-bold">{years.find(y => y.id === t.academicYearId)?.year || "Registry ID: " + t.academicYearId.substring(0, 5)}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold">{years.find((y: any) => y.id === t.academicYearId)?.year || "Registry ID: " + t.academicYearId.substring(0, 5)}</p>
                       </div>
                       <Button variant="ghost" size="icon" onClick={() => handleDelete("terms", t.id)} className="h-8 w-8 text-destructive"><Trash2 className="size-4" /></Button>
                     </div>
@@ -221,7 +222,7 @@ export default function AcademicFoundationPage() {
              </Card>
 
              <div className="md:col-span-2 space-y-6">
-                {classes.map(c => (
+                {classes.map((c: any) => (
                   <Card key={c.id} className="border-none shadow-sm overflow-hidden">
                     <div className="bg-primary/5 p-4 border-b flex justify-between items-center">
                       <div className="flex items-center gap-3">
@@ -247,7 +248,7 @@ export default function AcademicFoundationPage() {
                          </Dialog>
                        </div>
                        <div className="divide-y">
-                         {sections.filter(s => s.classId === c.id).map(s => (
+                         {sections.filter((s: any) => s.classId === c.id).map((s: any) => (
                            <div key={s.id} className="p-4 flex items-center justify-between text-sm">
                              <div className="flex items-center gap-2">
                                <Layers className="size-3.5 text-muted-foreground" />
@@ -257,7 +258,7 @@ export default function AcademicFoundationPage() {
                              <Button variant="ghost" size="icon" onClick={() => handleDelete("sections", s.id)} className="h-7 w-7 text-muted-foreground hover:text-destructive"><X className="size-3" /></Button>
                            </div>
                          ))}
-                         {sections.filter(s => s.classId === c.id).length === 0 && <div className="p-8 text-center text-[10px] text-muted-foreground italic uppercase">No sections registered.</div>}
+                         {sections.filter((s: any) => s.classId === c.id).length === 0 && <div className="p-8 text-center text-[10px] text-muted-foreground italic uppercase">No sections registered.</div>}
                        </div>
                     </CardContent>
                   </Card>
@@ -280,7 +281,7 @@ export default function AcademicFoundationPage() {
                 <CardHeader><CardTitle>Institutional Subjects</CardTitle></CardHeader>
                 <CardContent className="p-0">
                   <div className="divide-y">
-                    {subjects.map(s => (
+                    {subjects.map((s: any) => (
                       <div key={s.id} className="p-4 flex items-center justify-between hover:bg-slate-50/50">
                         <div className="flex items-center gap-3">
                           <div className="size-8 rounded-lg bg-primary/5 flex items-center justify-center font-bold text-primary text-[10px]">{s.code || s.name.substring(0, 3).toUpperCase()}</div>
@@ -311,8 +312,8 @@ export default function AcademicFoundationPage() {
                      >
                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                        <SelectContent>
-                        {staff.filter(s => s.role === 'teacher').length > 0 ? (
-                          staff.filter(s => s.role === 'teacher').map(s => <SelectItem key={s.id} value={s.id}>{s.fullName}</SelectItem>)
+                        {staff.filter((s: any) => s.designation?.toLowerCase().includes("teacher")).length > 0 ? (
+                          staff.filter((s: any) => s.designation?.toLowerCase().includes("teacher")).map((s: any) => <SelectItem key={s.id} value={s.id}>{s.firstName} {s.lastName}</SelectItem>)
                         ) : (
                           <div className="p-2 text-center text-xs">No teachers found</div>
                         )}
@@ -327,7 +328,7 @@ export default function AcademicFoundationPage() {
                      >
                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                        <SelectContent>
-                        {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                        {classes.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                        </SelectContent>
                      </Select>
                    </div>
@@ -340,7 +341,7 @@ export default function AcademicFoundationPage() {
                      >
                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                        <SelectContent>
-                        {sections.filter(s => s.classId === assignForm.classId).map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                        {sections.filter((s: any) => s.classId === assignForm.classId).map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                        </SelectContent>
                      </Select>
                    </div>
@@ -352,7 +353,7 @@ export default function AcademicFoundationPage() {
                      >
                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                        <SelectContent>
-                        {subjects.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                        {subjects.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                        </SelectContent>
                      </Select>
                    </div>
@@ -372,16 +373,20 @@ export default function AcademicFoundationPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {assignments.map(a => (
-                        <tr key={a.id}>
-                          <td className="p-4 font-bold text-primary">{staff.find(s => s.id === a.teacherId)?.fullName || "Unknown Staff"}</td>
-                          <td className="p-4 text-muted-foreground">
-                            {classes.find(c => c.id === a.classId)?.name} • {sections.find(s => s.id === a.sectionId)?.name || "All Sections"}
-                          </td>
-                          <td className="p-4"><Badge variant="secondary" className="font-bold">{subjects.find(s => s.id === a.subjectId)?.name}</Badge></td>
-                          <td className="p-4 text-right"><Button variant="ghost" size="icon" onClick={() => handleDelete("teacher_assignments", a.id)} className="text-destructive"><Trash2 className="size-4" /></Button></td>
-                        </tr>
-                      ))}
+                      {assignments.map((a: any) => {
+                        const teacher = staff.find((s: any) => s.id === a.teacherId);
+                        const teacherName = teacher ? `${teacher.firstName} ${teacher.lastName}` : "Unknown Staff";
+                        return (
+                          <tr key={a.id}>
+                            <td className="p-4 font-bold text-primary">{teacherName}</td>
+                            <td className="p-4 text-muted-foreground">
+                              {classes.find((c: any) => c.id === a.classId)?.name} • {sections.find((s: any) => s.id === a.sectionId)?.name || "All Sections"}
+                            </td>
+                            <td className="p-4"><Badge variant="secondary" className="font-bold">{subjects.find((s: any) => s.id === a.subjectId)?.name}</Badge></td>
+                            <td className="p-4 text-right"><Button variant="ghost" size="icon" onClick={() => handleDelete("teacher_assignments", a.id)} className="text-destructive"><Trash2 className="size-4" /></Button></td>
+                          </tr>
+                        );
+                      })}
                       {assignments.length === 0 && <tr><td colSpan={4} className="p-12 text-center text-muted-foreground italic">No faculty assignments active for current foundation.</td></tr>}
                     </tbody>
                   </table>
@@ -391,25 +396,5 @@ export default function AcademicFoundationPage() {
         </TabsContent>
       </Tabs>
     </div>
-  )
-}
-
-function X(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M18 6 6 18" />
-      <path d="m6 6 12 12" />
-    </svg>
   )
 }
