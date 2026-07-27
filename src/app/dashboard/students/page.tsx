@@ -60,11 +60,21 @@ export default function StudentsPage() {
   const [bulkLoading, setBulkLoading] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [editingStudent, setEditingStudent] = useState<any>(null)
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   
   const [activeStep, setActiveStep] = useState("identity")
   const steps = ["identity", "academic", "guardian", "finalize"]
+
+  // Resolve Context from Profile (Most Reliable)
+  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
+  const { data: profile, loading: profileLoading } = useDoc(userProfileRef)
+
+  const institutionId = useMemo(() => {
+    if (profile?.role === 'super_admin') {
+      return typeof window !== 'undefined' ? localStorage.getItem('selected_institution_id') : null
+    }
+    return profile?.tenantId || null
+  }, [profile])
 
   const initialForm = {
     firstName: "",
@@ -109,8 +119,6 @@ export default function StudentsPage() {
   })
 
   useEffect(() => {
-    setInstitutionId(localStorage.getItem('selected_institution_id'))
-    
     const enrollTrigger = searchParams.get('enroll')
     if (enrollTrigger === 'true') {
       const pendingData = localStorage.getItem('pending_admission_data')
@@ -138,7 +146,7 @@ export default function StudentsPage() {
   const classesQuery = useMemo(() => institutionId ? query(collection(db, "classes"), where("tenantId", "==", institutionId)) : null, [db, institutionId]);
   const relsQuery = useMemo(() => institutionId ? query(collection(db, "student_parents"), where("tenantId", "==", institutionId)) : null, [db, institutionId]);
 
-  const { data: rawStudents = [] } = useCollection(studentsQuery)
+  const { data: rawStudents = [], loading: studentsLoading } = useCollection(studentsQuery)
   const { data: parents = [] } = useCollection(parentsQuery)
   const { data: registeredClasses = [] } = useCollection(classesQuery)
   const { data: allRels = [] } = useCollection(relsQuery)
@@ -177,18 +185,15 @@ export default function StudentsPage() {
           const studentEmail = `${stu.admissionNumber.toLowerCase()}@system.yebfa.com`;
           
           try {
-             // 1. Create Auth Account
              const credential = await createUserWithEmailAndPassword(provisionAuth, studentEmail, newPin);
              const authUser = credential.user;
 
-             // 2. Update Firestore Registry
              const batch = writeBatch(db);
              batch.update(doc(db, "students", stu.id), {
                studentPin: newPin,
                updatedAt: serverTimestamp()
              });
 
-             // 3. Create User Profile
              batch.set(doc(db, "users", authUser.uid), {
                uid: authUser.uid,
                name: `${stu.firstName} ${stu.lastName}`,
@@ -204,7 +209,6 @@ export default function StudentsPage() {
              syncCount++;
           } catch (e: any) {
              if (e.code === 'auth/email-already-in-use') {
-                // If account exists but PIN is missing in Firestore, just update Firestore
                 await updateDoc(doc(db, "students", stu.id), { studentPin: "CONTACT ADMIN", updatedAt: serverTimestamp() });
              }
           }
@@ -368,14 +372,12 @@ export default function StudentsPage() {
             const studentEmail = `${finalAdmissionNumber.toLowerCase()}@system.yebfa.com`;
             
             try {
-               // 1. Create Auth
                const credential = await createUserWithEmailAndPassword(provisionAuth, studentEmail, finalPin);
                const authUser = credential.user;
 
                const batch = writeBatch(db)
                const studentRef = doc(collection(db, "students"))
                
-               // 2. Student Registry
                batch.set(studentRef, {
                  firstName: row.firstName,
                  lastName: row.lastName,
@@ -392,7 +394,6 @@ export default function StudentsPage() {
                  updatedAt: serverTimestamp()
                });
 
-               // 3. User Profile
                batch.set(doc(db, "users", authUser.uid), {
                  uid: authUser.uid,
                  name: `${row.firstName} ${row.lastName}`,
@@ -434,6 +435,13 @@ export default function StudentsPage() {
     setIsEnrollOpen(true)
     setActiveStep("identity")
   }
+
+  if (profileLoading || studentsLoading) return (
+    <div className="p-24 text-center">
+      <Loader2 className="size-10 animate-spin mx-auto text-primary" />
+      <p className="mt-4 font-bold text-muted-foreground animate-pulse uppercase tracking-widest text-xs">Synchronizing Student Registry...</p>
+    </div>
+  )
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-20">
@@ -655,7 +663,7 @@ export default function StudentsPage() {
                 <TabsContent value="finalize" className="space-y-8 mt-0 text-center py-10">
                    <div className="size-20 bg-green-50 rounded-full flex items-center justify-center mx-auto text-green-600 mb-4"><CheckCircle2 className="size-12" /></div>
                    <h3 className="text-xl font-bold font-headline">Institutional Enrollment Authorized</h3>
-                   <p className="text-sm text-muted-foreground max-w-sm mx-auto">Unique Student IDs and Portal PINs will be generated at the point of commit to ensure registry integrity.</p>
+                   <p className="text-sm text-muted-foreground max-sm mx-auto">Unique Student IDs and Portal PINs will be generated at the point of commit to ensure registry integrity.</p>
                    <div className="p-4 bg-slate-50 rounded-2xl border flex items-center justify-center gap-3">
                       <KeyRound className="size-5 text-primary" />
                       <span className="text-xs font-bold text-primary uppercase">Contextual Identity Handshake Active</span>
