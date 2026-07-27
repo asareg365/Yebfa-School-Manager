@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -59,7 +58,6 @@ export default function StudentsPage() {
   const [isEnrollOpen, setIsEnrollOpen] = useState(false)
   const [isBulkOpen, setIsBulkOpen] = useState(false)
   const [bulkLoading, setBulkLoading] = useState(false)
-  const [syncing, setSyncing] = useState(false)
   const [editingStudent, setEditingStudent] = useState<any>(null)
   const [searchQuery, setSearchQuery] = useState("")
   
@@ -169,82 +167,6 @@ export default function StudentsPage() {
     }
   }
 
-  const handleSyncCredentials = async () => {
-    if (!db || !institutionId) {
-      toast({ variant: "destructive", title: "Missing Context", description: "Institution registry not identified." });
-      return;
-    }
-    
-    if (rawStudents.length === 0) {
-      toast({ title: "Registry Empty", description: "No records to synchronize." });
-      return;
-    }
-
-    setSyncing(true);
-    const provisionAppName = `sync-provision-${Date.now()}`;
-    const provisionApp = initializeApp(firebaseConfig, provisionAppName);
-    const provisionAuth = getAuth(provisionApp);
-
-    try {
-      let syncCount = 0;
-      let existingCount = 0;
-      const batch = writeBatch(db);
-
-      toast({ title: "Identity Sync Initiated", description: "Provisioning secure portal accounts..." });
-
-      for (const stu of rawStudents) {
-        if (!stu.admissionNumber) continue;
-
-        const needsPin = !stu.studentPin || stu.studentPin === "----" || stu.studentPin === "";
-        const finalPin = needsPin ? generateStudentPin() : stu.studentPin;
-        const studentEmail = `${stu.admissionNumber.toLowerCase().trim()}@system.yebfa.com`;
-        
-        try {
-           const credential = await createUserWithEmailAndPassword(provisionAuth, studentEmail, finalPin);
-           const authUser = credential.user;
-
-           batch.update(doc(db, "students", stu.id), {
-             studentPin: finalPin,
-             updatedAt: serverTimestamp()
-           });
-
-           batch.set(doc(db, "users", authUser.uid), {
-             uid: authUser.uid,
-             name: `${stu.firstName} ${stu.lastName}`,
-             email: studentEmail,
-             role: "student",
-             tenantId: institutionId,
-             institutionId: institutionId,
-             status: "active",
-             createdAt: serverTimestamp()
-           });
-
-           // Important: client SDK automatically signs in, so we must sign out between iterations
-           await signOut(provisionAuth);
-           syncCount++;
-        } catch (e: any) {
-           if (e.code === 'auth/email-already-in-use') {
-              if (needsPin) {
-                batch.update(doc(db, "students", stu.id), { studentPin: "SEE ADMIN", updatedAt: serverTimestamp() });
-              }
-              existingCount++;
-           }
-        }
-      }
-
-      await batch.commit();
-      toast({ 
-        title: "Sync Finalized", 
-        description: `Successfully provisioned ${syncCount} accounts. ${existingCount} already verified.` 
-      });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Process Error", description: e.message });
-    } finally {
-      setSyncing(false);
-      try { await deleteApp(provisionApp); } catch (e) {}
-    }
-  };
-
   const handleEnroll = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!db || !institutionId || loading) return
@@ -292,8 +214,8 @@ export default function StudentsPage() {
         const parentEmail = newParentForm.email || `${finalParentNumber.toLowerCase().trim()}@system.yebfa.com`;
         
         try {
-          const credential = await createUserWithEmailAndPassword(provisionAuth, parentEmail, cleanPass)
-          const parentAuthUser = credential.user
+          const credential = await createUserWithEmailAndPassword(provisionAuth, parentEmail, cleanPass);
+          const parentAuthUser = credential.user;
           
           batch.set(doc(db, "users", parentAuthUser.uid), {
             uid: parentAuthUser.uid,
@@ -481,15 +403,6 @@ export default function StudentsPage() {
           <p className="text-muted-foreground font-medium">Strategic institutional enrollment and ID/PIN management.</p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <Button 
-            variant="outline" 
-            className="h-11 rounded-xl gap-2 text-xs font-bold uppercase"
-            onClick={handleSyncCredentials}
-            disabled={syncing || rawStudents.length === 0}
-          >
-            {syncing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-            Sync Access
-          </Button>
           <Button variant="outline" className="h-11 rounded-xl" onClick={() => setIsBulkOpen(true)}>
             <FileSpreadsheet className="size-4 mr-2" /> Bulk Intake
           </Button>
@@ -693,10 +606,10 @@ export default function StudentsPage() {
                 <TabsContent value="finalize" className="space-y-8 mt-0 text-center py-10">
                    <div className="size-20 bg-green-50 rounded-full flex items-center justify-center mx-auto text-green-600 mb-4"><CheckCircle2 className="size-12" /></div>
                    <h3 className="text-xl font-bold font-headline">Institutional Enrollment Authorized</h3>
-                   <p className="text-sm text-muted-foreground max-sm mx-auto">Unique Student IDs and Portal PINs will be generated at the point of commit to ensure registry integrity.</p>
+                   <p className="text-sm text-muted-foreground max-sm mx-auto">A unique Student ID and Portal PIN will be generated and secure access will be granted immediately.</p>
                    <div className="p-4 bg-slate-50 rounded-2xl border flex items-center justify-center gap-3">
                       <KeyRound className="size-5 text-primary" />
-                      <span className="text-xs font-bold text-primary uppercase">Contextual Identity Handshake Active</span>
+                      <span className="text-xs font-bold text-primary uppercase">Direct Portal Access Active</span>
                    </div>
                 </TabsContent>
               </ScrollArea>
@@ -725,10 +638,10 @@ export default function StudentsPage() {
 
       {/* Bulk Intake Dialog */}
       <Dialog open={isBulkOpen} onOpenChange={setIsBulkOpen}>
-        <DialogContent className="max-w-md rounded-2xl">
+        <DialogContent className="max-md rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-2xl font-headline font-bold">Bulk Student Intake</DialogTitle>
-            <DialogDescription>Enroll entire classes using a CSV template. Transactional IDs and PINs will be auto-generated.</DialogDescription>
+            <DialogDescription>Enroll entire classes using a CSV template. Portal access is granted automatically.</DialogDescription>
           </DialogHeader>
           <div className="py-12 flex flex-col items-center justify-center border-2 border-dashed rounded-3xl bg-muted/5 space-y-6">
             <div className="size-20 bg-primary/5 rounded-full flex items-center justify-center text-primary/30">
@@ -747,7 +660,7 @@ export default function StudentsPage() {
                 disabled={bulkLoading}
                />
                <Button className="bg-primary rounded-xl font-bold shadow-lg" disabled={bulkLoading}>
-                  {bulkLoading ? "Synchronizing Registry..." : "Select File"}
+                  {bulkLoading ? "Granting Portal Access..." : "Select File"}
                </Button>
             </div>
           </div>

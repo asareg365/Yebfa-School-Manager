@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -27,8 +26,8 @@ import { collection, serverTimestamp, doc, setDoc } from "firebase/firestore"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Link from "next/link"
-import { initializeApp, getApps } from "firebase/app"
-import { getAuth, createUserWithEmailAndPassword } from "firebase/auth"
+import { initializeApp, deleteApp } from "firebase/app"
+import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth"
 import { firebaseConfig } from "@/firebase/config"
 import { generateInstitutionId, normalizeSecurityPhone } from "@/lib/identity-service"
 import { Badge } from "@/components/ui/badge"
@@ -63,18 +62,22 @@ export default function AddParentPage() {
     if (!db || !institutionId || loading) return
     
     setLoading(true)
+    const provisionAppName = `par-enroll-${Date.now()}`;
+    const provisionApp = initializeApp(firebaseConfig, provisionAppName);
+    const provisionAuth = getAuth(provisionApp);
+
     try {
       // 1. Transactional Sequential ID Generation
       const finalParentNumber = await generateInstitutionId('PAR', institutionId, institution?.schoolCode);
-      const cleanPass = normalizeSecurityPhone(parentForm.phone)
+      let cleanPass = normalizeSecurityPhone(parentForm.phone)
+      if (cleanPass.length < 6) cleanPass = cleanPass.padEnd(6, '0');
       
-      const secondaryAppName = `sec-par-add-${Date.now()}`
-      const secondaryApp = initializeApp(firebaseConfig, secondaryAppName)
-      const secondaryAuth = getAuth(secondaryApp)
+      const safeId = finalParentNumber.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+      const parentEmail = parentForm.email || `${safeId}@system.yebfa.com`;
       
       let authUser;
       try {
-        const credential = await createUserWithEmailAndPassword(secondaryAuth, parentForm.email, cleanPass)
+        const credential = await createUserWithEmailAndPassword(provisionAuth, parentEmail, cleanPass)
         authUser = credential.user
       } catch (authErr: any) {
         if (authErr.code !== 'auth/email-already-in-use') throw authErr;
@@ -85,6 +88,7 @@ export default function AddParentPage() {
         ...parentForm,
         parentNumber: finalParentNumber,
         phone: normalizeSecurityPhone(parentForm.phone),
+        email: parentEmail,
         id: parentRef.id,
         tenantId: institutionId,
         institutionId,
@@ -96,21 +100,23 @@ export default function AddParentPage() {
         await setDoc(doc(db, "users", authUser.uid), {
           uid: authUser.uid,
           name: `${parentForm.firstName} ${parentForm.lastName}`,
-          email: parentForm.email,
+          email: parentEmail,
           role: "parent",
           tenantId: institutionId,
           institutionId: institutionId,
           status: "active",
           createdAt: serverTimestamp()
         })
+        await signOut(provisionAuth);
       }
       
-      toast({ title: "Guardian Registered", description: `Transactional ID: ${finalParentNumber} assigned.` })
+      toast({ title: "Guardian Registered", description: `Transactional ID: ${finalParentNumber} assigned. Portal access granted.` })
       router.push("/dashboard/parents")
     } catch (e: any) { 
       toast({ variant: "destructive", title: "Registration Error", description: e.message }) 
     } finally { 
-      setLoading(false) 
+      setLoading(false);
+      try { await deleteApp(provisionApp); } catch (e) {}
     }
   }
 
@@ -120,7 +126,7 @@ export default function AddParentPage() {
         <Button variant="ghost" size="icon" asChild className="rounded-xl h-11 w-11"><Link href="/dashboard/parents"><ArrowLeft className="size-5" /></Link></Button>
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Guardian Enrollment</h1>
-          <p className="text-muted-foreground font-medium">Transactional IDs ensure unique institutional records for 2026.</p>
+          <p className="text-muted-foreground font-medium">Automatic portal provisioning active for new guardians.</p>
         </div>
       </div>
 
@@ -129,7 +135,7 @@ export default function AddParentPage() {
           <CardHeader className="bg-primary text-primary-foreground p-8">
             <div className="flex items-center gap-2 mb-2">
               <ShieldCheck className="size-4 text-accent" />
-              <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Identity Handshake Active</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Direct Access Protocol Active</span>
             </div>
             <CardTitle className="text-3xl font-headline font-bold">New Parent Entry</CardTitle>
           </CardHeader>
@@ -145,13 +151,13 @@ export default function AddParentPage() {
                </div>
                <div className="space-y-1.5"><Label>First Name</Label><Input required value={parentForm.firstName} onChange={e => setParentForm({...parentForm, firstName: e.target.value})} className="h-12 rounded-xl" /></div>
                <div className="space-y-1.5"><Label>Last Name</Label><Input required value={parentForm.lastName} onChange={e => setParentForm({...parentForm, lastName: e.target.value})} className="h-12 rounded-xl" /></div>
-               <div className="space-y-1.5"><Label>Phone Number</Label><Input required value={parentForm.phone} onChange={e => setParentForm({...parentForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
-               <div className="space-y-1.5 md:col-span-2"><Label>Email Address (Portal ID)</Label><Input type="email" required value={parentForm.email} onChange={e => setParentForm({...parentForm, email: e.target.value})} className="h-12 rounded-xl" /></div>
+               <div className="space-y-1.5"><Label>Phone Number (Login Password)</Label><Input required value={parentForm.phone} onChange={e => setParentForm({...parentForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
+               <div className="space-y-1.5 md:col-span-2"><Label>Email Address (Portal ID - Optional)</Label><Input type="email" value={parentForm.email} onChange={e => setParentForm({...parentForm, email: e.target.value})} className="h-12 rounded-xl" placeholder="Leave blank for system auto-email" /></div>
             </div>
           </CardContent>
           <CardFooter className="bg-slate-50 p-8 border-t">
             <Button type="submit" disabled={loading} className="w-full h-14 bg-primary font-bold shadow-xl text-lg gap-2">
-              {loading ? <Loader2 className="mr-2 animate-spin" /> : <Save className="mr-2" />} Authorize Registration
+              {loading ? <Loader2 className="mr-2 animate-spin" /> : <Save className="mr-2" />} Authorize Registration & Access
             </Button>
           </CardFooter>
         </Card>

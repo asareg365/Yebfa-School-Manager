@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
@@ -38,7 +37,6 @@ export default function StaffHRPage() {
   const db = useFirestore()
   const { user } = useUser()
   const [loading, setLoading] = useState(false)
-  const [syncing, setSyncing] = useState(false)
   const [isEnrollOpen, setIsEnrollOpen] = useState(false)
   const [editingStaff, setEditingStaff] = useState<any>(null)
   const [searchQuery, setSearchQuery] = useState("")
@@ -94,78 +92,6 @@ export default function StaffHRPage() {
     if (d === 'librarian') return 'librarian'
     return 'teacher' // Default role
   }
-
-  const handleSyncCredentials = async () => {
-    if (!db || !institutionId || rawStaff.length === 0) return;
-    if (!confirm("This will authorize portal access for all faculty based on their current designations. Proceed?")) return;
-
-    setSyncing(true);
-    const provisionAppName = `staff-sync-${Date.now()}`;
-    const provisionApp = initializeApp(firebaseConfig, provisionAppName);
-    const provisionAuth = getAuth(provisionApp);
-
-    try {
-      let syncCount = 0;
-      let skippedCount = 0;
-      const batch = writeBatch(db);
-
-      toast({ title: "Authorization Cycle Started", description: "Processing faculty registry..." });
-
-      for (const s of rawStaff) {
-        if (!s.staffNumber || s.staffNumber.includes("PENDING") || !s.phone) {
-          skippedCount++;
-          continue;
-        }
-        
-        const safeId = s.staffNumber.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-        const accountEmail = s.email || `${safeId}@system.yebfa.com`;
-        let cleanPass = normalizeSecurityPhone(s.phone);
-        
-        if (cleanPass.length < 6) {
-          cleanPass = cleanPass.padEnd(6, '0');
-        }
-
-        try {
-          const credential = await createUserWithEmailAndPassword(provisionAuth, accountEmail, cleanPass);
-          const authUser = credential.user;
-
-          batch.set(doc(db, "users", authUser.uid), {
-            uid: authUser.uid,
-            name: `${s.firstName} ${s.lastName}`,
-            email: accountEmail,
-            role: resolveSystemRole(s.designation),
-            tenantId: institutionId,
-            institutionId: institutionId,
-            institutionName: institution?.name || "Academic Hub",
-            schoolCode: institution?.schoolCode || "SCH",
-            staffId: s.id,
-            status: "active",
-            createdAt: serverTimestamp()
-          });
-          
-          await signOut(provisionAuth);
-          syncCount++;
-        } catch (e: any) {
-          if (e.code === 'auth/email-already-in-use') {
-             syncCount++;
-          } else {
-             skippedCount++;
-          }
-        }
-      }
-      
-      await batch.commit();
-      toast({ 
-        title: "Registry Sync Complete", 
-        description: `Successfully provisioned ${syncCount} accounts. ${skippedCount > 0 ? `${skippedCount} records skipped.` : ''}` 
-      });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Sync Engine Error", description: e.message });
-    } finally {
-      setSyncing(false);
-      try { await deleteApp(provisionApp); } catch (e) {}
-    }
-  };
 
   const handleEnroll = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -236,7 +162,7 @@ export default function StaffHRPage() {
       }
 
       await batch.commit()
-      toast({ title: editingStaff ? "Registry Updated" : `Faculty Enrolled: ${finalStaffNumber}` })
+      toast({ title: editingStaff ? "Registry Updated" : `Faculty Enrolled & Portal Authorized: ${finalStaffNumber}` })
       setIsEnrollOpen(false); setEditingStaff(null); setStaffForm(initialForm);
     } catch (error: any) {
       toast({ variant: "destructive", title: "Action Failed", description: error.message });
@@ -281,18 +207,9 @@ export default function StaffHRPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">HR Management Hub</h1>
-          <p className="text-muted-foreground font-medium">Strategic oversight of faculty registry and transactional IDs.</p>
+          <p className="text-muted-foreground font-medium">Strategic oversight of faculty registry and direct portal access.</p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <Button 
-            variant="outline" 
-            className="h-12 rounded-xl gap-2 text-xs font-bold uppercase"
-            onClick={handleSyncCredentials}
-            disabled={syncing || rawStaff.length === 0}
-          >
-            {syncing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-            Sync Access
-          </Button>
           <Button className="gap-2 bg-primary rounded-xl h-12 shadow-lg px-6 font-bold" onClick={() => { setEditingStaff(null); setStaffForm(initialForm); setIsEnrollOpen(true); }}>
             <UserPlus className="size-5" /> Enroll Faculty
           </Button>
@@ -361,8 +278,8 @@ export default function StaffHRPage() {
         <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded-3xl max-h-[90vh] flex flex-col">
           <form onSubmit={handleEnroll} className="flex flex-col h-full overflow-hidden">
             <DialogHeader className="bg-primary text-primary-foreground p-8 shrink-0">
-              <DialogTitle className="text-2xl font-headline font-bold">{editingStaff ? "Update Registry" : "Faculty HR Enrollment"}</DialogTitle>
-              <DialogDescription className="text-primary-foreground/70">Transactional IDs are immutable and unique per school.</DialogDescription>
+              <DialogTitle className="text-2xl font-headline font-bold">{editingStaff ? "Update Registry" : "Faculty Enrollment"}</DialogTitle>
+              <DialogDescription className="text-primary-foreground/70">Secure portal accounts are provisioned automatically upon enrollment.</DialogDescription>
             </DialogHeader>
 
             <ScrollArea className="flex-1 p-8">
@@ -377,7 +294,7 @@ export default function StaffHRPage() {
                 </div>
                 <div className="space-y-2"><Label>First Name</Label><Input required value={staffForm.firstName} onChange={e => setStaffForm({...staffForm, firstName: e.target.value})} className="h-12 rounded-xl" /></div>
                 <div className="space-y-2"><Label>Last Name</Label><Input required value={staffForm.lastName} onChange={e => setStaffForm({...staffForm, lastName: e.target.value})} className="h-12 rounded-xl" /></div>
-                <div className="space-y-2"><Label>Phone Number</Label><Input required value={staffForm.phone} onChange={e => setStaffForm({...staffForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
+                <div className="space-y-2"><Label>Phone Number (Login Password)</Label><Input required value={staffForm.phone} onChange={e => setStaffForm({...staffForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
                 <div className="space-y-2 md:col-span-2"><Label>Email Address (Optional)</Label><Input type="email" value={staffForm.email} onChange={e => setStaffForm({...staffForm, email: e.target.value})} className="h-12 rounded-xl" placeholder="Leave blank for system auto-email" /></div>
                 <div className="space-y-2"><Label>Monthly Salary (GH₵)</Label><Input type="number" required value={staffForm.salary} onChange={e => setStaffForm({...staffForm, salary: e.target.value})} className="h-12 rounded-xl" /></div>
                 <div className="space-y-2"><Label>Designation</Label>
@@ -399,7 +316,7 @@ export default function StaffHRPage() {
             <DialogFooter className="bg-slate-50 p-8 border-t shrink-0">
               <Button type="submit" disabled={loading} className="w-full h-14 rounded-2xl bg-primary font-bold shadow-xl text-lg gap-2">
                 {loading ? <Loader2 className="mr-2 animate-spin" /> : <ShieldCheck className="size-5" />} 
-                Authorize Enrollment
+                Authorize Enrollment & Access
               </Button>
             </DialogFooter>
           </form>

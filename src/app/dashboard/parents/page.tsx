@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -30,17 +29,12 @@ import { useState, useMemo, useEffect } from "react"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/hooks/use-toast"
 import Link from "next/link"
-import { initializeApp, deleteApp } from "firebase/app"
-import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth"
-import { firebaseConfig } from "@/firebase/config"
-import { normalizeSecurityPhone } from "@/lib/identity-service"
 
 export default function ParentsRegistryPage() {
   const db = useFirestore()
   const { user } = useUser()
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
-  const [syncing, setSyncing] = useState(false)
   
   const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
   const { data: profile, loading: profileLoading } = useDoc(userProfileRef)
@@ -75,73 +69,6 @@ export default function ParentsRegistryPage() {
     ).sort((a, b) => (a.parentNumber || "").localeCompare(b.parentNumber || ""))
   }, [parents, searchQuery])
 
-  const handleSyncCredentials = async () => {
-    if (!db || !institutionId || parents.length === 0) return;
-    if (!confirm("This will authorize Portal Access for all guardians. Proceed?")) return;
-
-    setSyncing(true);
-    const provisionAppName = `parent-sync-${Date.now()}`;
-    const provisionApp = initializeApp(firebaseConfig, provisionAppName);
-    const provisionAuth = getAuth(provisionApp);
-
-    try {
-      let syncCount = 0;
-      let skippedCount = 0;
-      const batch = writeBatch(db);
-
-      toast({ title: "Authorization Cycle Started", description: "Processing guardian registry..." });
-
-      for (const p of parents) {
-        // Essential record check: skip pending IDs or missing phones
-        if (!p.parentNumber || p.parentNumber.includes("PENDING") || !p.phone) {
-          skippedCount++;
-          continue;
-        }
-
-        const safeId = p.parentNumber.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-        const parentEmail = p.email || `${safeId}@system.yebfa.com`;
-        let cleanPass = normalizeSecurityPhone(p.phone);
-        
-        if (cleanPass.length < 6) {
-          cleanPass = cleanPass.padEnd(6, '0');
-        }
-        
-        try {
-          const credential = await createUserWithEmailAndPassword(provisionAuth, parentEmail, cleanPass);
-          const authUser = credential.user;
-
-          batch.set(doc(db, "users", authUser.uid), {
-            uid: authUser.uid,
-            name: `${p.firstName} ${p.lastName}`,
-            email: parentEmail,
-            role: "parent",
-            tenantId: institutionId,
-            institutionId: institutionId,
-            status: "active",
-            createdAt: serverTimestamp()
-          });
-          
-          await signOut(provisionAuth);
-          syncCount++;
-        } catch (e: any) {
-          if (e.code === 'auth/email-already-in-use') {
-             syncCount++;
-          } else {
-             skippedCount++;
-          }
-        }
-      }
-      
-      await batch.commit();
-      toast({ title: "Guardian Access Synced", description: `Authorized ${syncCount} parents. ${skippedCount > 0 ? `${skippedCount} skipped.` : ''}` });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Sync Failed", description: e.message });
-    } finally {
-      setSyncing(false);
-      try { await deleteApp(provisionApp); } catch (e) {}
-    }
-  };
-
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to remove this parent?")) return
     try {
@@ -171,18 +98,9 @@ export default function ParentsRegistryPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Parent Registry</h1>
-          <p className="text-muted-foreground font-medium">Master database of guardians and family relationships.</p>
+          <p className="text-muted-foreground font-medium">Master database of guardians and automated portal access.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Button 
-            variant="outline" 
-            className="h-11 rounded-xl gap-2 text-xs font-bold uppercase" 
-            onClick={handleSyncCredentials}
-            disabled={syncing || parents.length === 0}
-          >
-            {syncing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-            Sync Access
-          </Button>
           <Button className="bg-primary h-11 rounded-xl shadow-lg gap-2" asChild>
             <Link href="/dashboard/parents/add">
               <Plus className="size-4" /> Register Parent
