@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -69,11 +70,12 @@ export default function AddParentPage() {
     try {
       // 1. Transactional Sequential ID Generation
       const finalParentNumber = await generateInstitutionId('PAR', institutionId, institution?.schoolCode);
+      
       let cleanPass = normalizeSecurityPhone(parentForm.phone)
       if (cleanPass.length < 6) cleanPass = cleanPass.padEnd(6, '0');
       
-      const safeId = finalParentNumber.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-      const parentEmail = parentForm.email || `${safeId}@system.yebfa.com`;
+      // Standardized system email (lowercase raw ID)
+      const parentEmail = parentForm.email || `${finalParentNumber.toLowerCase().trim()}@system.yebfa.com`;
       
       let authUser;
       try {

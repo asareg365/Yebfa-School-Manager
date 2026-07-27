@@ -55,7 +55,6 @@ export default function LoginPage() {
 
       const userData = userSnap.data()
       
-      // CRITICAL: Institutional Existence Check
       if (userData.role !== 'super_admin' && userData.tenantId) {
         const instSnap = await getDoc(doc(db, "institutions", userData.tenantId))
         if (!instSnap.exists()) {
@@ -193,7 +192,9 @@ export default function LoginPage() {
       if (snap.empty) throw new Error("Staff ID not found in registry.");
       
       const personData = snap.docs[0].data()
+      // Prioritize saved email from registry record, fallback to standardized system format
       const accountEmail = personData.email || `${normalizedId.toLowerCase().trim()}@system.yebfa.com`
+      
       let cleanCredential = normalizeSecurityPhone(staffPhoneInput)
       if (cleanCredential.length < 6) cleanCredential = cleanCredential.padEnd(6, '0');
 

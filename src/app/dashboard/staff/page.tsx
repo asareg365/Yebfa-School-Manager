@@ -17,7 +17,8 @@ import {
   CheckCircle2,
   Activity,
   RefreshCw,
-  AlertTriangle
+  AlertTriangle,
+  X
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { toast } from "@/hooks/use-toast"
@@ -85,13 +86,12 @@ export default function StaffHRPage() {
     ).sort((a, b) => (a.staffNumber || "").localeCompare(b.staffNumber || ""));
   }, [rawStaff, searchQuery]);
 
-  // Deterministic mapping of registry designation to system roles
   const resolveSystemRole = (designation: string) => {
     const d = designation?.toLowerCase() || ""
     if (d === 'head teacher' || d === 'administrator') return 'administrator'
     if (d === 'accountant') return 'accountant'
     if (d === 'librarian') return 'librarian'
-    return 'teacher' // Default role
+    return 'teacher' 
   }
 
   const handleEnroll = async (e: React.FormEvent) => {
@@ -108,19 +108,18 @@ export default function StaffHRPage() {
       let staffId = editingStaff?.id
       let finalStaffNumber = staffForm.staffNumber
 
+      const staffRef = editingStaff ? doc(db, "staff", editingStaff.id) : doc(collection(db, "staff"))
+      staffId = staffRef.id
+
       if (!editingStaff) {
         finalStaffNumber = await generateInstitutionId('STF', institutionId, institution?.schoolCode);
         
         let cleanPass = normalizeSecurityPhone(staffForm.phone);
-        // Firebase Auth passwords must be at least 6 characters
         if (cleanPass.length < 6) cleanPass = cleanPass.padEnd(6, '0');
         
-        const safeId = finalStaffNumber.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-        const accountEmail = staffForm.email || `${safeId}@system.yebfa.com`;
+        // System Email: standardized to lowercase raw ID
+        const accountEmail = staffForm.email || `${finalStaffNumber.toLowerCase().trim()}@system.yebfa.com`;
         
-        const staffRef = doc(collection(db, "staff"))
-        staffId = staffRef.id
-
         try {
           const credential = await createUserWithEmailAndPassword(provisionAuth, accountEmail, cleanPass)
           const authUser = credential.user
@@ -140,17 +139,14 @@ export default function StaffHRPage() {
           })
           await signOut(provisionAuth);
         } catch (authErr: any) {
-          if (authErr.code === 'auth/email-already-in-use') {
-             // Continue if account exists
-          } else {
-             throw authErr;
-          }
+          if (authErr.code !== 'auth/email-already-in-use') throw authErr;
         }
 
         batch.set(staffRef, {
           ...staffForm,
           staffNumber: finalStaffNumber,
           phone: normalizeSecurityPhone(staffForm.phone),
+          email: accountEmail, // Explicitly save the generated email
           salary: parseFloat(staffForm.salary as string) || 0,
           id: staffId,
           tenantId: institutionId,
@@ -160,7 +156,7 @@ export default function StaffHRPage() {
         });
       } else {
         const { id, createdAt, ...sanitizedData } = staffForm as any;
-        batch.update(doc(db, "staff", editingStaff.id), { 
+        batch.update(staffRef, { 
           ...sanitizedData, 
           salary: parseFloat(staffForm.salary as string) || 0,
           updatedAt: serverTimestamp() 
@@ -283,9 +279,12 @@ export default function StaffHRPage() {
       <Dialog open={isEnrollOpen} onOpenChange={setIsEnrollOpen}>
         <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded-3xl max-h-[90vh] flex flex-col">
           <form onSubmit={handleEnroll} className="flex flex-col h-full overflow-hidden">
-            <DialogHeader className="bg-primary text-primary-foreground p-8 shrink-0">
+            <DialogHeader className="bg-primary text-primary-foreground p-8 shrink-0 relative">
               <DialogTitle className="text-2xl font-headline font-bold">{editingStaff ? "Update Registry" : "Faculty Enrollment"}</DialogTitle>
               <DialogDescription className="text-primary-foreground/70">Secure portal accounts are provisioned automatically upon enrollment.</DialogDescription>
+              <button type="button" onClick={() => setIsEnrollOpen(false)} className="absolute right-4 top-4 p-2 text-white hover:bg-white/10 rounded-xl transition-colors">
+                <X className="size-5" />
+              </button>
             </DialogHeader>
 
             <ScrollArea className="flex-1 p-8">
