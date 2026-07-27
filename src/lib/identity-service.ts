@@ -45,6 +45,13 @@ export async function generateInstitutionId(
 }
 
 /**
+ * Generates a random 4-digit PIN for student access.
+ */
+export function generateStudentPin(): string {
+  return Math.floor(1000 + Math.random() * 9000).toString();
+}
+
+/**
  * Helper to normalize phone numbers for security passwords.
  */
 export function normalizeSecurityPhone(num: string): string {

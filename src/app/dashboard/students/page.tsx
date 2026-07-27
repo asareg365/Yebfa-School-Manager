@@ -25,7 +25,8 @@ import {
   Upload,
   FileSpreadsheet,
   Download,
-  AlertCircle
+  AlertCircle,
+  KeyRound
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection, useUser, useDoc } from "@/firebase"
@@ -43,7 +44,7 @@ import { useSearchParams } from "next/navigation"
 import { initializeApp, getApps } from "firebase/app"
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth"
 import { firebaseConfig } from "@/firebase/config"
-import { generateInstitutionId, normalizeSecurityPhone } from "@/lib/identity-service"
+import { generateInstitutionId, normalizeSecurityPhone, generateStudentPin } from "@/lib/identity-service"
 import Papa from "papaparse"
 
 export default function StudentsPage() {
@@ -67,6 +68,7 @@ export default function StudentsPage() {
     gender: "Male",
     dateOfBirth: "",
     admissionNumber: "PENDING COMMIT",
+    studentPin: "----",
     gradeLevel: "",
     status: "active",
     house: "",
@@ -155,10 +157,36 @@ export default function StudentsPage() {
       let finalParentId = linkedParentId
       let studentId = editingStudent?.id
       let finalAdmissionNumber = studentForm.admissionNumber
+      let finalPin = studentForm.studentPin
 
-      // 1. Transactional ID Generation
+      // 1. Transactional ID & PIN Generation
       if (!editingStudent) {
         finalAdmissionNumber = await generateInstitutionId('STU', institutionId, institution?.schoolCode);
+        finalPin = generateStudentPin();
+        
+        // Provision Student Auth Account
+        const secondaryAppName = `student-provision-${Date.now()}`
+        const secondaryApp = initializeApp(firebaseConfig, secondaryAppName)
+        const secondaryAuth = getAuth(secondaryApp)
+        const studentEmail = `${finalAdmissionNumber.toLowerCase()}@system.yebfa.com`;
+        
+        try {
+          const credential = await createUserWithEmailAndPassword(secondaryAuth, studentEmail, finalPin)
+          const authUser = credential.user
+          
+          batch.set(doc(db, "users", authUser.uid), {
+            uid: authUser.uid,
+            name: `${studentForm.firstName} ${studentForm.lastName}`,
+            email: studentEmail,
+            role: "student",
+            tenantId: institutionId,
+            institutionId: institutionId,
+            status: "active",
+            createdAt: serverTimestamp()
+          })
+        } catch (authErr: any) {
+          if (authErr.code !== 'auth/email-already-in-use') throw authErr;
+        }
       }
 
       // 2. Handle New Parent Auth Provisioning
@@ -166,14 +194,26 @@ export default function StudentsPage() {
         const finalParentNumber = await generateInstitutionId('PAR', institutionId, institution?.schoolCode);
         const cleanPass = normalizeSecurityPhone(newParentForm.phone);
         
-        const secondaryAppName = `secondary-parent-wizard-${Date.now()}`
+        const secondaryAppName = `parent-provision-${Date.now()}`
         const secondaryApp = initializeApp(firebaseConfig, secondaryAppName)
         const secondaryAuth = getAuth(secondaryApp)
         
-        let parentAuthUser;
+        const parentEmail = newParentForm.email || `${finalParentNumber.toLowerCase()}@system.yebfa.com`;
+        
         try {
-          const credential = await createUserWithEmailAndPassword(secondaryAuth, newParentForm.email, cleanPass)
-          parentAuthUser = credential.user
+          const credential = await createUserWithEmailAndPassword(secondaryAuth, parentEmail, cleanPass)
+          const parentAuthUser = credential.user
+          
+          batch.set(doc(db, "users", parentAuthUser.uid), {
+            uid: parentAuthUser.uid,
+            name: `${newParentForm.firstName} ${newParentForm.lastName}`,
+            email: parentEmail,
+            role: "parent",
+            tenantId: institutionId,
+            institutionId: institutionId,
+            status: "active",
+            createdAt: serverTimestamp()
+          })
         } catch (authErr: any) {
           if (authErr.code !== 'auth/email-already-in-use') throw authErr;
         }
@@ -184,30 +224,19 @@ export default function StudentsPage() {
           ...newParentForm,
           parentNumber: finalParentNumber,
           phone: normalizeSecurityPhone(newParentForm.phone),
+          email: parentEmail,
           id: finalParentId,
           tenantId: institutionId,
           institutionId: institutionId,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         })
-
-        if (parentAuthUser) {
-          batch.set(doc(db, "users", parentAuthUser.uid), {
-            uid: parentAuthUser.uid,
-            name: `${newParentForm.firstName} ${newParentForm.lastName}`,
-            email: newParentForm.email,
-            role: "parent",
-            tenantId: institutionId,
-            institutionId: institutionId,
-            status: "active",
-            createdAt: serverTimestamp()
-          })
-        }
       }
 
       const studentData = {
         ...studentForm,
         admissionNumber: finalAdmissionNumber,
+        studentPin: finalPin,
         tenantId: institutionId,
         institutionId,
         updatedAt: serverTimestamp()
@@ -239,83 +268,11 @@ export default function StudentsPage() {
       }
 
       await batch.commit()
-      toast({ title: editingStudent ? "Registry Synchronized" : `Enrolled: ${finalAdmissionNumber}` })
+      toast({ title: editingStudent ? "Registry Synchronized" : `Enrolled with PIN: ${finalPin}`, description: `ID: ${finalAdmissionNumber}` })
       setIsEnrollOpen(false); setEditingStudent(null); setStudentForm(initialForm); setActiveStep("identity")
     } catch (error: any) {
       toast({ variant: "destructive", title: "Enrollment Failed", description: error.message });
     } finally { setLoading(false) }
-  }
-
-  const handleBulkUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !institutionId) return
-
-    setBulkLoading(true)
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: async (results) => {
-        try {
-          const data = results.data as any[]
-          let successCount = 0
-
-          for (const row of data) {
-            const firstName = row.firstName || row['First Name']
-            const lastName = row.lastName || row['Last Name']
-            const gender = row.gender || row['Gender'] || 'Male'
-            const dob = row.dateOfBirth || row['DOB'] || row['Date of Birth']
-            const grade = row.gradeLevel || row['Grade'] || row['Class']
-
-            if (!firstName || !lastName) continue
-
-            const admissionNumber = await generateInstitutionId('STU', institutionId, institution?.schoolCode)
-            const studentRef = doc(collection(db, "students"))
-            
-            await setDoc(studentRef, {
-              ...initialForm,
-              firstName,
-              lastName,
-              gender,
-              dateOfBirth: dob || "",
-              gradeLevel: grade || "",
-              admissionNumber,
-              id: studentRef.id,
-              tenantId: institutionId,
-              institutionId,
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp()
-            })
-            successCount++
-          }
-
-          toast({ title: "Bulk Upload Complete", description: `${successCount} students added to registry.` })
-          setIsBulkOpen(false)
-        } catch (err: any) {
-          toast({ variant: "destructive", title: "Bulk Upload Failed", description: err.message })
-        } finally {
-          setBulkLoading(false)
-          e.target.value = ""
-        }
-      }
-    })
-  }
-
-  const downloadTemplate = () => {
-    const csv = Papa.unparse([
-      { "First Name": "John", "Last Name": "Doe", "Gender": "Male", "Date of Birth": "2015-05-12", "Grade": "Primary 1" },
-      { "First Name": "Jane", "Last Name": "Smith", "Gender": "Female", "Date of Birth": "2016-08-20", "Grade": "Primary 2" }
-    ])
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
-    link.setAttribute('download', 'student_bulk_template.csv')
-    link.click()
-  }
-
-  const navigateStep = (direction: 'next' | 'back') => {
-    const currentIndex = steps.indexOf(activeStep)
-    if (direction === 'next' && currentIndex < steps.length - 1) setActiveStep(steps[currentIndex + 1])
-    else if (direction === 'back' && currentIndex > 0) setActiveStep(steps[currentIndex - 1])
   }
 
   const openEdit = (stu: any) => {
@@ -335,7 +292,7 @@ export default function StudentsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Student Registry</h1>
-          <p className="text-muted-foreground">Strategic institutional enrollment and transactional ID management.</p>
+          <p className="text-muted-foreground font-medium">Strategic institutional enrollment and ID/PIN management.</p>
         </div>
         <div className="flex flex-wrap gap-3">
           <Button variant="outline" className="h-11 rounded-xl" onClick={() => setIsBulkOpen(true)}>
@@ -349,17 +306,22 @@ export default function StudentsPage() {
       </div>
 
       <Card className="border-none shadow-xl rounded-2xl overflow-hidden bg-white">
-        <CardHeader className="border-b py-6 p-4 md:p-6">
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-3.5 size-4 text-muted-foreground" />
-            <Input placeholder="Search records..." className="pl-10 h-12 bg-slate-50 border-none rounded-xl" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+        <CardHeader className="border-b py-6 p-4 md:p-6 bg-slate-50/50">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-3.5 size-4 text-muted-foreground" />
+              <Input placeholder="Search records..." className="pl-10 h-12 bg-white border-none rounded-xl shadow-sm" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+            </div>
+            <Badge className="bg-primary/5 text-primary border-none text-[10px] font-bold uppercase tracking-widest px-4 h-10 flex items-center">
+              {rawStudents.length} Students Total
+            </Badge>
           </div>
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow>
-                <TableHead className="py-4 font-bold px-6">ID / STUDENT</TableHead>
+                <TableHead className="py-4 font-bold px-6">ID / PIN / STUDENT</TableHead>
                 <TableHead className="py-4 font-bold">GRADE</TableHead>
                 <TableHead className="py-4 font-bold">GUARDIAN LINK</TableHead>
                 <TableHead className="py-4 font-bold">STATUS</TableHead>
@@ -378,7 +340,10 @@ export default function StudentsPage() {
                           {stu.photoUrl ? <img src={stu.photoUrl} className="w-full h-full object-cover" /> : <User className="size-5 text-primary/20" />}
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-[10px] font-mono font-bold text-accent">{stu.admissionNumber}</span>
+                          <div className="flex items-center gap-2">
+                             <span className="text-[10px] font-mono font-bold text-accent">{stu.admissionNumber}</span>
+                             <Badge variant="outline" className="h-4 px-1 text-[8px] font-mono border-primary/20 text-primary">PIN: {stu.studentPin || '----'}</Badge>
+                          </div>
                           <span className="font-bold text-primary">{stu.firstName} {stu.lastName}</span>
                         </div>
                       </div>
@@ -422,6 +387,14 @@ export default function StudentsPage() {
                        <div className="h-11 px-4 rounded-xl bg-slate-50 flex items-center border border-dashed border-slate-200">
                           <Badge variant="secondary" className="font-mono text-xs font-bold uppercase bg-slate-200 text-slate-600 border-none">
                              {studentForm.admissionNumber}
+                          </Badge>
+                       </div>
+                    </div>
+                    <div className="space-y-2">
+                       <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Portal Access PIN</Label>
+                       <div className="h-11 px-4 rounded-xl bg-slate-50 flex items-center border border-dashed border-slate-200">
+                          <Badge variant="secondary" className="font-mono text-xs font-bold uppercase bg-slate-200 text-primary border-none">
+                             {studentForm.studentPin}
                           </Badge>
                        </div>
                     </div>
@@ -510,7 +483,11 @@ export default function StudentsPage() {
                 <TabsContent value="finalize" className="space-y-8 mt-0 text-center py-10">
                    <div className="size-20 bg-green-50 rounded-full flex items-center justify-center mx-auto text-green-600 mb-4"><CheckCircle2 className="size-12" /></div>
                    <h3 className="text-xl font-bold font-headline">Institutional Enrollment Authorized</h3>
-                   <p className="text-sm text-muted-foreground max-w-sm mx-auto">Unique sequential IDs will be generated at the exact point of commit to ensure registry integrity.</p>
+                   <p className="text-sm text-muted-foreground max-w-sm mx-auto">Unique Student IDs and Portal PINs will be generated at the point of commit to ensure registry integrity.</p>
+                   <div className="p-4 bg-slate-50 rounded-2xl border flex items-center justify-center gap-3">
+                      <KeyRound className="size-5 text-primary" />
+                      <span className="text-xs font-bold text-primary uppercase">Contextual Identity Handshake Active</span>
+                   </div>
                 </TabsContent>
               </ScrollArea>
             </Tabs>
@@ -533,52 +510,6 @@ export default function StudentsPage() {
               </div>
             </DialogFooter>
           </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isBulkOpen} onOpenChange={setIsBulkOpen}>
-        <DialogContent className="max-w-md rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-headline font-bold">Bulk Student Intake</DialogTitle>
-            <DialogDescription>Enroll multiple students at once using a CSV data template.</DialogDescription>
-          </DialogHeader>
-          <div className="py-8 space-y-6">
-            <div className="p-6 border-2 border-dashed rounded-2xl text-center space-y-4 bg-muted/5">
-              <FileSpreadsheet className="size-12 text-primary/20 mx-auto" />
-              <div className="space-y-1">
-                <p className="text-sm font-bold">Upload CSV Template</p>
-                <p className="text-[10px] text-muted-foreground uppercase">Format: firstName, lastName, gender, DOB, grade</p>
-              </div>
-              <Input 
-                type="file" 
-                accept=".csv" 
-                className="hidden" 
-                id="bulk-file" 
-                onChange={handleBulkUpload}
-                disabled={bulkLoading}
-              />
-              <Button asChild variant="secondary" className="w-full h-12 font-bold cursor-pointer">
-                <label htmlFor="bulk-file">
-                  {bulkLoading ? <Loader2 className="size-4 animate-spin mr-2" /> : <Upload className="size-4 mr-2" />}
-                  Select CSV File
-                </label>
-              </Button>
-            </div>
-            
-            <div className="space-y-4">
-               <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Strategic Template</h4>
-               <Button variant="outline" className="w-full h-12 gap-2 rounded-xl" onClick={downloadTemplate}>
-                 <Download className="size-4" /> Download Sample CSV
-               </Button>
-            </div>
-            
-            <div className="p-4 rounded-xl bg-amber-50 border border-amber-100 flex gap-3">
-              <AlertCircle className="size-5 text-amber-600 shrink-0" />
-              <p className="text-[10px] text-amber-800 leading-relaxed font-medium">
-                IDs will be generated sequentially in real-time. Ensure your CSV columns match the template for successful synchronization.
-              </p>
-            </div>
-          </div>
         </DialogContent>
       </Dialog>
     </div>
