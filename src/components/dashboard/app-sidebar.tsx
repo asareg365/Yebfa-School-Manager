@@ -142,7 +142,6 @@ export function AppSidebar() {
         items: [
           { title: "Staff Directory", url: "/dashboard/staff", visible: isSuperAdmin || isOwner || isAdmin || isAccountant },
           { title: "Payroll Processor", url: "/dashboard/finance/payroll", visible: isSuperAdmin || isOwner || isAccountant },
-          { title: "Daily Attendance", url: "/dashboard/attendance", visible: true },
         ].filter(i => i.visible),
       },
       {
@@ -153,6 +152,7 @@ export function AppSidebar() {
         items: [
           { title: "Active Enrollment", url: "/dashboard/students", visible: true },
           { title: "Personal Ledgers", url: "/dashboard/students/accounts", visible: isSuperAdmin || isOwner || isAdmin || isAccountant },
+          { title: "Daily Attendance", url: "/dashboard/attendance", visible: true },
         ].filter(i => i.visible),
       },
       {
