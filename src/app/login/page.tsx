@@ -9,12 +9,11 @@ import { Label } from "@/components/ui/label"
 import { School, Loader2, AlertCircle, Info, ArrowRight, ShieldCheck, User, Users, Briefcase, KeyRound, Smartphone } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail } from "firebase/auth"
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth"
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore"
 import { auth, db, useUser } from "@/firebase"
 import { firebaseConfig } from "@/firebase/config"
 import { toast } from "@/hooks/use-toast"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function LoginPage() {
@@ -27,6 +26,14 @@ export default function LoginPage() {
   const [configError, setConfigError] = useState(false)
   const router = useRouter()
   const { user, loading: authLoading } = useUser()
+
+  const normalizePhone = (num: string) => {
+    if (!num) return "";
+    let clean = num.replace(/\s+/g, '').replace(/-/g, '').replace(/\(/g, '').replace(/\)/g, '');
+    if (clean.startsWith('+233')) return '0' + clean.slice(4);
+    if (clean.startsWith('233') && clean.length > 9) return '0' + clean.slice(3);
+    return clean;
+  }
 
   const redirectUser = async (firebaseUser: any) => {
     try {
@@ -101,27 +108,43 @@ export default function LoginPage() {
       const collectionName = type === 'staff' ? "staff" : "parents"
       const idField = type === 'staff' ? "staffNumber" : "parentNumber"
       
+      // Query by ID only first to minimize permission/index issues
       const q = query(
         collection(db, collectionName), 
-        where(idField, "==", idNumber),
-        where("phone", "==", phoneNumber)
+        where(idField, "==", idNumber)
       )
       const snap = await getDocs(q)
       
       if (snap.empty) {
-        throw new Error("Invalid ID or phone number mismatch. Please verify with administration.")
+        throw new Error("Invalid ID. No registry record found for this identifier.");
       }
       
       const personData = snap.docs[0].data()
+      const storedPhone = normalizePhone(personData.phone)
+      const inputPhone = normalizePhone(phoneNumber)
+
+      if (storedPhone !== inputPhone) {
+        throw new Error("Phone number mismatch. The number provided does not match our registry.");
+      }
+
       const accountEmail = personData.email
-      
       if (!accountEmail) {
-        throw new Error("Registry record found, but no system email is associated. Contact Admin for account activation.")
+        throw new Error("Registry record found, but no system email is associated. Contact Admin.");
       }
       
-      // Use phone number as the initial password for registry-based login
-      const credential = await signInWithEmailAndPassword(auth, accountEmail, phoneNumber)
-      await redirectUser(credential.user)
+      // Attempt login with the raw phone number provided by the user as password
+      try {
+        const credential = await signInWithEmailAndPassword(auth, accountEmail, phoneNumber)
+        await redirectUser(credential.user)
+      } catch (authErr: any) {
+        // Fallback: try with the stored phone number format if auth failed
+        if (authErr.code === 'auth/invalid-credential' || authErr.code === 'auth/wrong-password') {
+          const credentialFallback = await signInWithEmailAndPassword(auth, accountEmail, personData.phone)
+          await redirectUser(credentialFallback.user)
+        } else {
+          throw authErr;
+        }
+      }
       
     } catch (error: any) {
       toast({
@@ -269,7 +292,7 @@ export default function LoginPage() {
                     <Smartphone className="absolute left-3 top-3.5 size-4 text-muted-foreground" />
                     <Input 
                       type="tel"
-                      placeholder="e.g. 024XXXXXXX" 
+                      placeholder="e.g. 024XXXXXXX or +233..." 
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value)}
                       className="pl-10 h-12 rounded-xl"
@@ -302,7 +325,7 @@ export default function LoginPage() {
                     <Smartphone className="absolute left-3 top-3.5 size-4 text-muted-foreground" />
                     <Input 
                       type="tel"
-                      placeholder="e.g. 024XXXXXXX" 
+                      placeholder="e.g. 024XXXXXXX or +233..." 
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value)}
                       className="pl-10 h-12 rounded-xl"

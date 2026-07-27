@@ -45,7 +45,7 @@ service cloud.firestore {
     // ======================
 
     function belongsToUserTenant(data) {
-      return signedIn() && data.tenantId == userTenant();
+      return signedIn() && (data.tenantId == userTenant() || data.institutionId == userTenant());
     }
 
     // ======================
@@ -66,7 +66,7 @@ service cloud.firestore {
     }
 
     match /parents/{parentId} {
-      // Allow unauthenticated read only for login verification (limited query)
+      // Allow unauthenticated list/get for login verification (searching by parentNumber)
       allow list, get: if true; 
       allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin() || isAccountant());
       allow delete: if isSuperAdmin() || isOwner();
@@ -85,7 +85,7 @@ service cloud.firestore {
     }
 
     match /staff/{staffId} {
-      // Allow unauthenticated read only for login verification (limited query)
+      // Allow unauthenticated list/get for login verification (searching by staffNumber)
       allow list, get: if true;
       allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin() || isAccountant());
       allow delete: if isSuperAdmin() || isOwner();
