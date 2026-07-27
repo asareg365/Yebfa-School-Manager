@@ -108,12 +108,12 @@ export default function LoginPage() {
       
       const q = query(
         collection(db, collectionName), 
-        where(idField, "==", idNumber)
+        where(idField, "==", idNumber.trim())
       )
       const snap = await getDocs(q)
       
       if (snap.empty) {
-        throw new Error("Invalid ID. No registry record found for this identifier.");
+        throw new Error(`Invalid ID. No record found for ${idNumber}.`);
       }
       
       const personData = snap.docs[0].data()
@@ -126,18 +126,20 @@ export default function LoginPage() {
 
       const accountEmail = personData.email
       if (!accountEmail) {
-        throw new Error("Registry record found, but no system email is associated. Contact Admin.");
+        throw new Error("Registry record found, but no system email is associated. Please contact your school administrator.");
       }
       
+      // Use Phone Number as Password
       try {
-        const credential = await signInWithEmailAndPassword(auth, accountEmail, phoneNumber)
+        const credential = await signInWithEmailAndPassword(auth, accountEmail, phoneNumber.trim())
         await redirectUser(credential.user)
       } catch (authErr: any) {
-        if (authErr.code === 'auth/invalid-credential' || authErr.code === 'auth/wrong-password') {
-          const credentialFallback = await signInWithEmailAndPassword(auth, accountEmail, personData.phone)
+        // Retry with raw stored phone if normalized fails
+        try {
+          const credentialFallback = await signInWithEmailAndPassword(auth, accountEmail, personData.phone.trim())
           await redirectUser(credentialFallback.user)
-        } else {
-          throw authErr;
+        } catch (finalErr: any) {
+          throw new Error("Access Denied: Your security credentials could not be verified. Ensure your phone number is identical to the one used during enrollment.");
         }
       }
       

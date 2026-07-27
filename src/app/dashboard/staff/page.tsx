@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
@@ -29,7 +30,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection, useUser } from "@/firebase"
-import { collection, addDoc, query, deleteDoc, doc, where, serverTimestamp, updateDoc } from "firebase/firestore"
+import { collection, addDoc, query, deleteDoc, doc, where, serverTimestamp, updateDoc, setDoc } from "firebase/firestore"
 import { useState, useMemo, useEffect } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -37,6 +38,9 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { initializeApp, getApp, getApps } from "firebase/app"
+import { getAuth, createUserWithEmailAndPassword } from "firebase/auth"
+import { firebaseConfig } from "@/firebase/config"
 
 export default function StaffHRPage() {
   const db = useFirestore()
@@ -124,26 +128,66 @@ export default function StaffHRPage() {
   const handleEnroll = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!db || !institutionId || loading) return
-    setLoading(true)
-    
-    const data = {
-      ...staffForm,
-      salary: parseFloat(staffForm.salary as string) || 0,
-      tenantId: institutionId,
-      institutionId: institutionId,
-      updatedAt: serverTimestamp()
+
+    if (!staffForm.email) {
+      toast({ variant: "destructive", title: "Email Required", description: "Staff must have an email for system authentication." });
+      return;
     }
 
+    setLoading(true)
     try {
+      // 1. Handle Auth Provisioning for new staff
+      let authUser;
+      if (!editingStaff) {
+        const secondaryAppName = `secondary-staff-${Date.now()}`
+        const secondaryApp = getApps().find(a => a.name === secondaryAppName) || initializeApp(firebaseConfig, secondaryAppName)
+        const secondaryAuth = getAuth(secondaryApp)
+        
+        try {
+          const credential = await createUserWithEmailAndPassword(secondaryAuth, staffForm.email, staffForm.phone)
+          authUser = credential.user
+        } catch (authErr: any) {
+          if (authErr.code === 'auth/email-already-in-use') {
+            console.warn("Staff Auth record exists.");
+          } else {
+            throw authErr;
+          }
+        }
+      }
+
+      // 2. Sync Firestore Registry
+      const data = {
+        ...staffForm,
+        salary: parseFloat(staffForm.salary as string) || 0,
+        tenantId: institutionId,
+        institutionId: institutionId,
+        updatedAt: serverTimestamp()
+      }
+
       if (editingStaff) {
-        const { id, ...sanitizedData } = data as any;
+        const { id, createdAt, ...sanitizedData } = data as any;
         await updateDoc(doc(db, "staff", editingStaff.id), sanitizedData);
         toast({ title: "HR Registry Synchronized", description: `${staffForm.firstName}'s professional profile updated.` });
       } else {
-        await addDoc(collection(db, "staff"), {
+        const staffRef = doc(collection(db, "staff"))
+        await setDoc(staffRef, {
           ...data,
+          id: staffRef.id,
           createdAt: serverTimestamp()
         });
+
+        if (authUser) {
+          await setDoc(doc(db, "users", authUser.uid), {
+            uid: authUser.uid,
+            name: `${staffForm.firstName} ${staffForm.lastName}`,
+            email: staffForm.email,
+            role: staffForm.designation.toLowerCase().includes('teacher') ? "teacher" : "administrator",
+            tenantId: institutionId,
+            institutionId: institutionId,
+            status: "active",
+            createdAt: serverTimestamp()
+          })
+        }
         toast({ title: "Staff Managed", description: `${staffForm.firstName} is now enrolled in the HR ecosystem.` });
       }
       setIsEnrollOpen(false);
@@ -445,7 +489,7 @@ export default function StaffHRPage() {
                       </Select>
                     </div>
                     <div className="space-y-2"><Label className="text-[10px] font-bold uppercase text-muted-foreground">Phone Number</Label><Input required value={staffForm.phone} onChange={e => setStaffForm({...staffForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
-                    <div className="space-y-2 md:col-span-2"><Label className="text-[10px] font-bold uppercase text-muted-foreground">Email Address</Label><Input type="email" required value={staffForm.email} onChange={e => setStaffForm({...staffForm, email: e.target.value})} className="h-12 rounded-xl" /></div>
+                    <div className="space-y-2 md:col-span-2"><Label className="text-[10px] font-bold uppercase text-muted-foreground">Email Address (System Login)</Label><Input type="email" required value={staffForm.email} onChange={e => setStaffForm({...staffForm, email: e.target.value})} className="h-12 rounded-xl" /></div>
                   </div>
                 </TabsContent>
 

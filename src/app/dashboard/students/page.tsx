@@ -27,7 +27,7 @@ import {
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection, useUser } from "@/firebase"
-import { collection, addDoc, query, deleteDoc, doc, where, serverTimestamp, updateDoc, writeBatch } from "firebase/firestore"
+import { collection, addDoc, query, deleteDoc, doc, where, serverTimestamp, updateDoc, writeBatch, setDoc } from "firebase/firestore"
 import { useState, useMemo, useEffect, useRef } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -39,6 +39,9 @@ import { Checkbox } from "@/components/ui/checkbox"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import Papa from "papaparse"
+import { initializeApp, getApp, getApps } from "firebase/app"
+import { getAuth, createUserWithEmailAndPassword } from "firebase/auth"
+import { firebaseConfig } from "@/firebase/config"
 
 export default function StudentsPage() {
   const db = useFirestore()
@@ -157,6 +160,12 @@ export default function StudentsPage() {
   const handleEnroll = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!db || !institutionId || loading) return
+
+    if (isNewParent && !newParentForm.email) {
+      toast({ variant: "destructive", title: "Guardian Email Required", description: "Parents must have an email for portal access." });
+      return;
+    }
+
     setLoading(true)
     
     try {
@@ -164,7 +173,24 @@ export default function StudentsPage() {
       let finalParentId = linkedParentId
       let studentId = editingStudent?.id
 
+      // 1. Handle New Parent Auth Provisioning
       if (isNewParent) {
+        const secondaryAppName = `secondary-enroll-${Date.now()}`
+        const secondaryApp = getApps().find(a => a.name === secondaryAppName) || initializeApp(firebaseConfig, secondaryAppName)
+        const secondaryAuth = getAuth(secondaryApp)
+        
+        let parentAuthUser;
+        try {
+          const credential = await createUserWithEmailAndPassword(secondaryAuth, newParentForm.email, newParentForm.phone)
+          parentAuthUser = credential.user
+        } catch (authErr: any) {
+          if (authErr.code === 'auth/email-already-in-use') {
+            console.warn("Parent Auth record exists.");
+          } else {
+            throw authErr;
+          }
+        }
+
         const parentRef = doc(collection(db, "parents"))
         finalParentId = parentRef.id
         batch.set(parentRef, {
@@ -175,6 +201,19 @@ export default function StudentsPage() {
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         })
+
+        if (parentAuthUser) {
+          batch.set(doc(db, "users", parentAuthUser.uid), {
+            uid: parentAuthUser.uid,
+            name: `${newParentForm.firstName} ${newParentForm.lastName}`,
+            email: newParentForm.email,
+            role: "parent",
+            tenantId: institutionId,
+            institutionId: institutionId,
+            status: "active",
+            createdAt: serverTimestamp()
+          })
+        }
       }
 
       const studentData = {
@@ -457,6 +496,7 @@ export default function StudentsPage() {
                         <div className="space-y-2"><Label>First Name</Label><Input value={newParentForm.firstName} onChange={e => setNewParentForm({...newParentForm, firstName: e.target.value})} className="h-11 bg-white" /></div>
                         <div className="space-y-2"><Label>Last Name</Label><Input value={newParentForm.lastName} onChange={e => setNewParentForm({...newParentForm, lastName: e.target.value})} className="h-11 bg-white" /></div>
                         <div className="space-y-2"><Label>Contact Phone</Label><Input value={newParentForm.phone} onChange={e => setNewParentForm({...newParentForm, phone: e.target.value})} className="h-11 bg-white" /></div>
+                        <div className="space-y-2 md:col-span-2"><Label>Guardian Email (Required for Portal)</Label><Input type="email" value={newParentForm.email} onChange={e => setNewParentForm({...newParentForm, email: e.target.value})} className="h-11 bg-white" /></div>
                      </div>
                    ) : (
                      <div className="space-y-4 animate-in fade-in duration-200">

@@ -25,10 +25,13 @@ import {
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection } from "@/firebase"
-import { collection, addDoc, serverTimestamp, query, where } from "firebase/firestore"
+import { collection, addDoc, serverTimestamp, query, where, setDoc, doc } from "firebase/firestore"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Link from "next/link"
+import { initializeApp, getApp, getApps } from "firebase/app"
+import { getAuth, createUserWithEmailAndPassword } from "firebase/auth"
+import { firebaseConfig } from "@/firebase/config"
 
 export default function AddParentPage() {
   const db = useFirestore()
@@ -73,7 +76,6 @@ export default function AddParentPage() {
   const parentsQuery = useMemo(() => institutionId ? query(collection(db, "parents"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   const { data: parents = [] } = useCollection(parentsQuery)
 
-  // Sequential Parent Number Generator
   useEffect(() => {
     if (institutionId && parents.length >= 0 && !parentForm.parentNumber) {
       const nextCount = parents.length + 1
@@ -86,42 +88,60 @@ export default function AddParentPage() {
     e.preventDefault()
     if (!db || !institutionId || loading) return
     
+    if (!parentForm.email) {
+      toast({ variant: "destructive", title: "Email Required", description: "Parents must have an email to access their portal." })
+      return
+    }
+
     setLoading(true)
     try {
+      // 1. Create Auth Account using Secondary App to prevent admin sign-out
+      const secondaryAppName = `secondary-${Date.now()}`
+      const secondaryApp = getApps().find(a => a.name === secondaryAppName) || initializeApp(firebaseConfig, secondaryAppName)
+      const secondaryAuth = getAuth(secondaryApp)
+      
+      let authUser;
+      try {
+        const credential = await createUserWithEmailAndPassword(secondaryAuth, parentForm.email, parentForm.phone)
+        authUser = credential.user
+      } catch (authErr: any) {
+        if (authErr.code === 'auth/email-already-in-use') {
+          console.warn("Auth user already exists. Proceeding with record creation.");
+        } else {
+          throw authErr;
+        }
+      }
+
+      // 2. Create Firestore Records
+      const parentRef = doc(collection(db, "parents"))
       const parentData = {
+        ...parentForm,
+        id: parentRef.id,
         tenantId: institutionId,
-        parentNumber: parentForm.parentNumber,
-        firstName: parentForm.firstName,
-        middleName: parentForm.middleName,
-        lastName: parentForm.lastName,
-        gender: parentForm.gender,
-        dob: parentForm.dob,
-        phone: parentForm.phone,
-        alternatePhone: parentForm.alternatePhone,
-        email: parentForm.email,
-        address: parentForm.address,
-        town: parentForm.town,
-        region: parentForm.region,
-        digitalAddress: parentForm.digitalAddress,
-        occupation: parentForm.occupation,
-        employer: parentForm.employer,
-        employerAddress: parentForm.employerAddress,
-        nationalId: parentForm.nationalId,
-        passportNumber: parentForm.passportNumber,
-        emergencyContact: parentForm.emergencyContact,
-        emergencyPhone: parentForm.emergencyPhone,
-        emergencyRelationship: parentForm.emergencyRelationship,
-        photoURL: parentForm.photoURL,
-        status: parentForm.status,
+        institutionId,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       }
 
-      await addDoc(collection(db, "parents"), parentData)
+      await setDoc(parentRef, parentData)
+
+      // 3. Create User Profile if auth was successful
+      if (authUser) {
+        await setDoc(doc(db, "users", authUser.uid), {
+          uid: authUser.uid,
+          name: `${parentForm.firstName} ${parentForm.lastName}`,
+          email: parentForm.email,
+          role: "parent",
+          tenantId: institutionId,
+          institutionId: institutionId,
+          status: "active",
+          createdAt: serverTimestamp()
+        })
+      }
       
       toast({ 
         title: "Parent Registry Authorized", 
-        description: `${parentForm.firstName} ${parentForm.lastName} has been successfully provisioned with ID ${parentForm.parentNumber}.` 
+        description: `${parentForm.firstName} ${parentForm.lastName} is now active and can login with ID ${parentForm.parentNumber}.` 
       })
       router.push("/dashboard/parents")
     } catch (e: any) { 
@@ -226,8 +246,8 @@ export default function AddParentPage() {
                      <Input type="tel" value={parentForm.alternatePhone} onChange={e => setParentForm({...parentForm, alternatePhone: e.target.value})} className="h-12 rounded-xl" />
                    </div>
                    <div className="space-y-1.5">
-                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Email Address</Label>
-                     <Input type="email" value={parentForm.email} onChange={e => setParentForm({...parentForm, email: e.target.value})} className="h-12 rounded-xl" placeholder="example@email.com" />
+                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Email Address (Registry Login)</Label>
+                     <Input type="email" required value={parentForm.email} onChange={e => setParentForm({...parentForm, email: e.target.value})} className="h-12 rounded-xl" placeholder="example@email.com" />
                    </div>
                    <div className="space-y-1.5">
                      <Label className="text-[10px] uppercase font-bold text-muted-foreground">Ghana Digital Address (GPS)</Label>
@@ -321,3 +341,4 @@ export default function AddParentPage() {
     </div>
   )
 }
+
