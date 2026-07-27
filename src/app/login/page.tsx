@@ -46,9 +46,12 @@ export default function LoginPage() {
 
       if (userData.role === "super_admin") router.replace("/admin")
       else if (userData.role === "parent") router.replace("/dashboard/parent")
-      else if (userData.role === "student") router.replace("/dashboard/parent") // Currently student portal routes to reports
+      else if (userData.role === "student") router.replace("/dashboard/parent")
       else router.replace("/dashboard")
-    } catch (e) { router.replace("/register/institution") }
+    } catch (e) { 
+      console.error("Redirect Error:", e)
+      router.replace("/register/institution") 
+    }
   }
 
   const handleEmailLogin = async (e: React.FormEvent) => {
@@ -70,9 +73,10 @@ export default function LoginPage() {
     }
 
     setLoading(true)
+    const normalizedStudentId = idNumber.trim().toUpperCase()
     try {
       // 1. Find Student
-      const studentQ = query(collection(db, "students"), where("admissionNumber", "==", idNumber.trim().toUpperCase()))
+      const studentQ = query(collection(db, "students"), where("admissionNumber", "==", normalizedStudentId))
       const studentSnap = await getDocs(studentQ)
       
       if (studentSnap.empty) throw new Error("Student ID not found in registry.");
@@ -104,8 +108,12 @@ export default function LoginPage() {
 
       // 4. Perform Auth Login
       const parentEmail = matchedParent.email || `${matchedParent.parentNumber.toLowerCase()}@system.yebfa.com`;
-      const credential = await signInWithEmailAndPassword(auth, parentEmail, inputPhone)
-      await redirectUser(credential.user)
+      try {
+        const credential = await signInWithEmailAndPassword(auth, parentEmail, inputPhone)
+        await redirectUser(credential.user)
+      } catch (authErr: any) {
+        throw new Error("Registry sync error: Could not authorize session. Please contact school admin.");
+      }
 
     } catch (error: any) {
       toast({ variant: "destructive", title: "Access Denied", description: error.message })
@@ -119,19 +127,20 @@ export default function LoginPage() {
     }
 
     setLoading(true)
+    const normalizedId = idNumber.trim().toUpperCase()
     try {
-      const studentQ = query(collection(db, "students"), where("admissionNumber", "==", idNumber.trim().toUpperCase()))
+      // 1. Verify Student ID in Registry
+      const studentQ = query(collection(db, "students"), where("admissionNumber", "==", normalizedId))
       const studentSnap = await getDocs(studentQ)
       
-      if (studentSnap.empty) throw new Error("Student ID not recognized.");
-      const studentData = studentSnap.docs[0].data();
-
-      // Student Auth uses ID-based email and PIN as password
-      const studentEmail = `${idNumber.toLowerCase()}@system.yebfa.com`;
+      if (studentSnap.empty) throw new Error("Student ID not recognized in current registry.");
+      
+      // 2. Student Auth uses lowercase ID-based email and PIN as password
+      const studentEmail = `${normalizedId.toLowerCase()}@system.yebfa.com`;
       try {
         const credential = await signInWithEmailAndPassword(auth, studentEmail, securityCredential)
         await redirectUser(credential.user)
-      } catch (authErr) {
+      } catch (authErr: any) {
         throw new Error("Invalid Student PIN. Contact administration if forgotten.");
       }
     } catch (error: any) {
@@ -146,21 +155,22 @@ export default function LoginPage() {
     }
     
     setLoading(true)
+    const normalizedId = idNumber.trim().toUpperCase()
     try {
-      const q = query(collection(db, "staff"), where("staffNumber", "==", idNumber.trim().toUpperCase()))
+      const q = query(collection(db, "staff"), where("staffNumber", "==", normalizedId))
       const snap = await getDocs(q)
       
-      if (snap.empty) throw new Error("Staff ID not found.");
+      if (snap.empty) throw new Error("Staff ID not found in registry.");
       
       const personData = snap.docs[0].data()
-      const accountEmail = personData.email || `${idNumber.toLowerCase()}@system.yebfa.com`
+      const accountEmail = personData.email || `${normalizedId.toLowerCase()}@system.yebfa.com`
       const cleanCredential = normalizeSecurityPhone(securityCredential)
 
       try {
         const credential = await signInWithEmailAndPassword(auth, accountEmail, cleanCredential)
         await redirectUser(credential.user)
       } catch (authErr) {
-        throw new Error("Invalid credentials: Verification failed.");
+        throw new Error("Invalid credentials: Authentication failed.");
       }
     } catch (error: any) {
       toast({ variant: "destructive", title: "Access Denied", description: error.message })
