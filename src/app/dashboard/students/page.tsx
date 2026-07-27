@@ -38,8 +38,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Checkbox } from "@/components/ui/checkbox"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import Papa from "papaparse"
-import { initializeApp, getApp, getApps } from "firebase/app"
+import { initializeApp, getApps } from "firebase/app"
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth"
 import { firebaseConfig } from "@/firebase/config"
 import { generateInstitutionId, normalizeSecurityPhone } from "@/lib/identity-service"
@@ -50,9 +49,6 @@ export default function StudentsPage() {
   const { user } = useUser()
   const [loading, setLoading] = useState(false)
   const [isEnrollOpen, setIsEnrollOpen] = useState(false)
-  const [isBulkOpen, setIsBulkOpen] = useState(false)
-  const [isProfileOpen, setIsProfileOpen] = useState(false)
-  const [selectedStudent, setSelectedStudent] = useState<any>(null)
   const [editingStudent, setEditingStudent] = useState<any>(null)
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
@@ -60,14 +56,12 @@ export default function StudentsPage() {
   const [activeStep, setActiveStep] = useState("identity")
   const steps = ["identity", "academic", "guardian", "finalize"]
 
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
   const initialForm = {
     firstName: "",
     lastName: "",
     gender: "Male",
     dateOfBirth: "",
-    admissionNumber: "GENERATING...",
+    admissionNumber: "PENDING COMMIT",
     gradeLevel: "",
     status: "active",
     house: "",
@@ -78,8 +72,7 @@ export default function StudentsPage() {
       district: "",
       region: "",
       country: "Ghana"
-    },
-    admissionId: ""
+    }
   }
 
   const [studentForm, setStudentForm] = useState(initialForm)
@@ -94,7 +87,7 @@ export default function StudentsPage() {
   })
 
   const [newParentForm, setNewParentForm] = useState({
-    parentNumber: "GENERATING...",
+    parentNumber: "PENDING COMMIT",
     firstName: "",
     lastName: "",
     gender: "Female",
@@ -118,8 +111,7 @@ export default function StudentsPage() {
           lastName: app.lastName || "",
           gender: app.gender || "Male",
           dateOfBirth: app.dateOfBirth || "",
-          gradeLevel: app.gradeLevel || "",
-          admissionId: app.id
+          gradeLevel: app.gradeLevel || ""
         }))
         setIsEnrollOpen(true)
         localStorage.removeItem('pending_admission_data')
@@ -150,13 +142,8 @@ export default function StudentsPage() {
   const handleEnroll = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!db || !institutionId || loading || !institution?.schoolCode) {
-      toast({ variant: "destructive", title: "Configuration Error", description: "Institution profile missing school code." })
+      toast({ variant: "destructive", title: "Configuration Error", description: "Institution school code is missing." })
       return
-    }
-
-    if (isNewParent && !newParentForm.email) {
-      toast({ variant: "destructive", title: "Guardian Email Required", description: "Parents must have an email for portal access." });
-      return;
     }
 
     setLoading(true)
@@ -178,7 +165,7 @@ export default function StudentsPage() {
         const cleanPass = normalizeSecurityPhone(newParentForm.phone);
         
         const secondaryAppName = `secondary-parent-wizard-${Date.now()}`
-        const secondaryApp = getApps().find(a => a.name === secondaryAppName) || initializeApp(firebaseConfig, secondaryAppName)
+        const secondaryApp = initializeApp(firebaseConfig, secondaryAppName)
         const secondaryAuth = getAuth(secondaryApp)
         
         let parentAuthUser;
@@ -235,23 +222,6 @@ export default function StudentsPage() {
           id: studentId,
           createdAt: serverTimestamp()
         });
-
-        // Initialize empty ledger
-        const ledgerRef = doc(collection(db, "student_ledger"))
-        batch.set(ledgerRef, {
-          tenantId: institutionId,
-          institutionId,
-          studentId,
-          date: new Date().toISOString().split('T')[0],
-          item: "Account Provisioning",
-          type: "charge",
-          amount: 0,
-          createdAt: serverTimestamp()
-        })
-
-        if (studentForm.admissionId) {
-          batch.update(doc(db, "admissions", studentForm.admissionId), { status: "Enrolled", updatedAt: serverTimestamp() })
-        }
       }
 
       if (finalParentId) {
@@ -297,12 +267,9 @@ export default function StudentsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Student Registry</h1>
-          <p className="text-muted-foreground">Managing {studentsList.length} institutional enrollment records.</p>
+          <p className="text-muted-foreground">Strategic institutional enrollment and transactional ID management.</p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <Button variant="outline" className="h-11 rounded-xl gap-2" onClick={() => setIsBulkOpen(true)}>
-            <FileSpreadsheet className="size-4" /> Bulk Enrollment
-          </Button>
           <Button variant="outline" className="h-11 rounded-xl" asChild><Link href="/dashboard/students/id-cards"><IdCard className="size-4 mr-2" /> ID Cards</Link></Button>
           <Button className="bg-primary rounded-xl h-11 shadow-lg gap-2" onClick={() => { setEditingStudent(null); setStudentForm(initialForm); setIsEnrollOpen(true); setActiveStep("identity"); }}>
             <UserPlus className="size-4" /> Enroll Student
@@ -333,7 +300,7 @@ export default function StudentsPage() {
                 const mainRel = allRels.find(r => r.studentId === stu.id && r.primaryContact);
                 const parent = parents.find(p => p.id === mainRel?.parentId);
                 return (
-                  <TableRow key={stu.id} className="hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => { setSelectedStudent(stu); setIsProfileOpen(true); }}>
+                  <TableRow key={stu.id} className="hover:bg-slate-50 transition-colors group">
                     <TableCell className="px-6">
                       <div className="flex items-center gap-3">
                         <div className="size-10 rounded-xl bg-primary/5 flex items-center justify-center overflow-hidden border">
@@ -353,9 +320,11 @@ export default function StudentsPage() {
                       </div>
                     </TableCell>
                     <TableCell><Badge variant="outline" className="text-[9px] uppercase font-bold text-green-600 bg-green-50">{stu.status}</Badge></TableCell>
-                    <TableCell className="text-right px-6" onClick={e => e.stopPropagation()}>
-                       <Button variant="ghost" size="icon" onClick={() => openEdit(stu)}><Pencil className="size-4" /></Button>
-                       <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteDoc(doc(db!, "students", stu.id))}><Trash2 className="size-4" /></Button>
+                    <TableCell className="text-right px-6">
+                       <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => openEdit(stu)}><Pencil className="size-4" /></Button>
+                          <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteDoc(doc(db!, "students", stu.id))}><Trash2 className="size-4" /></Button>
+                       </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -377,7 +346,14 @@ export default function StudentsPage() {
               <ScrollArea className="flex-1 p-8">
                 <TabsContent value="identity" className="space-y-6 mt-0">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2"><Label>Admission # (Sequential)</Label><Input readOnly value={editingStudent ? studentForm.admissionNumber : "AUTO-ASSIGNED ON SAVE"} className="h-11 rounded-xl bg-slate-50 font-bold" /></div>
+                    <div className="space-y-2">
+                       <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Admission # (Transactional)</Label>
+                       <div className="h-11 px-4 rounded-xl bg-slate-50 flex items-center border border-dashed border-slate-200">
+                          <Badge variant="secondary" className="font-mono text-xs font-bold uppercase bg-slate-200 text-slate-600 border-none">
+                             {studentForm.admissionNumber}
+                          </Badge>
+                       </div>
+                    </div>
                     <div className="space-y-2"><Label>First Name</Label><Input required value={studentForm.firstName} onChange={e => setStudentForm({...studentForm, firstName: e.target.value})} className="h-11 rounded-xl" /></div>
                     <div className="space-y-2"><Label>Last Name</Label><Input required value={studentForm.lastName} onChange={e => setStudentForm({...studentForm, lastName: e.target.value})} className="h-11 rounded-xl" /></div>
                     <div className="space-y-2"><Label>Gender</Label>
@@ -411,7 +387,14 @@ export default function StudentsPage() {
                    
                    {isNewParent ? (
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6 bg-slate-50 rounded-2xl border-2 border-dashed animate-in fade-in zoom-in-95 duration-200">
-                        <div className="space-y-2"><Label>Master Code</Label><Input readOnly value="AUTO-ASSIGNED" className="h-11 bg-white font-bold font-mono" /></div>
+                        <div className="space-y-2">
+                           <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Parent # (Transactional)</Label>
+                           <div className="h-11 px-4 rounded-xl bg-white flex items-center border border-dashed border-slate-200">
+                              <Badge variant="secondary" className="font-mono text-xs font-bold uppercase bg-slate-200 text-slate-600 border-none">
+                                 {newParentForm.parentNumber}
+                              </Badge>
+                           </div>
+                        </div>
                         <div className="space-y-2"><Label>First Name</Label><Input value={newParentForm.firstName} onChange={e => setNewParentForm({...newParentForm, firstName: e.target.value})} className="h-11 bg-white" /></div>
                         <div className="space-y-2"><Label>Last Name</Label><Input value={newParentForm.lastName} onChange={e => setNewParentForm({...newParentForm, lastName: e.target.value})} className="h-11 bg-white" /></div>
                         <div className="space-y-2"><Label>Contact Phone</Label><Input value={newParentForm.phone} onChange={e => setNewParentForm({...newParentForm, phone: e.target.value})} className="h-11 bg-white" /></div>
@@ -456,7 +439,7 @@ export default function StudentsPage() {
                 <TabsContent value="finalize" className="space-y-8 mt-0 text-center py-10">
                    <div className="size-20 bg-green-50 rounded-full flex items-center justify-center mx-auto text-green-600 mb-4"><CheckCircle2 className="size-12" /></div>
                    <h3 className="text-xl font-bold font-headline">Institutional Enrollment Authorized</h3>
-                   <p className="text-sm text-muted-foreground max-w-sm mx-auto">Transactional IDs will be assigned upon confirmation to maintain sequence integrity.</p>
+                   <p className="text-sm text-muted-foreground max-w-sm mx-auto">Unique sequential IDs will be generated at the exact point of commit to ensure registry integrity.</p>
                 </TabsContent>
               </ScrollArea>
             </Tabs>

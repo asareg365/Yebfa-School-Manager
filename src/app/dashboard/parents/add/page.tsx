@@ -18,7 +18,8 @@ import {
   IdCard,
   AlertCircle,
   Camera,
-  Save
+  Save,
+  ShieldCheck
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useDoc } from "@/firebase"
@@ -30,13 +31,13 @@ import { initializeApp, getApps } from "firebase/app"
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth"
 import { firebaseConfig } from "@/firebase/config"
 import { generateInstitutionId, normalizeSecurityPhone } from "@/lib/identity-service"
+import { Badge } from "@/components/ui/badge"
 
 export default function AddParentPage() {
   const db = useFirestore()
   const router = useRouter()
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState("personal")
 
   useEffect(() => {
     setInstitutionId(localStorage.getItem('selected_institution_id'))
@@ -46,7 +47,7 @@ export default function AddParentPage() {
   const { data: institution } = useDoc(instRef)
 
   const [parentForm, setParentForm] = useState({
-    parentNumber: "AUTO-ASSIGNED",
+    parentNumber: "PENDING AUTHORIZATION",
     firstName: "",
     lastName: "",
     gender: "Female",
@@ -59,10 +60,14 @@ export default function AddParentPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!db || !institutionId || loading || !institution?.schoolCode) return
+    if (!db || !institutionId || loading || !institution?.schoolCode) {
+      toast({ variant: "destructive", title: "Setup Error", description: "Institution school code is required for identity generation." });
+      return
+    }
     
     setLoading(true)
     try {
+      // 1. Transactional Sequential ID Generation
       const finalParentNumber = await generateInstitutionId('PAR', institutionId, institution.schoolCode);
       const cleanPass = normalizeSecurityPhone(parentForm.phone)
       
@@ -103,7 +108,7 @@ export default function AddParentPage() {
         })
       }
       
-      toast({ title: "Guardian Registered", description: `Assigned ID: ${finalParentNumber}` })
+      toast({ title: "Guardian Registered", description: `Transactional ID: ${finalParentNumber} assigned.` })
       router.push("/dashboard/parents")
     } catch (e: any) { 
       toast({ variant: "destructive", title: "Registration Error", description: e.message }) 
@@ -118,18 +123,29 @@ export default function AddParentPage() {
         <Button variant="ghost" size="icon" asChild className="rounded-xl h-11 w-11"><Link href="/dashboard/parents"><ArrowLeft className="size-5" /></Link></Button>
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Guardian Enrollment</h1>
-          <p className="text-muted-foreground font-medium">Transactional IDs ensure unique institutional records.</p>
+          <p className="text-muted-foreground font-medium">Transactional IDs ensure unique institutional records for 2026.</p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit}>
         <Card className="max-w-5xl mx-auto border-none shadow-2xl overflow-hidden rounded-3xl bg-white">
           <CardHeader className="bg-primary text-primary-foreground p-8">
+            <div className="flex items-center gap-2 mb-2">
+              <ShieldCheck className="size-4 text-accent" />
+              <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Identity Handshake Active</span>
+            </div>
             <CardTitle className="text-3xl font-headline font-bold">New Parent Entry</CardTitle>
           </CardHeader>
           <CardContent className="p-8 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-               <div className="space-y-1.5"><Label>Parent ID (Transactional)</Label><Input readOnly value={parentForm.parentNumber} className="h-12 bg-slate-50 font-bold font-mono" /></div>
+               <div className="space-y-1.5">
+                 <Label className="text-[10px] uppercase font-bold text-muted-foreground">Parent ID (Transactional)</Label>
+                 <div className="h-12 px-4 rounded-xl bg-slate-50 flex items-center border border-dashed border-slate-200">
+                    <Badge variant="secondary" className="font-mono text-xs font-bold uppercase bg-slate-200 text-slate-600 border-none">
+                       {parentForm.parentNumber}
+                    </Badge>
+                 </div>
+               </div>
                <div className="space-y-1.5"><Label>First Name</Label><Input required value={parentForm.firstName} onChange={e => setParentForm({...parentForm, firstName: e.target.value})} className="h-12 rounded-xl" /></div>
                <div className="space-y-1.5"><Label>Last Name</Label><Input required value={parentForm.lastName} onChange={e => setParentForm({...parentForm, lastName: e.target.value})} className="h-12 rounded-xl" /></div>
                <div className="space-y-1.5"><Label>Phone Number</Label><Input required value={parentForm.phone} onChange={e => setParentForm({...parentForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
@@ -137,7 +153,7 @@ export default function AddParentPage() {
             </div>
           </CardContent>
           <CardFooter className="bg-slate-50 p-8 border-t">
-            <Button type="submit" disabled={loading} className="w-full h-14 bg-primary font-bold shadow-xl text-lg">
+            <Button type="submit" disabled={loading} className="w-full h-14 bg-primary font-bold shadow-xl text-lg gap-2">
               {loading ? <Loader2 className="mr-2 animate-spin" /> : <Save className="mr-2" />} Authorize Registration
             </Button>
           </CardFooter>

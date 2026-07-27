@@ -54,11 +54,12 @@ export default function InstitutionRegistrationPage() {
   }, [user])
 
   const generateSchoolCode = (name: string) => {
-    const words = name.trim().split(/\s+/);
-    if (words.length >= 3) {
-      return (words[0][0] + words[1][0] + words[2][0]).toUpperCase();
+    // Generate clean 3-letter alphanumeric code from name
+    const cleanName = name.replace(/[^a-zA-Z]/g, '');
+    if (cleanName.length >= 3) {
+      return cleanName.substring(0, 3).toUpperCase();
     }
-    return name.trim().substring(0, 3).toUpperCase();
+    return cleanName.toUpperCase();
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -136,22 +137,6 @@ export default function InstitutionRegistrationPage() {
           createdAt: serverTimestamp()
         }
       )
-
-      batch.set(doc(db, "settings", tenantId), {
-        tenantId,
-        institutionId: tenantId,
-        schoolName: formData.name,
-        schoolCode: schoolCode,
-        academicYear: "2026/2027",
-        currentTerm: "Term 1",
-        createdAt: serverTimestamp()
-      })
-
-      batch.set(doc(db, "departments", tenantId), {
-        tenantId,
-        departments: ["Administration", "Academics", "Accounts"],
-        createdAt: serverTimestamp()
-      })
 
       await batch.commit()
 

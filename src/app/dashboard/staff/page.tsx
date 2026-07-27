@@ -41,7 +41,7 @@ export default function StaffHRPage() {
   const [searchQuery, setSearchQuery] = useState("")
 
   const initialForm = {
-    staffNumber: "AUTO-ASSIGNED",
+    staffNumber: "PENDING AUTHORIZATION",
     firstName: "",
     lastName: "",
     gender: "Male",
@@ -131,7 +131,7 @@ export default function StaffHRPage() {
       }
 
       await batch.commit()
-      toast({ title: editingStaff ? "Registry Updated" : `Enrolled: ${finalStaffNumber}` })
+      toast({ title: editingStaff ? "Registry Updated" : `Enrolled with Transactional ID: ${finalStaffNumber}` })
       setIsEnrollOpen(false); setEditingStaff(null); setStaffForm(initialForm);
     } catch (error: any) {
       toast({ variant: "destructive", title: "Action Failed", description: error.message });
@@ -151,7 +151,7 @@ export default function StaffHRPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">HR Management Hub</h1>
-          <p className="text-muted-foreground">Strategic oversight of faculty registry and transactional IDs.</p>
+          <p className="text-muted-foreground font-medium">Strategic oversight of faculty registry and transactional IDs.</p>
         </div>
         <Button className="gap-2 bg-primary rounded-xl h-12 shadow-lg px-6 font-bold" onClick={() => { setEditingStaff(null); setStaffForm(initialForm); setIsEnrollOpen(true); }}>
           <UserPlus className="size-5" /> Enroll Faculty
@@ -211,12 +211,19 @@ export default function StaffHRPage() {
           <form onSubmit={handleEnroll} className="flex flex-col h-full overflow-hidden">
             <DialogHeader className="bg-primary text-primary-foreground p-8 shrink-0">
               <DialogTitle className="text-2xl font-headline font-bold">{editingStaff ? "Update Registry" : "Faculty HR Enrollment"}</DialogTitle>
-              <DialogDescription className="text-primary-foreground/70">Unique IDs are transactional and immutable.</DialogDescription>
+              <DialogDescription className="text-primary-foreground/70">Transactional IDs are immutable and unique per school.</DialogDescription>
             </DialogHeader>
 
             <ScrollArea className="flex-1 p-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2"><Label>Staff Number (Transactional)</Label><Input readOnly value={staffForm.staffNumber} className="h-12 rounded-xl bg-slate-50 font-bold font-mono" /></div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Staff Number (Transactional)</Label>
+                  <div className="h-12 px-4 rounded-xl bg-slate-50 flex items-center border border-dashed border-slate-200">
+                    <Badge variant="secondary" className="font-mono text-xs font-bold uppercase bg-slate-200 text-slate-600 border-none">
+                      {staffForm.staffNumber}
+                    </Badge>
+                  </div>
+                </div>
                 <div className="space-y-2"><Label>First Name</Label><Input required value={staffForm.firstName} onChange={e => setStaffForm({...staffForm, firstName: e.target.value})} className="h-12 rounded-xl" /></div>
                 <div className="space-y-2"><Label>Last Name</Label><Input required value={staffForm.lastName} onChange={e => setStaffForm({...staffForm, lastName: e.target.value})} className="h-12 rounded-xl" /></div>
                 <div className="space-y-2"><Label>Phone Number</Label><Input required value={staffForm.phone} onChange={e => setStaffForm({...staffForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>

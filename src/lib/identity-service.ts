@@ -38,7 +38,8 @@ export async function generateInstitutionId(
     }, { merge: true });
 
     const sequenceStr = String(nextSeq).padStart(4, '0');
-    return `${schoolCode.toUpperCase()}-${type}-${year}-${sequenceStr}`;
+    const cleanCode = schoolCode ? schoolCode.replace(/\s+/g, '').toUpperCase() : 'SCH';
+    return `${cleanCode}-${type}-${year}-${sequenceStr}`;
   });
 }
 
