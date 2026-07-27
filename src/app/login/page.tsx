@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { School, Loader2, KeyRound, Smartphone, ShieldCheck, Briefcase, Users, GraduationCap, ArrowRight, AlertCircle, Key } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { signInWithEmailAndPassword } from "firebase/auth"
+import { signInWithEmailAndPassword, signOut } from "firebase/auth"
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore"
 import { auth, db, useUser } from "@/firebase"
 import { firebaseConfig } from "@/firebase/config"
@@ -54,6 +54,21 @@ export default function LoginPage() {
       if (!userSnap.exists()) { router.push("/register/institution"); return; }
 
       const userData = userSnap.data()
+      
+      // CRITICAL: Institutional Existence Check
+      if (userData.role !== 'super_admin' && userData.tenantId) {
+        const instSnap = await getDoc(doc(db, "institutions", userData.tenantId))
+        if (!instSnap.exists()) {
+          await signOut(auth)
+          toast({ 
+            variant: "destructive", 
+            title: "Access Revoked", 
+            description: "This institution is no longer active in our registry. Please contact support." 
+          })
+          return
+        }
+      }
+
       if (userData.tenantId) {
         localStorage.setItem('selected_institution_id', userData.tenantId)
         localStorage.setItem('selected_institution_name', userData.institutionName || 'Registry Hub')
@@ -154,7 +169,7 @@ export default function LoginPage() {
         await redirectUser(credential.user)
       } catch (authErr: any) {
         if (authErr.code === 'auth/invalid-credential' || authErr.code === 'auth/user-not-found') {
-           throw new Error("Security account not provisioned. Contact administrator to 'Sync Access' in the registry.");
+           throw new Error("Security account not provisioned. Contact administrator to authorize your registry access.");
         }
         throw authErr;
       }
@@ -247,9 +262,9 @@ export default function LoginPage() {
                 <Button className="w-full h-14 font-bold rounded-2xl bg-primary shadow-xl shadow-primary/20" onClick={handleParentLogin} disabled={parentLoading}>
                   {parentLoading ? <Loader2 className="animate-spin mr-2" /> : "Authorize Guardian Portal"}
                 </Button>
-                <div className="p-4 rounded-xl bg-blue-50 border border-blue-100 flex gap-3">
-                   <Users className="size-4 text-blue-600 shrink-0 mt-0.5" />
-                   <p className="text-[10px] text-blue-700 leading-relaxed font-medium italic">Access all your children by entering any one of their Student IDs.</p>
+                <div className="p-4 rounded-xl bg-blue-50 text-blue-700 border border-blue-100 flex gap-3">
+                   <Users className="size-4 shrink-0 mt-0.5" />
+                   <p className="text-[10px] leading-relaxed font-medium italic">Access all your children by entering any one of their Student IDs.</p>
                 </div>
               </div>
             </TabsContent>

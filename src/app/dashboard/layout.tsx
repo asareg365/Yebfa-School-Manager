@@ -52,7 +52,7 @@ export default function DashboardLayout({
   }, [profile]);
 
   const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId]);
-  const { data: institution } = useDoc(instRef);
+  const { data: institution, loading: instLoading } = useDoc(instRef);
 
   const notificationsQuery = useMemo(() => {
     if (!db || !institutionId || profileLoading || !profile) return null;
@@ -136,7 +136,7 @@ export default function DashboardLayout({
     }
   };
 
-  if (authLoading || profileLoading) {
+  if (authLoading || profileLoading || (institutionId && instLoading)) {
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center bg-background gap-4">
         <Activity className="h-10 w-10 animate-spin text-primary" />
@@ -146,6 +146,22 @@ export default function DashboardLayout({
   }
 
   if (!user || !profile) return null;
+
+  // CRITICAL: Prevent dashboard access if institution doc is missing (deleted)
+  if (profile.role !== 'super_admin' && !institution && !instLoading) {
+    return (
+      <div className="flex h-screen w-full flex-col items-center justify-center bg-muted/30 p-12 text-center space-y-6">
+        <div className="size-20 bg-muted rounded-full flex items-center justify-center mx-auto">
+          <AlertCircle className="size-10 text-destructive/40" />
+        </div>
+        <div className="max-w-md mx-auto space-y-2">
+          <h2 className="text-2xl font-bold font-headline text-primary">System Hub Offline</h2>
+          <p className="text-muted-foreground leading-relaxed">Your institution's registry node has been deactivated or archived. Access to academic and financial data is restricted.</p>
+        </div>
+        <Button onClick={handleLogout} className="h-12 px-8 rounded-xl font-bold shadow-lg">Return to Gateway</Button>
+      </div>
+    );
+  }
 
   const isTrial = institution?.subscriptionPlan?.toLowerCase().includes('trial');
   const userDisplayName = profile?.name || user?.displayName || user?.email || "Registry User";
