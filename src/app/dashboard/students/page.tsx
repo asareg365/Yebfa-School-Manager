@@ -28,7 +28,8 @@ import {
   AlertCircle,
   KeyRound,
   X,
-  LockKeyhole
+  LockKeyhole,
+  Key
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection, useUser, useDoc } from "@/firebase"
@@ -71,7 +72,7 @@ export default function StudentsPage() {
     gender: "Male",
     dateOfBirth: "",
     admissionNumber: "PENDING COMMIT",
-    studentPin: "----",
+    studentPin: "", // Changed from "----" to empty to avoid sync confusion
     gradeLevel: "",
     status: "active",
     house: "",
@@ -160,7 +161,7 @@ export default function StudentsPage() {
 
   const handleSyncCredentials = async () => {
     if (!db || !institutionId || rawStudents.length === 0) return;
-    if (!confirm("This tool will generate Portal PINs for any students missing them and synchronize their identity handshake. This allows legacy students to log in using 'Student ID + PIN'. Proceed?")) return;
+    if (!confirm("This tool will generate Portal PINs for students missing them. This allows students to log in using 'Student ID + PIN'. Proceed?")) return;
 
     setSyncing(true);
     try {
@@ -168,7 +169,8 @@ export default function StudentsPage() {
       let syncCount = 0;
 
       for (const stu of rawStudents) {
-        if (!stu.studentPin) {
+        // Update if pin is missing, is placeholder "----", or empty string
+        if (!stu.studentPin || stu.studentPin === "----" || stu.studentPin === "") {
           const newPin = generateStudentPin();
           batch.update(doc(db, "students", stu.id), {
             studentPin: newPin,
@@ -309,7 +311,7 @@ export default function StudentsPage() {
       }
 
       await batch.commit()
-      toast({ title: editingStudent ? "Registry Synchronized" : `Enrolled with PIN: ${finalPin}`, description: `ID: ${finalAdmissionNumber}` })
+      toast({ title: editingStudent ? "Registry Synchronized" : "Enrollment Successful", description: `ID: ${finalAdmissionNumber} • PIN: ${finalPin}` })
       setIsEnrollOpen(false); setEditingStudent(null); setStudentForm(initialForm); setActiveStep("identity")
     } catch (error: any) {
       toast({ variant: "destructive", title: "Enrollment Failed", description: error.message });
@@ -415,7 +417,7 @@ export default function StudentsPage() {
               <Badge className="bg-primary/5 text-primary border-none text-[10px] font-bold uppercase tracking-widest px-4 h-10 flex items-center">
                 {rawStudents.length} Students Total
               </Badge>
-              <div className="flex items-center gap-1 p-2 bg-blue-50 text-blue-700 rounded-xl border border-blue-100">
+              <div className="flex items-center gap-1.5 p-2 bg-blue-50 text-blue-700 rounded-xl border border-blue-100 shadow-sm px-3">
                 <LockKeyhole className="size-3.5" />
                 <span className="text-[10px] font-bold uppercase">PIN Protection Active</span>
               </div>
@@ -426,8 +428,9 @@ export default function StudentsPage() {
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow>
-                <TableHead className="py-4 font-bold px-6">ID / PIN / STUDENT</TableHead>
+                <TableHead className="py-4 font-bold px-6">STUDENT / REGISTRY ID</TableHead>
                 <TableHead className="py-4 font-bold">GRADE</TableHead>
+                <TableHead className="py-4 font-bold">PORTAL PIN</TableHead>
                 <TableHead className="py-4 font-bold">GUARDIAN LINK</TableHead>
                 <TableHead className="py-4 font-bold">STATUS</TableHead>
                 <TableHead className="text-right py-4 font-bold px-6">ACTIONS</TableHead>
@@ -445,17 +448,18 @@ export default function StudentsPage() {
                           {stu.photoUrl ? <img src={stu.photoUrl} className="w-full h-full object-cover" /> : <User className="size-5 text-primary/20" />}
                         </div>
                         <div className="flex flex-col">
-                          <div className="flex items-center gap-2">
-                             <span className="text-[10px] font-mono font-bold text-accent">{stu.admissionNumber}</span>
-                             <Badge className="h-5 px-2 text-[10px] font-mono bg-primary text-white border-none shadow-sm">
-                               PIN: {stu.studentPin || '----'}
-                             </Badge>
-                          </div>
                           <span className="font-bold text-primary">{stu.firstName} {stu.lastName}</span>
+                          <span className="text-[10px] font-mono font-bold text-accent">{stu.admissionNumber}</span>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell><span className="text-sm font-bold text-slate-700">{stu.gradeLevel}</span></TableCell>
+                    <TableCell>
+                      <Badge className="h-7 px-3 text-xs font-mono bg-primary text-white border-none shadow-sm gap-2 font-bold">
+                        <Key className="size-3 text-accent" />
+                        {stu.studentPin || '----'}
+                      </Badge>
+                    </TableCell>
                     <TableCell>
                       <div className="flex flex-col text-xs">
                         <span className="font-bold">{parent ? `${parent.firstName} ${parent.lastName}` : "No Primary"}</span>
@@ -475,7 +479,7 @@ export default function StudentsPage() {
                 );
               })}
               {studentsList.length === 0 && (
-                <TableRow><TableCell colSpan={5} className="text-center py-32 text-muted-foreground italic">No student roster detected in your institutional registry.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center py-32 text-muted-foreground italic">No student roster detected in your institutional registry.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
@@ -506,7 +510,7 @@ export default function StudentsPage() {
                        <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Portal Access PIN</Label>
                        <div className="h-11 px-4 rounded-xl bg-slate-50 flex items-center border border-dashed border-slate-200">
                           <Badge className="font-mono text-xs font-bold uppercase bg-primary text-white border-none shadow-sm px-3">
-                             {studentForm.studentPin}
+                             {studentForm.studentPin || '----'}
                           </Badge>
                        </div>
                     </div>
