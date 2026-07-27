@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -22,8 +23,8 @@ import {
   GraduationCap
 } from "lucide-react"
 import { generateLessonPlan, GenerateLessonPackOutput } from "@/ai/flows/generate-lesson-plan"
-import { useFirestore, useCollection } from "@/firebase"
-import { collection, query, where } from "firebase/firestore"
+import { useFirestore, useCollection, useUser, useDoc } from "@/firebase"
+import { collection, query, where, doc } from "firebase/firestore"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
@@ -32,6 +33,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 
 export default function AiTeacherAssistantPage() {
   const db = useFirestore()
+  const { user } = useUser()
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<GenerateLessonPackOutput | null>(null)
@@ -49,11 +51,30 @@ export default function AiTeacherAssistantPage() {
     setInstitutionId(localStorage.getItem('selected_institution_id'))
   }, [])
 
+  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
+  const { data: profile } = useDoc(userProfileRef)
+  const isTeacher = profile?.role === 'teacher'
+  const staffId = profile?.staffId
+
+  // Teacher Assignments Filter
+  const assignmentsQuery = useMemo(() => 
+    institutionId && isTeacher && staffId 
+      ? query(collection(db, "teacher_assignments"), where("tenantId", "==", institutionId), where("teacherId", "==", staffId)) 
+      : null, 
+    [db, institutionId, isTeacher, staffId]
+  )
+  const { data: assignments = [] } = useCollection(assignmentsQuery)
+  const assignedClassIds = useMemo(() => new Set(assignments.map((a: any) => a.classId)), [assignments])
+  const assignedSubjectIds = useMemo(() => new Set(assignments.map((a: any) => a.subjectId)), [assignments])
+
   const classesQuery = useMemo(() => institutionId ? query(collection(db, "classes"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   const subjectsQuery = useMemo(() => institutionId ? query(collection(db, "subjects"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
 
-  const { data: classes = [] } = useCollection(classesQuery)
-  const { data: subjects = [] } = useCollection(subjectsQuery)
+  const { data: allClasses = [] } = useCollection(classesQuery)
+  const { data: allSubjects = [] } = useCollection(subjectsQuery)
+
+  const classes = useMemo(() => isTeacher ? allClasses.filter(c => assignedClassIds.has(c.id)) : allClasses, [allClasses, isTeacher, assignedClassIds])
+  const subjects = useMemo(() => isTeacher ? allSubjects.filter(s => assignedSubjectIds.has(s.id)) : allSubjects, [allSubjects, isTeacher, assignedSubjectIds])
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault()

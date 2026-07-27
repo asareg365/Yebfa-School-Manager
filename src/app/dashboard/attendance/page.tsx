@@ -1,10 +1,11 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Users, Activity, Clock, CheckCircle, Save, Loader2, Calendar as CalendarIcon, Filter, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
-import { useFirestore, useCollection, useDoc } from "@/firebase"
+import { useFirestore, useCollection, useDoc, useUser } from "@/firebase"
 import { collection, query, where, addDoc, serverTimestamp, setDoc, doc, getDocs } from "firebase/firestore"
 import { useEffect, useState, useMemo } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -15,6 +16,7 @@ import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from "@
 
 export default function AttendancePage() {
   const db = useFirestore()
+  const { user } = useUser()
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [selectedGrade, setSelectedGrade] = useState("")
   const [selectedDate, setSelectedDate] = useState("")
@@ -24,9 +26,23 @@ export default function AttendancePage() {
   useEffect(() => {
     const storedId = localStorage.getItem('selected_institution_id')
     if (storedId) setInstitutionId(storedId)
-    // Initialize date on client to avoid hydration mismatch
     setSelectedDate(new Date().toISOString().split('T')[0])
   }, [])
+
+  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
+  const { data: profile } = useDoc(userProfileRef)
+  const isTeacher = profile?.role === 'teacher'
+  const staffId = profile?.staffId
+
+  // Teacher Assignments Filter
+  const assignmentsQuery = useMemo(() => 
+    institutionId && isTeacher && staffId 
+      ? query(collection(db, "teacher_assignments"), where("tenantId", "==", institutionId), where("teacherId", "==", staffId)) 
+      : null, 
+    [db, institutionId, isTeacher, staffId]
+  )
+  const { data: assignments = [] } = useCollection(assignmentsQuery)
+  const assignedClassIds = useMemo(() => new Set(assignments.map((a: any) => a.classId)), [assignments])
 
   // Sync with actual registered classes
   const classesQuery = useMemo(() => {
@@ -39,7 +55,6 @@ export default function AttendancePage() {
     return query(collection(db, "students"), where("tenantId", "==", institutionId), where("gradeLevel", "==", selectedGrade));
   }, [db, institutionId, selectedGrade]);
 
-  // Query for existing attendance records for the selected date/grade
   const attendanceQuery = useMemo(() => {
     if (!db || !institutionId || !selectedGrade || !selectedDate) return null;
     return query(
@@ -50,11 +65,12 @@ export default function AttendancePage() {
     );
   }, [db, institutionId, selectedGrade, selectedDate]);
 
-  const { data: classes = [] } = useCollection(classesQuery)
+  const { data: allClasses = [] } = useCollection(classesQuery)
   const { data: students, loading: studentsLoading } = useCollection(studentsQuery)
   const { data: existingAttendance } = useCollection(attendanceQuery)
 
-  // Sync UI state with fetched database records
+  const classes = useMemo(() => isTeacher ? allClasses.filter(c => assignedClassIds.has(c.id)) : allClasses, [allClasses, isTeacher, assignedClassIds])
+
   useEffect(() => {
     if (existingAttendance.length > 0) {
       const map: Record<string, boolean> = {};
@@ -81,6 +97,7 @@ export default function AttendancePage() {
         gradeLevel: selectedGrade,
         date: selectedDate,
         status: status,
+        recordedBy: staffId || null,
         institutionId: institutionId,
         updatedAt: serverTimestamp()
       }

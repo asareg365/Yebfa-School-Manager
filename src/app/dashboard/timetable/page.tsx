@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -22,7 +23,7 @@ import {
   Save,
   Trash2
 } from "lucide-react"
-import { useFirestore, useCollection, useDoc } from "@/firebase"
+import { useFirestore, useCollection, useDoc, useUser } from "@/firebase"
 import { collection, query, where, doc, setDoc, serverTimestamp, deleteDoc } from "firebase/firestore"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -38,6 +39,7 @@ const TIMES = ["08:00 AM", "09:00 AM", "11:00 AM", "01:00 PM", "02:00 PM"]
 
 export default function TimetablePage() {
   const db = useFirestore()
+  const { user } = useUser()
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [selectedClassId, setSelectedClassId] = useState("")
   const [loading, setLoading] = useState(false)
@@ -58,9 +60,24 @@ export default function TimetablePage() {
     setInstitutionId(localStorage.getItem('selected_institution_id'))
   }, [])
 
+  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
+  const { data: profile } = useDoc(userProfileRef)
+  const isTeacher = profile?.role === 'teacher'
+  const staffId = profile?.staffId
+
   const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
   const { data: institution } = useDoc(instRef)
   const currentTerm = institution?.currentTerm || "Term 1"
+
+  // Teacher Assignments Filter
+  const assignmentsQuery = useMemo(() => 
+    institutionId && isTeacher && staffId 
+      ? query(collection(db, "teacher_assignments"), where("tenantId", "==", institutionId), where("teacherId", "==", staffId)) 
+      : null, 
+    [db, institutionId, isTeacher, staffId]
+  )
+  const { data: assignments = [] } = useCollection(assignmentsQuery)
+  const assignedClassIds = useMemo(() => new Set(assignments.map((a: any) => a.classId)), [assignments])
 
   const classesQuery = useMemo(() => institutionId ? query(collection(db, "classes"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   const subjectsQuery = useMemo(() => institutionId ? query(collection(db, "subjects"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
@@ -77,11 +94,12 @@ export default function TimetablePage() {
     [db, institutionId, selectedClassId, currentTerm]
   )
 
-  const { data: classes = [] } = useCollection(classesQuery)
+  const { data: allClasses = [] } = useCollection(classesQuery)
   const { data: subjects = [] } = useCollection(subjectsQuery)
   const { data: staff = [] } = useCollection(staffQuery)
   const { data: persistedTimetables = [], loading: tLoading } = useCollection(timetableQuery)
 
+  const classes = useMemo(() => isTeacher ? allClasses.filter(c => assignedClassIds.has(c.id)) : allClasses, [allClasses, isTeacher, assignedClassIds])
   const activeTimetable = useMemo(() => persistedTimetables[0] || null, [persistedTimetables])
   const selectedClass = useMemo(() => classes.find(c => c.id === selectedClassId), [classes, selectedClassId])
 
@@ -180,15 +198,17 @@ export default function TimetablePage() {
           <Button variant="outline" className="h-11 rounded-xl gap-2" onClick={() => window.print()}>
             <Printer className="size-4" /> Print PDF
           </Button>
-          <Button 
-            className="bg-primary h-11 rounded-xl shadow-lg gap-2" 
-            onClick={handleOptimize}
-            disabled={loading || !selectedClassId}
-          >
-            {loading ? <Loader2 className="size-4 animate-spin" /> : <Bot className="size-4 text-accent" />}
-            AI Optimize
-          </Button>
-          {aiResult && (
+          {!isTeacher && (
+            <Button 
+              className="bg-primary h-11 rounded-xl shadow-lg gap-2" 
+              onClick={handleOptimize}
+              disabled={loading || !selectedClassId}
+            >
+              {loading ? <Loader2 className="size-4 animate-spin" /> : <Bot className="size-4 text-accent" />}
+              AI Optimize
+            </Button>
+          )}
+          {aiResult && !isTeacher && (
             <Button className="bg-green-600 hover:bg-green-700 h-11 rounded-xl shadow-lg gap-2" onClick={() => handleSaveTimetable(aiResult.schedule)} disabled={saving}>
               {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Save Preview
             </Button>
@@ -234,64 +254,66 @@ export default function TimetablePage() {
                 </div>
               )}
 
-              <Dialog open={isManualOpen} onOpenChange={setIsManualOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" className="w-full h-11 rounded-xl border-dashed" disabled={loading || !selectedClassId}>
-                     <Plus className="size-4 mr-2" /> Manual Slot Entry
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md rounded-2xl">
-                   <form onSubmit={handleAddManualSlot}>
-                      <DialogHeader>
-                        <DialogTitle className="text-xl font-bold font-headline">Manual Period Allocation</DialogTitle>
-                        <DialogDescription>Assign a specific subject and teacher to a time slot for {selectedClass?.name}.</DialogDescription>
-                      </DialogHeader>
-                      <div className="grid gap-6 py-6">
-                        <div className="grid grid-cols-2 gap-4">
-                           <div className="space-y-1.5"><Label>Day</Label>
-                              <Select value={manualSlot.day} onValueChange={v => setManualSlot({...manualSlot, day: v})}>
-                                 <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
-                                 <SelectContent>{DAYS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
-                              </Select>
-                           </div>
-                           <div className="space-y-1.5"><Label>Time</Label>
-                              <Select value={manualSlot.time} onValueChange={v => setManualSlot({...manualSlot, time: v})}>
-                                 <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
-                                 <SelectContent>{TIMES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
-                              </Select>
-                           </div>
+              {!isTeacher && (
+                <Dialog open={isManualOpen} onOpenChange={setIsManualOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="w-full h-11 rounded-xl border-dashed" disabled={loading || !selectedClassId}>
+                       <Plus className="size-4 mr-2" /> Manual Slot Entry
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md rounded-2xl">
+                     <form onSubmit={handleAddManualSlot}>
+                        <DialogHeader>
+                          <DialogTitle className="text-xl font-bold font-headline">Manual Period Allocation</DialogTitle>
+                          <DialogDescription>Assign a specific subject and teacher to a time slot for {selectedClass?.name}.</DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-6 py-6">
+                          <div className="grid grid-cols-2 gap-4">
+                             <div className="space-y-1.5"><Label>Day</Label>
+                                <Select value={manualSlot.day} onValueChange={v => setManualSlot({...manualSlot, day: v})}>
+                                   <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                                   <SelectContent>{DAYS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+                                </Select>
+                             </div>
+                             <div className="space-y-1.5"><Label>Time</Label>
+                                <Select value={manualSlot.time} onValueChange={v => setManualSlot({...manualSlot, time: v})}>
+                                   <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                                   <SelectContent>{TIMES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                                </Select>
+                             </div>
+                          </div>
+                          <div className="space-y-1.5"><Label>Subject</Label>
+                             <Select onValueChange={v => {
+                               const sub = subjects.find(s => s.id === v);
+                               setManualSlot({...manualSlot, subject: sub?.name || "Unspecified"});
+                             }}>
+                                <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Choose Subject" /></SelectTrigger>
+                                <SelectContent>{subjects.map(s => <SelectItem key={s.id} value={s.id}>{s.name || "Unnamed Subject"}</SelectItem>)}</SelectContent>
+                             </Select>
+                          </div>
+                          <div className="space-y-1.5"><Label>Teacher</Label>
+                             <Select onValueChange={v => {
+                               const st = staff.find(s => s.id === v);
+                               setManualSlot({...manualSlot, teacher: st ? `${st.firstName} ${st.lastName}` : "Unspecified"});
+                             }}>
+                                <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Choose Faculty" /></SelectTrigger>
+                                <SelectContent>{staff.map(st => <SelectItem key={st.id} value={st.id}>{st.firstName} {st.lastName}</SelectItem>)}</SelectContent>
+                             </Select>
+                          </div>
+                          <div className="flex items-center gap-2 pt-2">
+                             <Checkbox id="double" checked={manualSlot.isDoublePeriod} onCheckedChange={v => setManualSlot({...manualSlot, isDoublePeriod: !!v})} />
+                             <Label htmlFor="double" className="cursor-pointer">Double Period (2 Hours)</Label>
+                          </div>
                         </div>
-                        <div className="space-y-1.5"><Label>Subject</Label>
-                           <Select onValueChange={v => {
-                             const sub = subjects.find(s => s.id === v);
-                             setManualSlot({...manualSlot, subject: sub?.name || "Unspecified"});
-                           }}>
-                              <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Choose Subject" /></SelectTrigger>
-                              <SelectContent>{subjects.map(s => <SelectItem key={s.id} value={s.id}>{s.name || "Unnamed Subject"}</SelectItem>)}</SelectContent>
-                           </Select>
-                        </div>
-                        <div className="space-y-1.5"><Label>Teacher</Label>
-                           <Select onValueChange={v => {
-                             const st = staff.find(s => s.id === v);
-                             setManualSlot({...manualSlot, teacher: st ? `${st.firstName} ${st.lastName}` : "Unspecified"});
-                           }}>
-                              <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Choose Faculty" /></SelectTrigger>
-                              <SelectContent>{staff.map(st => <SelectItem key={st.id} value={st.id}>{st.firstName} {st.lastName}</SelectItem>)}</SelectContent>
-                           </Select>
-                        </div>
-                        <div className="flex items-center gap-2 pt-2">
-                           <Checkbox id="double" checked={manualSlot.isDoublePeriod} onCheckedChange={v => setManualSlot({...manualSlot, isDoublePeriod: !!v})} />
-                           <Label htmlFor="double" className="cursor-pointer">Double Period (2 Hours)</Label>
-                        </div>
-                      </div>
-                      <DialogFooter>
-                         <Button type="submit" className="w-full h-12 rounded-xl bg-primary font-bold shadow-lg" disabled={saving}>
-                            {saving ? <Loader2 className="size-4 mr-2" /> : "Authorize Slot"}
-                         </Button>
-                      </DialogFooter>
-                   </form>
-                </DialogContent>
-              </Dialog>
+                        <DialogFooter>
+                           <Button type="submit" className="w-full h-12 rounded-xl bg-primary font-bold shadow-lg" disabled={saving}>
+                              {saving ? <Loader2 className="size-4 mr-2" /> : "Authorize Slot"}
+                           </Button>
+                        </DialogFooter>
+                     </form>
+                  </DialogContent>
+                </Dialog>
+              )}
             </CardContent>
           </Card>
         </div>

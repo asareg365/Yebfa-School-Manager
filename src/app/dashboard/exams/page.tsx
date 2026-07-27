@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -7,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ClipboardList, Printer, Save, Loader2, Bot, Sparkles, FileText, Download, Wand2, CheckCircle2, ListChecks, Target, BrainCircuit, BarChart, X } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useFirestore, useCollection, useDoc } from "@/firebase"
+import { useFirestore, useCollection, useDoc, useUser } from "@/firebase"
 import { collection, query, where, doc, setDoc, serverTimestamp, writeBatch } from "firebase/firestore"
 import { useState, useMemo, useEffect } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -17,6 +18,7 @@ import { generateExamQuestions, GenerateExamOutput } from "@/ai/flows/generate-e
 
 export default function ExaminationCenterPage() {
   const db = useFirestore()
+  const { user } = useUser()
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [selectedGrade, setSelectedGrade] = useState("")
   const [selectedSubject, setSelectedSubject] = useState("")
@@ -31,6 +33,11 @@ export default function ExaminationCenterPage() {
     setInstitutionId(localStorage.getItem('selected_institution_id'))
   }, [])
 
+  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
+  const { data: profile } = useDoc(userProfileRef)
+  const isTeacher = profile?.role === 'teacher'
+  const staffId = profile?.staffId
+
   const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
   const { data: institution } = useDoc(instRef)
   
@@ -39,6 +46,18 @@ export default function ExaminationCenterPage() {
       setSelectedTerm(institution.currentTerm)
     }
   }, [institution, selectedTerm])
+
+  // Teacher Assignments Filter
+  const assignmentsQuery = useMemo(() => 
+    institutionId && isTeacher && staffId 
+      ? query(collection(db, "teacher_assignments"), where("tenantId", "==", institutionId), where("teacherId", "==", staffId)) 
+      : null, 
+    [db, institutionId, isTeacher, staffId]
+  )
+  const { data: assignments = [] } = useCollection(assignmentsQuery)
+
+  const assignedClassIds = useMemo(() => new Set(assignments.map((a: any) => a.classId)), [assignments])
+  const assignedSubjectIds = useMemo(() => new Set(assignments.map((a: any) => a.subjectId)), [assignments])
 
   const classesQuery = useMemo(() => {
     if (!db || !institutionId) return null;
@@ -66,10 +85,13 @@ export default function ExaminationCenterPage() {
     );
   }, [db, institutionId, selectedGrade, selectedSubject, selectedTerm]);
 
-  const { data: classes = [] } = useCollection(classesQuery)
+  const { data: allClasses = [] } = useCollection(classesQuery)
   const { data: students = [] } = useCollection(studentsQuery)
-  const { data: subjects = [] } = useCollection(subjectsQuery)
+  const { data: allSubjects = [] } = useCollection(subjectsQuery)
   const { data: existingScores = [] } = useCollection(existingScoresQuery)
+
+  const classes = useMemo(() => isTeacher ? allClasses.filter(c => assignedClassIds.has(c.id)) : allClasses, [allClasses, isTeacher, assignedClassIds])
+  const subjects = useMemo(() => isTeacher ? allSubjects.filter(s => assignedSubjectIds.has(s.id)) : allSubjects, [allSubjects, isTeacher, assignedSubjectIds])
 
   useEffect(() => {
     if (existingScores.length > 0) {
@@ -126,6 +148,7 @@ export default function ExaminationCenterPage() {
           classScore: ca,
           examScore: exam,
           totalScore: total,
+          teacherId: staffId || null,
           updatedAt: serverTimestamp(),
           createdAt: serverTimestamp()
         }, { merge: true })

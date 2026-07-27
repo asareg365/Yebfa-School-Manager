@@ -28,8 +28,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { initializeApp, getApps, deleteApp } from "firebase/app"
-import { getAuth, createUserWithEmailAndPassword } from "firebase/auth"
+import { initializeApp, deleteApp } from "firebase/app"
+import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth"
 import { firebaseConfig } from "@/firebase/config"
 import { generateInstitutionId, normalizeSecurityPhone } from "@/lib/identity-service"
 
@@ -114,11 +114,13 @@ export default function StaffHRPage() {
             role: s.designation?.toLowerCase().includes("teacher") ? "teacher" : "administrator",
             tenantId: institutionId,
             institutionId: institutionId,
+            staffId: s.id, // Linked to registry for granular permissions
             status: "active",
             createdAt: serverTimestamp()
           });
           await batch.commit();
           syncCount++;
+          await signOut(provisionAuth);
         } catch (e: any) {
           // Skip already existing accounts
         }
@@ -152,6 +154,9 @@ export default function StaffHRPage() {
         const cleanPass = normalizeSecurityPhone(staffForm.phone)
         const accountEmail = staffForm.email || `${finalStaffNumber.toLowerCase()}@system.yebfa.com`;
         
+        const staffRef = doc(collection(db, "staff"))
+        staffId = staffRef.id
+
         try {
           const credential = await createUserWithEmailAndPassword(provisionAuth, accountEmail, cleanPass)
           const authUser = credential.user
@@ -163,15 +168,15 @@ export default function StaffHRPage() {
             role: "teacher",
             tenantId: institutionId,
             institutionId: institutionId,
+            staffId: staffId, // Locked to staff registry ID
             status: "active",
             createdAt: serverTimestamp()
           })
+          await signOut(provisionAuth);
         } catch (authErr: any) {
           if (authErr.code !== 'auth/email-already-in-use') throw authErr;
         }
 
-        const staffRef = doc(collection(db, "staff"))
-        staffId = staffRef.id
         batch.set(staffRef, {
           ...staffForm,
           staffNumber: finalStaffNumber,
@@ -271,7 +276,7 @@ export default function StaffHRPage() {
                   </TableCell>
                   <TableCell><span className="text-xs font-bold text-slate-700">{s.designation}</span></TableCell>
                   <TableCell><span className="text-xs font-medium">{s.phone}</span></TableCell>
-                  <TableCell><Badge variant="outline" className={`text-[9px] uppercase font-bold ${s.status === 'active' ? 'text-green-600 bg-green-50' : 'text-slate-500'}`}>{s.status}</Badge></TableCell>
+                  <TableCell><Badge variant="outline" className={`text-[9px] uppercase font-bold ${s.status === 'active' ? 'text-green-600 bg-green-50' : 'text-slate-500 bg-slate-50'}`}>{s.status}</Badge></TableCell>
                   <TableCell className="text-right px-6">
                     <div className="flex items-center justify-end gap-1">
                       <Button variant="ghost" size="icon" onClick={() => openEdit(s)}><Pencil className="size-4" /></Button>
