@@ -26,7 +26,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { initializeApp, getApps, getApp } from "firebase/app"
+import { initializeApp, getApps } from "firebase/app"
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth"
 import { firebaseConfig } from "@/firebase/config"
 import { generateInstitutionId, normalizeSecurityPhone } from "@/lib/identity-service"
@@ -75,7 +75,7 @@ export default function StaffHRPage() {
 
   const handleEnroll = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!db || !institutionId || loading || !institution?.schoolCode) return
+    if (!db || !institutionId || loading) return
 
     setLoading(true)
     try {
@@ -84,7 +84,8 @@ export default function StaffHRPage() {
       let finalStaffNumber = staffForm.staffNumber
 
       if (!editingStaff) {
-        finalStaffNumber = await generateInstitutionId('STF', institutionId, institution.schoolCode);
+        // ID Generation handles missing schoolCode with fallback internally
+        finalStaffNumber = await generateInstitutionId('STF', institutionId, institution?.schoolCode);
         
         const cleanPass = normalizeSecurityPhone(staffForm.phone)
         const secondaryAppName = `secondary-staff-${Date.now()}`
@@ -160,8 +161,8 @@ export default function StaffHRPage() {
 
       <Card className="border-none shadow-xl rounded-2xl overflow-hidden bg-white">
         <CardHeader className="border-b py-6 bg-slate-50/50">
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-3.5 size-4 text-muted-foreground" />
+          <div className="relative max-sm w-full sm:max-w-sm">
+            <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
             <Input placeholder="Search by name or ID..." className="pl-10 h-12 bg-white border-none rounded-xl shadow-sm" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </div>
         </CardHeader>

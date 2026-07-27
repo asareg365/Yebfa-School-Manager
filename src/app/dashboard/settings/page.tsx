@@ -8,10 +8,10 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { School, Shield, Building, Plus, Layers, Trash2, Save, Loader2, Upload, X, Wallet, CheckCircle2, Clock, AlertTriangle, KeyRound } from "lucide-react"
+import { School, Shield, Building, Plus, Layers, Trash2, Save, Loader2, Upload, X, Wallet, CheckCircle2, Clock, AlertTriangle, KeyRound, Sparkles } from "lucide-react"
 import { useState, useEffect, useRef, useMemo } from "react"
 import { useFirestore, useDoc, useUser } from "@/firebase"
-import { doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore"
+import { doc, updateDoc } from "firebase/firestore"
 import { toast } from "@/hooks/use-toast"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
@@ -26,6 +26,17 @@ export default function SettingsPage() {
   const [logoPreview, setLogoUrl] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Form State
+  const [form, setForm] = useState({
+    name: "",
+    schoolCode: "",
+    location: "",
+    address: "",
+    phone: "",
+    academicYear: "",
+    currentTerm: "Term 1"
+  })
+
   useEffect(() => {
     const storedId = localStorage.getItem('selected_institution_id')
     setInstitutionId(storedId)
@@ -39,7 +50,18 @@ export default function SettingsPage() {
   const { data: institution, loading } = useDoc(instRef)
 
   useEffect(() => {
-    if (institution?.logoUrl) setLogoUrl(institution.logoUrl)
+    if (institution) {
+      setForm({
+        name: institution.name || "",
+        schoolCode: institution.schoolCode || "SCH",
+        location: institution.location || "",
+        address: institution.address || "",
+        phone: institution.phone || "",
+        academicYear: institution.academicYear || "",
+        currentTerm: institution.currentTerm || "Term 1"
+      })
+      if (institution.logoUrl) setLogoUrl(institution.logoUrl)
+    }
   }, [institution])
 
   const trialDaysLeft = useMemo(() => {
@@ -66,45 +88,37 @@ export default function SettingsPage() {
     }
   }
 
-  const handleSaveSettings = (e: React.FormEvent) => {
+  const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!instRef || isSaving || !institution) return
     
     setIsSaving(true)
-    const formData = new FormData(e.target as HTMLFormElement)
-    
     const data: any = {
-      name: (formData.get("schoolName") as string) || institution.name,
-      schoolCode: (formData.get("schoolCode") as string)?.toUpperCase().replace(/\s+/g, '').substring(0, 4) || institution.schoolCode || "SCH",
-      location: (formData.get("location") as string) || institution.location,
-      address: (formData.get("address") as string) || institution.address || "",
-      phone: (formData.get("phone") as string) || institution.phone || "",
-      academicYear: (formData.get("academicYear") as string) || institution.academicYear || "",
-      currentTerm: (formData.get("currentTerm") as string) || institution.currentTerm || "Term 1",
+      ...form,
+      schoolCode: form.schoolCode.toUpperCase().replace(/\s+/g, '').substring(0, 4),
+      updatedAt: new Date()
     }
 
     if (logoPreview !== (institution.logoUrl || null)) {
       data.logoUrl = logoPreview;
     }
 
-    updateDoc(instRef, data)
-      .then(() => {
-        toast({
-          title: "Registry Synchronized",
-          description: "Institutional profile updated successfully.",
-        })
+    try {
+      await updateDoc(instRef, data)
+      toast({
+        title: "Registry Synchronized",
+        description: "Institutional profile updated successfully.",
       })
-      .catch(async (serverError: any) => {
-        const permissionError = new FirestorePermissionError({
-          path: instRef.path,
-          operation: 'update',
-          requestResourceData: data,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      })
-      .finally(() => {
-        setIsSaving(false)
-      })
+    } catch (serverError: any) {
+      const permissionError = new FirestorePermissionError({
+        path: instRef.path,
+        operation: 'update',
+        requestResourceData: data,
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   if (loading) return <div className="p-10 text-center animate-pulse font-headline font-bold text-primary">Synchronizing system...</div>
@@ -159,24 +173,24 @@ export default function SettingsPage() {
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Official Institution Name</Label>
-                    <Input name="schoolName" defaultValue={institution?.name} required className="h-11 rounded-xl" />
+                    <Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} required className="h-11 rounded-xl" />
                   </div>
                   <div className="space-y-2">
                     <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Institution Prefix (ID Generation)</Label>
                     <div className="relative">
                        <KeyRound className="absolute left-3 top-3 size-4 text-muted-foreground" />
-                       <Input name="schoolCode" defaultValue={institution?.schoolCode} maxLength={4} placeholder="e.g. TTS" className="h-11 pl-10 rounded-xl font-mono font-bold" />
+                       <Input value={form.schoolCode} onChange={e => setForm({...form, schoolCode: e.target.value.toUpperCase()})} maxLength={4} placeholder="e.g. TTS" className="h-11 pl-10 rounded-xl font-mono font-bold" />
                     </div>
                   </div>
                 </div>
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">System Hub Location</Label>
-                    <Input name="location" defaultValue={institution?.location} required className="h-11 rounded-xl" />
+                    <Input value={form.location} onChange={e => setForm({...form, location: e.target.value})} required className="h-11 rounded-xl" />
                   </div>
                   <div className="space-y-2">
                     <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Physical Address</Label>
-                    <Input name="address" defaultValue={institution?.address} placeholder="e.g. Plot 15, System Hub" className="h-11 rounded-xl" />
+                    <Input value={form.address} onChange={e => setForm({...form, address: e.target.value})} placeholder="e.g. Plot 15, System Hub" className="h-11 rounded-xl" />
                   </div>
                 </div>
               </CardContent>
@@ -195,11 +209,11 @@ export default function SettingsPage() {
               <CardContent className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Academic Session</Label>
-                  <Input name="academicYear" defaultValue={institution?.academicYear} className="h-11 rounded-xl" />
+                  <Input value={form.academicYear} onChange={e => setForm({...form, academicYear: e.target.value})} className="h-11 rounded-xl" />
                 </div>
                 <div className="space-y-2">
                   <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">System Active Term</Label>
-                  <Select name="currentTerm" defaultValue={institution?.currentTerm || "Term 1"}>
+                  <Select value={form.currentTerm} onValueChange={v => setForm({...form, currentTerm: v})}>
                     <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Term 1">Term 1</SelectItem>
