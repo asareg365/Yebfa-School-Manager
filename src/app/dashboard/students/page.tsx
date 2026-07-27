@@ -45,8 +45,8 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Checkbox } from "@/components/ui/checkbox"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import { initializeApp, getApps, deleteApp } from "firebase/app"
-import { getAuth, createUserWithEmailAndPassword } from "firebase/auth"
+import { initializeApp, deleteApp } from "firebase/app"
+import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth"
 import { firebaseConfig } from "@/firebase/config"
 import { generateInstitutionId, normalizeSecurityPhone, generateStudentPin } from "@/lib/identity-service"
 import Papa from "papaparse"
@@ -171,16 +171,14 @@ export default function StudentsPage() {
 
   const handleSyncCredentials = async () => {
     if (!db || !institutionId) {
-      toast({ variant: "destructive", title: "Missing Context", description: "Select an institution context first." });
+      toast({ variant: "destructive", title: "Missing Context", description: "Institution registry not identified." });
       return;
     }
     
     if (rawStudents.length === 0) {
-      toast({ title: "Registry Empty", description: "No student records found to synchronize." });
+      toast({ title: "Registry Empty", description: "No records to synchronize." });
       return;
     }
-
-    if (!confirm("This will repair Portal Access for all students by generating missing PINs and creating security accounts. Proceed?")) return;
 
     setSyncing(true);
     const provisionAppName = `sync-provision-${Date.now()}`;
@@ -190,20 +188,21 @@ export default function StudentsPage() {
     try {
       let syncCount = 0;
       let existingCount = 0;
+      const batch = writeBatch(db);
+
+      toast({ title: "Identity Sync Initiated", description: "Provisioning secure portal accounts..." });
 
       for (const stu of rawStudents) {
-        const needsPin = !stu.studentPin || stu.studentPin === "----" || stu.studentPin === "";
-        const finalPin = needsPin ? generateStudentPin() : stu.studentPin;
-        
         if (!stu.admissionNumber) continue;
 
-        const studentEmail = `${stu.admissionNumber.toLowerCase()}@system.yebfa.com`;
+        const needsPin = !stu.studentPin || stu.studentPin === "----" || stu.studentPin === "";
+        const finalPin = needsPin ? generateStudentPin() : stu.studentPin;
+        const studentEmail = `${stu.admissionNumber.toLowerCase().trim()}@system.yebfa.com`;
         
         try {
            const credential = await createUserWithEmailAndPassword(provisionAuth, studentEmail, finalPin);
            const authUser = credential.user;
 
-           const batch = writeBatch(db);
            batch.update(doc(db, "students", stu.id), {
              studentPin: finalPin,
              updatedAt: serverTimestamp()
@@ -220,24 +219,26 @@ export default function StudentsPage() {
              createdAt: serverTimestamp()
            });
 
-           await batch.commit();
+           // Important: client SDK automatically signs in, so we must sign out between iterations
+           await signOut(provisionAuth);
            syncCount++;
         } catch (e: any) {
            if (e.code === 'auth/email-already-in-use') {
               if (needsPin) {
-                await updateDoc(doc(db, "students", stu.id), { studentPin: "SEE ADMIN", updatedAt: serverTimestamp() });
+                batch.update(doc(db, "students", stu.id), { studentPin: "SEE ADMIN", updatedAt: serverTimestamp() });
               }
               existingCount++;
            }
         }
       }
 
+      await batch.commit();
       toast({ 
-        title: "Synchronization Finalized", 
-        description: `Successfully provisioned ${syncCount} students. ${existingCount} already verified.` 
+        title: "Sync Finalized", 
+        description: `Successfully provisioned ${syncCount} accounts. ${existingCount} already verified.` 
       });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Sync Failed", description: e.message });
+      toast({ variant: "destructive", title: "Process Error", description: e.message });
     } finally {
       setSyncing(false);
       try { await deleteApp(provisionApp); } catch (e) {}
@@ -263,7 +264,7 @@ export default function StudentsPage() {
       if (!editingStudent) {
         finalAdmissionNumber = await generateInstitutionId('STU', institutionId, institution?.schoolCode);
         finalPin = generateStudentPin();
-        const studentEmail = `${finalAdmissionNumber.toLowerCase()}@system.yebfa.com`;
+        const studentEmail = `${finalAdmissionNumber.toLowerCase().trim()}@system.yebfa.com`;
         
         try {
           const credential = await createUserWithEmailAndPassword(provisionAuth, studentEmail, finalPin)
@@ -279,6 +280,7 @@ export default function StudentsPage() {
             status: "active",
             createdAt: serverTimestamp()
           })
+          await signOut(provisionAuth);
         } catch (authErr: any) {
           if (authErr.code !== 'auth/email-already-in-use') throw authErr;
         }
@@ -287,7 +289,7 @@ export default function StudentsPage() {
       if (isNewParent && !editingStudent) {
         const finalParentNumber = await generateInstitutionId('PAR', institutionId, institution?.schoolCode);
         const cleanPass = normalizeSecurityPhone(newParentForm.phone);
-        const parentEmail = newParentForm.email || `${finalParentNumber.toLowerCase()}@system.yebfa.com`;
+        const parentEmail = newParentForm.email || `${finalParentNumber.toLowerCase().trim()}@system.yebfa.com`;
         
         try {
           const credential = await createUserWithEmailAndPassword(provisionAuth, parentEmail, cleanPass)
@@ -303,6 +305,7 @@ export default function StudentsPage() {
             status: "active",
             createdAt: serverTimestamp()
           })
+          await signOut(provisionAuth);
         } catch (authErr: any) {
           if (authErr.code !== 'auth/email-already-in-use') throw authErr;
         }
@@ -383,21 +386,20 @@ export default function StudentsPage() {
         try {
           const rows = results.data as any[]
           let count = 0;
+          const batch = writeBatch(db)
           
           for (const row of rows) {
             if (!row.firstName || !row.lastName) continue;
 
             const finalAdmissionNumber = await generateInstitutionId('STU', institutionId, institution?.schoolCode);
             const finalPin = generateStudentPin();
-            const studentEmail = `${finalAdmissionNumber.toLowerCase()}@system.yebfa.com`;
+            const studentEmail = `${finalAdmissionNumber.toLowerCase().trim()}@system.yebfa.com`;
             
             try {
                const credential = await createUserWithEmailAndPassword(provisionAuth, studentEmail, finalPin);
                const authUser = credential.user;
 
-               const batch = writeBatch(db)
                const studentRef = doc(collection(db, "students"))
-               
                batch.set(studentRef, {
                  firstName: row.firstName,
                  lastName: row.lastName,
@@ -425,13 +427,14 @@ export default function StudentsPage() {
                  createdAt: serverTimestamp()
                });
 
-               await batch.commit();
+               await signOut(provisionAuth);
                count++;
             } catch (err: any) {
                console.error(`Failed to provision student ${row.firstName}:`, err);
             }
           }
 
+          await batch.commit();
           toast({ title: "Bulk Intake Successful", description: `Enrolled and provisioned ${count} students.` })
           setIsBulkOpen(false)
         } catch (error: any) {
@@ -485,7 +488,7 @@ export default function StudentsPage() {
             disabled={syncing || rawStudents.length === 0}
           >
             {syncing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-            Sync Credentials
+            Sync Access
           </Button>
           <Button variant="outline" className="h-11 rounded-xl" onClick={() => setIsBulkOpen(true)}>
             <FileSpreadsheet className="size-4 mr-2" /> Bulk Intake

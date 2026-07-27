@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -117,7 +118,7 @@ export default function LoginPage() {
 
       if (!matchedParent) throw new Error("Verification failed: Phone number not recognized for this student.");
 
-      const parentEmail = matchedParent.email || `${matchedParent.parentNumber.toLowerCase()}@system.yebfa.com`;
+      const parentEmail = matchedParent.email || `${matchedParent.parentNumber.toLowerCase().trim()}@system.yebfa.com`;
       const credential = await signInWithEmailAndPassword(auth, parentEmail, inputPhone)
       await redirectUser(credential.user)
 
@@ -145,13 +146,13 @@ export default function LoginPage() {
         throw new Error("Invalid Student PIN. Please check and try again.");
       }
       
-      const studentEmail = `${normalizedId.toLowerCase()}@system.yebfa.com`;
+      const studentEmail = `${normalizedId.toLowerCase().trim()}@system.yebfa.com`;
       try {
         const credential = await signInWithEmailAndPassword(auth, studentEmail, studentPinInput.trim())
         await redirectUser(credential.user)
       } catch (authErr: any) {
         if (authErr.code === 'auth/invalid-credential' || authErr.code === 'auth/user-not-found') {
-           throw new Error("Security account not provisioned. Contact administrator to 'Sync Credentials' in the registry.");
+           throw new Error("Security account not provisioned. Contact administrator to 'Sync Access' in the registry.");
         }
         throw authErr;
       }
@@ -175,7 +176,7 @@ export default function LoginPage() {
       if (snap.empty) throw new Error("Staff ID not found in registry.");
       
       const personData = snap.docs[0].data()
-      const accountEmail = personData.email || `${normalizedId.toLowerCase()}@system.yebfa.com`
+      const accountEmail = personData.email || `${normalizedId.toLowerCase().trim()}@system.yebfa.com`
       const cleanCredential = normalizeSecurityPhone(staffPhoneInput)
 
       const credential = await signInWithEmailAndPassword(auth, accountEmail, cleanCredential)
