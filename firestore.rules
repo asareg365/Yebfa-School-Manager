@@ -81,19 +81,22 @@ service cloud.firestore {
 
     // Identity Registry Rules
     match /parents/{parentId} {
-      allow list, get: if true;
+      allow list: if signedIn();
+      allow get: if true;
       allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
       allow delete: if isSuperAdmin();
     }
 
-    match /staff/{staffId} {
-      allow list, get: if true;
+    match /staff/{staffDocId} {
+      allow list: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin() || isAccountant());
+      allow get: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin() || isAccountant() || staffId() == staffDocId);
       allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
       allow delete: if isSuperAdmin();
     }
 
     match /students/{studentId} {
-      allow list, get: if true;
+      allow list: if signedIn();
+      allow get: if true;
       allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin() || isTeacher());
       allow delete: if isSuperAdmin();
     }

@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -29,7 +30,8 @@ import {
   TrendingUp,
   Cpu,
   Flag,
-  ChevronRight
+  ChevronRight,
+  User
 } from "lucide-react"
 
 import {
@@ -101,6 +103,7 @@ export function AppSidebar() {
     // Staff/Owner Navigation
     return [
       { title: "Overview", url: "/dashboard", icon: LayoutDashboard, visible: true },
+      { title: "My Profile", url: "/dashboard/staff/profile", icon: User, visible: userRole !== 'super_admin' },
       {
         title: "AI Strategic Hub",
         url: "#",
@@ -135,10 +138,10 @@ export function AppSidebar() {
         title: "HR & Faculty",
         url: "#",
         icon: Briefcase,
-        visible: isSuperAdmin || isOwner || isAdmin || isAccountant,
+        visible: isSuperAdmin || isOwner || isAdmin || isAccountant || isTeacher,
         items: [
-          { title: "Staff Directory", url: "/dashboard/staff", visible: true },
-          { title: "Payroll Processor", url: "/dashboard/finance/payroll", visible: true },
+          { title: "Staff Directory", url: "/dashboard/staff", visible: isSuperAdmin || isOwner || isAdmin || isAccountant },
+          { title: "Payroll Processor", url: "/dashboard/finance/payroll", visible: isSuperAdmin || isOwner || isAccountant },
           { title: "Daily Attendance", url: "/dashboard/attendance", visible: true },
         ].filter(i => i.visible),
       },
@@ -146,10 +149,10 @@ export function AppSidebar() {
         title: "Student Registry",
         url: "#",
         icon: GraduationCap,
-        visible: isSuperAdmin || isOwner || isAdmin || isAccountant,
+        visible: isSuperAdmin || isOwner || isAdmin || isAccountant || isTeacher,
         items: [
           { title: "Active Enrollment", url: "/dashboard/students", visible: true },
-          { title: "Personal Ledgers", url: "/dashboard/students/accounts", visible: true },
+          { title: "Personal Ledgers", url: "/dashboard/students/accounts", visible: isSuperAdmin || isOwner || isAdmin || isAccountant },
         ].filter(i => i.visible),
       },
       {
