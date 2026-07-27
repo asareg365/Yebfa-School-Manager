@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { School, Loader2, KeyRound, Smartphone, ShieldCheck, Briefcase, Users, GraduationCap, ArrowRight } from "lucide-react"
+import { School, Loader2, KeyRound, Smartphone, ShieldCheck, Briefcase, Users, GraduationCap, ArrowRight, AlertCircle, Key } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { signInWithEmailAndPassword } from "firebase/auth"
@@ -18,23 +18,26 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { normalizeSecurityPhone } from "@/lib/identity-service"
 
 export default function LoginPage() {
-  // Admin States
+  // --- ADMIN PORTAL STATE ---
   const [adminEmail, setAdminEmail] = useState("")
   const [adminPassword, setAdminPassword] = useState("")
+  const [adminLoading, setAdminLoading] = useState(false)
   
-  // Staff States
+  // --- STAFF PORTAL STATE ---
   const [staffIdInput, setStaffIdInput] = useState("")
   const [staffPhoneInput, setStaffPhoneInput] = useState("")
+  const [staffLoading, setStaffLoading] = useState(false)
   
-  // Parent States
+  // --- PARENT PORTAL STATE ---
   const [parentStudentId, setParentStudentId] = useState("")
   const [parentPhoneInput, setParentPhoneInput] = useState("")
+  const [parentLoading, setParentLoading] = useState(false)
   
-  // Student States
+  // --- STUDENT PORTAL STATE ---
   const [studentIdInput, setStudentIdInput] = useState("")
   const [studentPinInput, setStudentPinInput] = useState("")
+  const [studentLoading, setStudentLoading] = useState(false)
 
-  const [loading, setLoading] = useState(false)
   const [configError, setConfigError] = useState(false)
   const router = useRouter()
   const { user, loading: authLoading } = useUser()
@@ -69,13 +72,13 @@ export default function LoginPage() {
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!auth || configError) return
-    setLoading(true)
+    setAdminLoading(true)
     try {
       const credential = await signInWithEmailAndPassword(auth, adminEmail, adminPassword)
       await redirectUser(credential.user)
     } catch (error: any) {
       toast({ variant: "destructive", title: "Login Failed", description: "Invalid email or security password." })
-    } finally { setLoading(false) }
+    } finally { setAdminLoading(false) }
   }
 
   const handleParentLogin = async () => {
@@ -84,16 +87,18 @@ export default function LoginPage() {
       return
     }
 
-    setLoading(true)
+    setParentLoading(true)
     const normalizedStudentId = parentStudentId.trim().toUpperCase()
     try {
+      // 1. Find Student by Admission Number
       const studentQ = query(collection(db, "students"), where("admissionNumber", "==", normalizedStudentId))
       const studentSnap = await getDocs(studentQ)
       
       if (studentSnap.empty) throw new Error("Student ID not found in registry.");
-      const studentDoc = studentSnap.docs[0];
+      const studentDocId = studentSnap.docs[0].id;
 
-      const relsQ = query(collection(db, "student_parents"), where("studentId", "==", studentDoc.id))
+      // 2. Find Linked Guardians
+      const relsQ = query(collection(db, "student_parents"), where("studentId", "==", studentDocId))
       const relsSnap = await getDocs(relsQ)
       
       if (relsSnap.empty) throw new Error("No guardians are linked to this student ID.");
@@ -101,6 +106,7 @@ export default function LoginPage() {
       const inputPhone = normalizeSecurityPhone(parentPhoneInput)
       let matchedParent = null;
 
+      // 3. Verify Phone against Registry
       for (const relDoc of relsSnap.docs) {
         const parentId = relDoc.data().parentId;
         const parentSnap = await getDoc(doc(db, "parents", parentId));
@@ -113,15 +119,16 @@ export default function LoginPage() {
         }
       }
 
-      if (!matchedParent) throw new Error("Security verification failed: Phone number not recognized for this student.");
+      if (!matchedParent) throw new Error("Verification failed: Phone number not recognized for this student.");
 
+      // 4. Construct Portal Auth Email
       const parentEmail = matchedParent.email || `${matchedParent.parentNumber.toLowerCase()}@system.yebfa.com`;
       const credential = await signInWithEmailAndPassword(auth, parentEmail, inputPhone)
       await redirectUser(credential.user)
 
     } catch (error: any) {
       toast({ variant: "destructive", title: "Access Denied", description: error.message })
-    } finally { setLoading(false) }
+    } finally { setParentLoading(false) }
   }
 
   const handleStudentLogin = async () => {
@@ -130,25 +137,35 @@ export default function LoginPage() {
       return
     }
 
-    setLoading(true)
+    setStudentLoading(true)
     const normalizedId = studentIdInput.trim().toUpperCase()
     try {
+      // 1. Verify Student in Registry
       const studentQ = query(collection(db, "students"), where("admissionNumber", "==", normalizedId))
       const studentSnap = await getDocs(studentQ)
       
       if (studentSnap.empty) throw new Error("Student ID not recognized in current registry.");
       const studentData = studentSnap.docs[0].data();
 
+      // 2. Check PIN against Database Record
       if (studentData.studentPin !== studentPinInput.trim()) {
         throw new Error("Invalid Student PIN. Please check and try again.");
       }
       
+      // 3. Authorize Auth Session
       const studentEmail = `${normalizedId.toLowerCase()}@system.yebfa.com`;
-      const credential = await signInWithEmailAndPassword(auth, studentEmail, studentPinInput.trim())
-      await redirectUser(credential.user)
+      try {
+        const credential = await signInWithEmailAndPassword(auth, studentEmail, studentPinInput.trim())
+        await redirectUser(credential.user)
+      } catch (authErr: any) {
+        if (authErr.code === 'auth/invalid-credential' || authErr.code === 'auth/user-not-found') {
+           throw new Error("Security account not provisioned. Contact administrator to 'Sync Credentials' in the registry.");
+        }
+        throw authErr;
+      }
     } catch (error: any) {
       toast({ variant: "destructive", title: "Access Denied", description: error.message })
-    } finally { setLoading(false) }
+    } finally { setStudentLoading(false) }
   }
 
   const handleStaffLogin = async () => {
@@ -157,7 +174,7 @@ export default function LoginPage() {
       return
     }
     
-    setLoading(true)
+    setStaffLoading(true)
     const normalizedId = staffIdInput.trim().toUpperCase()
     try {
       const q = query(collection(db, "staff"), where("staffNumber", "==", normalizedId))
@@ -173,10 +190,17 @@ export default function LoginPage() {
       await redirectUser(credential.user)
     } catch (error: any) {
       toast({ variant: "destructive", title: "Access Denied", description: error.message })
-    } finally { setLoading(false) }
+    } finally { setStaffLoading(false) }
   }
 
-  if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-primary size-10" /></div>
+  if (authLoading) return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="flex flex-col items-center gap-4">
+        <Loader2 className="animate-spin text-primary size-10" />
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground animate-pulse">Resolving Session Context...</p>
+      </div>
+    </div>
+  )
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-muted/30">
@@ -188,10 +212,10 @@ export default function LoginPage() {
       <Card className="w-full max-w-lg border-none shadow-2xl overflow-hidden rounded-3xl bg-white">
         <Tabs defaultValue="admin">
           <TabsList className="grid grid-cols-4 h-14 bg-muted/50 p-1 border-b">
-            <TabsTrigger value="admin" className="text-[10px] font-bold uppercase"><ShieldCheck className="size-3.5 mr-1" /> Admin</TabsTrigger>
-            <TabsTrigger value="staff" className="text-[10px] font-bold uppercase"><Briefcase className="size-3.5 mr-1" /> Staff</TabsTrigger>
-            <TabsTrigger value="parent" className="text-[10px] font-bold uppercase"><Users className="size-3.5 mr-1" /> Parent</TabsTrigger>
-            <TabsTrigger value="student" className="text-[10px] font-bold uppercase"><GraduationCap className="size-3.5 mr-1" /> Student</TabsTrigger>
+            <TabsTrigger value="admin" className="text-[10px] font-bold uppercase data-[state=active]:text-primary"><ShieldCheck className="size-3.5 mr-1" /> Admin</TabsTrigger>
+            <TabsTrigger value="staff" className="text-[10px] font-bold uppercase data-[state=active]:text-primary"><Briefcase className="size-3.5 mr-1" /> Staff</TabsTrigger>
+            <TabsTrigger value="parent" className="text-[10px] font-bold uppercase data-[state=active]:text-primary"><Users className="size-3.5 mr-1" /> Parent</TabsTrigger>
+            <TabsTrigger value="student" className="text-[10px] font-bold uppercase data-[state=active]:text-primary"><GraduationCap className="size-3.5 mr-1" /> Student</TabsTrigger>
           </TabsList>
 
           <CardHeader className="pb-4 pt-8">
@@ -204,8 +228,8 @@ export default function LoginPage() {
               <form onSubmit={handleAdminLogin} className="space-y-4">
                 <div className="space-y-2"><Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Master Email</Label><Input type="email" value={adminEmail} onChange={e => setAdminEmail(e.target.value)} required className="h-12 rounded-xl" /></div>
                 <div className="space-y-2"><Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Security Key</Label><Input type="password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} required className="h-12 rounded-xl" /></div>
-                <Button className="w-full h-14 font-bold rounded-2xl bg-primary shadow-xl" type="submit" disabled={loading}>
-                  {loading ? <Loader2 className="animate-spin mr-2" /> : "Access Command Center"}
+                <Button className="w-full h-14 font-bold rounded-2xl bg-primary shadow-xl" type="submit" disabled={adminLoading}>
+                  {adminLoading ? <Loader2 className="animate-spin mr-2" /> : "Access Command Center"}
                 </Button>
               </form>
             </TabsContent>
@@ -214,8 +238,8 @@ export default function LoginPage() {
               <div className="space-y-4">
                 <div className="space-y-2"><Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Staff ID (STF)</Label><Input placeholder="ABC-STF-2026-XXXX" value={staffIdInput} onChange={e => setStaffIdInput(e.target.value)} className="h-12 rounded-xl font-mono" /></div>
                 <div className="space-y-2"><Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Registered Phone</Label><Input type="tel" value={staffPhoneInput} onChange={e => setStaffPhoneInput(e.target.value)} className="h-12 rounded-xl" /></div>
-                <Button className="w-full h-14 font-bold rounded-2xl bg-primary shadow-xl" onClick={handleStaffLogin} disabled={loading}>
-                  {loading ? <Loader2 className="animate-spin mr-2" /> : "Verify Staff Access"}
+                <Button className="w-full h-14 font-bold rounded-2xl bg-primary shadow-xl" onClick={handleStaffLogin} disabled={staffLoading}>
+                  {staffLoading ? <Loader2 className="animate-spin mr-2" /> : "Verify Staff Access"}
                 </Button>
               </div>
             </TabsContent>
@@ -224,10 +248,13 @@ export default function LoginPage() {
               <div className="space-y-4">
                 <div className="space-y-2"><Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Child's Student ID (STU)</Label><Input placeholder="ABC-STU-2026-XXXX" value={parentStudentId} onChange={e => setParentStudentId(e.target.value)} className="h-12 rounded-xl font-mono" /></div>
                 <div className="space-y-2"><Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Parent Phone Number</Label><Input type="tel" placeholder="024XXXXXXX" value={parentPhoneInput} onChange={e => setParentPhoneInput(e.target.value)} className="h-12 rounded-xl" /></div>
-                <Button className="w-full h-14 font-bold rounded-2xl bg-primary shadow-xl" onClick={handleParentLogin} disabled={loading}>
-                  {loading ? <Loader2 className="animate-spin mr-2" /> : "Authorize Guardian Portal"}
+                <Button className="w-full h-14 font-bold rounded-2xl bg-primary shadow-xl" onClick={handleParentLogin} disabled={parentLoading}>
+                  {parentLoading ? <Loader2 className="animate-spin mr-2" /> : "Authorize Guardian Portal"}
                 </Button>
-                <p className="text-[10px] text-center text-muted-foreground italic">Access all your children by entering any one of their Student IDs.</p>
+                <div className="p-4 rounded-xl bg-blue-50 border border-blue-100 flex gap-3">
+                   <Users className="size-4 text-blue-600 shrink-0 mt-0.5" />
+                   <p className="text-[10px] text-blue-700 leading-relaxed font-medium italic">Access all your children by entering any one of their Student IDs.</p>
+                </div>
               </div>
             </TabsContent>
 
@@ -235,9 +262,13 @@ export default function LoginPage() {
               <div className="space-y-4">
                 <div className="space-y-2"><Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Student ID (STU)</Label><Input placeholder="ABC-STU-2026-XXXX" value={studentIdInput} onChange={e => setStudentIdInput(e.target.value)} className="h-12 rounded-xl font-mono" /></div>
                 <div className="space-y-2"><Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Student PIN</Label><Input type="password" maxLength={4} placeholder="XXXX" value={studentPinInput} onChange={e => setStudentPinInput(e.target.value)} className="h-12 rounded-xl text-center text-2xl tracking-[1em]" /></div>
-                <Button className="w-full h-14 font-bold rounded-2xl bg-primary shadow-xl" onClick={handleStudentLogin} disabled={loading}>
-                  {loading ? <Loader2 className="animate-spin mr-2" /> : "Verify Student Identity"}
+                <Button className="w-full h-14 font-bold rounded-2xl bg-primary shadow-xl" onClick={handleStudentLogin} disabled={studentLoading}>
+                  {studentLoading ? <Loader2 className="animate-spin mr-2" /> : "Verify Student Identity"}
                 </Button>
+                <div className="p-4 rounded-xl bg-slate-50 border flex gap-3">
+                   <KeyRound className="size-4 text-primary shrink-0 mt-0.5" />
+                   <p className="text-[10px] text-muted-foreground leading-relaxed font-medium">Use the 4-digit PIN generated during your enrollment.</p>
+                </div>
               </div>
             </TabsContent>
           </CardContent>

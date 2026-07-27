@@ -44,7 +44,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Checkbox } from "@/components/ui/checkbox"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import { initializeApp, getApps } from "firebase/app"
+import { initializeApp, getApps, deleteApp } from "firebase/app"
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth"
 import { firebaseConfig } from "@/firebase/config"
 import { generateInstitutionId, normalizeSecurityPhone, generateStudentPin } from "@/lib/identity-service"
@@ -72,7 +72,7 @@ export default function StudentsPage() {
     gender: "Male",
     dateOfBirth: "",
     admissionNumber: "PENDING COMMIT",
-    studentPin: "", // Changed from "----" to empty to avoid sync confusion
+    studentPin: "",
     gradeLevel: "",
     status: "active",
     house: "",
@@ -161,35 +161,62 @@ export default function StudentsPage() {
 
   const handleSyncCredentials = async () => {
     if (!db || !institutionId || rawStudents.length === 0) return;
-    if (!confirm("This tool will generate Portal PINs for students missing them. This allows students to log in using 'Student ID + PIN'. Proceed?")) return;
+    if (!confirm("This tool will generate Portal PINs and security accounts for students missing them. This is required for ID + PIN login. Proceed?")) return;
 
     setSyncing(true);
+    const provisionAppName = `sync-provision-${Date.now()}`;
+    const provisionApp = initializeApp(firebaseConfig, provisionAppName);
+    const provisionAuth = getAuth(provisionApp);
+
     try {
-      const batch = writeBatch(db);
       let syncCount = 0;
 
       for (const stu of rawStudents) {
-        // Update if pin is missing, is placeholder "----", or empty string
         if (!stu.studentPin || stu.studentPin === "----" || stu.studentPin === "") {
           const newPin = generateStudentPin();
-          batch.update(doc(db, "students", stu.id), {
-            studentPin: newPin,
-            updatedAt: serverTimestamp()
-          });
-          syncCount++;
+          const studentEmail = `${stu.admissionNumber.toLowerCase()}@system.yebfa.com`;
+          
+          try {
+             // 1. Create Auth Account
+             const credential = await createUserWithEmailAndPassword(provisionAuth, studentEmail, newPin);
+             const authUser = credential.user;
+
+             // 2. Update Firestore Registry
+             const batch = writeBatch(db);
+             batch.update(doc(db, "students", stu.id), {
+               studentPin: newPin,
+               updatedAt: serverTimestamp()
+             });
+
+             // 3. Create User Profile
+             batch.set(doc(db, "users", authUser.uid), {
+               uid: authUser.uid,
+               name: `${stu.firstName} ${stu.lastName}`,
+               email: studentEmail,
+               role: "student",
+               tenantId: institutionId,
+               institutionId: institutionId,
+               status: "active",
+               createdAt: serverTimestamp()
+             });
+
+             await batch.commit();
+             syncCount++;
+          } catch (e: any) {
+             if (e.code === 'auth/email-already-in-use') {
+                // If account exists but PIN is missing in Firestore, just update Firestore
+                await updateDoc(doc(db, "students", stu.id), { studentPin: "CONTACT ADMIN", updatedAt: serverTimestamp() });
+             }
+          }
         }
       }
 
-      if (syncCount > 0) {
-        await batch.commit();
-        toast({ title: "Credentials Synchronized", description: `${syncCount} students have been assigned secure login PINs.` });
-      } else {
-        toast({ title: "Registry Healthy", description: "All students already have valid Portal PINs." });
-      }
+      toast({ title: "Sync Complete", description: `${syncCount} students provisioned with secure Portal PINs.` });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Sync Failed", description: e.message });
     } finally {
       setSyncing(false);
+      await deleteApp(provisionApp);
     }
   };
 
@@ -198,6 +225,9 @@ export default function StudentsPage() {
     if (!db || !institutionId || loading) return
 
     setLoading(true)
+    const provisionAppName = `enroll-provision-${Date.now()}`;
+    const provisionApp = initializeApp(firebaseConfig, provisionAppName);
+    const provisionAuth = getAuth(provisionApp);
     
     try {
       const batch = writeBatch(db)
@@ -209,14 +239,10 @@ export default function StudentsPage() {
       if (!editingStudent) {
         finalAdmissionNumber = await generateInstitutionId('STU', institutionId, institution?.schoolCode);
         finalPin = generateStudentPin();
-        
-        const secondaryAppName = `student-provision-${Date.now()}`
-        const secondaryApp = initializeApp(firebaseConfig, secondaryAppName)
-        const secondaryAuth = getAuth(secondaryApp)
         const studentEmail = `${finalAdmissionNumber.toLowerCase()}@system.yebfa.com`;
         
         try {
-          const credential = await createUserWithEmailAndPassword(secondaryAuth, studentEmail, finalPin)
+          const credential = await createUserWithEmailAndPassword(provisionAuth, studentEmail, finalPin)
           const authUser = credential.user
           
           batch.set(doc(db, "users", authUser.uid), {
@@ -237,14 +263,10 @@ export default function StudentsPage() {
       if (isNewParent && !editingStudent) {
         const finalParentNumber = await generateInstitutionId('PAR', institutionId, institution?.schoolCode);
         const cleanPass = normalizeSecurityPhone(newParentForm.phone);
-        
-        const secondaryAppName = `parent-provision-${Date.now()}`
-        const secondaryApp = initializeApp(firebaseConfig, secondaryAppName)
-        const secondaryAuth = getAuth(secondaryApp)
         const parentEmail = newParentForm.email || `${finalParentNumber.toLowerCase()}@system.yebfa.com`;
         
         try {
-          const credential = await createUserWithEmailAndPassword(secondaryAuth, parentEmail, cleanPass)
+          const credential = await createUserWithEmailAndPassword(provisionAuth, parentEmail, cleanPass)
           const parentAuthUser = credential.user
           
           batch.set(doc(db, "users", parentAuthUser.uid), {
@@ -315,7 +337,10 @@ export default function StudentsPage() {
       setIsEnrollOpen(false); setEditingStudent(null); setStudentForm(initialForm); setActiveStep("identity")
     } catch (error: any) {
       toast({ variant: "destructive", title: "Enrollment Failed", description: error.message });
-    } finally { setLoading(false) }
+    } finally { 
+      setLoading(false);
+      await deleteApp(provisionApp);
+    }
   }
 
   const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -323,45 +348,76 @@ export default function StudentsPage() {
     if (!file || !institutionId) return
 
     setBulkLoading(true)
+    const provisionAppName = `bulk-provision-${Date.now()}`;
+    const provisionApp = initializeApp(firebaseConfig, provisionAppName);
+    const provisionAuth = getAuth(provisionApp);
+
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
       complete: async (results) => {
         try {
-          const batch = writeBatch(db)
           const rows = results.data as any[]
+          let count = 0;
           
           for (const row of rows) {
             if (!row.firstName || !row.lastName) continue;
 
             const finalAdmissionNumber = await generateInstitutionId('STU', institutionId, institution?.schoolCode);
             const finalPin = generateStudentPin();
+            const studentEmail = `${finalAdmissionNumber.toLowerCase()}@system.yebfa.com`;
             
-            const studentRef = doc(collection(db, "students"))
-            batch.set(studentRef, {
-              firstName: row.firstName,
-              lastName: row.lastName,
-              gender: row.gender || "Male",
-              gradeLevel: row.grade || row.gradeLevel || "Unassigned",
-              dateOfBirth: row.dob || row.dateOfBirth || "",
-              admissionNumber: finalAdmissionNumber,
-              studentPin: finalPin,
-              tenantId: institutionId,
-              institutionId,
-              status: "active",
-              id: studentRef.id,
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp()
-            })
+            try {
+               // 1. Create Auth
+               const credential = await createUserWithEmailAndPassword(provisionAuth, studentEmail, finalPin);
+               const authUser = credential.user;
+
+               const batch = writeBatch(db)
+               const studentRef = doc(collection(db, "students"))
+               
+               // 2. Student Registry
+               batch.set(studentRef, {
+                 firstName: row.firstName,
+                 lastName: row.lastName,
+                 gender: row.gender || "Male",
+                 gradeLevel: row.grade || row.gradeLevel || "Unassigned",
+                 dateOfBirth: row.dob || row.dateOfBirth || "",
+                 admissionNumber: finalAdmissionNumber,
+                 studentPin: finalPin,
+                 tenantId: institutionId,
+                 institutionId,
+                 status: "active",
+                 id: studentRef.id,
+                 createdAt: serverTimestamp(),
+                 updatedAt: serverTimestamp()
+               });
+
+               // 3. User Profile
+               batch.set(doc(db, "users", authUser.uid), {
+                 uid: authUser.uid,
+                 name: `${row.firstName} ${row.lastName}`,
+                 email: studentEmail,
+                 role: "student",
+                 tenantId: institutionId,
+                 institutionId: institutionId,
+                 status: "active",
+                 createdAt: serverTimestamp()
+               });
+
+               await batch.commit();
+               count++;
+            } catch (err: any) {
+               console.error(`Failed to provision student ${row.firstName}:`, err);
+            }
           }
 
-          await batch.commit()
-          toast({ title: "Bulk Intake Successful", description: `Enrolled ${rows.length} students into the registry.` })
+          toast({ title: "Bulk Intake Successful", description: `Enrolled and provisioned ${count} students.` })
           setIsBulkOpen(false)
         } catch (error: any) {
           toast({ variant: "destructive", title: "Bulk Intake Failed", description: error.message })
         } finally {
           setBulkLoading(false)
+          await deleteApp(provisionApp);
         }
       }
     })
