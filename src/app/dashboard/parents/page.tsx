@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -20,7 +21,8 @@ import {
   Filter,
   MoreVertical,
   ShieldCheck,
-  RefreshCw
+  RefreshCw,
+  Activity
 } from "lucide-react"
 import { useFirestore, useCollection } from "@/firebase"
 import { collection, query, where, doc, deleteDoc, writeBatch, serverTimestamp } from "firebase/firestore"
@@ -36,7 +38,8 @@ export default function ParentsRegistryPage() {
   const [syncing, setSyncing] = useState(false)
   
   useEffect(() => {
-    setInstitutionId(localStorage.getItem('selected_institution_id'))
+    const storedId = localStorage.getItem('selected_institution_id')
+    if (storedId) setInstitutionId(storedId)
   }, [])
 
   // Query all parents for the tenant
@@ -69,7 +72,6 @@ export default function ParentsRegistryPage() {
     setSyncing(true);
     try {
       const batch = writeBatch(db);
-      // Sort by creation date to maintain historical order
       const sortedParents = [...parents].sort((a, b) => {
         const dateA = a.createdAt?.toMillis?.() || 0;
         const dateB = b.createdAt?.toMillis?.() || 0;
@@ -116,6 +118,13 @@ export default function ParentsRegistryPage() {
     toast({ title: "Export Initiated", description: "Compiling parent registry into CSV format..." })
   }
 
+  if (!institutionId && !pLoading) return (
+    <div className="p-20 text-center space-y-4">
+      <Activity className="size-12 text-primary animate-spin mx-auto" />
+      <p className="font-bold text-muted-foreground uppercase tracking-widest text-xs">Resolving Institutional Context...</p>
+    </div>
+  )
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -157,9 +166,9 @@ export default function ParentsRegistryPage() {
               />
             </div>
             <div className="flex items-center gap-2">
-               <Button variant="ghost" size="sm" className="text-xs font-bold gap-2 rounded-lg h-10 px-4">
-                 <Filter className="size-3.5" /> Filter Status
-               </Button>
+               <Badge className="bg-primary/5 text-primary border-none text-[10px] font-bold uppercase tracking-widest px-4 h-10 flex items-center">
+                 {parents.length} Records Active
+               </Badge>
             </div>
           </div>
         </CardHeader>
@@ -183,7 +192,7 @@ export default function ParentsRegistryPage() {
                   return (
                     <TableRow key={p.id} className="hover:bg-slate-50 transition-colors group">
                       <TableCell className="px-6 font-mono text-[11px] font-bold text-accent">
-                        {p.parentNumber}
+                        {p.parentNumber || "UNASSIGNED"}
                       </TableCell>
                       <TableCell className="px-4">
                         <div className="flex items-center gap-3">

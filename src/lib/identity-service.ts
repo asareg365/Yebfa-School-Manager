@@ -17,7 +17,7 @@ export type RegistryType = 'STU' | 'STF' | 'PAR' | 'ADM';
 export async function generateInstitutionId(
   type: RegistryType,
   institutionId: string,
-  schoolCode: string
+  schoolCode?: string
 ): Promise<string> {
   const counterRef = doc(db, 'counters', `${institutionId}_${type}`);
   const year = new Date().getFullYear();
@@ -38,6 +38,7 @@ export async function generateInstitutionId(
     }, { merge: true });
 
     const sequenceStr = String(nextSeq).padStart(4, '0');
+    // Fallback if schoolCode is missing for older institutions
     const cleanCode = schoolCode ? schoolCode.replace(/\s+/g, '').toUpperCase() : 'SCH';
     return `${cleanCode}-${type}-${year}-${sequenceStr}`;
   });
@@ -48,5 +49,9 @@ export async function generateInstitutionId(
  */
 export function normalizeSecurityPhone(num: string): string {
   if (!num) return "";
-  return num.replace(/\s+/g, '').replace(/-/g, '').replace(/\(/g, '').replace(/\)/g, '').replace('+233', '0');
+  // Strip all non-numeric characters except + and then normalize +233 to 0
+  let clean = num.replace(/\s+/g, '').replace(/-/g, '').replace(/\(/g, '').replace(/\)/g, '');
+  if (clean.startsWith('+233')) return '0' + clean.substring(4);
+  if (clean.startsWith('233')) return '0' + clean.substring(3);
+  return clean;
 }

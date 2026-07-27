@@ -47,7 +47,7 @@ export default function AddParentPage() {
   const { data: institution } = useDoc(instRef)
 
   const [parentForm, setParentForm] = useState({
-    parentNumber: "PENDING AUTHORIZATION",
+    parentNumber: "ASSIGNED ON SAVE",
     firstName: "",
     lastName: "",
     gender: "Female",
@@ -60,15 +60,12 @@ export default function AddParentPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!db || !institutionId || loading || !institution?.schoolCode) {
-      toast({ variant: "destructive", title: "Setup Error", description: "Institution school code is required for identity generation." });
-      return
-    }
+    if (!db || !institutionId || loading) return
     
     setLoading(true)
     try {
       // 1. Transactional Sequential ID Generation
-      const finalParentNumber = await generateInstitutionId('PAR', institutionId, institution.schoolCode);
+      const finalParentNumber = await generateInstitutionId('PAR', institutionId, institution?.schoolCode);
       const cleanPass = normalizeSecurityPhone(parentForm.phone)
       
       const secondaryAppName = `sec-par-add-${Date.now()}`
