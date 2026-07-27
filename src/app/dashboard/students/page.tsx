@@ -23,14 +23,16 @@ import {
   Baby,
   Users,
   Upload,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Download,
+  AlertCircle
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection, useUser, useDoc } from "@/firebase"
 import { collection, addDoc, query, deleteDoc, doc, where, serverTimestamp, updateDoc, writeBatch, setDoc } from "firebase/firestore"
 import { useState, useMemo, useEffect, useRef } from "react"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -42,6 +44,7 @@ import { initializeApp, getApps } from "firebase/app"
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth"
 import { firebaseConfig } from "@/firebase/config"
 import { generateInstitutionId, normalizeSecurityPhone } from "@/lib/identity-service"
+import Papa from "papaparse"
 
 export default function StudentsPage() {
   const db = useFirestore()
@@ -49,6 +52,8 @@ export default function StudentsPage() {
   const { user } = useUser()
   const [loading, setLoading] = useState(false)
   const [isEnrollOpen, setIsEnrollOpen] = useState(false)
+  const [isBulkOpen, setIsBulkOpen] = useState(false)
+  const [bulkLoading, setBulkLoading] = useState(false)
   const [editingStudent, setEditingStudent] = useState<any>(null)
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
@@ -141,10 +146,7 @@ export default function StudentsPage() {
 
   const handleEnroll = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!db || !institutionId || loading || !institution?.schoolCode) {
-      toast({ variant: "destructive", title: "Configuration Error", description: "Institution school code is missing." })
-      return
-    }
+    if (!db || !institutionId || loading) return
 
     setLoading(true)
     
@@ -156,12 +158,12 @@ export default function StudentsPage() {
 
       // 1. Transactional ID Generation
       if (!editingStudent) {
-        finalAdmissionNumber = await generateInstitutionId('STU', institutionId, institution.schoolCode);
+        finalAdmissionNumber = await generateInstitutionId('STU', institutionId, institution?.schoolCode);
       }
 
       // 2. Handle New Parent Auth Provisioning
       if (isNewParent && !editingStudent) {
-        const finalParentNumber = await generateInstitutionId('PAR', institutionId, institution.schoolCode);
+        const finalParentNumber = await generateInstitutionId('PAR', institutionId, institution?.schoolCode);
         const cleanPass = normalizeSecurityPhone(newParentForm.phone);
         
         const secondaryAppName = `secondary-parent-wizard-${Date.now()}`
@@ -244,6 +246,72 @@ export default function StudentsPage() {
     } finally { setLoading(false) }
   }
 
+  const handleBulkUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !institutionId) return
+
+    setBulkLoading(true)
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        try {
+          const data = results.data as any[]
+          let successCount = 0
+
+          for (const row of data) {
+            const firstName = row.firstName || row['First Name']
+            const lastName = row.lastName || row['Last Name']
+            const gender = row.gender || row['Gender'] || 'Male'
+            const dob = row.dateOfBirth || row['DOB'] || row['Date of Birth']
+            const grade = row.gradeLevel || row['Grade'] || row['Class']
+
+            if (!firstName || !lastName) continue
+
+            const admissionNumber = await generateInstitutionId('STU', institutionId, institution?.schoolCode)
+            const studentRef = doc(collection(db, "students"))
+            
+            await setDoc(studentRef, {
+              ...initialForm,
+              firstName,
+              lastName,
+              gender,
+              dateOfBirth: dob || "",
+              gradeLevel: grade || "",
+              admissionNumber,
+              id: studentRef.id,
+              tenantId: institutionId,
+              institutionId,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp()
+            })
+            successCount++
+          }
+
+          toast({ title: "Bulk Upload Complete", description: `${successCount} students added to registry.` })
+          setIsBulkOpen(false)
+        } catch (err: any) {
+          toast({ variant: "destructive", title: "Bulk Upload Failed", description: err.message })
+        } finally {
+          setBulkLoading(false)
+          e.target.value = ""
+        }
+      }
+    })
+  }
+
+  const downloadTemplate = () => {
+    const csv = Papa.unparse([
+      { "First Name": "John", "Last Name": "Doe", "Gender": "Male", "Date of Birth": "2015-05-12", "Grade": "Primary 1" },
+      { "First Name": "Jane", "Last Name": "Smith", "Gender": "Female", "Date of Birth": "2016-08-20", "Grade": "Primary 2" }
+    ])
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.setAttribute('download', 'student_bulk_template.csv')
+    link.click()
+  }
+
   const navigateStep = (direction: 'next' | 'back') => {
     const currentIndex = steps.indexOf(activeStep)
     if (direction === 'next' && currentIndex < steps.length - 1) setActiveStep(steps[currentIndex + 1])
@@ -270,6 +338,9 @@ export default function StudentsPage() {
           <p className="text-muted-foreground">Strategic institutional enrollment and transactional ID management.</p>
         </div>
         <div className="flex flex-wrap gap-3">
+          <Button variant="outline" className="h-11 rounded-xl" onClick={() => setIsBulkOpen(true)}>
+            <FileSpreadsheet className="size-4 mr-2" /> Bulk Intake
+          </Button>
           <Button variant="outline" className="h-11 rounded-xl" asChild><Link href="/dashboard/students/id-cards"><IdCard className="size-4 mr-2" /> ID Cards</Link></Button>
           <Button className="bg-primary rounded-xl h-11 shadow-lg gap-2" onClick={() => { setEditingStudent(null); setStudentForm(initialForm); setIsEnrollOpen(true); setActiveStep("identity"); }}>
             <UserPlus className="size-4" /> Enroll Student
@@ -462,6 +533,52 @@ export default function StudentsPage() {
               </div>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isBulkOpen} onOpenChange={setIsBulkOpen}>
+        <DialogContent className="max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-headline font-bold">Bulk Student Intake</DialogTitle>
+            <DialogDescription>Enroll multiple students at once using a CSV data template.</DialogDescription>
+          </DialogHeader>
+          <div className="py-8 space-y-6">
+            <div className="p-6 border-2 border-dashed rounded-2xl text-center space-y-4 bg-muted/5">
+              <FileSpreadsheet className="size-12 text-primary/20 mx-auto" />
+              <div className="space-y-1">
+                <p className="text-sm font-bold">Upload CSV Template</p>
+                <p className="text-[10px] text-muted-foreground uppercase">Format: firstName, lastName, gender, DOB, grade</p>
+              </div>
+              <Input 
+                type="file" 
+                accept=".csv" 
+                className="hidden" 
+                id="bulk-file" 
+                onChange={handleBulkUpload}
+                disabled={bulkLoading}
+              />
+              <Button asChild variant="secondary" className="w-full h-12 font-bold cursor-pointer">
+                <label htmlFor="bulk-file">
+                  {bulkLoading ? <Loader2 className="size-4 animate-spin mr-2" /> : <Upload className="size-4 mr-2" />}
+                  Select CSV File
+                </label>
+              </Button>
+            </div>
+            
+            <div className="space-y-4">
+               <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Strategic Template</h4>
+               <Button variant="outline" className="w-full h-12 gap-2 rounded-xl" onClick={downloadTemplate}>
+                 <Download className="size-4" /> Download Sample CSV
+               </Button>
+            </div>
+            
+            <div className="p-4 rounded-xl bg-amber-50 border border-amber-100 flex gap-3">
+              <AlertCircle className="size-5 text-amber-600 shrink-0" />
+              <p className="text-[10px] text-amber-800 leading-relaxed font-medium">
+                IDs will be generated sequentially in real-time. Ensure your CSV columns match the template for successful synchronization.
+              </p>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

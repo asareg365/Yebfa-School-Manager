@@ -38,8 +38,8 @@ export async function generateInstitutionId(
     }, { merge: true });
 
     const sequenceStr = String(nextSeq).padStart(4, '0');
-    // Fallback if schoolCode is missing for older institutions
-    const cleanCode = schoolCode ? schoolCode.replace(/\s+/g, '').toUpperCase() : 'SCH';
+    // Fallback if schoolCode is missing - ensure we always return a valid string
+    const cleanCode = schoolCode ? schoolCode.replace(/\s+/g, '').toUpperCase().substring(0, 4) : 'SCH';
     return `${cleanCode}-${type}-${year}-${sequenceStr}`;
   });
 }

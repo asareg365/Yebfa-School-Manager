@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { School, Shield, Building, Plus, Layers, Trash2, Save, Loader2, Upload, X, Wallet, CheckCircle2, Clock, AlertTriangle } from "lucide-react"
+import { School, Shield, Building, Plus, Layers, Trash2, Save, Loader2, Upload, X, Wallet, CheckCircle2, Clock, AlertTriangle, KeyRound } from "lucide-react"
 import { useState, useEffect, useRef, useMemo } from "react"
 import { useFirestore, useDoc, useUser } from "@/firebase"
 import { doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore"
@@ -23,7 +23,6 @@ export default function SettingsPage() {
   const { user } = useUser()
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
-  const [newDept, setNewDept] = useState("")
   const [logoPreview, setLogoUrl] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -76,6 +75,7 @@ export default function SettingsPage() {
     
     const data: any = {
       name: (formData.get("schoolName") as string) || institution.name,
+      schoolCode: (formData.get("schoolCode") as string)?.toUpperCase().replace(/\s+/g, '').substring(0, 4) || institution.schoolCode || "SCH",
       location: (formData.get("location") as string) || institution.location,
       address: (formData.get("address") as string) || institution.address || "",
       phone: (formData.get("phone") as string) || institution.phone || "",
@@ -107,16 +107,6 @@ export default function SettingsPage() {
       })
   }
 
-  const handleAddDepartment = () => {
-    if (!instRef || !newDept.trim()) return
-    const updateData = { customDepartments: arrayUnion(newDept.trim()) }
-    updateDoc(instRef, updateData)
-      .then(() => {
-        setNewDept("")
-        toast({ title: "Department Registered", description: `${newDept} is now active.` })
-      })
-  }
-
   if (loading) return <div className="p-10 text-center animate-pulse font-headline font-bold text-primary">Synchronizing system...</div>
   if (!institutionId) return <div className="p-10 text-center font-bold text-destructive">No active institution context found</div>
 
@@ -131,7 +121,6 @@ export default function SettingsPage() {
         <TabsList className="bg-muted/50 p-1 rounded-xl mb-6 flex-wrap h-auto">
           <TabsTrigger value="profile" className="rounded-lg gap-2"><Building className="size-4" /> Identity</TabsTrigger>
           <TabsTrigger value="academic" className="rounded-lg gap-2"><School className="size-4" /> Academic</TabsTrigger>
-          <TabsTrigger value="departments" className="rounded-lg gap-2"><Layers className="size-4" /> Departments</TabsTrigger>
           <TabsTrigger value="subscription" className="rounded-lg gap-2 text-accent"><Wallet className="size-4" /> Subscription</TabsTrigger>
           <TabsTrigger value="security" className="rounded-lg gap-2"><Shield className="size-4" /> Security</TabsTrigger>
         </TabsList>
@@ -173,18 +162,21 @@ export default function SettingsPage() {
                     <Input name="schoolName" defaultValue={institution?.name} required className="h-11 rounded-xl" />
                   </div>
                   <div className="space-y-2">
-                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">System Hub Location</Label>
-                    <Input name="location" defaultValue={institution?.location} required className="h-11 rounded-xl" />
+                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Institution Prefix (ID Generation)</Label>
+                    <div className="relative">
+                       <KeyRound className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                       <Input name="schoolCode" defaultValue={institution?.schoolCode} maxLength={4} placeholder="e.g. TTS" className="h-11 pl-10 rounded-xl font-mono font-bold" />
+                    </div>
                   </div>
                 </div>
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Physical Address</Label>
-                    <Input name="address" defaultValue={institution?.address} placeholder="e.g. Plot 15, System Hub" className="h-11 rounded-xl" />
+                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">System Hub Location</Label>
+                    <Input name="location" defaultValue={institution?.location} required className="h-11 rounded-xl" />
                   </div>
                   <div className="space-y-2">
-                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Hub Phone</Label>
-                    <Input name="phone" defaultValue={institution?.phone} placeholder="e.g. 024-000-0000" className="h-11 rounded-xl" />
+                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Physical Address</Label>
+                    <Input name="address" defaultValue={institution?.address} placeholder="e.g. Plot 15, System Hub" className="h-11 rounded-xl" />
                   </div>
                 </div>
               </CardContent>
