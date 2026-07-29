@@ -61,6 +61,7 @@ export default function StudentsPage() {
   const [bulkLoading, setBulkLoading] = useState(false)
   const [editingStudent, setEditingStudent] = useState<any>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  const bulkFileRef = useRef<HTMLInputElement>(null)
   
   const [activeStep, setActiveStep] = useState("identity")
   const steps = ["identity", "academic", "guardian", "finalize"]
@@ -159,10 +160,34 @@ export default function StudentsPage() {
     ).sort((a: any, b: any) => (a.admissionNumber || "").localeCompare(b.admissionNumber || ""));
   }, [rawStudents, searchQuery]);
 
+  const validateStep = (step: string) => {
+    if (step === "identity") {
+      if (!studentForm.firstName || !studentForm.lastName || !studentForm.dateOfBirth || !studentForm.gender) {
+        toast({ variant: "destructive", title: "Missing Information", description: "First name, last name, date of birth, and gender are required." });
+        return false;
+      }
+    }
+    if (step === "academic") {
+      if (!studentForm.gradeLevel) {
+        toast({ variant: "destructive", title: "Class Required", description: "Please assign a grade level to the student." });
+        return false;
+      }
+    }
+    if (step === "guardian" && isNewParent && !editingStudent) {
+      if (!newParentForm.firstName || !newParentForm.lastName || !newParentForm.phone) {
+        toast({ variant: "destructive", title: "Guardian Details Required", description: "First name, last name, and phone number are mandatory for new guardians." });
+        return false;
+      }
+    }
+    return true;
+  }
+
   const navigateStep = (direction: 'next' | 'back') => {
     const currentIndex = steps.indexOf(activeStep)
     if (direction === 'next' && currentIndex < steps.length - 1) {
-      setActiveStep(steps[currentIndex + 1])
+      if (validateStep(activeStep)) {
+        setActiveStep(steps[currentIndex + 1])
+      }
     } else if (direction === 'back' && currentIndex > 0) {
       setActiveStep(steps[currentIndex - 1])
     }
@@ -171,6 +196,7 @@ export default function StudentsPage() {
   const handleEnroll = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!db || !institutionId || loading) return
+    if (!validateStep(activeStep)) return
 
     setLoading(true)
     const provisionAppName = `enroll-provision-${Date.now()}`;
@@ -201,7 +227,7 @@ export default function StudentsPage() {
             name: `${studentForm.firstName} ${studentForm.lastName}`,
             email: studentEmail,
             role: "student",
-            studentId: studentId, // CRITICAL: Link the security account to the registry record
+            studentId: studentId,
             tenantId: institutionId,
             institutionId: institutionId,
             status: "active",
@@ -371,6 +397,7 @@ export default function StudentsPage() {
           toast({ variant: "destructive", title: "Bulk Intake Failed", description: error.message })
         } finally {
           setBulkLoading(false)
+          if (bulkFileRef.current) bulkFileRef.current.value = "";
           try { await deleteApp(provisionApp); } catch (e) {}
         }
       }
@@ -539,19 +566,32 @@ export default function StudentsPage() {
                           </Badge>
                        </div>
                     </div>
-                    <div className="space-y-2"><Label>First Name</Label><Input required value={studentForm.firstName} onChange={e => setStudentForm({...studentForm, firstName: e.target.value})} className="h-11 rounded-xl" /></div>
-                    <div className="space-y-2"><Label>Last Name</Label><Input required value={studentForm.lastName} onChange={e => setStudentForm({...studentForm, lastName: e.target.value})} className="h-11 rounded-xl" /></div>
-                    <div className="space-y-2"><Label>Gender</Label>
-                      <Select value={studentForm.gender} onValueChange={v => setStudentForm({...studentForm, gender: v})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem></SelectContent></Select>
+                    <div className="space-y-2">
+                      <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">First Name</Label>
+                      <Input required value={studentForm.firstName} onChange={e => setStudentForm({...studentForm, firstName: e.target.value})} className="h-11 rounded-xl" />
                     </div>
-                    <div className="space-y-2"><Label>Date of Birth</Label><Input type="date" value={studentForm.dateOfBirth} onChange={e => setStudentForm({...studentForm, dateOfBirth: e.target.value})} className="h-11 rounded-xl" /></div>
+                    <div className="space-y-2">
+                      <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">Last Name</Label>
+                      <Input required value={studentForm.lastName} onChange={e => setStudentForm({...studentForm, lastName: e.target.value})} className="h-11 rounded-xl" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">Gender</Label>
+                      <Select required value={studentForm.gender} onValueChange={v => setStudentForm({...studentForm, gender: v})}>
+                        <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                        <SelectContent><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem></SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">Date of Birth</Label>
+                      <Input required type="date" value={studentForm.dateOfBirth} onChange={e => setStudentForm({...studentForm, dateOfBirth: e.target.value})} className="h-11 rounded-xl" />
+                    </div>
                   </div>
                 </TabsContent>
 
                 <TabsContent value="academic" className="space-y-6 mt-0">
                   <div className="space-y-2">
-                    <Label>Assign Grade Level</Label>
-                    <Select value={studentForm.gradeLevel} onValueChange={v => setStudentForm({...studentForm, gradeLevel: v})}>
+                    <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">Assign Grade Level</Label>
+                    <Select required value={studentForm.gradeLevel} onValueChange={v => setStudentForm({...studentForm, gradeLevel: v})}>
                       <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select Class" /></SelectTrigger>
                       <SelectContent>{registeredClasses.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
                     </Select>
@@ -580,9 +620,18 @@ export default function StudentsPage() {
                               </Badge>
                            </div>
                         </div>
-                        <div className="space-y-2"><Label>First Name</Label><Input value={newParentForm.firstName} onChange={e => setNewParentForm({...newParentForm, firstName: e.target.value})} className="h-11 bg-white" /></div>
-                        <div className="space-y-2"><Label>Last Name</Label><Input value={newParentForm.lastName} onChange={e => setNewParentForm({...newParentForm, lastName: e.target.value})} className="h-11 bg-white" /></div>
-                        <div className="space-y-2"><Label>Contact Phone</Label><Input value={newParentForm.phone} onChange={e => setNewParentForm({...newParentForm, phone: e.target.value})} className="h-11 bg-white" /></div>
+                        <div className="space-y-2">
+                          <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">First Name</Label>
+                          <Input value={newParentForm.firstName} onChange={e => setNewParentForm({...newParentForm, firstName: e.target.value})} className="h-11 bg-white" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">Last Name</Label>
+                          <Input value={newParentForm.lastName} onChange={e => setNewParentForm({...newParentForm, lastName: e.target.value})} className="h-11 bg-white" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">Contact Phone (Portal Password)</Label>
+                          <Input value={newParentForm.phone} onChange={e => setNewParentForm({...newParentForm, phone: e.target.value})} className="h-11 bg-white" />
+                        </div>
                         <div className="space-y-2 md:col-span-2"><Label>Guardian Email (Required for Portal)</Label><Input type="email" value={newParentForm.email} onChange={e => setNewParentForm({...newParentForm, email: e.target.value})} className="h-11 bg-white" /></div>
                      </div>
                    ) : (
@@ -673,6 +722,7 @@ export default function StudentsPage() {
                <input 
                 type="file" 
                 accept=".csv" 
+                ref={bulkFileRef}
                 className="absolute inset-0 opacity-0 cursor-pointer" 
                 onChange={handleBulkUpload}
                 disabled={bulkLoading}
