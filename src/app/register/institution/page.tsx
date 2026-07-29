@@ -25,7 +25,7 @@ const GRADE_LEVEL_CATEGORIES = [
   { id: "jhs", label: "Junior High School", grades: ["JHS 1-3"] },
   { id: "shs", label: "Senior High School", grades: ["SHS 1-3", "TVET"] },
   { id: "tertiary", label: "Higher Education", grades: ["University", "Polytechnic", "College of Ed"] },
-  { id: "combined", label: "K-12 (Combined)", grades: ["KG - SHS 3", "Primary - JHS 3"] }
+  { id: "combined", label: "Combined Cycles", grades: ["KG - SHS 3", "Primary - JHS 3", "KG - JHS 3", "Primary - SHS 3"] }
 ]
 
 export default function InstitutionRegistrationPage() {
@@ -54,7 +54,6 @@ export default function InstitutionRegistrationPage() {
   }, [user])
 
   const generateSchoolCode = (name: string) => {
-    // Generate clean 3-letter alphanumeric code from name
     const cleanName = name.replace(/[^a-zA-Z]/g, '');
     if (cleanName.length >= 3) {
       return cleanName.substring(0, 3).toUpperCase();

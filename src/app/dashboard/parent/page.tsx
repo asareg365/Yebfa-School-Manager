@@ -40,7 +40,6 @@ export default function StudentReportsPortal() {
   const isStudent = profile?.role === 'student'
   const isParent = profile?.role === 'parent'
 
-  // 1. Resolve student identity based on role
   const relsQuery = useMemo(() => {
     if (!db || !user?.uid || !isParent) return null
     return query(collection(db, "student_parents"), where("parentId", "==", user.uid))
@@ -51,7 +50,6 @@ export default function StudentReportsPortal() {
   const studentsQuery = useMemo(() => {
     if (!db || !profile) return null
     if (isStudent) {
-       // If student, they only see themselves
        const sId = profile.studentId;
        if (!sId) return null;
        return query(collection(db, "students"), where("id", "==", sId))
@@ -76,13 +74,11 @@ export default function StudentReportsPortal() {
     [children, selectedStudentId]
   )
 
-  // 2. Fetch Institutional context for current term
   const tenantId = selectedChild?.tenantId;
   const instRef = useMemo(() => tenantId ? doc(db, "institutions", tenantId) : null, [db, tenantId]);
   const { data: institution } = useDoc(instRef);
   const currentTerm = institution?.currentTerm || "Term 1";
 
-  // 3. Fetch academic and financial data
   const examsQuery = useMemo(() => {
     if (!db || !selectedStudentId) return null
     return query(collection(db, "exam_records"), where("studentId", "==", selectedStudentId), where("termId", "==", currentTerm))
@@ -108,7 +104,6 @@ export default function StudentReportsPortal() {
   const { data: ledger = [] } = useCollection(ledgerQuery)
   const { data: invoices = [] } = useCollection(invoicesQuery)
 
-  // 4. Quantitative Computations
   const computedData = useMemo(() => {
     if (exams.length === 0 && invoices.length === 0 && attendance.length === 0) {
        return { results: [], average: 0, attendance: { percentage: 0, present: 0 }, balance: 0 };
@@ -127,7 +122,10 @@ export default function StudentReportsPortal() {
     const totalMarks = results.reduce((acc, curr) => acc + curr.total, 0);
     const average = results.length > 0 ? totalMarks / results.length : 0;
     const attSummary = calculateAttendanceSummary(attendance);
-    const balance = ledger.reduce((acc, curr: any) => curr.type === 'charge' ? acc + curr.amount : acc - curr.amount, 0);
+
+    // Accounting Polarity: Paid - Charged = Balance
+    // Negative = student owes, Positive = credit
+    const balance = ledger.reduce((acc, curr: any) => curr.type === 'charge' ? acc - curr.amount : acc + curr.amount, 0);
 
     return {
       results,
@@ -192,14 +190,14 @@ export default function StudentReportsPortal() {
             <Card className="border-none shadow-md bg-primary text-primary-foreground rounded-2xl md:rounded-3xl overflow-hidden group">
               <CardHeader className="pb-2">
                 <div className="flex justify-between items-start">
-                  <CardDescription className="text-primary-foreground/60 text-[10px] font-bold uppercase tracking-widest">Fee Balance</CardDescription>
+                  <CardDescription className="text-primary-foreground/60 text-[10px] font-bold uppercase tracking-widest">Account Balance</CardDescription>
                   <Wallet className="size-4 text-accent opacity-50 group-hover:scale-110 transition-transform" />
                 </div>
                 <CardTitle className="text-2xl font-headline font-bold">GH₵ {computedData?.balance?.toLocaleString() || "0.00"}</CardTitle>
               </CardHeader>
               <CardContent>
-                <Badge className={`border-none text-[8px] font-bold uppercase ${computedData?.balance && computedData.balance > 0 ? 'bg-accent text-accent-foreground animate-pulse' : 'bg-green-500/20 text-green-400'}`}>
-                  {computedData?.balance && computedData.balance > 0 ? 'Payment Required' : 'Account Balanced'}
+                <Badge className={`border-none text-[8px] font-bold uppercase ${computedData?.balance < 0 ? 'bg-accent text-accent-foreground animate-pulse' : 'bg-green-500/20 text-green-400'}`}>
+                  {computedData?.balance < 0 ? 'Payment Required' : computedData?.balance > 0 ? 'Credit Balance' : 'Account Balanced'}
                 </Badge>
               </CardContent>
             </Card>
@@ -326,7 +324,7 @@ export default function StudentReportsPortal() {
                      <Card className="border-none shadow-xl rounded-3xl overflow-hidden bg-white">
                         <CardHeader className="bg-slate-50 border-b p-6">
                            <CardTitle className="text-lg font-bold">Payment History</CardTitle>
-                           <CardDescription>Full audit trail of charges and collections.</CardDescription>
+                           <CardDescription>Full audit trail of charges and collections (Charges=Debits, Payments=Credits).</CardDescription>
                         </CardHeader>
                         <CardContent className="p-0">
                           <Table>

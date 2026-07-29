@@ -42,8 +42,11 @@ export default function PersonalFeeLedgerPage() {
 
   const { data: ledger, loading: ledgerLoading } = useCollection(ledgerQuery)
 
+  // Accounting Polarity: 
+  // Charges (Debits) are negative (what student owes)
+  // Payments (Credits) are positive (reducing the debt)
   const balance = useMemo(() => {
-    return ledger.reduce((acc, curr: any) => curr.type === 'charge' ? acc + curr.amount : acc - curr.amount, 0)
+    return ledger.reduce((acc, curr: any) => curr.type === 'charge' ? acc - curr.amount : acc + curr.amount, 0)
   }, [ledger])
 
   const handlePostEntry = async (e: React.FormEvent) => {
@@ -69,7 +72,7 @@ export default function PersonalFeeLedgerPage() {
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex justify-between items-center">
-        <div><h1 className="text-3xl font-headline font-bold text-primary">Personal Fee Ledger</h1><p className="text-muted-foreground">Managing individual student financial accounts.</p></div>
+        <div><h1 className="text-3xl font-headline font-bold text-primary">Personal Fee Ledger</h1><p className="text-muted-foreground">Managing individual student financial accounts (Charge=Debit, Payment=Credit).</p></div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-4">
@@ -80,7 +83,7 @@ export default function PersonalFeeLedgerPage() {
                {students.map((s: any) => (
                  <button key={s.id} onClick={() => setSelectedStudent(s)} className={`w-full text-left p-4 hover:bg-slate-50 flex items-center gap-3 ${selectedStudent?.id === s.id ? 'bg-primary/5 border-l-4 border-primary' : ''}`}>
                     <div className="size-8 rounded-full bg-muted flex items-center justify-center shrink-0">{s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover rounded-full" /> : <User className="size-4 opacity-20" />}</div>
-                    <div className="flex flex-col"><span className="text-xs font-bold text-primary uppercase">{s.firstName} {s.lastName}</span><span className="text-[10px] text-muted-foreground font-mono">{s.studentId}</span></div>
+                    <div className="flex flex-col"><span className="text-xs font-bold text-primary uppercase">{s.firstName} {s.lastName}</span><span className="text-[10px] text-muted-foreground font-mono">{s.admissionNumber}</span></div>
                  </button>
                ))}
              </div>
@@ -101,21 +104,38 @@ export default function PersonalFeeLedgerPage() {
               <div className="space-y-8">
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="p-6 rounded-2xl bg-slate-50 border flex items-center justify-between">
-                    <div><p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Balance</p><h3 className={`text-3xl font-bold font-headline ${balance > 0 ? 'text-destructive' : 'text-green-600'}`}>GH₵ {balance.toLocaleString()}</h3></div>
+                    <div>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Current Balance</p>
+                      <h3 className={`text-3xl font-bold font-headline ${balance < 0 ? 'text-destructive' : balance > 0 ? 'text-blue-600' : 'text-green-600'}`}>
+                        GH₵ {balance.toLocaleString()}
+                      </h3>
+                      <p className="text-[9px] font-bold uppercase mt-1">
+                        {balance < 0 ? "Outstanding Debt" : balance > 0 ? "Credit Balance (Overpaid)" : "Account Cleared"}
+                      </p>
+                    </div>
                     <Banknote className="size-10 text-primary/10" />
                   </div>
                 </div>
                 <Table>
-                  <TableHeader className="bg-muted/30"><TableRow><TableHead>Date</TableHead><TableHead>Item</TableHead><TableHead>Type</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                  <TableHeader className="bg-muted/30"><TableRow><TableHead>Date</TableHead><TableHead>Item</TableHead><TableHead>Entry Type</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                   <TableBody>
-                    {ledger.map((entry: any) => (
+                    {ledger.sort((a:any, b:any) => b.date.localeCompare(a.date)).map((entry: any) => (
                       <TableRow key={entry.id}>
                         <TableCell className="text-[10px] font-mono">{entry.date}</TableCell>
                         <TableCell className="font-bold">{entry.item}</TableCell>
-                        <TableCell><Badge variant="outline" className={`text-[9px] uppercase ${entry.type === 'charge' ? 'text-destructive' : 'text-green-600'}`}>{entry.type}</Badge></TableCell>
-                        <TableCell className="text-right font-bold">GH₵ {entry.amount}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={`text-[9px] uppercase ${entry.type === 'charge' ? 'text-destructive border-destructive/20' : 'text-green-600 border-green-200'}`}>
+                            {entry.type === 'charge' ? 'Debit (Charge)' : 'Credit (Payment)'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className={`text-right font-bold ${entry.type === 'charge' ? 'text-destructive' : 'text-green-600'}`}>
+                          {entry.type === 'charge' ? '-' : '+'} GH₵ {entry.amount}
+                        </TableCell>
                       </TableRow>
                     ))}
+                    {ledger.length === 0 && (
+                      <TableRow><TableCell colSpan={4} className="text-center py-20 text-muted-foreground italic">No transactions recorded for this student.</TableCell></TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </div>
@@ -128,8 +148,8 @@ export default function PersonalFeeLedgerPage() {
         <DialogContent><form onSubmit={handlePostEntry}>
           <DialogHeader><DialogTitle>New Entry</DialogTitle></DialogHeader>
           <div className="grid gap-6 py-6">
-            <div className="space-y-2"><Label>Type</Label><Select onValueChange={v => setEntryForm({...entryForm, type: v})} value={entryForm.type}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="charge">Debit (Charge)</SelectItem><SelectItem value="payment">Credit (Payment)</SelectItem></SelectContent></Select></div>
-            <div className="space-y-2"><Label>Description</Label><Input required value={entryForm.item} onChange={e => setEntryForm({...entryForm, item: e.target.value})} placeholder="e.g. Term Tuition" /></div>
+            <div className="space-y-2"><Label>Entry Type</Label><Select onValueChange={v => setEntryForm({...entryForm, type: v})} value={entryForm.type}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="charge">Debit (Record Charge)</SelectItem><SelectItem value="payment">Credit (Record Payment)</SelectItem></SelectContent></Select></div>
+            <div className="space-y-2"><Label>Description</Label><Input required value={entryForm.item} onChange={e => setEntryForm({...entryForm, item: e.target.value})} placeholder="e.g. Special Activity Fee" /></div>
             <div className="space-y-2"><Label>Amount (GH₵)</Label><Input type="number" required value={entryForm.amount} onChange={e => setEntryForm({...entryForm, amount: e.target.value})} /></div>
           </div>
           <DialogFooter><Button type="submit" disabled={loading} className="w-full">Authorize Posting</Button></DialogFooter>

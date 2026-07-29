@@ -58,6 +58,7 @@ export default function PaymentsProcessorPage() {
     }
   }, [profile])
 
+  // Strategic Filter: Only show invoices that are NOT fully paid
   const invoicesQuery = useMemo(() => {
     if (!db || !institutionId) return null
     return query(collection(db, "invoices"), where("tenantId", "==", institutionId), where("status", "!=", "Paid"))
@@ -123,11 +124,12 @@ export default function PaymentsProcessorPage() {
 
       batch.update(doc(db, "invoices", selectedInvoice.id), {
         amountPaid: newPaid,
-        amountDue: newDue,
+        amountDue: Math.max(0, newDue),
         status: newStatus,
         updatedAt: serverTimestamp()
       })
 
+      // Posting to Ledger: Payment increases the student's balance toward zero or beyond
       const ledgerRef = doc(collection(db, "student_ledger"))
       batch.set(ledgerRef, {
         tenantId: institutionId,
@@ -141,7 +143,7 @@ export default function PaymentsProcessorPage() {
       })
 
       await batch.commit()
-      toast({ title: "Payment Successful", description: "Ledger updated and receipt issued." })
+      toast({ title: "Payment Successful", description: "Ledger updated and student removed from pending list." })
       setIsPayOpen(false)
       setPaymentForm({ invoiceId: "", amount: "", method: "MTN MoMo", reference: "" })
       setInvoiceFilter("")
@@ -238,7 +240,7 @@ export default function PaymentsProcessorPage() {
             </DialogHeader>
             <div className="py-6 space-y-6">
               <div className="space-y-3">
-                <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Find Student Invoice</Label>
+                <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Find Student Invoice (Pending Only)</Label>
                 <div className="relative">
                   <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
                   <Input 
