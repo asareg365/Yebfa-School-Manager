@@ -16,6 +16,7 @@ import {
   BarChart, 
   TrendingUp, 
   User, 
+  Search,
   CheckCircle2, 
   FileText,
   Save,
@@ -23,7 +24,7 @@ import {
   AlertCircle
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useFirestore, useCollection, useDoc } from "@/firebase"
+import { useFirestore, useCollection, useDoc, useUser } from "@/firebase"
 import { collection, query, where, doc, setDoc, serverTimestamp } from "firebase/firestore"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { calculateGrade, calculatePositions, calculateAttendanceSummary, DEFAULT_GRADING, determinePromotion } from "@/lib/academic-engine"
@@ -32,18 +33,28 @@ import { ResponsiveContainer, BarChart as ReBarChart, Bar, XAxis, YAxis, Tooltip
 
 export default function StudentReportsPage() {
   const db = useFirestore()
+  const { user } = useUser()
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [selectedGrade, setSelectedGrade] = useState("")
   const [selectedStudentId, setSelectedStudentId] = useState("")
+  const [studentSearch, setStudentSearch] = useState("")
   const [isComputing, setIsComputing] = useState(false)
   
-  // Remarks State (Manual)
   const [teacherRemark, setTeacherRemark] = useState("")
   const [headRemark, setHeadRemark] = useState("")
 
+  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
+  const { data: profile } = useDoc(userProfileRef)
+
   useEffect(() => {
-    setInstitutionId(localStorage.getItem('selected_institution_id'))
-  }, [])
+    if (profile) {
+      if (profile.role === 'super_admin') {
+        setInstitutionId(localStorage.getItem('selected_institution_id'))
+      } else {
+        setInstitutionId(profile.tenantId || null)
+      }
+    }
+  }, [profile])
 
   const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
   const { data: institution } = useDoc(instRef)
@@ -53,11 +64,7 @@ export default function StudentReportsPage() {
   const classesQuery = useMemo(() => institutionId ? query(collection(db, "classes"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   const studentsQuery = useMemo(() => institutionId && selectedGrade ? query(collection(db, "students"), where("tenantId", "==", institutionId), where("gradeLevel", "==", selectedGrade)) : null, [db, institutionId, selectedGrade])
   const subjectsQuery = useMemo(() => institutionId ? query(collection(db, "subjects"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
-  
-  // Fetch ALL exam records for the class to compute positions
   const classExamsQuery = useMemo(() => institutionId && selectedGrade ? query(collection(db, "exam_records"), where("tenantId", "==", institutionId), where("gradeLevel", "==", selectedGrade), where("termId", "==", currentTerm)) : null, [db, institutionId, selectedGrade, currentTerm])
-  
-  // Student-specific queries
   const attendanceQuery = useMemo(() => institutionId && selectedStudentId ? query(collection(db, "attendance"), where("studentId", "==", selectedStudentId)) : null, [db, institutionId, selectedStudentId])
 
   const { data: classes = [] } = useCollection(classesQuery)
@@ -66,13 +73,18 @@ export default function StudentReportsPage() {
   const { data: allClassExams = [] } = useCollection(classExamsQuery)
   const { data: studentAttendance = [] } = useCollection(attendanceQuery)
 
+  const filteredStudents = useMemo(() => {
+    return students.filter(s => 
+      `${s.firstName} ${s.lastName}`.toLowerCase().includes(studentSearch.toLowerCase()) ||
+      s.admissionNumber?.toLowerCase().includes(studentSearch.toLowerCase())
+    )
+  }, [students, studentSearch])
+
   const selectedStudent = useMemo(() => students.find(s => s.id === selectedStudentId), [students, selectedStudentId])
 
-  // Strategic Calculations
   const reportData = useMemo(() => {
     if (!selectedStudentId || allClassExams.length === 0) return null;
 
-    // 1. Get current student's exams
     const studentExams = allClassExams.filter((e: any) => e.studentId === selectedStudentId);
     const results = studentExams.map((e: any) => {
       const subject = subjects.find(s => s.id === e.subjectId);
@@ -87,21 +99,17 @@ export default function StudentReportsPage() {
       };
     });
 
-    // 2. Compute Overall Metrics
     const totalMarks = results.reduce((acc, curr) => acc + curr.total, 0);
     const average = results.length > 0 ? totalMarks / results.length : 0;
     const overallGrade = calculateGrade(average);
     const failedCount = results.filter(r => r.total < 50).length;
 
-    // 3. Compute Positions for the entire class
     const studentAverages = Array.from(new Set(allClassExams.map((e: any) => e.studentId))).map(sid => {
       const sExams = allClassExams.filter((e: any) => e.studentId === sid);
       const total = sExams.reduce((acc, curr: any) => acc + curr.totalScore, 0);
       return { studentId: sid, average: sExams.length > 0 ? total / sExams.length : 0 };
     });
     const positions = calculatePositions(studentAverages);
-
-    // 4. Attendance
     const attSummary = calculateAttendanceSummary(studentAttendance);
 
     return {
@@ -167,18 +175,33 @@ export default function StudentReportsPage() {
           <CardContent className="p-6 space-y-6">
              <div className="space-y-2">
                 <Label className="text-[10px] font-bold uppercase">Grade Module</Label>
-                <Select value={selectedGrade} onValueChange={(v) => { setSelectedGrade(v); setSelectedStudentId(""); }}>
+                <Select value={selectedGrade} onValueChange={(v) => { setSelectedGrade(v); setSelectedStudentId(""); setStudentSearch(""); }}>
                    <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Select Class" /></SelectTrigger>
-                   <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
+                   <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                 </Select>
              </div>
+             
              <div className="space-y-2">
-                <Label className="text-[10px] font-bold uppercase">Student Registry</Label>
+                <Label className="text-[10px] font-bold uppercase">Find Student</Label>
+                <div className="relative">
+                   <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                   <Input 
+                    placeholder="Search name or ID..." 
+                    className="pl-10 h-11 rounded-xl mb-2"
+                    value={studentSearch}
+                    onChange={(e) => setStudentSearch(e.target.value)}
+                    disabled={!selectedGrade}
+                   />
+                </div>
                 <Select value={selectedStudentId} onValueChange={setSelectedStudentId} disabled={!selectedGrade}>
                    <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Choose Student" /></SelectTrigger>
-                   <SelectContent>{students.map(s => <SelectItem key={s.id} value={s.id}>{s.firstName} {s.lastName}</SelectItem>)}</SelectContent>
+                   <SelectContent>
+                      {filteredStudents.map(s => <SelectItem key={s.id} value={s.id}>{s.firstName} {s.lastName}</SelectItem>)}
+                      {filteredStudents.length === 0 && <div className="p-4 text-center text-xs text-muted-foreground">No matching students.</div>}
+                   </SelectContent>
                 </Select>
              </div>
+
              {reportData && (
                <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 space-y-3">
                   <div className="flex justify-between text-xs"><span>Computed Position</span><Badge className="bg-primary text-white h-5">{reportData.position}</Badge></div>
@@ -195,7 +218,7 @@ export default function StudentReportsPage() {
                 <TableIcon className="size-12 text-muted-foreground/20" />
                 <div className="max-w-xs">
                    <h3 className="font-bold text-lg text-primary/60">Awaiting Record Selection</h3>
-                   <p className="text-xs text-muted-foreground">Select a student to authorize the quantitative engine to aggregate marks, attendance, and positions.</p>
+                   <p className="text-xs text-muted-foreground">Select a grade module, search for a student, and authorize the engine to aggregate performance data.</p>
                 </div>
              </Card>
            ) : (
@@ -239,7 +262,6 @@ export default function StudentReportsPage() {
                       value={teacherRemark}
                       onChange={(e) => setTeacherRemark(e.target.value)}
                     />
-                    <p className="text-[9px] text-muted-foreground italic">* Manual entry required for official verification.</p>
                   </Card>
                   <Card className="border-none shadow-md rounded-2xl bg-white p-6 space-y-4">
                     <Label className="text-[10px] font-bold uppercase tracking-widest text-accent">Head Teacher's Remark</Label>
@@ -274,99 +296,6 @@ export default function StudentReportsPage() {
            )}
         </div>
       </div>
-
-      {/* Hidden Print-Only View */}
-      {reportData && selectedStudent && (
-        <div className="print-view hidden print:block bg-white p-12 space-y-10 min-h-screen font-serif">
-           <header className="flex justify-between items-start border-b-4 border-primary pb-6">
-              <div className="flex gap-6 items-center">
-                 <div className="size-24 bg-slate-50 border rounded-2xl flex items-center justify-center p-2">
-                    {institution?.logoUrl ? <img src={institution.logoUrl} className="max-h-full" /> : <Calculator className="size-12 text-primary" />}
-                 </div>
-                 <div className="space-y-1">
-                    <h2 className="text-3xl font-bold uppercase text-primary">{institution?.name}</h2>
-                    <p className="text-sm font-bold text-muted-foreground italic">{institution?.location} • {institution?.phone}</p>
-                    <p className="text-xs uppercase font-bold tracking-widest pt-2">Terminal Academic Report</p>
-                 </div>
-              </div>
-              <div className="text-right">
-                 <div className="size-28 bg-slate-100 rounded-xl border-2 border-slate-200 overflow-hidden ml-auto">
-                    {selectedStudent.photoUrl && <img src={selectedStudent.photoUrl} className="w-full h-full object-cover" />}
-                 </div>
-                 <p className="text-[10px] font-bold uppercase mt-2">{selectedStudent.admissionNumber}</p>
-              </div>
-           </header>
-
-           <section className="grid grid-cols-3 gap-8 py-6 bg-slate-50 rounded-2xl px-8 border">
-              <div><p className="text-[10px] font-bold text-muted-foreground uppercase">Student Name</p><p className="text-sm font-bold uppercase">{selectedStudent.firstName} {selectedStudent.lastName}</p></div>
-              <div><p className="text-[10px] font-bold text-muted-foreground uppercase">Class / Grade</p><p className="text-sm font-bold uppercase">{selectedGrade}</p></div>
-              <div><p className="text-[10px] font-bold text-muted-foreground uppercase">Term / Year</p><p className="text-sm font-bold uppercase">{currentTerm} • 2026/2027</p></div>
-           </section>
-
-           <table className="w-full border-collapse border-2 border-slate-200">
-              <thead className="bg-slate-100">
-                 <tr>
-                    <th className="border p-3 text-left text-xs font-bold uppercase">Subject</th>
-                    <th className="border p-3 text-center text-xs font-bold uppercase">CA (30)</th>
-                    <th className="border p-3 text-center text-xs font-bold uppercase">Exam (70)</th>
-                    <th className="border p-3 text-center text-xs font-bold uppercase">Total</th>
-                    <th className="border p-3 text-center text-xs font-bold uppercase">Grade</th>
-                    <th className="border p-3 text-right text-xs font-bold uppercase">Remarks</th>
-                 </tr>
-              </thead>
-              <tbody>
-                 {reportData.results.map((r, i) => (
-                    <tr key={i}>
-                       <td className="border p-3 text-sm font-bold">{r.subject}</td>
-                       <td className="border p-3 text-center text-sm">{r.ca}</td>
-                       <td className="border p-3 text-center text-sm">{r.exam}</td>
-                       <td className="border p-3 text-center text-sm font-bold">{r.total}</td>
-                       <td className="border p-3 text-center text-sm font-bold">{r.grade}</td>
-                       <td className="border p-3 text-right text-xs font-medium italic">{r.remark}</td>
-                    </tr>
-                 ))}
-              </tbody>
-           </table>
-
-           <div className="grid grid-cols-2 gap-12">
-              <div className="space-y-4">
-                 <div className="p-6 border-2 border-slate-100 rounded-3xl space-y-3">
-                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-primary border-b pb-2">Academic Summary</h4>
-                    <div className="flex justify-between text-xs font-bold"><span>Position in Class:</span><span>{reportData.position}</span></div>
-                    <div className="flex justify-between text-xs font-bold"><span>Overall Average:</span><span>{reportData.average}%</span></div>
-                    <div className="flex justify-between text-xs font-bold"><span>Attendance Record:</span><span>{reportData.attendance.percentage}%</span></div>
-                 </div>
-                 <div className="p-6 border-2 border-slate-100 rounded-3xl space-y-3">
-                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-primary border-b pb-2">Administrative Status</h4>
-                    <div className="flex justify-between text-xs font-bold"><span>Decision:</span><span className="uppercase text-accent">{reportData.promotion}</span></div>
-                    <div className="flex justify-between text-xs font-bold"><span>Next Term Begins:</span><span>Jan 15th, 2027</span></div>
-                 </div>
-              </div>
-              <div className="space-y-6">
-                 <div className="p-6 border-2 border-slate-100 rounded-3xl min-h-[120px]">
-                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Teacher's Signature & Remark</h4>
-                    <p className="text-sm italic">"{teacherRemark || 'No remark provided.'}"</p>
-                    <div className="mt-8 border-t-2 border-dotted w-32 ml-auto" />
-                 </div>
-                 <div className="p-6 border-2 border-slate-100 rounded-3xl min-h-[120px]">
-                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Head Teacher's Signature & Remark</h4>
-                    <p className="text-sm italic">"{headRemark || 'No remark provided.'}"</p>
-                    <div className="mt-8 border-t-2 border-dotted w-32 ml-auto" />
-                 </div>
-              </div>
-           </div>
-
-           <footer className="pt-12 border-t flex justify-between items-end">
-              <div className="space-y-1">
-                 <p className="text-[10px] font-bold uppercase text-primary">Live Institutional Registry Hub</p>
-                 <p className="text-[8px] text-muted-foreground">Certified Document • Synchronized 2026 Academic Cycle</p>
-              </div>
-              <div className="size-20 bg-slate-50 border flex items-center justify-center text-[8px] text-muted-foreground font-bold">
-                 QR VERIFY
-              </div>
-           </footer>
-        </div>
-      )}
 
       <style jsx global>{`
         @media print {

@@ -30,7 +30,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select"
-import { useFirestore, useCollection, useUser } from "@/firebase"
+import { useFirestore, useCollection, useUser, useDoc } from "@/firebase"
 import { 
   collection, 
   query, 
@@ -57,9 +57,18 @@ export default function AcademicFoundationPage() {
   const [subjectForm, setSubjectForm] = useState({ name: "", code: "" })
   const [assignForm, setAssignForm] = useState({ teacherId: "", classId: "", sectionId: "", subjectId: "", termId: "" })
 
+  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
+  const { data: profile } = useDoc(userProfileRef)
+
   useEffect(() => {
-    setInstitutionId(localStorage.getItem('selected_institution_id'))
-  }, [])
+    if (profile) {
+      if (profile.role === 'super_admin') {
+        setInstitutionId(localStorage.getItem('selected_institution_id'))
+      } else {
+        setInstitutionId(profile.tenantId || null)
+      }
+    }
+  }, [profile])
 
   // Foundation Queries
   const yearsQuery = useMemo(() => institutionId ? query(collection(db, "academic_years"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
@@ -78,7 +87,6 @@ export default function AcademicFoundationPage() {
   const { data: staff = [] } = useCollection(staffQuery)
   const { data: assignments = [] } = useCollection(assignmentsQuery)
 
-  // In-memory sorting for stability
   const years = useMemo(() => [...rawYears].sort((a: any, b: any) => b.year.localeCompare(a.year)), [rawYears])
   const terms = useMemo(() => [...rawTerms].sort((a: any, b: any) => a.name.localeCompare(b.name)), [rawTerms])
   const classes = useMemo(() => [...rawClasses].sort((a: any, b: any) => a.name.localeCompare(b.name)), [rawClasses])
@@ -307,7 +315,7 @@ export default function AcademicFoundationPage() {
                    <div className="space-y-2">
                      <Label>Teacher</Label>
                      <Select 
-                      key={staff.length}
+                      key={`staff-select-${staff.length}`}
                       onValueChange={v => setAssignForm({...assignForm, teacherId: v})}
                      >
                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
@@ -323,7 +331,7 @@ export default function AcademicFoundationPage() {
                    <div className="space-y-2">
                      <Label>Grade</Label>
                      <Select 
-                      key={classes.length}
+                      key={`class-select-${classes.length}`}
                       onValueChange={v => setAssignForm({...assignForm, classId: v})}
                      >
                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
@@ -335,7 +343,7 @@ export default function AcademicFoundationPage() {
                    <div className="space-y-2">
                      <Label>Section</Label>
                      <Select 
-                      key={assignForm.classId + sections.length}
+                      key={`section-select-${assignForm.classId}-${sections.length}`}
                       onValueChange={v => setAssignForm({...assignForm, sectionId: v})} 
                       disabled={!assignForm.classId}
                      >
@@ -348,7 +356,7 @@ export default function AcademicFoundationPage() {
                    <div className="space-y-2">
                      <Label>Subject</Label>
                      <Select 
-                      key={subjects.length}
+                      key={`subject-select-${subjects.length}`}
                       onValueChange={v => setAssignForm({...assignForm, subjectId: v})}
                      >
                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>

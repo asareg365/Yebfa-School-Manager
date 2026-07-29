@@ -18,10 +18,11 @@ import {
   ArrowDownLeft,
   Calendar,
   MoreVertical,
-  Printer
+  Printer,
+  X
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useFirestore, useCollection } from "@/firebase"
+import { useFirestore, useCollection, useUser, useDoc } from "@/firebase"
 import { collection, query, where, addDoc, serverTimestamp, getDocs, updateDoc, doc, writeBatch } from "firebase/firestore"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
@@ -30,10 +31,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 
 export default function PaymentsProcessorPage() {
   const db = useFirestore()
+  const { user } = useUser()
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [isPayOpen, setIsPayOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [invoiceFilter, setInvoiceFilter] = useState("")
   
   const [paymentForm, setPaymentForm] = useState({
     invoiceId: "",
@@ -42,10 +45,18 @@ export default function PaymentsProcessorPage() {
     reference: ""
   })
 
+  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
+  const { data: profile } = useDoc(userProfileRef)
+
   useEffect(() => {
-    const storedId = localStorage.getItem('selected_institution_id')
-    if (storedId) setInstitutionId(storedId)
-  }, [])
+    if (profile) {
+      if (profile.role === 'super_admin') {
+        setInstitutionId(localStorage.getItem('selected_institution_id'))
+      } else {
+        setInstitutionId(profile.tenantId || null)
+      }
+    }
+  }, [profile])
 
   const invoicesQuery = useMemo(() => {
     if (!db || !institutionId) return null
@@ -59,6 +70,13 @@ export default function PaymentsProcessorPage() {
 
   const { data: pendingInvoices = [] } = useCollection(invoicesQuery)
   const { data: rawTransactions = [] } = useCollection(txnsQuery)
+
+  const filteredInvoices = useMemo(() => {
+    return pendingInvoices.filter(inv => 
+      inv.studentName?.toLowerCase().includes(invoiceFilter.toLowerCase()) ||
+      inv.invoiceNumber?.toLowerCase().includes(invoiceFilter.toLowerCase())
+    )
+  }, [pendingInvoices, invoiceFilter])
 
   const transactions = useMemo(() => {
     return rawTransactions.filter(t => 
@@ -84,7 +102,6 @@ export default function PaymentsProcessorPage() {
     try {
       const batch = writeBatch(db)
       
-      // 1. Record Transaction
       const txnRef = doc(collection(db, "transactions"))
       batch.set(txnRef, {
         tenantId: institutionId,
@@ -100,7 +117,6 @@ export default function PaymentsProcessorPage() {
         createdAt: serverTimestamp()
       })
 
-      // 2. Update Invoice
       const newPaid = (selectedInvoice.amountPaid || 0) + amount
       const newDue = (selectedInvoice.totalAmount || 0) - newPaid
       const newStatus = newDue <= 0 ? "Paid" : "Partial"
@@ -112,7 +128,6 @@ export default function PaymentsProcessorPage() {
         updatedAt: serverTimestamp()
       })
 
-      // 3. Post to Student Ledger (Credit)
       const ledgerRef = doc(collection(db, "student_ledger"))
       batch.set(ledgerRef, {
         tenantId: institutionId,
@@ -129,6 +144,7 @@ export default function PaymentsProcessorPage() {
       toast({ title: "Payment Successful", description: "Ledger updated and receipt issued." })
       setIsPayOpen(false)
       setPaymentForm({ invoiceId: "", amount: "", method: "MTN MoMo", reference: "" })
+      setInvoiceFilter("")
     } catch (e: any) {
       toast({ variant: "destructive", title: "Processing Error", description: e.message })
     } finally {
@@ -221,19 +237,29 @@ export default function PaymentsProcessorPage() {
               <DialogDescription>Process institutional fee collection and update the ledger.</DialogDescription>
             </DialogHeader>
             <div className="py-6 space-y-6">
-              <div className="space-y-2">
-                <Label>Select Active Invoice</Label>
+              <div className="space-y-3">
+                <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Find Student Invoice</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                  <Input 
+                    placeholder="Search name or INV#..." 
+                    className="pl-10 h-11 rounded-xl"
+                    value={invoiceFilter}
+                    onChange={(e) => setInvoiceFilter(e.target.value)}
+                  />
+                </div>
                 <Select value={paymentForm.invoiceId} onValueChange={v => {
                   const inv = pendingInvoices.find((i: any) => i.id === v)
                   setPaymentForm({...paymentForm, invoiceId: v, amount: inv?.amountDue.toString() || ""})
                 }}>
-                  <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Choose Invoice" /></SelectTrigger>
+                  <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select from matching invoices" /></SelectTrigger>
                   <SelectContent>
-                    {pendingInvoices.map((inv: any) => (
+                    {filteredInvoices.map((inv: any) => (
                       <SelectItem key={inv.id} value={inv.id}>
-                        {inv.invoiceNumber} - {inv.studentName} (Due: GH₵{inv.amountDue})
+                        {inv.studentName} ({inv.invoiceNumber}) - Due: GH₵{inv.amountDue}
                       </SelectItem>
                     ))}
+                    {filteredInvoices.length === 0 && <div className="p-4 text-center text-xs text-muted-foreground">No matching unpaid invoices found.</div>}
                   </SelectContent>
                 </Select>
               </div>

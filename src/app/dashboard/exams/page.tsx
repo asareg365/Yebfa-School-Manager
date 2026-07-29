@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ClipboardList, Printer, Save, Loader2, Bot, Sparkles, FileText, Download, Wand2, CheckCircle2, ListChecks, Target, BrainCircuit, BarChart, X } from "lucide-react"
+import { ClipboardList, Printer, Save, Loader2, Bot, Sparkles, FileText, Download, Wand2, CheckCircle2, ListChecks, Target, BrainCircuit, BarChart, X, AlertTriangle } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection, useDoc, useUser } from "@/firebase"
 import { collection, query, where, doc, setDoc, serverTimestamp, writeBatch } from "firebase/firestore"
@@ -29,14 +29,18 @@ export default function ExaminationCenterPage() {
 
   const [scores, setScores] = useState<Record<string, { ca: string, exam: string }>>({})
 
-  useEffect(() => {
-    setInstitutionId(localStorage.getItem('selected_institution_id'))
-  }, [])
-
   const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
   const { data: profile } = useDoc(userProfileRef)
-  const isTeacher = profile?.role === 'teacher'
-  const staffId = profile?.staffId
+
+  useEffect(() => {
+    if (profile) {
+      if (profile.role === 'super_admin') {
+        setInstitutionId(localStorage.getItem('selected_institution_id'))
+      } else {
+        setInstitutionId(profile.tenantId || null)
+      }
+    }
+  }, [profile])
 
   const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
   const { data: institution } = useDoc(instRef)
@@ -46,6 +50,9 @@ export default function ExaminationCenterPage() {
       setSelectedTerm(institution.currentTerm)
     }
   }, [institution, selectedTerm])
+
+  const isTeacher = profile?.role === 'teacher'
+  const staffId = profile?.staffId
 
   // Teacher Assignments Filter
   const assignmentsQuery = useMemo(() => 
@@ -109,6 +116,18 @@ export default function ExaminationCenterPage() {
   }, [existingScores, selectedSubject, selectedTerm]);
 
   const handleScoreChange = (studentId: string, field: 'ca' | 'exam', value: string) => {
+    const numValue = parseFloat(value) || 0;
+    const max = field === 'ca' ? 30 : 70;
+    
+    if (numValue > max) {
+      toast({ 
+        variant: "destructive", 
+        title: "Limit Exceeded", 
+        description: `The maximum allowed mark for ${field === 'ca' ? 'CA' : 'Exams'} is ${max}.` 
+      });
+      return;
+    }
+
     setScores(prev => ({
       ...prev,
       [studentId]: {
@@ -245,6 +264,14 @@ export default function ExaminationCenterPage() {
         </Card>
 
         <div className="md:col-span-3 space-y-6">
+           <div className="bg-amber-50 border border-amber-100 p-4 rounded-2xl flex gap-3 text-amber-800">
+              <AlertTriangle className="size-5 shrink-0" />
+              <div className="text-xs font-medium">
+                 <p className="font-bold uppercase tracking-widest text-[10px] mb-1">Enforcement active</p>
+                 Score limits are strictly enforced: Class Score (CA) max 30, Exam Score max 70. Entries exceeding these will be blocked.
+              </div>
+           </div>
+
            {aiResult && (
              <Card className="border-none shadow-2xl overflow-hidden animate-in slide-in-from-top-4 duration-500 rounded-3xl bg-white border-2 border-primary/5">
                <CardHeader className="bg-primary text-primary-foreground p-8 flex flex-row items-center justify-between shrink-0">
