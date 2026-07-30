@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -124,7 +125,7 @@ export default function StudentIDCardsPage() {
                         <MapPin className="size-3 text-accent" /> {institution?.location || "Ahafo Region, Ghana"}
                       </p>
                       <p className="flex items-center justify-center gap-2 text-[10px] font-bold text-muted-foreground uppercase">
-                        <Phone className="size-3 text-accent" /> {institution?.phone || "Live System Support"}
+                        <Phone className="size-3 text-accent" /> {institution?.phone || "Registry Hotline"}
                       </p>
                     </div>
                     <p className="text-[8px] text-muted-foreground px-6 leading-relaxed font-medium">
@@ -142,29 +143,54 @@ export default function StudentIDCardsPage() {
       <div className="print-actual-view">
         <div className="print-grid">
           {filteredStudents.map((stu: any) => (
-            <div key={stu.id + '_print'} className="print-item-wrapper">
+            <div key={stu.id + '_print'} className="print-pair-wrapper">
               {/* Card Front */}
-              <div className="print-id-card">
-                <div className="print-card-header">
-                  {institution?.logoUrl && <img src={institution.logoUrl} className="card-logo" />}
-                  <span className="card-school-name">{institution?.name}</span>
-                </div>
-                <div className="print-card-body">
-                  <div className="card-photo-box">
-                    {stu.photoUrl ? <img src={stu.photoUrl} className="card-photo" /> : <div className="card-photo-placeholder" />}
+              <div className="print-item-wrapper">
+                <div className="print-id-card">
+                  <div className="print-card-header">
+                    {institution?.logoUrl ? <img src={institution.logoUrl} className="card-logo" /> : <div className="card-logo-placeholder">Y</div>}
+                    <span className="card-school-name">{institution?.name}</span>
                   </div>
-                  <div className="card-details">
-                    <h3 className="card-student-name">{stu.firstName} {stu.lastName}</h3>
-                    <p className="card-student-grade">{stu.gradeLevel}</p>
-                    <div className="card-id-block">
-                      <span className="id-label">OFFICIAL REGISTRY ID</span>
-                      <span className="id-value">{stu.admissionNumber}</span>
+                  <div className="print-card-body">
+                    <div className="card-photo-box">
+                      {stu.photoUrl ? <img src={stu.photoUrl} className="card-photo" /> : <div className="card-photo-placeholder" />}
+                    </div>
+                    <div className="card-details">
+                      <h3 className="card-student-name">{stu.firstName} {stu.lastName}</h3>
+                      <p className="card-student-grade">{stu.gradeLevel}</p>
+                      <div className="card-id-block">
+                        <span className="id-label">OFFICIAL REGISTRY ID</span>
+                        <span className="id-value">{stu.admissionNumber}</span>
+                      </div>
                     </div>
                   </div>
+                  <div className="print-card-footer">
+                    <span>IDENTITY VERIFIED</span>
+                    <span>SESSION 2026</span>
+                  </div>
                 </div>
-                <div className="print-card-footer">
-                  <span>IDENTITY VERIFIED</span>
-                  <span>SYSTEM 2026</span>
+              </div>
+              
+              {/* Card Back */}
+              <div className="print-item-wrapper">
+                <div className="print-id-card print-id-card-back">
+                  <div className="card-back-watermark">
+                     {institution?.logoUrl ? <img src={institution.logoUrl} /> : <SchoolIcon />}
+                  </div>
+                  <div className="card-back-content">
+                    <div className="back-security-badge">SECURITY AUTHORIZATION</div>
+                    <div className="back-info-row">
+                      <MapPin className="back-icon" />
+                      <span>{institution?.location}</span>
+                    </div>
+                    <div className="back-info-row">
+                      <Phone className="back-icon" />
+                      <span>{institution?.phone || "Registry Hotline"}</span>
+                    </div>
+                    <p className="back-disclaimer">
+                      Property of {institution?.name}. If found, please return to the school administration.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -203,21 +229,25 @@ export default function StudentIDCardsPage() {
           .print-grid {
             display: grid;
             grid-template-columns: repeat(2, 3.375in);
-            gap: 0.5in;
+            gap: 0.25in;
             justify-content: center;
             padding: 0.5in;
+          }
+
+          .print-pair-wrapper {
+            display: contents;
           }
 
           .print-item-wrapper {
             break-inside: avoid;
             page-break-inside: avoid;
-            margin-bottom: 0.3in;
+            margin-bottom: 0.2in;
           }
 
           .print-id-card {
             width: 3.375in;
             height: 2.125in;
-            border: 1px solid #1a1f2c;
+            border: 0.5pt solid #e2e8f0;
             border-radius: 12px;
             padding: 15px;
             display: flex;
@@ -227,40 +257,115 @@ export default function StudentIDCardsPage() {
             font-family: sans-serif;
             overflow: hidden;
             box-sizing: border-box;
+            position: relative;
+          }
+
+          .print-id-card-back {
+            background: #f8fafc;
+            text-align: center;
+            align-items: center;
+            justify-content: center;
+          }
+
+          .card-back-watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(5);
+            opacity: 0.03;
+          }
+
+          .card-back-content {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: center;
+          }
+
+          .back-security-badge {
+            font-size: 7px;
+            font-weight: 800;
+            padding: 2px 8px;
+            background: rgba(26, 31, 44, 0.05);
+            border: 0.5pt solid rgba(26, 31, 44, 0.1);
+            border-radius: 10px;
+            margin-bottom: 4px;
+          }
+
+          .back-info-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 8px;
+            font-weight: 700;
+            color: #475569;
+            text-transform: uppercase;
+          }
+
+          .back-icon {
+            width: 8px;
+            height: 8px;
+            color: #f59e0b;
+          }
+
+          .back-disclaimer {
+            font-size: 6.5px;
+            color: #64748b;
+            line-height: 1.4;
+            max-width: 80%;
+            margin-top: 5px;
           }
 
           .print-card-header {
             display: flex;
             align-items: center;
             gap: 10px;
-            border-bottom: 1.5px solid #f1f5f9;
-            padding-bottom: 10px;
-            margin-bottom: 12px;
+            border-bottom: 1px solid #f1f5f9;
+            padding-bottom: 8px;
+            margin-bottom: 10px;
           }
 
           .card-logo {
-            height: 30px;
-            width: 30px;
+            height: 25px;
+            width: 25px;
             object-fit: contain;
           }
 
+          .card-logo-placeholder {
+            height: 25px;
+            width: 25px;
+            background: #1a1f2c;
+            color: white;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+          }
+
           .card-school-name {
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 800;
             text-transform: uppercase;
-            letter-spacing: -0.02em;
+            letter-spacing: -0.01em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
           }
 
           .print-card-body {
             display: flex;
-            gap: 15px;
+            gap: 12px;
             flex: 1;
           }
 
           .card-photo-box {
-            width: 90px;
-            height: 90px;
-            border: 1px solid #e2e8f0;
+            width: 85px;
+            height: 85px;
+            border: 0.5pt solid #e2e8f0;
             border-radius: 6px;
             overflow: hidden;
             background: #f8fafc;
@@ -283,19 +388,19 @@ export default function StudentIDCardsPage() {
             flex-direction: column;
             justify-content: flex-start;
             flex: 1;
-            gap: 4px;
+            gap: 3px;
           }
 
           .card-student-name {
-            font-size: 13px;
+            font-size: 11px;
             font-weight: 800;
             text-transform: uppercase;
             line-height: 1.1;
-            margin-bottom: 2px;
+            margin-bottom: 1px;
           }
 
           .card-student-grade {
-            font-size: 10px;
+            font-size: 8px;
             color: #f59e0b;
             font-weight: 700;
             text-transform: uppercase;
@@ -304,22 +409,22 @@ export default function StudentIDCardsPage() {
           .card-id-block {
             margin-top: auto;
             background: #f8fafc;
-            padding: 5px 8px;
+            padding: 4px 6px;
             border-radius: 4px;
-            border: 1px solid #e2e8f0;
+            border: 0.5pt solid #e2e8f0;
           }
 
           .id-label {
             display: block;
-            font-size: 7px;
+            font-size: 6px;
             font-weight: 900;
             color: #64748b;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.02em;
           }
 
           .id-value {
-            font-size: 12px;
+            font-size: 10px;
             font-family: monospace;
             font-weight: 800;
             color: #1a1f2c;
@@ -327,15 +432,14 @@ export default function StudentIDCardsPage() {
 
           .print-card-footer {
             margin-top: auto;
-            padding-top: 8px;
+            padding-top: 6px;
             border-top: 1px solid #f1f5f9;
             display: flex;
             justify-content: space-between;
-            font-size: 7px;
-            font-weight: 900;
+            font-size: 6px;
+            font-weight: 800;
             color: #94a3b8;
             text-transform: uppercase;
-            letter-spacing: 0.1em;
           }
         }
       `}</style>

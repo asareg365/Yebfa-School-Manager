@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { School, Shield, Building, Plus, Layers, Trash2, Save, Loader2, Upload, X, Wallet, CheckCircle2, Clock, AlertTriangle, KeyRound, Sparkles } from "lucide-react"
+import { School, Shield, Building, Plus, Layers, Trash2, Save, Loader2, Upload, X, Wallet, CheckCircle2, Clock, AlertTriangle, KeyRound, Phone, Sparkles } from "lucide-react"
 import { useState, useEffect, useRef, useMemo } from "react"
 import { useFirestore, useDoc, useUser } from "@/firebase"
 import { doc, updateDoc } from "firebase/firestore"
@@ -189,9 +189,16 @@ export default function SettingsPage() {
                     <Input value={form.location} onChange={e => setForm({...form, location: e.target.value})} required className="h-11 rounded-xl" />
                   </div>
                   <div className="space-y-2">
-                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Physical Address</Label>
-                    <Input value={form.address} onChange={e => setForm({...form, address: e.target.value})} placeholder="e.g. Plot 15, System Hub" className="h-11 rounded-xl" />
+                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Institutional Phone Number</Label>
+                    <div className="relative">
+                       <Phone className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                       <Input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="024XXXXXXX" className="h-11 pl-10 rounded-xl" />
+                    </div>
                   </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Physical Address</Label>
+                  <Input value={form.address} onChange={e => setForm({...form, address: e.target.value})} placeholder="e.g. Plot 15, System Hub" className="h-11 rounded-xl" />
                 </div>
               </CardContent>
               <CardFooter className="border-t pt-6 bg-slate-50/50">

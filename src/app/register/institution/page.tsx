@@ -2,14 +2,14 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import Link from "next/link"
+import Link from "next/navigation"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { School, ArrowLeft, Loader2, MapPin, Mail, User, ShieldCheck, Lock, Eye, EyeOff } from "lucide-react"
+import { School, ArrowLeft, Loader2, MapPin, Mail, User, ShieldCheck, Lock, Eye, EyeOff, Phone } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useUser, useAuth } from "@/firebase"
 import { 
@@ -21,7 +21,7 @@ import {
 import { createUserWithEmailAndPassword } from "firebase/auth"
 
 const GRADE_LEVEL_CATEGORIES = [
-  { id: "basic", label: "Basic Education (KG - Primary)", grades: ["KG 1-2", "Primary 1-6", "KG - Primary 6"] },
+  { id: "basic", label: "Basic Education (KG - Primary)", grades: ["KG 1-2", "Primary 1-6", "KG - Primary 6", "Primary - JHS 3"] },
   { id: "jhs", label: "Junior High School", grades: ["JHS 1-3"] },
   { id: "shs", label: "Senior High School", grades: ["SHS 1-3", "TVET"] },
   { id: "tertiary", label: "Higher Education", grades: ["University", "Polytechnic", "College of Ed"] },
@@ -36,6 +36,7 @@ export default function InstitutionRegistrationPage() {
     gradeLevel: "",
     specificGrades: "",
     location: "",
+    phone: "",
     ownerName: "",
     ownerEmail: "",
     password: "",
@@ -111,6 +112,7 @@ export default function InstitutionRegistrationPage() {
           gradeLevel: formData.gradeLevel,
           specificGrades: formData.specificGrades,
           location: formData.location,
+          phone: formData.phone,
           ownerUid: activeUser.uid,
           ownerName: formData.ownerName,
           ownerEmail: formData.ownerEmail,
@@ -247,17 +249,32 @@ export default function InstitutionRegistrationPage() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label>Location / City</Label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-3 size-4 text-muted-foreground" />
-                  <Input 
-                    placeholder="e.g. Goaso, Ahafo" 
-                    className="pl-10 h-12 rounded-xl" 
-                    required 
-                    value={formData.location}
-                    onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
-                  />
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Location / City</Label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                    <Input 
+                      placeholder="e.g. Goaso, Ahafo" 
+                      className="pl-10 h-12 rounded-xl" 
+                      required 
+                      value={formData.location}
+                      onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Institutional Phone</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                    <Input 
+                      placeholder="024XXXXXXX" 
+                      className="pl-10 h-12 rounded-xl" 
+                      required 
+                      value={formData.phone}
+                      onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
