@@ -149,76 +149,87 @@ export default function StudentReportsPage() {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-24">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-          <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Student Report Hub</h1>
-          <p className="text-muted-foreground font-medium">Deterministic academic computation for <span className="text-accent font-bold uppercase">{currentTerm}</span>.</p>
+    <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500 pb-24">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+        <div className="space-y-1">
+          <h1 className="text-2xl md:text-3xl font-headline font-bold text-primary tracking-tight">Student Report Hub</h1>
+          <p className="text-muted-foreground text-sm md:text-base font-medium">Deterministic academic computation for <span className="text-accent font-bold uppercase">{currentTerm}</span>.</p>
         </div>
-        <div className="flex gap-3 no-print">
-          <Button variant="outline" className="h-11 rounded-xl gap-2" onClick={() => window.print()} disabled={!reportData}>
+        <div className="flex flex-wrap gap-3 no-print">
+          <Button variant="outline" className="flex-1 sm:flex-none h-11 rounded-xl gap-2 text-xs font-bold uppercase" onClick={() => window.print()} disabled={!reportData}>
             <Printer className="size-4" /> Print Preview
           </Button>
-          <Button className="bg-primary h-11 rounded-xl shadow-lg gap-2" onClick={handleSaveReport} disabled={!reportData || isComputing}>
+          <Button className="flex-1 sm:flex-none bg-primary h-11 rounded-xl shadow-lg gap-2 text-xs font-bold uppercase" onClick={handleSaveReport} disabled={!reportData || isComputing}>
             {isComputing ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Publish Result
           </Button>
         </div>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-4 no-print">
-        <Card className="lg:col-span-1 border-none shadow-md rounded-3xl bg-white overflow-hidden h-fit">
-          <CardHeader className="bg-slate-50 border-b p-6">
-             <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-               <Calculator className="size-4" /> Logic Context
-             </CardTitle>
-          </CardHeader>
-          <CardContent className="p-6 space-y-6">
-             <div className="space-y-2">
-                <Label className="text-[10px] font-bold uppercase">Grade Module</Label>
-                <Select value={selectedGrade} onValueChange={(v) => { setSelectedGrade(v); setSelectedStudentId(""); setStudentSearch(""); }}>
-                   <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Select Class" /></SelectTrigger>
-                   <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                </Select>
-             </div>
-             
-             <div className="space-y-2">
-                <Label className="text-[10px] font-bold uppercase">Find Student</Label>
-                <div className="relative">
-                   <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
-                   <Input 
-                    placeholder="Search name or ID..." 
-                    className="pl-10 h-11 rounded-xl mb-2"
-                    value={studentSearch}
-                    onChange={(e) => setStudentSearch(e.target.value)}
-                    disabled={!selectedGrade}
-                   />
-                </div>
-                <Select value={selectedStudentId} onValueChange={setSelectedStudentId} disabled={!selectedGrade}>
-                   <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Choose Student" /></SelectTrigger>
-                   <SelectContent>
-                      {filteredStudents.map(s => <SelectItem key={s.id} value={s.id}>{s.firstName} {s.lastName}</SelectItem>)}
-                      {filteredStudents.length === 0 && <div className="p-4 text-center text-xs text-muted-foreground">No matching students.</div>}
-                   </SelectContent>
-                </Select>
-             </div>
-
-             {reportData && (
-               <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 space-y-3">
-                  <div className="flex justify-between text-xs"><span>Computed Position</span><Badge className="bg-primary text-white h-5">{reportData.position}</Badge></div>
-                  <div className="flex justify-between text-xs"><span>Average Score</span><span className="font-bold">{reportData.average}%</span></div>
-                  <div className="flex justify-between text-xs"><span>Attendance</span><span className="font-bold">{reportData.attendance.percentage}%</span></div>
+      <div className="grid gap-6 lg:grid-cols-4 no-print">
+        <div className="lg:col-span-1 space-y-6">
+          <Card className="border-none shadow-md rounded-3xl bg-white overflow-hidden h-fit">
+            <CardHeader className="bg-slate-50 border-b p-6">
+               <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                 <Calculator className="size-4" /> Logic Context
+               </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-6">
+               <div className="space-y-2">
+                  <Label className="text-[10px] font-bold uppercase">Grade Module</Label>
+                  <Select value={selectedGrade} onValueChange={(v) => { setSelectedGrade(v); setSelectedStudentId(""); setStudentSearch(""); }}>
+                     <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Select Class" /></SelectTrigger>
+                     <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                  </Select>
                </div>
-             )}
-          </CardContent>
-        </Card>
+               
+               <div className="space-y-2">
+                  <Label className="text-[10px] font-bold uppercase">Find Student</Label>
+                  <div className="relative">
+                     <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                     <Input 
+                      placeholder="Search name or ID..." 
+                      className="pl-10 h-11 rounded-xl mb-2 text-sm"
+                      value={studentSearch}
+                      onChange={(e) => setStudentSearch(e.target.value)}
+                      disabled={!selectedGrade}
+                     />
+                  </div>
+                  <Select value={selectedStudentId} onValueChange={setSelectedStudentId} disabled={!selectedGrade}>
+                     <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Choose Student" /></SelectTrigger>
+                     <SelectContent>
+                        {filteredStudents.map(s => <SelectItem key={s.id} value={s.id}>{s.firstName} {s.lastName}</SelectItem>)}
+                        {filteredStudents.length === 0 && <div className="p-4 text-center text-xs text-muted-foreground">No matching students.</div>}
+                     </SelectContent>
+                  </Select>
+               </div>
 
-        <div className="lg:col-span-3 space-y-8">
+               {reportData && (
+                 <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 space-y-3">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-muted-foreground uppercase font-bold text-[9px]">Position</span>
+                      <Badge className="bg-primary text-white h-5 px-2">{reportData.position}</Badge>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-muted-foreground uppercase font-bold text-[9px]">Average</span>
+                      <span className="font-bold text-primary">{reportData.average}%</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-muted-foreground uppercase font-bold text-[9px]">Attendance</span>
+                      <span className="font-bold text-primary">{reportData.attendance.percentage}%</span>
+                    </div>
+                 </div>
+               )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="lg:col-span-3 space-y-6 md:space-y-8">
            {!reportData ? (
-             <Card className="h-[400px] flex flex-col items-center justify-center border-2 border-dashed rounded-3xl bg-muted/5 p-12 text-center space-y-4">
+             <Card className="h-[400px] flex flex-col items-center justify-center border-2 border-dashed rounded-3xl bg-muted/5 p-6 md:p-12 text-center space-y-4">
                 <TableIcon className="size-12 text-muted-foreground/20" />
                 <div className="max-w-xs">
                    <h3 className="font-bold text-lg text-primary/60">Awaiting Record Selection</h3>
-                   <p className="text-xs text-muted-foreground">Select a grade module, search for a student, and authorize the engine to aggregate performance data.</p>
+                   <p className="text-xs text-muted-foreground leading-relaxed">Select a grade module, search for a student, and authorize the engine to aggregate performance data.</p>
                 </div>
              </Card>
            ) : (
@@ -226,30 +237,32 @@ export default function StudentReportsPage() {
                <Card className="border-none shadow-xl rounded-3xl overflow-hidden bg-white">
                   <CardHeader className="bg-slate-50 border-b p-6"><CardTitle className="text-lg">Academic Performance Breakdown</CardTitle></CardHeader>
                   <CardContent className="p-0">
-                    <Table>
-                      <TableHeader className="bg-muted/20">
-                        <TableRow>
-                          <TableHead className="font-bold">SUBJECT</TableHead>
-                          <TableHead className="text-center font-bold">CA (30)</TableHead>
-                          <TableHead className="text-center font-bold">EXAM (70)</TableHead>
-                          <TableHead className="text-center font-bold">TOTAL</TableHead>
-                          <TableHead className="text-center font-bold">GRADE</TableHead>
-                          <TableHead className="text-right font-bold pr-6">REMARK</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {reportData.results.map((r, i) => (
-                          <TableRow key={i}>
-                            <TableCell className="font-bold text-primary">{r.subject}</TableCell>
-                            <TableCell className="text-center">{r.ca}</TableCell>
-                            <TableCell className="text-center">{r.exam}</TableCell>
-                            <TableCell className="text-center font-bold">{r.total}</TableCell>
-                            <TableCell className="text-center"><Badge variant="outline" className="font-bold">{r.grade}</Badge></TableCell>
-                            <TableCell className="text-right pr-6"><span className="text-[10px] font-bold uppercase text-muted-foreground">{r.remark}</span></TableCell>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader className="bg-muted/20">
+                          <TableRow>
+                            <TableHead className="font-bold px-6">SUBJECT</TableHead>
+                            <TableHead className="text-center font-bold">CA (30)</TableHead>
+                            <TableHead className="text-center font-bold">EXAM (70)</TableHead>
+                            <TableHead className="text-center font-bold">TOTAL</TableHead>
+                            <TableHead className="text-center font-bold">GRADE</TableHead>
+                            <TableHead className="text-right font-bold pr-6">REMARK</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {reportData.results.map((r, i) => (
+                            <TableRow key={i}>
+                              <TableCell className="font-bold text-primary px-6 whitespace-nowrap">{r.subject}</TableCell>
+                              <TableCell className="text-center">{r.ca}</TableCell>
+                              <TableCell className="text-center">{r.exam}</TableCell>
+                              <TableCell className="text-center font-bold">{r.total}</TableCell>
+                              <TableCell className="text-center"><Badge variant="outline" className="font-bold">{r.grade}</Badge></TableCell>
+                              <TableCell className="text-right pr-6"><span className="text-[10px] font-bold uppercase text-muted-foreground whitespace-nowrap">{r.remark}</span></TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </CardContent>
                </Card>
 
@@ -258,7 +271,7 @@ export default function StudentReportsPage() {
                     <Label className="text-[10px] font-bold uppercase tracking-widest text-primary">Class Teacher's Remark</Label>
                     <Textarea 
                       placeholder="Enter professional observation..." 
-                      className="min-h-[100px] rounded-xl"
+                      className="min-h-[100px] rounded-xl text-sm"
                       value={teacherRemark}
                       onChange={(e) => setTeacherRemark(e.target.value)}
                     />
@@ -267,27 +280,27 @@ export default function StudentReportsPage() {
                     <Label className="text-[10px] font-bold uppercase tracking-widest text-accent">Head Teacher's Remark</Label>
                     <Textarea 
                       placeholder="Enter administrative directive..." 
-                      className="min-h-[100px] rounded-xl"
+                      className="min-h-[100px] rounded-xl text-sm"
                       value={headRemark}
                       onChange={(e) => setHeadRemark(e.target.value)}
                     />
                     <div className="flex justify-between items-center pt-2">
-                       <span className="text-[10px] font-bold uppercase text-muted-foreground">Promotion Decision</span>
-                       <Badge className="bg-accent text-white uppercase text-[9px]">{reportData.promotion}</Badge>
+                       <span className="text-[9px] font-bold uppercase text-muted-foreground">Promotion Decision</span>
+                       <Badge className="bg-accent text-white uppercase text-[9px] font-bold px-3">{reportData.promotion}</Badge>
                     </div>
                   </Card>
                </div>
 
-               <Card className="border-none shadow-md rounded-2xl bg-white p-6">
-                  <CardTitle className="text-sm flex items-center gap-2 mb-6"><BarChart className="size-4" /> Performance Visualization</CardTitle>
+               <Card className="border-none shadow-md rounded-2xl bg-white p-6 overflow-hidden">
+                  <CardTitle className="text-sm font-bold flex items-center gap-2 mb-6"><BarChart className="size-4" /> Performance Visualization</CardTitle>
                   <div className="h-[250px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <ReBarChart data={reportData.results}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="subject" fontSize={10} tickLine={false} axisLine={false} />
-                        <YAxis fontSize={10} tickLine={false} axisLine={false} domain={[0, 100]} />
+                        <XAxis dataKey="subject" fontSize={9} tickLine={false} axisLine={false} hide={window.innerWidth < 640} />
+                        <YAxis fontSize={9} tickLine={false} axisLine={false} domain={[0, 100]} />
                         <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
-                        <Bar dataKey="total" fill="#1a1f2c" radius={[4, 4, 0, 0]} barSize={30} />
+                        <Bar dataKey="total" fill="#1a1f2c" radius={[4, 4, 0, 0]} barSize={window.innerWidth < 640 ? 15 : 30} />
                       </ReBarChart>
                     </ResponsiveContainer>
                   </div>
