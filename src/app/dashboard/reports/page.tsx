@@ -21,7 +21,8 @@ import {
   FileText,
   Save,
   Download,
-  AlertCircle
+  AlertCircle,
+  X
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection, useDoc, useUser } from "@/firebase"
@@ -30,6 +31,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { calculateGrade, calculatePositions, calculateAttendanceSummary, DEFAULT_GRADING, determinePromotion } from "@/lib/academic-engine"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ResponsiveContainer, BarChart as ReBarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 export default function StudentReportsPage() {
   const db = useFirestore()
@@ -175,7 +177,7 @@ export default function StudentReportsPage() {
             </CardHeader>
             <CardContent className="p-6 space-y-6">
                <div className="space-y-2">
-                  <Label className="text-[10px] font-bold uppercase">Grade Module</Label>
+                  <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Grade Module</Label>
                   <Select value={selectedGrade} onValueChange={(v) => { setSelectedGrade(v); setSelectedStudentId(""); setStudentSearch(""); }}>
                      <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Select Class" /></SelectTrigger>
                      <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
@@ -183,38 +185,66 @@ export default function StudentReportsPage() {
                </div>
                
                <div className="space-y-2">
-                  <Label className="text-[10px] font-bold uppercase">Find Student</Label>
+                  <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Find Student</Label>
                   <div className="relative">
                      <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
                      <Input 
-                      placeholder="Search name or ID..." 
-                      className="pl-10 h-11 rounded-xl mb-2 text-sm"
+                      placeholder="Type name or Registry ID..." 
+                      className="pl-10 h-11 rounded-xl text-sm"
                       value={studentSearch}
                       onChange={(e) => setStudentSearch(e.target.value)}
                       disabled={!selectedGrade}
                      />
+                     {studentSearch && (
+                       <button onClick={() => setStudentSearch("")} className="absolute right-3 top-3 text-muted-foreground hover:text-primary">
+                          <X className="size-4" />
+                       </button>
+                     )}
+
+                     {studentSearch.length >= 2 && filteredStudents.length > 0 && (
+                       <div className="absolute z-50 w-full mt-2 bg-white border border-border/40 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                          <ScrollArea className="max-h-[250px]">
+                             <div className="p-2 space-y-1">
+                                {filteredStudents.map(s => (
+                                  <button
+                                    key={s.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedStudentId(s.id);
+                                      setStudentSearch(`${s.firstName} ${s.lastName}`);
+                                    }}
+                                    className={`w-full text-left p-3 rounded-xl text-xs font-bold transition-all flex items-center justify-between group ${selectedStudentId === s.id ? 'bg-primary text-white' : 'hover:bg-slate-50'}`}
+                                  >
+                                    <div className="flex flex-col min-w-0">
+                                      <span className="truncate">{s.firstName} {s.lastName}</span>
+                                      <span className={`text-[9px] font-mono uppercase tracking-tighter mt-0.5 ${selectedStudentId === s.id ? 'text-accent' : 'text-muted-foreground group-hover:text-accent'}`}>{s.admissionNumber}</span>
+                                    </div>
+                                    {selectedStudentId === s.id && <CheckCircle2 className="size-4 shrink-0 text-accent" />}
+                                  </button>
+                                ))}
+                             </div>
+                          </ScrollArea>
+                       </div>
+                     )}
                   </div>
-                  <Select value={selectedStudentId} onValueChange={setSelectedStudentId} disabled={!selectedGrade}>
-                     <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Choose Student" /></SelectTrigger>
-                     <SelectContent>
-                        {filteredStudents.map(s => <SelectItem key={s.id} value={s.id}>{s.firstName} {s.lastName}</SelectItem>)}
-                        {filteredStudents.length === 0 && <div className="p-4 text-center text-xs text-muted-foreground">No matching students.</div>}
-                     </SelectContent>
-                  </Select>
+                  
+                  <p className="text-[9px] text-muted-foreground italic font-medium px-1">
+                    {studentSearch.length < 2 ? "Enter at least 2 characters to search." : `Found ${filteredStudents.length} matches.`}
+                  </p>
                </div>
 
                {reportData && (
-                 <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 space-y-3">
+                 <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 space-y-3 animate-in fade-in duration-300">
                     <div className="flex justify-between items-center text-xs">
-                      <span className="text-muted-foreground uppercase font-bold text-[9px]">Position</span>
-                      <Badge className="bg-primary text-white h-5 px-2">{reportData.position}</Badge>
+                      <span className="text-muted-foreground uppercase font-bold text-[9px]">Class Position</span>
+                      <Badge className="bg-primary text-white border-none h-5 px-2">{reportData.position}</Badge>
                     </div>
                     <div className="flex justify-between items-center text-xs">
-                      <span className="text-muted-foreground uppercase font-bold text-[9px]">Average</span>
+                      <span className="text-muted-foreground uppercase font-bold text-[9px]">Mean Average</span>
                       <span className="font-bold text-primary">{reportData.average}%</span>
                     </div>
                     <div className="flex justify-between items-center text-xs">
-                      <span className="text-muted-foreground uppercase font-bold text-[9px]">Attendance</span>
+                      <span className="text-muted-foreground uppercase font-bold text-[9px]">Term Attendance</span>
                       <span className="font-bold text-primary">{reportData.attendance.percentage}%</span>
                     </div>
                  </div>
@@ -226,16 +256,18 @@ export default function StudentReportsPage() {
         <div className="lg:col-span-3 space-y-6 md:space-y-8">
            {!reportData ? (
              <Card className="h-[400px] flex flex-col items-center justify-center border-2 border-dashed rounded-3xl bg-muted/5 p-6 md:p-12 text-center space-y-4">
-                <TableIcon className="size-12 text-muted-foreground/20" />
+                <div className="size-16 rounded-full bg-primary/5 flex items-center justify-center">
+                  <TableIcon className="size-8 text-primary/20" />
+                </div>
                 <div className="max-w-xs">
-                   <h3 className="font-bold text-lg text-primary/60">Awaiting Record Selection</h3>
-                   <p className="text-xs text-muted-foreground leading-relaxed">Select a grade module, search for a student, and authorize the engine to aggregate performance data.</p>
+                   <h3 className="font-bold text-lg text-primary/60">Awaiting Search Input</h3>
+                   <p className="text-xs text-muted-foreground leading-relaxed">Select a grade module and type the student's name in the "Find Student" box to authorize academic aggregation.</p>
                 </div>
              </Card>
            ) : (
              <>
                <Card className="border-none shadow-xl rounded-3xl overflow-hidden bg-white">
-                  <CardHeader className="bg-slate-50 border-b p-6"><CardTitle className="text-lg">Academic Performance Breakdown</CardTitle></CardHeader>
+                  <CardHeader className="bg-slate-50 border-b p-6"><CardTitle className="text-lg font-bold">Academic Performance Breakdown</CardTitle></CardHeader>
                   <CardContent className="p-0">
                     <div className="overflow-x-auto">
                       <Table>
@@ -251,12 +283,12 @@ export default function StudentReportsPage() {
                         </TableHeader>
                         <TableBody>
                           {reportData.results.map((r, i) => (
-                            <TableRow key={i}>
+                            <TableRow key={i} className="hover:bg-slate-50/50 transition-colors">
                               <TableCell className="font-bold text-primary px-6 whitespace-nowrap">{r.subject}</TableCell>
-                              <TableCell className="text-center">{r.ca}</TableCell>
-                              <TableCell className="text-center">{r.exam}</TableCell>
-                              <TableCell className="text-center font-bold">{r.total}</TableCell>
-                              <TableCell className="text-center"><Badge variant="outline" className="font-bold">{r.grade}</Badge></TableCell>
+                              <TableCell className="text-center font-medium">{r.ca}</TableCell>
+                              <TableCell className="text-center font-medium">{r.exam}</TableCell>
+                              <TableCell className="text-center font-bold text-primary">{r.total}</TableCell>
+                              <TableCell className="text-center"><Badge variant="outline" className="font-bold border-primary/20 text-primary">{r.grade}</Badge></TableCell>
                               <TableCell className="text-right pr-6"><span className="text-[10px] font-bold uppercase text-muted-foreground whitespace-nowrap">{r.remark}</span></TableCell>
                             </TableRow>
                           ))}
@@ -268,31 +300,31 @@ export default function StudentReportsPage() {
 
                <div className="grid gap-6 md:grid-cols-2">
                   <Card className="border-none shadow-md rounded-2xl bg-white p-6 space-y-4">
-                    <Label className="text-[10px] font-bold uppercase tracking-widest text-primary">Class Teacher's Remark</Label>
+                    <Label className="text-[10px] font-bold uppercase tracking-widest text-primary">Class Teacher's Observation</Label>
                     <Textarea 
-                      placeholder="Enter professional observation..." 
-                      className="min-h-[100px] rounded-xl text-sm"
+                      placeholder="Enter qualitative remark..." 
+                      className="min-h-[100px] rounded-xl text-sm border-slate-100"
                       value={teacherRemark}
                       onChange={(e) => setTeacherRemark(e.target.value)}
                     />
                   </Card>
                   <Card className="border-none shadow-md rounded-2xl bg-white p-6 space-y-4">
-                    <Label className="text-[10px] font-bold uppercase tracking-widest text-accent">Head Teacher's Remark</Label>
+                    <Label className="text-[10px] font-bold uppercase tracking-widest text-accent">Administrative Directive</Label>
                     <Textarea 
-                      placeholder="Enter administrative directive..." 
-                      className="min-h-[100px] rounded-xl text-sm"
+                      placeholder="Enter head teacher remark..." 
+                      className="min-h-[100px] rounded-xl text-sm border-slate-100"
                       value={headRemark}
                       onChange={(e) => setHeadRemark(e.target.value)}
                     />
                     <div className="flex justify-between items-center pt-2">
                        <span className="text-[9px] font-bold uppercase text-muted-foreground">Promotion Decision</span>
-                       <Badge className="bg-accent text-white uppercase text-[9px] font-bold px-3">{reportData.promotion}</Badge>
+                       <Badge className="bg-accent text-white uppercase text-[9px] font-bold px-3 border-none">{reportData.promotion}</Badge>
                     </div>
                   </Card>
                </div>
 
                <Card className="border-none shadow-md rounded-2xl bg-white p-6 overflow-hidden">
-                  <CardTitle className="text-sm font-bold flex items-center gap-2 mb-6"><BarChart className="size-4" /> Performance Visualization</CardTitle>
+                  <CardTitle className="text-sm font-bold flex items-center gap-2 mb-6"><BarChart className="size-4 text-primary" /> Performance Visualization Curve</CardTitle>
                   <div className="h-[250px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <ReBarChart data={reportData.results}>
