@@ -30,7 +30,9 @@ import {
   X,
   LockKeyhole,
   Key,
-  Activity
+  Activity,
+  MoreVertical,
+  ShieldAlert
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useUser, useFirestore, useCollection, useDoc } from "@/firebase"
@@ -49,6 +51,7 @@ import { initializeApp, deleteApp } from "firebase/app"
 import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth"
 import { firebaseConfig } from "@/firebase/config"
 import { generateInstitutionId, normalizeSecurityPhone, generateStudentPin } from "@/lib/identity-service"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import Papa from "papaparse"
 
 export default function StudentsPage() {
@@ -323,6 +326,55 @@ export default function StudentsPage() {
     }
   }
 
+  const handleResetPin = async (stu: any) => {
+    if (!institutionId || loading) return;
+    setLoading(true);
+    
+    const provisionAppName = `reset-pin-${Date.now()}`;
+    const provisionApp = initializeApp(firebaseConfig, provisionAppName);
+    const provisionAuth = getAuth(provisionApp);
+
+    try {
+      const newPin = generateStudentPin();
+      const studentEmail = `${stu.admissionNumber.toUpperCase().trim()}@system.yebfa.com`;
+      
+      // Attempt to provision account if missing
+      try {
+        await createUserWithEmailAndPassword(provisionAuth, studentEmail, newPin);
+        
+        // Also ensure user record exists
+        await setDoc(doc(db, "users", stu.id), {
+          uid: stu.id, // Using registry ID as fallback UID if creating via provision app is complex
+          name: `${stu.firstName} ${stu.lastName}`,
+          email: studentEmail,
+          role: "student",
+          studentId: stu.id,
+          tenantId: institutionId,
+          institutionId: institutionId,
+          status: "active",
+          createdAt: serverTimestamp()
+        }, { merge: true });
+
+      } catch (authErr: any) {
+        if (authErr.code === 'auth/email-already-in-use') {
+           toast({ title: "PIN Updated", description: "The registry record was updated, but the active portal account requires a system reset for the new password." });
+        }
+      }
+
+      await updateDoc(doc(db, "students", stu.id), {
+        studentPin: newPin,
+        updatedAt: serverTimestamp()
+      });
+
+      toast({ title: "Access PIN Synchronized", description: `New Secure PIN: ${newPin}` });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Synchronization Failed", description: e.message });
+    } finally {
+      setLoading(false);
+      try { await deleteApp(provisionApp); } catch (e) {}
+    }
+  }
+
   const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !institutionId) return
@@ -461,7 +513,7 @@ export default function StudentsPage() {
       <Card className="border-none shadow-xl rounded-2xl overflow-hidden bg-white">
         <CardHeader className="border-b py-6 p-4 md:p-6 bg-slate-50/50">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="relative flex-1 max-w-sm">
+            <div className="relative flex-1 max-sm w-full sm:max-w-sm">
               <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
               <Input placeholder="Search records..." className="pl-10 h-12 bg-white border-none rounded-xl shadow-sm" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
@@ -507,10 +559,18 @@ export default function StudentsPage() {
                     </TableCell>
                     <TableCell><span className="text-sm font-bold text-slate-700">{stu.gradeLevel}</span></TableCell>
                     <TableCell>
-                      <Badge className="h-7 px-3 text-xs font-mono bg-primary text-white border-none shadow-sm gap-2 font-bold">
-                        <Key className="size-3 text-accent" />
-                        {stu.studentPin || '----'}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        {stu.studentPin ? (
+                          <Badge className="h-7 px-3 text-xs font-mono bg-primary text-white border-none shadow-sm gap-2 font-bold">
+                            <Key className="size-3 text-accent" />
+                            {stu.studentPin}
+                          </Badge>
+                        ) : (
+                          <Button variant="ghost" size="sm" className="h-7 text-[10px] font-bold uppercase text-accent hover:text-accent hover:bg-accent/5 gap-2" onClick={() => handleResetPin(stu)} disabled={loading}>
+                            <RefreshCw className={`size-3 ${loading ? 'animate-spin' : ''}`} /> Generate PIN
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col text-xs">
@@ -523,8 +583,22 @@ export default function StudentsPage() {
                     </Badge></TableCell>
                     <TableCell className="text-right px-6">
                        <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => openEdit(stu)}><Pencil className="size-4" /></Button>
-                          <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(stu.id)}><Trash2 className="size-4" /></Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg"><MoreVertical className="size-4" /></Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="rounded-xl border-none shadow-xl w-48">
+                              <DropdownMenuItem className="gap-2 text-xs font-bold" onClick={() => openEdit(stu)}>
+                                <Pencil className="size-4" /> Edit Profile
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="gap-2 text-xs font-bold text-accent" onClick={() => handleResetPin(stu)}>
+                                <ShieldAlert className="size-4" /> Reset Portal PIN
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onClick={() => handleDelete(stu.id)}>
+                                <Trash2 className="size-4" /> Remove Record
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                        </div>
                     </TableCell>
                   </TableRow>
