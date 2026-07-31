@@ -28,7 +28,7 @@ import {
   X
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase"
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase"
 import { collection, query, where, addDoc, serverTimestamp, writeBatch, doc, deleteDoc, updateDoc, getDocs, getDoc } from "firebase/firestore"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog"
@@ -377,6 +377,10 @@ export default function InvoicingPage() {
       {/* Invoice Print View */}
       <Dialog open={isPrintOpen} onOpenChange={setIsPrintOpen}>
         <DialogContent className="max-w-2xl p-0 overflow-hidden rounded-3xl border-none shadow-2xl">
+           <DialogHeader className="sr-only">
+             <DialogTitle>Official Invoice Preview</DialogTitle>
+             <DialogDescription>High-fidelity billing statement for institutional parents.</DialogDescription>
+           </DialogHeader>
            <div className="invoice-print p-12 bg-white space-y-10" id="invoice-printable">
               <div className="flex justify-between items-start">
                  <div className="space-y-2">

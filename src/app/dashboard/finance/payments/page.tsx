@@ -28,7 +28,7 @@ import {
   ExternalLink
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useFirestore, useCollection, useUser, useDoc, useMemoFirebase } from "@/firebase"
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase"
 import { collection, query, where, addDoc, serverTimestamp, getDocs, updateDoc, doc, writeBatch, deleteDoc, getDoc } from "firebase/firestore"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
@@ -489,11 +489,15 @@ export default function PaymentsProcessorPage() {
       {/* Digital Receipt View */}
       <Dialog open={isReceiptOpen} onOpenChange={setIsReceiptOpen}>
         <DialogContent className="max-w-xl p-0 overflow-hidden rounded-3xl border-none shadow-2xl">
+           <DialogHeader className="sr-only">
+             <DialogTitle>Digital Receipt Preview</DialogTitle>
+             <DialogDescription>Verified transaction record for fee collection.</DialogDescription>
+           </DialogHeader>
            <div className="receipt-view p-10 space-y-8 bg-white" id="receipt-printable">
               <div className="flex justify-between items-start">
                  <div className="space-y-1">
                     <div className="flex items-center gap-2 mb-2">
-                       {institution?.logoUrl ? <img src={institution.logoUrl} className="size-10 object-contain" /> : <Building2 className="size-8 text-primary" />}
+                       {institution?.logoUrl ? <img src={institution.logoUrl} className="size-10 object-contain" /> : <Building2 className="size-10 text-primary" />}
                        <h2 className="text-xl font-headline font-bold text-primary uppercase tracking-tighter">{institution?.name || "Registry Hub"}</h2>
                     </div>
                     <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{institution?.location || "Ahafo Region, Ghana"}</p>
