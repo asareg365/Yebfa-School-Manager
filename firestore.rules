@@ -72,6 +72,12 @@ service cloud.firestore {
       allow update, delete: if isSuperAdmin() || (signedIn() && instId == userTenant() && isOwner());
     }
 
+    match /admissions/{id} {
+      allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
+      allow create: if signedIn();
+      allow update, delete: if signedIn() && (isSuperAdmin() || (isOwner() || isAdmin()) && belongsToUserTenant(resource.data));
+    }
+
     match /notifications/{notifId} {
       allow list: if signedIn() && (isSuperAdmin() || (hasProfile() && (resource.data.tenantId == userTenant() || resource.data.targetStudentId == request.auth.uid)));
       allow get: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));

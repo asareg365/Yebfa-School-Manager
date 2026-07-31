@@ -207,11 +207,12 @@ export default function AdmissionsHubPage() {
     if (!db || !confirm("Are you sure you want to remove this application?")) return
     
     const docRef = doc(db, "admissions", id);
+    // Optimistic delete with standard error handler
     deleteDoc(docRef)
       .then(() => {
         toast({ title: "Application Removed" })
       })
-      .catch(async (error) => {
+      .catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
           path: docRef.path,
           operation: 'delete',
@@ -390,7 +391,7 @@ export default function AdmissionsHubPage() {
             </Accordion>
 
             {admissions.filter(a => status === 'all' || a.status === status).length === 0 && (
-              <div className="py-40 text-center space-y-4 bg-white rounded-3xl shadow-sm border border-dashed">
+              <div className="py-40 text-center space-y-6 bg-white rounded-3xl shadow-sm border border-dashed">
                 <div className="size-20 bg-muted/20 rounded-full flex items-center justify-center mx-auto">
                   <UserPlus className="size-10 text-muted-foreground/30" />
                 </div>
