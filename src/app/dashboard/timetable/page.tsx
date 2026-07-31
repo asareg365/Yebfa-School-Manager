@@ -22,7 +22,8 @@ import {
   X,
   Save,
   Trash2,
-  Lock
+  Lock,
+  AlertTriangle
 } from "lucide-react"
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase"
 import { collection, query, where, doc, setDoc, serverTimestamp, deleteDoc } from "firebase/firestore"
@@ -52,7 +53,9 @@ export default function TimetablePage() {
   const [manualSlot, setManualSlot] = useState({
     day: "Monday",
     time: "08:00 AM",
+    subjectId: "",
     subject: "",
+    teacherId: "",
     teacher: "",
     isDoublePeriod: false
   })
@@ -82,23 +85,22 @@ export default function TimetablePage() {
   const subjectsQuery = useMemoFirebase(() => institutionId ? query(collection(db, "subjects"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   const staffQuery = useMemoFirebase(() => institutionId ? query(collection(db, "staff"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   
-  const timetableQuery = useMemoFirebase(() => 
-    institutionId && selectedClassId 
-      ? query(collection(db, "timetables"), 
+  // Broad query to fetch ALL timetables for conflict detection
+  const termTimetablesQuery = useMemoFirebase(() => 
+    institutionId ? query(collection(db, "timetables"), 
           where("tenantId", "==", institutionId), 
-          where("classId", "==", selectedClassId),
           where("termId", "==", currentTerm))
       : null, 
-    [db, institutionId, selectedClassId, currentTerm]
+    [db, institutionId, currentTerm]
   )
 
   const { data: allClasses = [] } = useCollection(classesQuery)
   const { data: subjects = [] } = useCollection(subjectsQuery)
   const { data: staff = [] } = useCollection(staffQuery)
-  const { data: persistedTimetables = [], loading: tLoading } = useCollection(timetableQuery)
+  const { data: allTimetables = [], loading: tLoading } = useCollection(termTimetablesQuery)
 
   const classes = useMemo(() => isTeacher ? allClasses.filter(c => assignedClassIds.has(c.id)) : allClasses, [allClasses, isTeacher, assignedClassIds])
-  const activeTimetable = useMemo(() => persistedTimetables[0] || null, [persistedTimetables])
+  const activeTimetable = useMemo(() => allTimetables.find((t: any) => t.classId === selectedClassId) || null, [allTimetables, selectedClassId])
   const selectedClass = useMemo(() => classes.find(c => c.id === selectedClassId), [classes, selectedClassId])
 
   const handleOptimize = async () => {
@@ -149,56 +151,58 @@ export default function TimetablePage() {
     }
   }
 
-  const getSlot = (day: string, time: string) => {
-    const source = aiResult?.schedule || activeTimetable?.slots || []
-    
-    // 1. Check for exact match
-    const exact = source.find((s: any) => s.day === day && s.time === time)
-    if (exact) return { ...exact, occupancy: 'primary' }
-    
-    // 2. Check if previous slot is a double period covering this slot
-    const timeIndex = TIMES.indexOf(time)
-    if (timeIndex > 0) {
-      const prevTime = TIMES[timeIndex - 1]
-      const prevSlot = source.find((s: any) => s.day === day && s.time === prevTime)
-      if (prevSlot?.isDoublePeriod) {
-        return { ...prevSlot, occupancy: 'extended' }
+  const checkSlotOccupied = (day: string, time: string, tId: string, currentClassOnly = false) => {
+    // Check across ALL classes for teacher conflicts
+    for (const tt of allTimetables) {
+      if (currentClassOnly && tt.classId !== selectedClassId) continue;
+      
+      const slots = tt.slots || [];
+      for (const s of slots) {
+        const isTimeMatch = s.time === time;
+        const isDoubleCover = s.isDoublePeriod && TIMES[TIMES.indexOf(s.time) + 1] === time;
+        
+        if (s.day === day && (isTimeMatch || isDoubleCover)) {
+          // Check if class is busy
+          if (tt.classId === selectedClassId) return { type: 'class', name: tt.className };
+          // Check if teacher is busy
+          if (s.teacherId === tId) return { type: 'teacher', name: s.teacher, className: tt.className };
+        }
       }
     }
-    
-    return null
+    return null;
   }
 
   const handleAddManualSlot = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!institutionId || !selectedClassId) return
+    if (!institutionId || !selectedClassId || !manualSlot.subjectId || !manualSlot.teacherId) return
     
-    // Validate if target slot is already covered by a double period
-    const existingOccupancy = getSlot(manualSlot.day, manualSlot.time)
-    if (existingOccupancy && existingOccupancy.occupancy === 'extended') {
-      toast({
-        variant: "destructive",
-        title: "Slot Blocked",
-        description: `This time is already occupied by a double period for ${existingOccupancy.subject}.`
-      })
-      return
+    const timeIdx = TIMES.indexOf(manualSlot.time);
+    const slotsToCheck = [manualSlot.time];
+    if (manualSlot.isDoublePeriod) {
+      if (timeIdx === TIMES.length - 1) {
+        toast({ variant: "destructive", title: "Invalid Duration", description: "Double periods cannot start at the final time slot." });
+        return;
+      }
+      slotsToCheck.push(TIMES[timeIdx + 1]);
+    }
+
+    // Comprehensive Conflict Check
+    for (const checkTime of slotsToCheck) {
+      const conflict = checkSlotOccupied(manualSlot.day, checkTime, manualSlot.teacherId);
+      if (conflict) {
+        if (conflict.type === 'class') {
+          toast({ variant: "destructive", title: "Slot Occupied", description: `This class already has a period at ${checkTime} on ${manualSlot.day}.` });
+        } else {
+          toast({ variant: "destructive", title: "Teacher Conflict", description: `${conflict.name} is already teaching ${conflict.className} at ${checkTime}.` });
+        }
+        return;
+      }
     }
 
     setSaving(true)
     try {
       const currentSlots = activeTimetable?.slots || []
-      // Remove any existing direct slot at this time, or any slot that would be covered by this new double period
-      let newSlots = [...currentSlots.filter((s: any) => !(s.day === manualSlot.day && s.time === manualSlot.time))]
-      
-      if (manualSlot.isDoublePeriod) {
-        const timeIndex = TIMES.indexOf(manualSlot.time)
-        if (timeIndex < TIMES.length - 1) {
-          const nextTime = TIMES[timeIndex + 1]
-          newSlots = newSlots.filter((s: any) => !(s.day === manualSlot.day && s.time === nextTime))
-        }
-      }
-
-      newSlots.push(manualSlot)
+      const newSlots = [...currentSlots, manualSlot]
       
       const timetableId = `${selectedClassId}_${currentTerm.replace(/\s+/g, '')}`
       await setDoc(doc(db, "timetables", timetableId), {
@@ -211,9 +215,9 @@ export default function TimetablePage() {
         updatedAt: serverTimestamp()
       }, { merge: true })
 
-      toast({ title: "Slot Updated", description: "The manual entry has been registered." })
+      toast({ title: "Slot Authorized", description: "Period successfully registered." })
       setIsManualOpen(false)
-      setManualSlot({ day: "Monday", time: "08:00 AM", subject: "", teacher: "", isDoublePeriod: false })
+      setManualSlot({ day: "Monday", time: "08:00 AM", subjectId: "", subject: "", teacherId: "", teacher: "", isDoublePeriod: false })
     } catch (error: any) {
       toast({ variant: "destructive", title: "Update Failed" })
     } finally {
@@ -238,6 +242,26 @@ export default function TimetablePage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  const getSlotData = (day: string, time: string) => {
+    const source = aiResult?.schedule || activeTimetable?.slots || []
+    
+    // Check for direct assignment
+    const exact = source.find((s: any) => s.day === day && s.time === time)
+    if (exact) return { ...exact, occupancy: 'primary' }
+    
+    // Check for double period extension
+    const timeIndex = TIMES.indexOf(time)
+    if (timeIndex > 0) {
+      const prevTime = TIMES[timeIndex - 1]
+      const prevSlot = source.find((s: any) => s.day === day && s.time === prevTime)
+      if (prevSlot?.isDoublePeriod) {
+        return { ...prevSlot, occupancy: 'extended' }
+      }
+    }
+    
+    return null
   }
 
   return (
@@ -318,7 +342,7 @@ export default function TimetablePage() {
                      <form onSubmit={handleAddManualSlot}>
                         <DialogHeader>
                           <DialogTitle className="text-xl font-bold font-headline">Manual Period Allocation</DialogTitle>
-                          <DialogDescription>Assign a specific subject and teacher to a time slot for {selectedClass?.name}.</DialogDescription>
+                          <DialogDescription>Assign a specific subject and teacher to a time slot. Overlaps are strictly prevented.</DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-6 py-6">
                           <div className="grid grid-cols-2 gap-4">
@@ -338,7 +362,7 @@ export default function TimetablePage() {
                           <div className="space-y-1.5"><Label>Subject</Label>
                              <Select onValueChange={v => {
                                const sub = subjects.find(s => s.id === v);
-                               setManualSlot({...manualSlot, subject: sub?.name || "Unspecified"});
+                               setManualSlot({...manualSlot, subjectId: v, subject: sub?.name || "Unspecified"});
                              }}>
                                 <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Choose Subject" /></SelectTrigger>
                                 <SelectContent>{subjects.map(s => <SelectItem key={s.id} value={s.id}>{s.name || "Unnamed Subject"}</SelectItem>)}</SelectContent>
@@ -347,7 +371,7 @@ export default function TimetablePage() {
                           <div className="space-y-1.5"><Label>Teacher</Label>
                              <Select onValueChange={v => {
                                const st = staff.find(s => s.id === v);
-                               setManualSlot({...manualSlot, teacher: st ? `${st.firstName} ${st.lastName}` : "Unspecified"});
+                               setManualSlot({...manualSlot, teacherId: v, teacher: st ? `${st.firstName} ${st.lastName}` : "Unspecified"});
                              }}>
                                 <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Choose Faculty" /></SelectTrigger>
                                 <SelectContent>{staff.map(st => <SelectItem key={st.id} value={st.id}>{st.firstName} {st.lastName}</SelectItem>)}</SelectContent>
@@ -422,7 +446,7 @@ export default function TimetablePage() {
                                <div className="flex items-center gap-2"><Clock className="size-3" /> {time}</div>
                             </td>
                             {DAYS.map(day => {
-                              const slot = getSlot(day, time)
+                              const slot = getSlotData(day, time)
                               return (
                                 <td key={`${day}-${time}`} className="p-4 border-b group-hover:bg-slate-50/50 transition-colors relative">
                                    {slot ? (
@@ -439,9 +463,9 @@ export default function TimetablePage() {
                                               <User className="size-2.5" />
                                               <span className="text-[10px] font-bold truncate max-w-[80px]">{slot.teacher}</span>
                                            </div>
-                                           {slot.occupancy === 'primary' && !isTeacher && (
+                                           {slot.occupancy === 'primary' && !isTeacher && !aiResult && (
                                               <button onClick={() => handleDeleteSlot(day, time)} className="text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
-                                                 <Trash2 className="size-3" />
+                                                 <Trash2 className="size-3.5" />
                                               </button>
                                            )}
                                         </div>
