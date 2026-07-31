@@ -22,7 +22,7 @@ import {
   CheckCircle2
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useFirestore, useCollection, useUser, useDoc } from "@/firebase"
+import { useFirestore, useCollection, useUser, useDoc, useMemoFirebase } from "@/firebase"
 import { 
   collection, 
   query, 
@@ -43,25 +43,28 @@ import { FirestorePermissionError, type SecurityRuleContext } from "@/firebase/e
 export default function CommunicationCenterPage() {
   const db = useFirestore()
   const { user } = useUser()
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [msgForm, setMsgForm] = useState({ title: "", content: "", target: "All", targetStudentId: "" })
   const [studentSearch, setStudentSearch] = useState("")
 
-  // Resolve Profile for Permissions
+  // Resolve Profile for Permissions and Tenant Context
   const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
-  const { data: profile } = useDoc(userProfileRef)
+  const { data: profile, loading: profileLoading } = useDoc(userProfileRef)
   
+  const institutionId = useMemo(() => {
+    if (profileLoading || !profile) return null;
+    if (profile.role === 'super_admin') {
+      return typeof window !== 'undefined' ? localStorage.getItem('selected_institution_id') : null;
+    }
+    return profile.tenantId || null;
+  }, [profile, profileLoading]);
+
   const isParent = profile?.role === 'parent'
   const isStudent = profile?.role === 'student'
   const isRestricted = isParent || isStudent
 
-  useEffect(() => {
-    setInstitutionId(localStorage.getItem('selected_institution_id'))
-  }, [])
-
   // 1. Fetch Students for Staff (Targeting)
-  const studentsQuery = useMemo(() => 
+  const studentsQuery = useMemoFirebase(() => 
     institutionId && !isRestricted ? query(collection(db, "students"), where("tenantId", "==", institutionId)) : null, 
     [db, institutionId, isRestricted]
   )
@@ -75,7 +78,7 @@ export default function CommunicationCenterPage() {
   }, [students, studentSearch])
 
   // 2. Fetch Parent's Children (For filtering received messages)
-  const parentRelsQuery = useMemo(() => 
+  const parentRelsQuery = useMemoFirebase(() => 
     institutionId && isParent ? query(collection(db, "student_parents"), where("parentId", "==", user?.uid)) : null, 
     [db, institutionId, isParent, user?.uid]
   )
@@ -83,30 +86,31 @@ export default function CommunicationCenterPage() {
   const childrenIds = useMemo(() => parentRels.map(r => r.studentId), [parentRels])
 
   // 3. Fetch Announcements
-  const annQuery = useMemo(() => 
-    institutionId ? query(collection(db, "announcements"), where("tenantId", "==", institutionId), orderBy("createdAt", "desc")) : null, 
+  const annQuery = useMemoFirebase(() => 
+    institutionId ? query(collection(db, "announcements"), where("tenantId", "==", institutionId)) : null, 
     [db, institutionId]
   )
   const { data: allAnnouncements = [] } = useCollection(annQuery)
 
   // 4. Client-side filtering for Students & Parents
   const announcements = useMemo(() => {
-    if (!isRestricted) return allAnnouncements
-    return allAnnouncements.filter((ann: any) => {
-      // Show Global
+    const list = [...allAnnouncements].sort((a: any, b: any) => {
+      const dateA = a.createdAt?.toMillis?.() || Date.now();
+      const dateB = b.createdAt?.toMillis?.() || Date.now();
+      return dateB - dateA;
+    });
+
+    if (!isRestricted) return list;
+    
+    return list.filter((ann: any) => {
       if (ann.target === 'All') return true
-      
-      // Parent Logic
       if (isParent) {
         if (ann.target === 'Parents') return true
         if (ann.target === 'StudentParent' && childrenIds.includes(ann.targetStudentId)) return true
       }
-
-      // Student Logic
       if (isStudent) {
         if (ann.target === 'StudentParent' && ann.targetStudentId === profile?.studentId) return true
       }
-
       return false
     })
   }, [allAnnouncements, isRestricted, isParent, isStudent, childrenIds, profile?.studentId])
@@ -144,7 +148,6 @@ export default function CommunicationCenterPage() {
       targetStudentId: msgForm.targetStudentId || null
     })
 
-    // Commit using non-blocking pattern for contextual error handling
     batch.commit()
       .then(() => {
         toast({ title: "Message Authorized", description: "Information synchronized with registry." })
@@ -177,10 +180,16 @@ export default function CommunicationCenterPage() {
         const permissionError = new FirestorePermissionError({
           path: docRef.path,
           operation: 'delete',
-        });
+        } satisfies SecurityRuleContext);
         errorEmitter.emit('permission-error', permissionError);
       });
   }
+
+  if (profileLoading) return (
+    <div className="p-24 text-center">
+      <Loader2 className="size-10 animate-spin mx-auto text-primary" />
+    </div>
+  )
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
@@ -265,16 +274,6 @@ export default function CommunicationCenterPage() {
                   </Button>
                 </form>
               </CardContent>
-            </Card>
-
-            <Card className="border-none shadow-md bg-accent text-accent-foreground rounded-3xl overflow-hidden">
-               <CardHeader className="pb-2 p-6"><CardTitle className="text-xs uppercase font-bold tracking-widest opacity-70">Security Protocol</CardTitle></CardHeader>
-               <CardContent className="px-6 pb-6 space-y-4">
-                  <div className="flex items-start gap-3">
-                     <ShieldCheck className="size-5 shrink-0" />
-                     <p className="text-xs leading-relaxed font-medium">Personal messages to specific students are isolated and only visible to the respective student and their authorized guardians.</p>
-                  </div>
-               </CardContent>
             </Card>
           </div>
         )}

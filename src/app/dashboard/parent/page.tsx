@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { 
   Baby, 
@@ -45,7 +46,7 @@ export default function StudentReportsPortal() {
     return query(collection(db, "student_parents"), where("parentId", "==", user.uid))
   }, [db, user?.uid, isParent])
 
-  const { data: relations, loading: relsLoading } = useCollection(relsQuery)
+  const { data: relations = [], loading: relsLoading } = useCollection(relsQuery)
 
   const studentsQuery = useMemo(() => {
     if (!db || !profile) return null
