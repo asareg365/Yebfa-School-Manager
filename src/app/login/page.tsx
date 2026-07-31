@@ -6,16 +6,17 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { School, Loader2, KeyRound, Smartphone, ShieldCheck, Briefcase, Users, GraduationCap, ArrowRight, AlertCircle, Key } from "lucide-react"
+import { School, Loader2, KeyRound, Smartphone, ShieldCheck, Briefcase, Users, GraduationCap, ArrowRight, AlertCircle, Key, Mail, RefreshCw } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { signInWithEmailAndPassword, signOut, User } from "firebase/auth"
+import { signInWithEmailAndPassword, signOut, User, sendPasswordResetEmail } from "firebase/auth"
 import { doc, getDoc, collection, query, where, getDocs, setDoc, serverTimestamp } from "firebase/firestore"
 import { auth, db, useUser } from "@/firebase"
 import { firebaseConfig } from "@/firebase/config"
 import { toast } from "@/hooks/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { normalizeSecurityPhone } from "@/lib/identity-service"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 export default function LoginPage() {
   // --- ADMIN PORTAL STATE ---
@@ -37,6 +38,11 @@ export default function LoginPage() {
   const [studentIdInput, setStudentIdInput] = useState("")
   const [studentPinInput, setStudentPinInput] = useState("")
   const [studentLoading, setStudentLoading] = useState(false)
+
+  // --- PASSWORD RESET STATE ---
+  const [isResetOpen, setIsResetOpen] = useState(false)
+  const [resetEmail, setResetEmail] = useState("")
+  const [resetLoading, setResetLoading] = useState(false)
 
   const [configError, setConfigError] = useState(false)
   const router = useRouter()
@@ -103,7 +109,7 @@ export default function LoginPage() {
       }
 
       if (!userSnap.exists()) {
-        await signOut(auth);
+        await signOut(auth!);
         toast({ 
           variant: "destructive", 
           title: "Identity Link Required", 
@@ -118,7 +124,7 @@ export default function LoginPage() {
       if (userData.role !== 'super_admin' && userData.tenantId) {
         const instSnap = await getDoc(doc(db, "institutions", userData.tenantId));
         if (!instSnap.exists()) {
-          await signOut(auth);
+          await signOut(auth!);
           toast({ 
             variant: "destructive", 
             title: "Access Revoked", 
@@ -157,6 +163,29 @@ export default function LoginPage() {
     } catch (error: any) {
       toast({ variant: "destructive", title: "Login Failed", description: "Invalid email or security password." })
     } finally { setAdminLoading(false) }
+  }
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!auth || !resetEmail) return
+    setResetLoading(true)
+    try {
+      await sendPasswordResetEmail(auth, resetEmail.trim())
+      toast({
+        title: "Recovery Dispatched",
+        description: "Instructions have been sent to your verified email address.",
+      })
+      setIsResetOpen(false)
+      setResetEmail("")
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Recovery Failed",
+        description: "Could not find an active security account with this email address.",
+      })
+    } finally {
+      setResetLoading(false)
+    }
   }
 
   const handleParentLogin = async () => {
@@ -199,7 +228,7 @@ export default function LoginPage() {
       if (!matchedParent) throw new Error("Verification failed: Phone number not recognized for this student.");
 
       const parentEmail = matchedParent.email || `${matchedParent.parentNumber.toUpperCase().trim()}@system.yebfa.com`;
-      const credential = await signInWithEmailAndPassword(auth, parentEmail, inputPhone)
+      const credential = await signInWithEmailAndPassword(auth!, parentEmail, inputPhone)
       await redirectUser(credential.user, 'parent', matchedParent.parentNumber)
 
     } catch (error: any) {
@@ -217,7 +246,7 @@ export default function LoginPage() {
     const normalizedId = studentIdInput.trim().toUpperCase()
     try {
       const studentEmail = `${normalizedId}@system.yebfa.com`;
-      const credential = await signInWithEmailAndPassword(auth, studentEmail, studentPinInput.trim())
+      const credential = await signInWithEmailAndPassword(auth!, studentEmail, studentPinInput.trim())
       await redirectUser(credential.user, 'student', normalizedId)
     } catch (error: any) {
       const msg = error.code === 'auth/invalid-credential' ? "Invalid ID or PIN." : (error.message || "Access Denied.");
@@ -238,7 +267,7 @@ export default function LoginPage() {
       let cleanCredential = normalizeSecurityPhone(staffPhoneInput)
       if (cleanCredential.length < 6) cleanCredential = cleanCredential.padEnd(6, '0');
 
-      const credential = await signInWithEmailAndPassword(auth, accountEmail, cleanCredential)
+      const credential = await signInWithEmailAndPassword(auth!, accountEmail, cleanCredential)
       await redirectUser(credential.user, 'staff', normalizedId)
     } catch (error: any) {
       const msg = error.code === 'auth/invalid-credential' ? "Invalid ID or registered phone number." : (error.message || "Access Denied.");
@@ -280,7 +309,13 @@ export default function LoginPage() {
             <TabsContent value="admin" className="mt-0 space-y-4 animate-in fade-in">
               <form onSubmit={handleAdminLogin} className="space-y-4">
                 <div className="space-y-2"><Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Master Email</Label><Input type="email" value={adminEmail} onChange={e => setAdminEmail(e.target.value)} required className="h-12 rounded-xl" /></div>
-                <div className="space-y-2"><Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Security Key</Label><Input type="password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} required className="h-12 rounded-xl" /></div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Security Key</Label>
+                    <button type="button" onClick={() => setIsResetOpen(true)} className="text-[10px] font-bold text-primary hover:underline hover:text-accent transition-colors">Forgot Key?</button>
+                  </div>
+                  <Input type="password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} required className="h-12 rounded-xl" />
+                </div>
                 <Button className="w-full h-14 font-bold rounded-2xl bg-primary shadow-xl shadow-primary/20" type="submit" disabled={adminLoading}>
                   {adminLoading ? <Loader2 className="animate-spin mr-2" /> : "Access Command Center"}
                 </Button>
@@ -332,6 +367,45 @@ export default function LoginPage() {
           </CardFooter>
         </Tabs>
       </Card>
+
+      <Dialog open={isResetOpen} onOpenChange={setIsResetOpen}>
+        <DialogContent className="max-w-md rounded-3xl border-none shadow-2xl p-0 overflow-hidden">
+          <form onSubmit={handleResetPassword}>
+            <DialogHeader className="p-8 bg-primary text-primary-foreground">
+              <div className="size-12 rounded-2xl bg-white/10 flex items-center justify-center mb-4">
+                <RefreshCw className="size-6 text-accent" />
+              </div>
+              <DialogTitle className="text-2xl font-headline font-bold">Security Recovery</DialogTitle>
+              <DialogDescription className="text-primary-foreground/70">Enter your master email to receive a recovery link.</DialogDescription>
+            </DialogHeader>
+            <div className="p-8 space-y-6">
+              <div className="space-y-2">
+                <Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Registered Email Address</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                  <Input 
+                    type="email" 
+                    required 
+                    value={resetEmail} 
+                    onChange={e => setResetEmail(e.target.value)} 
+                    placeholder="admin@institution.com" 
+                    className="h-12 pl-10 rounded-xl" 
+                  />
+                </div>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-50 border flex gap-3">
+                 <ShieldCheck className="size-5 text-primary/40 shrink-0 mt-0.5" />
+                 <p className="text-[10px] text-muted-foreground leading-relaxed">For staff or student password resets, please contact your school's IT administrator for a direct registry PIN reset.</p>
+              </div>
+            </div>
+            <DialogFooter className="p-8 bg-slate-50 border-t">
+              <Button type="submit" disabled={resetLoading || !resetEmail} className="w-full h-14 bg-primary font-bold rounded-2xl shadow-xl text-lg">
+                {resetLoading ? <Loader2 className="animate-spin mr-2" /> : "Dispatch Reset Link"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
