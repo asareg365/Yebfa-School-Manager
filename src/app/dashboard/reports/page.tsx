@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
@@ -25,7 +24,7 @@ import {
   X
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useFirestore, useCollection, useDoc, useUser } from "@/firebase"
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase"
 import { collection, query, where, doc, setDoc, serverTimestamp } from "firebase/firestore"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { calculateGrade, calculatePositions, calculateAttendanceSummary, DEFAULT_GRADING, determinePromotion } from "@/lib/academic-engine"
@@ -40,6 +39,7 @@ export default function StudentReportsPage() {
   const [selectedGrade, setSelectedGrade] = useState("")
   const [selectedStudentId, setSelectedStudentId] = useState("")
   const [studentSearch, setStudentSearch] = useState("")
+  const [showSuggestions, setShowSuggestions] = useState(false)
   const [isComputing, setIsComputing] = useState(false)
   
   const [teacherRemark, setTeacherRemark] = useState("")
@@ -62,12 +62,13 @@ export default function StudentReportsPage() {
   const { data: institution } = useDoc(instRef)
   const currentTerm = institution?.currentTerm || "Term 1"
 
-  // Queries
-  const classesQuery = useMemo(() => institutionId ? query(collection(db, "classes"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
-  const studentsQuery = useMemo(() => institutionId && selectedGrade ? query(collection(db, "students"), where("tenantId", "==", institutionId), where("gradeLevel", "==", selectedGrade)) : null, [db, institutionId, selectedGrade])
-  const subjectsQuery = useMemo(() => institutionId ? query(collection(db, "subjects"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
-  const classExamsQuery = useMemo(() => institutionId && selectedGrade ? query(collection(db, "exam_records"), where("tenantId", "==", institutionId), where("gradeLevel", "==", selectedGrade), where("termId", "==", currentTerm)) : null, [db, institutionId, selectedGrade, currentTerm])
-  const attendanceQuery = useMemo(() => institutionId && selectedStudentId ? query(collection(db, "attendance"), where("studentId", "==", selectedStudentId)) : null, [db, institutionId, selectedStudentId])
+  // Optimized Queries with Stabilization
+  const classesQuery = useMemoFirebase(() => institutionId ? query(collection(db, "classes"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
+  const studentsQuery = useMemoFirebase(() => institutionId && selectedGrade ? query(collection(db, "students"), where("tenantId", "==", institutionId), where("gradeLevel", "==", selectedGrade)) : null, [db, institutionId, selectedGrade])
+  const subjectsQuery = useMemoFirebase(() => institutionId ? query(collection(db, "subjects"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
+  
+  const classExamsQuery = useMemoFirebase(() => institutionId && selectedGrade ? query(collection(db, "exam_records"), where("tenantId", "==", institutionId), where("gradeLevel", "==", selectedGrade), where("termId", "==", currentTerm)) : null, [db, institutionId, selectedGrade, currentTerm])
+  const attendanceQuery = useMemoFirebase(() => institutionId && selectedStudentId ? query(collection(db, "attendance"), where("studentId", "==", selectedStudentId)) : null, [db, institutionId, selectedStudentId])
 
   const { data: classes = [] } = useCollection(classesQuery)
   const { data: students = [] } = useCollection(studentsQuery)
@@ -178,7 +179,7 @@ export default function StudentReportsPage() {
             <CardContent className="p-6 space-y-6">
                <div className="space-y-2">
                   <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Grade Module</Label>
-                  <Select value={selectedGrade} onValueChange={(v) => { setSelectedGrade(v); setSelectedStudentId(""); setStudentSearch(""); }}>
+                  <Select value={selectedGrade} onValueChange={(v) => { setSelectedGrade(v); setSelectedStudentId(""); setStudentSearch(""); setShowSuggestions(false); }}>
                      <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Select Class" /></SelectTrigger>
                      <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
                   </Select>
@@ -192,16 +193,20 @@ export default function StudentReportsPage() {
                       placeholder="Type name or Registry ID..." 
                       className="pl-10 h-11 rounded-xl text-sm"
                       value={studentSearch}
-                      onChange={(e) => setStudentSearch(e.target.value)}
+                      onChange={(e) => {
+                        setStudentSearch(e.target.value);
+                        setShowSuggestions(true);
+                      }}
+                      onFocus={() => setShowSuggestions(true)}
                       disabled={!selectedGrade}
                      />
                      {studentSearch && (
-                       <button onClick={() => setStudentSearch("")} className="absolute right-3 top-3 text-muted-foreground hover:text-primary">
+                       <button onClick={() => { setStudentSearch(""); setSelectedStudentId(""); setShowSuggestions(false); }} className="absolute right-3 top-3 text-muted-foreground hover:text-primary">
                           <X className="size-4" />
                        </button>
                      )}
 
-                     {studentSearch.length >= 2 && filteredStudents.length > 0 && (
+                     {showSuggestions && studentSearch.length >= 2 && filteredStudents.length > 0 && (
                        <div className="absolute z-50 w-full mt-2 bg-white border border-border/40 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                           <ScrollArea className="max-h-[250px]">
                              <div className="p-2 space-y-1">
@@ -212,6 +217,7 @@ export default function StudentReportsPage() {
                                     onClick={() => {
                                       setSelectedStudentId(s.id);
                                       setStudentSearch(`${s.firstName} ${s.lastName}`);
+                                      setShowSuggestions(false);
                                     }}
                                     className={`w-full text-left p-3 rounded-xl text-xs font-bold transition-all flex items-center justify-between group ${selectedStudentId === s.id ? 'bg-primary text-white' : 'hover:bg-slate-50'}`}
                                   >
@@ -329,10 +335,10 @@ export default function StudentReportsPage() {
                     <ResponsiveContainer width="100%" height="100%">
                       <ReBarChart data={reportData.results}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="subject" fontSize={9} tickLine={false} axisLine={false} hide={window.innerWidth < 640} />
+                        <XAxis dataKey="subject" fontSize={9} tickLine={false} axisLine={false} hide={typeof window !== 'undefined' && window.innerWidth < 640} />
                         <YAxis fontSize={9} tickLine={false} axisLine={false} domain={[0, 100]} />
                         <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
-                        <Bar dataKey="total" fill="#1a1f2c" radius={[4, 4, 0, 0]} barSize={window.innerWidth < 640 ? 15 : 30} />
+                        <Bar dataKey="total" fill="#1a1f2c" radius={[4, 4, 0, 0]} barSize={typeof window !== 'undefined' && window.innerWidth < 640 ? 15 : 30} />
                       </ReBarChart>
                     </ResponsiveContainer>
                   </div>
