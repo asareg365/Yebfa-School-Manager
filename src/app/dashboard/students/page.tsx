@@ -60,6 +60,8 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import Papa from "papaparse"
+import { errorEmitter } from "@/firebase/error-emitter"
+import { FirestorePermissionError, type SecurityRuleContext } from "@/firebase/errors"
 
 export default function StudentsPage() {
   const db = useFirestore()
@@ -170,7 +172,6 @@ export default function StudentsPage() {
     ).sort((a: any, b: any) => (a.admissionNumber || "").localeCompare(b.admissionNumber || ""));
   }, [rawStudents, searchQuery]);
 
-  // Strategic Grouping Logic
   const groupedStudents = useMemo(() => {
     const groups: Record<string, any[]> = {}
     studentsList.forEach(s => {
@@ -356,13 +357,10 @@ export default function StudentsPage() {
       const newPin = generateStudentPin();
       const studentEmail = `${stu.admissionNumber.toUpperCase().trim()}@system.yebfa.com`;
       
-      // Attempt to provision account if missing
       try {
         await createUserWithEmailAndPassword(provisionAuth, studentEmail, newPin);
-        
-        // Also ensure user record exists
         await setDoc(doc(db, "users", stu.id), {
-          uid: stu.id, // Using registry ID as fallback UID if creating via provision app is complex
+          uid: stu.id,
           name: `${stu.firstName} ${stu.lastName}`,
           email: studentEmail,
           role: "student",
@@ -408,8 +406,6 @@ export default function StudentsPage() {
       complete: async (results) => {
         try {
           const rawRows = results.data as any[]
-          
-          // Deep Normalization Protocol: Handle column naming variations
           const rows = rawRows.map(row => {
             const normalized: any = {};
             Object.keys(row).forEach(key => {
@@ -499,14 +495,21 @@ export default function StudentsPage() {
     setActiveStep("identity")
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to remove this student?")) return
-    try {
-      await deleteDoc(doc(db!, "students", id))
-      toast({ title: "Record Removed" })
-    } catch (e) { 
-      toast({ variant: "destructive", title: "Action Failed" }) 
-    }
+  const handleDelete = (id: string) => {
+    if (!db || !confirm("Are you sure you want to remove this student and all associated portal access?")) return
+    
+    const docRef = doc(db, "students", id);
+    deleteDoc(docRef)
+      .then(() => {
+        toast({ title: "Record Removed", description: "Institutional registry synchronized." })
+      })
+      .catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'delete',
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+      });
   }
 
   if (profileLoading || studentsLoading) return (

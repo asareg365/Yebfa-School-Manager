@@ -75,7 +75,7 @@ service cloud.firestore {
     match /admissions/{id} {
       allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
       allow create: if signedIn();
-      allow update, delete: if signedIn() && (isSuperAdmin() || (isOwner() || isAdmin()) && belongsToUserTenant(resource.data));
+      allow update, delete: if signedIn() && (isSuperAdmin() || (isOwner() || isAdmin()) && (resource.data.tenantId == userTenant()));
     }
 
     match /notifications/{notifId} {
@@ -89,19 +89,19 @@ service cloud.firestore {
     match /parents/{parentId} {
       allow list, get: if true;
       allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
-      allow delete: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
+      allow delete: if signedIn() && (isSuperAdmin() || (isOwner() || isAdmin()) && (resource.data.tenantId == userTenant()));
     }
 
     match /staff/{staffDocId} {
       allow list, get: if true;
       allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
-      allow delete: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
+      allow delete: if signedIn() && (isSuperAdmin() || (isOwner() || isAdmin()) && (resource.data.tenantId == userTenant()));
     }
 
     match /students/{studentId} {
       allow list, get: if true;
       allow create, update: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin() || isTeacher());
-      allow delete: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin());
+      allow delete: if signedIn() && (isSuperAdmin() || (isOwner() || isAdmin()) && (resource.data.tenantId == userTenant()));
     }
 
     match /student_parents/{relId} {
