@@ -48,6 +48,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
+import { errorEmitter } from "@/firebase/error-emitter"
+import { FirestorePermissionError } from "@/firebase/errors"
 
 export default function AdmissionsHubPage() {
   const db = useFirestore()
@@ -88,7 +90,6 @@ export default function AdmissionsHubPage() {
 
   const admissionsQuery = useMemoFirebase(() => {
     if (!db || !institutionId) return null
-    // Removed orderBy to avoid composite index lag during initial registration phases
     return query(
       collection(db, "admissions"), 
       where("tenantId", "==", institutionId)
@@ -128,7 +129,6 @@ export default function AdmissionsHubPage() {
       }
     });
 
-    // Client-side sorting for immediate responsiveness
     return pipeline
       .filter(a => 
         `${a.firstName} ${a.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -203,14 +203,21 @@ export default function AdmissionsHubPage() {
     }
   }
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => {
     if (!db || !confirm("Are you sure you want to remove this application?")) return
-    try {
-      await deleteDoc(doc(db, "admissions", id))
-      toast({ title: "Application Removed" })
-    } catch (e) { 
-      toast({ variant: "destructive", title: "Action Failed" }) 
-    }
+    
+    const docRef = doc(db, "admissions", id);
+    deleteDoc(docRef)
+      .then(() => {
+        toast({ title: "Application Removed" })
+      })
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
   }
 
   const startEnrollment = (app: any) => {
@@ -348,9 +355,11 @@ export default function AdmissionsHubPage() {
                                         </Link>
                                       </DropdownMenuItem>
                                     )}
-                                    <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onClick={() => handleDelete(a.id)}>
-                                      <Trash2 className="size-4" /> Remove Application
-                                    </DropdownMenuItem>
+                                    {!a.isRegistrySync && (
+                                      <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onClick={() => handleDelete(a.id)}>
+                                        <Trash2 className="size-4" /> Remove Application
+                                      </DropdownMenuItem>
+                                    )}
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               </CardHeader>
@@ -469,7 +478,7 @@ export default function AdmissionsHubPage() {
                     className="min-h-[200px] rounded-xl" 
                     placeholder="Enter interview outcomes and observations..." 
                     value={interviewForm.interviewNotes}
-                    onChange={e => setInterviewForm({...interviewForm, interviewNotes: e.target.value})}
+                    onChange={(e) => setInterviewForm({...interviewForm, interviewNotes: e.target.value})}
                   />
                 </div>
               </div>

@@ -42,6 +42,8 @@ import {
   updateDoc
 } from "firebase/firestore"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { errorEmitter } from "@/firebase/error-emitter"
+import { FirestorePermissionError } from "@/firebase/errors"
 
 export default function AcademicFoundationPage() {
   const db = useFirestore()
@@ -112,13 +114,22 @@ export default function AcademicFoundationPage() {
     }
   }
 
-  const handleDelete = async (coll: string, id: string) => {
-    try {
-      await deleteDoc(doc(db, coll, id))
-      toast({ title: "Record Removed" })
-    } catch (err: any) {
-      toast({ variant: "destructive", title: "Action Denied" })
-    }
+  const handleDelete = (coll: string, id: string) => {
+    if (!db) return
+    if (!confirm("Are you sure you want to remove this record?")) return
+
+    const docRef = doc(db, coll, id);
+    deleteDoc(docRef)
+      .then(() => {
+        toast({ title: "Record Removed" })
+      })
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
   }
 
   return (

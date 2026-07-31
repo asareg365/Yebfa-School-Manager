@@ -38,6 +38,8 @@ import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { errorEmitter } from "@/firebase/error-emitter"
+import { FirestorePermissionError } from "@/firebase/errors"
 
 export default function CommunicationCenterPage() {
   const db = useFirestore()
@@ -156,12 +158,22 @@ export default function CommunicationCenterPage() {
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (isRestricted) return
-    try {
-      await deleteDoc(doc(db, "announcements", id))
-      toast({ title: "Record Removed" })
-    } catch (e) { toast({ variant: "destructive", title: "Action Denied" }) }
+  const handleDelete = (id: string) => {
+    if (isRestricted || !db) return
+    if (!confirm("Are you sure you want to remove this record?")) return
+
+    const docRef = doc(db, "announcements", id);
+    deleteDoc(docRef)
+      .then(() => {
+        toast({ title: "Record Removed" })
+      })
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
   }
 
   return (
@@ -325,7 +337,7 @@ export default function CommunicationCenterPage() {
               <TabsContent value="reminders" className="mt-0">
                  <Card className="border-none shadow-md bg-white p-12 text-center space-y-6 rounded-3xl border-2 border-dashed">
                     <div className="size-24 rounded-full bg-primary/5 flex items-center justify-center mx-auto text-primary/30"><History className="size-12" /></div>
-                    <div className="max-w-md mx-auto space-y-2">
+                    <div className="max-md mx-auto space-y-2">
                        <h3 className="text-2xl font-headline font-bold text-primary">Automated Intelligence Dispatch</h3>
                        <p className="text-sm text-muted-foreground leading-relaxed">
                           Configure automated WhatsApp greetings, term reminders, and payment alerts. These triggers are synchronized with the institutional academic ledger and identity registry.
