@@ -389,12 +389,25 @@ export default function StudentsPage() {
       skipEmptyLines: true,
       complete: async (results) => {
         try {
-          const rows = results.data as any[]
+          const rawRows = results.data as any[]
+          
+          // Deep Normalization Protocol: Handle column naming variations
+          const rows = rawRows.map(row => {
+            const normalized: any = {};
+            Object.keys(row).forEach(key => {
+              const cleanKey = key.trim().toLowerCase().replace(/[\s_]/g, '');
+              normalized[cleanKey] = row[key];
+            });
+            return normalized;
+          });
+
           let count = 0;
           const batch = writeBatch(db)
           
           for (const row of rows) {
-            if (!row.firstName || !row.lastName) continue;
+            const first = row.firstname || row.first;
+            const last = row.lastname || row.last;
+            if (!first || !last) continue;
 
             const finalAdmissionNumber = await generateInstitutionId('STU', institutionId, institution?.schoolCode);
             const finalPin = generateStudentPin(); 
@@ -408,11 +421,11 @@ export default function StudentsPage() {
                const studentId = studentRef.id;
 
                batch.set(studentRef, {
-                 firstName: row.firstName,
-                 lastName: row.lastName,
+                 firstName: first,
+                 lastName: last,
                  gender: row.gender || "Male",
-                 gradeLevel: row.grade || row.gradeLevel || "Unassigned",
-                 dateOfBirth: row.dob || row.dateOfBirth || "",
+                 gradeLevel: row.grade || row.gradelevel || "Unassigned",
+                 dateOfBirth: row.dob || row.dateofbirth || "",
                  admissionNumber: finalAdmissionNumber,
                  studentPin: finalPin,
                  tenantId: institutionId,
@@ -425,7 +438,7 @@ export default function StudentsPage() {
 
                batch.set(doc(db, "users", authUser.uid), {
                  uid: authUser.uid,
-                 name: `${row.firstName} ${row.lastName}`,
+                 name: `${first} ${last}`,
                  email: studentEmail,
                  role: "student",
                  studentId: studentId,
@@ -438,7 +451,7 @@ export default function StudentsPage() {
                await signOut(provisionAuth);
                count++;
             } catch (err: any) {
-               console.error(`Failed to provision student ${row.firstName}:`, err);
+               console.error(`Failed to provision student ${first}:`, err);
             }
           }
 
@@ -763,7 +776,7 @@ export default function StudentsPage() {
               <div className="flex gap-3">
                  {activeStep === "finalize" ? (
                    <Button type="submit" disabled={loading} className="h-12 px-8 rounded-xl bg-primary font-bold shadow-xl">
-                      {loading ? <Loader2 className="size-4 animate-spin mr-2" /> : <Save className="size-4 mr-2" />}
+                      {loading ? <Loader2 className="animate-spin mr-2" /> : <Save className="size-4 mr-2" />}
                       Finalize Enrollment
                    </Button>
                  ) : (
