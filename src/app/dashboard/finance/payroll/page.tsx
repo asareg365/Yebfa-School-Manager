@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -54,12 +55,14 @@ export default function PayrollProcessorPage() {
       const year = "2026"
 
       staff.forEach((member: any) => {
+        const fullName = `${member.firstName} ${member.lastName}`
         const payrollRef = doc(collection(db, "payroll_records"))
+        
         batch.set(payrollRef, {
           tenantId: institutionId,
           staffId: member.id,
-          staffName: member.fullName,
-          staffRole: member.role,
+          staffName: fullName,
+          staffRole: member.designation || "Faculty",
           baseSalary: member.salary || 0,
           allowances: 0,
           deductions: 0,
@@ -76,7 +79,7 @@ export default function PayrollProcessorPage() {
         batch.set(expenseRef, {
           tenantId: institutionId,
           category: "Payroll",
-          description: `Salary disbursement for ${member.fullName} - ${selectedMonth} ${year}`,
+          description: `Salary disbursement for ${fullName} - ${selectedMonth} ${year}`,
           amount: member.salary || 0,
           date: new Date().toISOString().split('T')[0],
           createdAt: serverTimestamp()
@@ -87,6 +90,7 @@ export default function PayrollProcessorPage() {
       toast({ title: "Payroll Authorized", description: `Disbursements finalized for ${staff.length} staff members.` })
       setIsCycleOpen(false)
     } catch (e: any) {
+      console.error("Payroll Error:", e)
       toast({ variant: "destructive", title: "Payroll Error", description: e.message })
     } finally {
       setLoading(false)
@@ -172,7 +176,7 @@ export default function PayrollProcessorPage() {
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <div className="size-8 rounded-full bg-primary/5 flex items-center justify-center font-bold text-primary text-[10px]">
-                        {rec.staffName.charAt(0)}
+                        {rec.staffName?.charAt(0) || "S"}
                       </div>
                       <span className="font-bold text-sm text-primary">{rec.staffName}</span>
                     </div>
