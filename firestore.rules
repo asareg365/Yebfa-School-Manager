@@ -110,17 +110,20 @@ service cloud.firestore {
 
     match /invoices/{id} {
       allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
-      allow create, update, delete: if signedIn() && (isSuperAdmin() || ((isOwner() || isAdmin() || isAccountant()) && (belongsToUserTenant(request.resource.data || resource.data))));
+      allow create, update: if signedIn() && (isSuperAdmin() || ((isOwner() || isAdmin() || isAccountant()) && (belongsToUserTenant(request.resource.data || resource.data))));
+      allow delete: if signedIn() && (isSuperAdmin() || ((isOwner() || isAdmin()) && belongsToUserTenant(resource.data)));
     }
 
     match /transactions/{id} {
       allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
-      allow create, update, delete: if signedIn() && (isSuperAdmin() || ((isOwner() || isAdmin() || isAccountant()) && (belongsToUserTenant(request.resource.data || resource.data))));
+      allow create: if signedIn() && (isSuperAdmin() || ((isOwner() || isAdmin() || isAccountant()) && (belongsToUserTenant(request.resource.data))));
+      allow update, delete: if signedIn() && (isSuperAdmin() || ((isOwner() || isAdmin()) && belongsToUserTenant(resource.data)));
     }
 
     match /student_ledger/{id} {
       allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
-      allow create, update, delete: if signedIn() && (isSuperAdmin() || ((isOwner() || isAdmin() || isAccountant()) && (belongsToUserTenant(request.resource.data || resource.data))));
+      allow create, update: if signedIn() && (isSuperAdmin() || ((isOwner() || isAdmin() || isAccountant()) && (belongsToUserTenant(request.resource.data || resource.data))));
+      allow delete: if signedIn() && (isSuperAdmin() || ((isOwner() || isAdmin()) && belongsToUserTenant(resource.data)));
     }
 
     match /counters/{counterId} {

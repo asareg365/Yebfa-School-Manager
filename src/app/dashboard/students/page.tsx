@@ -508,13 +508,15 @@ export default function StudentsPage() {
     setActiveStep("identity")
   }
 
-  const handleDelete = (id: string) => {
-    if (!db || !confirm("Are you sure you want to remove this student and all associated portal access?")) return
+  const handleDelete = (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!db || !confirm("Are you sure you want to PERMANENTLY delete this student and all associated portal access? This action cannot be undone.")) return
     
     const docRef = doc(db, "students", id);
     deleteDoc(docRef)
       .then(() => {
-        toast({ title: "Record Removed", description: "Institutional registry synchronized." })
+        toast({ title: "Registry Synchronized", description: "The student record has been deleted from the multi-tenant vault." })
       })
       .catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
@@ -663,8 +665,8 @@ export default function StudentsPage() {
                                           <DropdownMenuItem className="gap-2 text-xs font-bold text-accent" onClick={() => handleResetPin(stu)}>
                                             <ShieldAlert className="size-4" /> Reset Portal PIN
                                           </DropdownMenuItem>
-                                          <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onClick={(e) => { e.stopPropagation(); handleDelete(stu.id); }}>
-                                            <Trash2 className="size-4" /> Remove Record
+                                          <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onClick={(e) => handleDelete(stu.id, e)}>
+                                            <Trash2 className="size-4" /> Delete Student
                                           </DropdownMenuItem>
                                         </DropdownMenuContent>
                                       </DropdownMenu>
