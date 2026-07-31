@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
@@ -19,7 +18,7 @@ import { doc, collection, query, where, orderBy, deleteDoc, writeBatch, getDocs 
 import { toast } from '@/hooks/use-toast';
 import { signOut } from 'firebase/auth';
 
-const IDLE_TIMEOUT = 1800000; // 30 minutes
+const IDLE_TIMEOUT = 180000; // 3 minutes (Strategic Security window)
 
 export default function DashboardLayout({
   children,
@@ -71,7 +70,7 @@ export default function DashboardLayout({
       router.push('/login');
       toast({
         title: "Session Terminated",
-        description: "You have signed out successfully.",
+        description: "You have been signed out due to inactivity.",
       });
     }
   }, [auth, router]);
