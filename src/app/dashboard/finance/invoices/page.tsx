@@ -24,17 +24,19 @@ import {
   ShieldCheck,
   Building2,
   ArrowRight,
-  HandCoins
+  HandCoins,
+  X
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase"
-import { collection, query, where, addDoc, serverTimestamp, writeBatch, doc, deleteDoc, updateDoc, getDocs } from "firebase/firestore"
+import { collection, query, where, addDoc, serverTimestamp, writeBatch, doc, deleteDoc, updateDoc, getDocs, getDoc } from "firebase/firestore"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 
 export default function InvoicingPage() {
   const db = useFirestore()
@@ -243,7 +245,7 @@ export default function InvoicingPage() {
 
       <div className="grid gap-6 md:grid-cols-4">
         {[
-          { title: "Net Billed", value: `GH₵ ${invoices.reduce((a, c: any) => a + c.totalAmount, 0).toLocaleString()}`, icon: DollarSign, color: "text-primary" },
+          { title: "Net Billed", value: `GH₵ ${invoices.reduce((a, c: any) => a + (c.totalAmount || 0), 0).toLocaleString()}`, icon: DollarSign, color: "text-primary" },
           { title: "Net Collected", value: `GH₵ ${invoices.reduce((a, c: any) => a + (c.amountPaid || 0), 0).toLocaleString()}`, icon: CheckCircle2, color: "text-green-600" },
           { title: "Net Outstanding", value: `GH₵ ${invoices.reduce((a, c: any) => a + (c.amountDue || 0), 0).toLocaleString()}`, icon: Clock, color: "text-destructive" },
           { title: "Active Ledger", value: `${invoices.length} Bills`, icon: FileText, color: "text-accent" }
@@ -318,7 +320,7 @@ export default function InvoicingPage() {
                          <DropdownMenuContent align="end" className="rounded-xl border-none shadow-xl w-48">
                             <DropdownMenuItem className="gap-2 text-xs font-bold" onClick={() => {
                               setSelectedInvoice(inv);
-                              setEditForm({ totalAmount: inv.totalAmount.toString() });
+                              setEditForm({ totalAmount: inv.totalAmount?.toString() || "0" });
                               setIsEditOpen(true);
                             }}>
                                <Pencil className="size-4" /> Adjust Total
