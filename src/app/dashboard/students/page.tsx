@@ -508,23 +508,28 @@ export default function StudentsPage() {
     setActiveStep("identity")
   }
 
-  const handleDelete = (id: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!db || !confirm("Are you sure you want to PERMANENTLY delete this student and all associated portal access? This action cannot be undone.")) return
+  const handleDelete = async (id: string) => {
+    if (!db || !confirm("Are you sure you want to PERMANENTLY delete this student? This action cannot be undone.")) return
     
+    setLoading(true);
     const docRef = doc(db, "students", id);
-    deleteDoc(docRef)
-      .then(() => {
-        toast({ title: "Registry Synchronized", description: "The student record has been deleted from the multi-tenant vault." })
-      })
-      .catch(async (serverError) => {
+    try {
+      await deleteDoc(docRef);
+      toast({ title: "Student Deleted", description: "Registry record removed successfully." });
+    } catch (e: any) {
+      console.error("Deletion Failed:", e);
+      if (e.code === 'permission-denied') {
         const permissionError = new FirestorePermissionError({
           path: docRef.path,
           operation: 'delete',
         } satisfies SecurityRuleContext);
         errorEmitter.emit('permission-error', permissionError);
-      });
+      } else {
+        toast({ variant: "destructive", title: "Action Failed", description: e.message });
+      }
+    } finally {
+      setLoading(false);
+    }
   }
 
   if (profileLoading || studentsLoading) return (
@@ -659,13 +664,13 @@ export default function StudentsPage() {
                                           <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg"><MoreVertical className="size-4" /></Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end" className="rounded-xl border-none shadow-xl w-48">
-                                          <DropdownMenuItem className="gap-2 text-xs font-bold" onClick={() => openEdit(stu)}>
+                                          <DropdownMenuItem className="gap-2 text-xs font-bold" onSelect={() => openEdit(stu)}>
                                             <Pencil className="size-4" /> Edit Profile
                                           </DropdownMenuItem>
-                                          <DropdownMenuItem className="gap-2 text-xs font-bold text-accent" onClick={() => handleResetPin(stu)}>
+                                          <DropdownMenuItem className="gap-2 text-xs font-bold text-accent" onSelect={() => handleResetPin(stu)}>
                                             <ShieldAlert className="size-4" /> Reset Portal PIN
                                           </DropdownMenuItem>
-                                          <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onClick={(e) => handleDelete(stu.id, e)}>
+                                          <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onSelect={() => handleDelete(stu.id)}>
                                             <Trash2 className="size-4" /> Delete Student
                                           </DropdownMenuItem>
                                         </DropdownMenuContent>

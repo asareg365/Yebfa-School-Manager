@@ -364,14 +364,14 @@ export default function PaymentsProcessorPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="rounded-xl border-none shadow-xl w-40">
-                          <DropdownMenuItem className="gap-2 text-xs font-bold" onClick={() => {
+                          <DropdownMenuItem className="gap-2 text-xs font-bold" onSelect={() => {
                             setSelectedTxn(t);
                             setPaymentForm({ invoiceId: t.invoiceId, amount: t.amount.toString(), method: t.paymentMethod, reference: t.reference });
                             setIsEditOpen(true);
                           }}>
                             <Pencil className="size-4" /> Edit Record
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onClick={() => handleDeleteTransaction(t)}>
+                          <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onSelect={() => handleDeleteTransaction(t)}>
                             <RotateCcw className="size-4" /> Reverse Payment
                           </DropdownMenuItem>
                         </DropdownMenuContent>
