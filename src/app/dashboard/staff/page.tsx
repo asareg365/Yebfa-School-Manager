@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
@@ -119,8 +118,8 @@ export default function StaffHRPage() {
         let cleanPass = normalizeSecurityPhone(staffForm.phone);
         if (cleanPass.length < 6) cleanPass = cleanPass.padEnd(6, '0');
         
-        // System Email: standardized to lowercase raw ID
-        accountEmail = staffForm.email || `${finalStaffNumber.toLowerCase().trim()}@system.yebfa.com`;
+        // System Email: standardized to UPPERCASE raw ID for gateway synchronization
+        accountEmail = staffForm.email || `${finalStaffNumber.toUpperCase().trim()}@system.yebfa.com`;
         
         let authUser;
         try {

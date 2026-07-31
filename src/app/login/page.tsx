@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -263,11 +262,26 @@ export default function LoginPage() {
     setStaffLoading(true)
     const normalizedId = staffIdInput.trim().toUpperCase()
     try {
-      const accountEmail = `${normalizedId}@system.yebfa.com`
-      let cleanCredential = normalizeSecurityPhone(staffPhoneInput)
-      if (cleanCredential.length < 6) cleanCredential = cleanCredential.padEnd(6, '0');
+      // 1. Registry Lookup for Strategic Identity Resolution
+      const q = query(collection(db, "staff"), where("staffNumber", "==", normalizedId))
+      const snap = await getDocs(q)
+      
+      if (snap.empty) throw new Error("Staff ID not found in institutional registry.");
+      const staffData = snap.docs[0].data();
 
-      const credential = await signInWithEmailAndPassword(auth!, accountEmail, cleanCredential)
+      // 2. Normalize Credential (Password)
+      let inputPhone = normalizeSecurityPhone(staffPhoneInput)
+      if (inputPhone.length < 6) inputPhone = inputPhone.padEnd(6, '0');
+
+      // 3. Verify phone matches registry (Pre-Auth Check)
+      if (normalizeSecurityPhone(staffData.phone) !== normalizeSecurityPhone(staffPhoneInput)) {
+         throw new Error("Verification failed: Phone number not recognized for this Staff ID.");
+      }
+
+      // 4. Resolve Email (Use registry email or system fallback - normalized to UPPERCASE)
+      const accountEmail = staffData.email || `${normalizedId}@system.yebfa.com`;
+
+      const credential = await signInWithEmailAndPassword(auth!, accountEmail, inputPhone)
       await redirectUser(credential.user, 'staff', normalizedId)
     } catch (error: any) {
       const msg = error.code === 'auth/invalid-credential' ? "Invalid ID or registered phone number." : (error.message || "Access Denied.");
