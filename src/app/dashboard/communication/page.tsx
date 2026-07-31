@@ -25,7 +25,6 @@ import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection, useUser, useDoc } from "@/firebase"
 import { 
   collection, 
-  addDoc, 
   query, 
   where, 
   deleteDoc, 
@@ -39,7 +38,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { errorEmitter } from "@/firebase/error-emitter"
-import { FirestorePermissionError } from "@/firebase/errors"
+import { FirestorePermissionError, type SecurityRuleContext } from "@/firebase/errors"
 
 export default function CommunicationCenterPage() {
   const db = useFirestore()
@@ -121,41 +120,48 @@ export default function CommunicationCenterPage() {
     }
 
     setLoading(true)
-    try {
-      const batch = writeBatch(db)
-      const annRef = doc(collection(db, "announcements"))
-      
-      const payload = {
-        ...msgForm,
-        tenantId: institutionId,
-        institutionId,
-        senderName: profile?.name || "Administration",
-        createdAt: serverTimestamp()
-      }
-
-      batch.set(annRef, payload)
-
-      const notifRef = doc(collection(db, "notifications"))
-      batch.set(notifRef, {
-        tenantId: institutionId,
-        title: msgForm.title,
-        description: msgForm.content.substring(0, 100),
-        type: 'info',
-        createdAt: serverTimestamp(),
-        target: msgForm.target,
-        targetStudentId: msgForm.targetStudentId || null
-      })
-
-      await batch.commit()
-      
-      toast({ title: "Message Authorized", description: "Information synchronized with registry." })
-      setMsgForm({ title: "", content: "", target: "All", targetStudentId: "" })
-      setStudentSearch("")
-    } catch (e: any) { 
-      toast({ variant: "destructive", title: "Dispatch Failed" }) 
-    } finally { 
-      setLoading(false) 
+    const batch = writeBatch(db)
+    const annRef = doc(collection(db, "announcements"))
+    
+    const payload = {
+      ...msgForm,
+      tenantId: institutionId,
+      institutionId,
+      senderName: profile?.name || "Administration",
+      createdAt: serverTimestamp()
     }
+
+    batch.set(annRef, payload)
+
+    const notifRef = doc(collection(db, "notifications"))
+    batch.set(notifRef, {
+      tenantId: institutionId,
+      title: msgForm.title,
+      description: msgForm.content.substring(0, 100),
+      type: 'info',
+      createdAt: serverTimestamp(),
+      target: msgForm.target,
+      targetStudentId: msgForm.targetStudentId || null
+    })
+
+    // Commit using non-blocking pattern for contextual error handling
+    batch.commit()
+      .then(() => {
+        toast({ title: "Message Authorized", description: "Information synchronized with registry." })
+        setMsgForm({ title: "", content: "", target: "All", targetStudentId: "" })
+        setStudentSearch("")
+      })
+      .catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: 'announcements/notifications',
+          operation: 'write',
+          requestResourceData: payload,
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => {
+        setLoading(false)
+      })
   }
 
   const handleDelete = (id: string) => {

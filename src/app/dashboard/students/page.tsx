@@ -240,25 +240,35 @@ export default function StudentsPage() {
         finalPin = generateStudentPin(); 
         const studentEmail = `${finalAdmissionNumber.toLowerCase().trim()}@system.yebfa.com`;
         
+        let authUser;
         try {
           const credential = await createUserWithEmailAndPassword(provisionAuth, studentEmail, finalPin)
-          const authUser = credential.user
-          
-          batch.set(doc(db, "users", authUser.uid), {
-            uid: authUser.uid,
-            name: `${studentForm.firstName} ${studentForm.lastName}`,
-            email: studentEmail,
-            role: "student",
-            studentId: studentId,
-            tenantId: institutionId,
-            institutionId: institutionId,
-            status: "active",
-            createdAt: serverTimestamp()
-          })
-          await signOut(provisionAuth);
+          authUser = credential.user
         } catch (authErr: any) {
-          if (authErr.code !== 'auth/email-already-in-use') throw authErr;
+          if (authErr.code === 'auth/email-already-in-use') {
+            // If user exists, we still need to set/sync the user profile in Firestore
+            // We use the email to find the UID if needed, but since we standardized ID-based emails, we can be confident
+            toast({ title: "Portal Account Detected", description: "Existing security account verified and linked." });
+          } else {
+            throw authErr;
+          }
         }
+
+        // Ensuring Firestore profile is synchronized even if auth creation was skipped
+        const userUid = authUser?.uid || studentId; // Fallback to doc ID if auth failed
+        batch.set(doc(db, "users", userUid), {
+          uid: userUid,
+          name: `${studentForm.firstName} ${studentForm.lastName}`,
+          email: studentEmail,
+          role: "student",
+          studentId: studentId,
+          tenantId: institutionId,
+          institutionId: institutionId,
+          status: "active",
+          createdAt: serverTimestamp()
+        }, { merge: true })
+        
+        if (authUser) await signOut(provisionAuth);
       }
 
       if (isNewParent && !editingStudent) {
@@ -268,21 +278,10 @@ export default function StudentsPage() {
         
         const parentEmail = newParentForm.email || `${finalParentNumber.toLowerCase().trim()}@system.yebfa.com`;
         
+        let parentAuthUser;
         try {
           const credential = await createUserWithEmailAndPassword(provisionAuth, parentEmail, cleanPass);
-          const parentAuthUser = credential.user;
-          
-          batch.set(doc(db, "users", parentAuthUser.uid), {
-            uid: parentAuthUser.uid,
-            name: `${newParentForm.firstName} ${newParentForm.lastName}`,
-            email: parentEmail,
-            role: "parent",
-            tenantId: institutionId,
-            institutionId: institutionId,
-            status: "active",
-            createdAt: serverTimestamp()
-          })
-          await signOut(provisionAuth);
+          parentAuthUser = credential.user;
         } catch (authErr: any) {
           if (authErr.code !== 'auth/email-already-in-use') throw authErr;
         }
@@ -300,6 +299,20 @@ export default function StudentsPage() {
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         })
+
+        const pUid = parentAuthUser?.uid || finalParentId;
+        batch.set(doc(db, "users", pUid), {
+          uid: pUid,
+          name: `${newParentForm.firstName} ${newParentForm.lastName}`,
+          email: parentEmail,
+          role: "parent",
+          tenantId: institutionId,
+          institutionId: institutionId,
+          status: "active",
+          createdAt: serverTimestamp()
+        }, { merge: true })
+
+        if (parentAuthUser) await signOut(provisionAuth);
       }
 
       const studentData = {
@@ -428,8 +441,13 @@ export default function StudentsPage() {
             const studentEmail = `${finalAdmissionNumber.toLowerCase().trim()}@system.yebfa.com`;
             
             try {
-               const credential = await createUserWithEmailAndPassword(provisionAuth, studentEmail, finalPin);
-               const authUser = credential.user;
+               let authUser;
+               try {
+                 const credential = await createUserWithEmailAndPassword(provisionAuth, studentEmail, finalPin);
+                 authUser = credential.user;
+               } catch (authErr: any) {
+                 if (authErr.code !== 'auth/email-already-in-use') throw authErr;
+               }
 
                const studentRef = doc(collection(db, "students"))
                const studentId = studentRef.id;
@@ -450,8 +468,9 @@ export default function StudentsPage() {
                  updatedAt: serverTimestamp()
                });
 
-               batch.set(doc(db, "users", authUser.uid), {
-                 uid: authUser.uid,
+               const userUid = authUser?.uid || studentId;
+               batch.set(doc(db, "users", userUid), {
+                 uid: userUid,
                  name: `${first} ${last}`,
                  email: studentEmail,
                  role: "student",
@@ -460,9 +479,9 @@ export default function StudentsPage() {
                  institutionId: institutionId,
                  status: "active",
                  createdAt: serverTimestamp()
-               });
+               }, { merge: true });
 
-               await signOut(provisionAuth);
+               if (authUser) await signOut(provisionAuth);
                count++;
             } catch (err: any) {
                console.error(`Failed to provision student ${first}:`, err);

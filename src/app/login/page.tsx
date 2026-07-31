@@ -50,36 +50,58 @@ export default function LoginPage() {
 
   const redirectUser = async (firebaseUser: any) => {
     try {
-      const userSnap = await getDoc(doc(db, "users", firebaseUser.uid))
-      if (!userSnap.exists()) { router.push("/register/institution"); return; }
+      const userRef = doc(db, "users", firebaseUser.uid);
+      const userSnap = await getDoc(userRef);
 
-      const userData = userSnap.data()
+      if (!userSnap.exists()) {
+        // If the profile document is missing, it's likely an enrollment sync error.
+        // We sign them out and provide an explicit error instead of redirecting to registration.
+        await signOut(auth);
+        toast({ 
+          variant: "destructive", 
+          title: "Identity Link Required", 
+          description: "Your portal account is not linked to any active registry record. Contact your administrator." 
+        });
+        return;
+      }
+
+      const userData = userSnap.data();
       
+      // Verification for non-Super Admins
       if (userData.role !== 'super_admin' && userData.tenantId) {
-        const instSnap = await getDoc(doc(db, "institutions", userData.tenantId))
+        const instSnap = await getDoc(doc(db, "institutions", userData.tenantId));
         if (!instSnap.exists()) {
-          await signOut(auth)
+          await signOut(auth);
           toast({ 
             variant: "destructive", 
             title: "Access Revoked", 
-            description: "This institution is no longer active in our registry. Please contact support." 
-          })
-          return
+            description: "Your institution node is no longer active in the global registry." 
+          });
+          return;
         }
       }
 
       if (userData.tenantId) {
-        localStorage.setItem('selected_institution_id', userData.tenantId)
-        localStorage.setItem('selected_institution_name', userData.institutionName || 'Registry Hub')
+        localStorage.setItem('selected_institution_id', userData.tenantId);
+        localStorage.setItem('selected_institution_name', userData.institutionName || 'Registry Hub');
       }
 
-      if (userData.role === "super_admin") router.replace("/admin")
-      else if (userData.role === "parent") router.replace("/dashboard/parent")
-      else if (userData.role === "student") router.replace("/dashboard/parent")
-      else router.replace("/dashboard")
+      // Logic-driven redirection based on verified role
+      if (userData.role === "super_admin") {
+        router.replace("/admin");
+      } else if (userData.role === "school_owner" && !userData.tenantId) {
+        // Only potential owners without schools go to registration
+        router.replace("/register/institution");
+      } else if (userData.role === "parent") {
+        router.replace("/dashboard/parent");
+      } else if (userData.role === "student") {
+        router.replace("/dashboard/parent"); // Students share the simplified results portal
+      } else {
+        router.replace("/dashboard");
+      }
     } catch (e) { 
-      console.error("Redirect Error:", e)
-      router.replace("/register/institution") 
+      console.error("Gateway Auth Error:", e);
+      toast({ variant: "destructive", title: "Gateway Error", description: "Failed to resolve identity context." });
     }
   }
 
@@ -192,11 +214,9 @@ export default function LoginPage() {
       if (snap.empty) throw new Error("Staff ID not found in registry.");
       
       const personData = snap.docs[0].data()
-      // Use the verified email stored in the registry record, or fallback to the standard system format
       const accountEmail = personData.email || `${normalizedId.toUpperCase().trim()}@system.yebfa.com`
       
       let cleanCredential = normalizeSecurityPhone(staffPhoneInput)
-      // Standardize padding to match enrollment standard
       if (cleanCredential.length < 6) cleanCredential = cleanCredential.padEnd(6, '0');
 
       try {
