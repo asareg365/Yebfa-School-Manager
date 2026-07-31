@@ -25,7 +25,9 @@ import {
   ShieldCheck,
   Building2,
   User,
-  ExternalLink
+  ExternalLink,
+  AlertTriangle,
+  RotateCcw
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase"
@@ -36,7 +38,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { errorEmitter } from "@/firebase/error-emitter"
-import { FirestorePermissionError } from "@/firebase/errors"
+import { FirestorePermissionError, type SecurityRuleContext } from "@/firebase/errors"
 
 export default function PaymentsProcessorPage() {
   const db = useFirestore()
@@ -120,25 +122,26 @@ export default function PaymentsProcessorPage() {
       return
     }
 
+    const payload = {
+      tenantId: institutionId,
+      institutionId,
+      invoiceId: selectedInvoice.id,
+      invoiceNumber: selectedInvoice.invoiceNumber,
+      studentId: selectedInvoice.studentId,
+      studentName: selectedInvoice.studentName,
+      amount,
+      paymentMethod: paymentForm.method,
+      reference: paymentForm.reference || `REF-${Date.now()}`,
+      date: new Date().toISOString(),
+      createdAt: serverTimestamp()
+    }
+
     try {
       const batch = writeBatch(db)
       const txnRef = doc(collection(db, "transactions"))
       const txnId = txnRef.id
 
-      batch.set(txnRef, {
-        tenantId: institutionId,
-        institutionId,
-        invoiceId: selectedInvoice.id,
-        invoiceNumber: selectedInvoice.invoiceNumber,
-        studentId: selectedInvoice.studentId,
-        studentName: selectedInvoice.studentName,
-        amount,
-        paymentMethod: paymentForm.method,
-        reference: paymentForm.reference || `REF-${Date.now()}`,
-        date: new Date().toISOString(),
-        createdAt: serverTimestamp(),
-        id: txnId
-      })
+      batch.set(txnRef, { ...payload, id: txnId })
 
       const newPaid = (selectedInvoice.amountPaid || 0) + amount
       const newDue = Math.max(0, (selectedInvoice.totalAmount || 0) - newPaid)
@@ -168,15 +171,20 @@ export default function PaymentsProcessorPage() {
       toast({ title: "Payment Authorized", description: "Ledger and invoice synchronized." })
       setIsPayOpen(false)
       setPaymentForm({ invoiceId: "", amount: "", method: "MTN MoMo", reference: "" })
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Error", description: e.message })
+    } catch (serverError: any) {
+      const permissionError = new FirestorePermissionError({
+        path: 'transactions/invoices',
+        operation: 'write',
+        requestResourceData: payload,
+      } satisfies SecurityRuleContext);
+      errorEmitter.emit('permission-error', permissionError);
     } finally {
       setLoading(false)
     }
   }
 
   const handleDeleteTransaction = async (txn: any) => {
-    if (!db || !confirm("Are you sure you want to reverse this payment? This will increase the student's debt.")) return
+    if (!db || !confirm("Are you sure you want to reverse this payment? This will increase the student's debt and synchronize the ledger.")) return
     
     setLoading(true)
     try {
@@ -206,8 +214,12 @@ export default function PaymentsProcessorPage() {
 
       await batch.commit()
       toast({ title: "Transaction Reversed", description: "Audit trail and invoice balance restored." })
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Deletion Failed" })
+    } catch (serverError: any) {
+       const permissionError = new FirestorePermissionError({
+        path: `transactions/${txn.id}`,
+        operation: 'delete',
+      } satisfies SecurityRuleContext);
+      errorEmitter.emit('permission-error', permissionError);
     } finally {
       setLoading(false)
     }
@@ -218,10 +230,10 @@ export default function PaymentsProcessorPage() {
     if (!db || !selectedTxn || loading) return
     
     setLoading(true)
+    const newAmount = parseFloat(paymentForm.amount)
     try {
       const batch = writeBatch(db)
       const oldAmount = selectedTxn.amount
-      const newAmount = parseFloat(paymentForm.amount)
       const diff = newAmount - oldAmount
 
       // Update Transaction
@@ -254,8 +266,13 @@ export default function PaymentsProcessorPage() {
       await batch.commit()
       toast({ title: "Registry Corrected", description: "Payment details and balances updated." })
       setIsEditOpen(false)
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Correction Failed" })
+    } catch (serverError: any) {
+      const permissionError = new FirestorePermissionError({
+        path: `transactions/${selectedTxn.id}`,
+        operation: 'update',
+        requestResourceData: { amount: newAmount },
+      } satisfies SecurityRuleContext);
+      errorEmitter.emit('permission-error', permissionError);
     } finally {
       setLoading(false)
     }
@@ -355,7 +372,7 @@ export default function PaymentsProcessorPage() {
                             <Pencil className="size-4" /> Edit Record
                           </DropdownMenuItem>
                           <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onClick={() => handleDeleteTransaction(t)}>
-                            <Trash2 className="size-4" /> Reverse Payment
+                            <RotateCcw className="size-4" /> Reverse Payment
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>

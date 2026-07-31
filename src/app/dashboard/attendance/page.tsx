@@ -2,7 +2,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Users, Activity, Clock, CheckCircle, Save, Loader2, Calendar as CalendarIcon, Filter, Search } from "lucide-react"
+import { Users, Activity, Clock, CheckCircle, Save, Loader2, Calendar as CalendarIcon, Filter, Search, CheckSquare, Square } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useCollection, useDoc, useUser } from "@/firebase"
@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from "@/components/ui/table"
+import { Label } from "@/components/ui/label"
 
 export default function AttendancePage() {
   const db = useFirestore()
@@ -34,7 +35,6 @@ export default function AttendancePage() {
   const isTeacher = profile?.role === 'teacher'
   const staffId = profile?.staffId
 
-  // Teacher Assignments Filter
   const assignmentsQuery = useMemo(() => 
     institutionId && isTeacher && staffId 
       ? query(collection(db, "teacher_assignments"), where("tenantId", "==", institutionId), where("teacherId", "==", staffId)) 
@@ -44,7 +44,6 @@ export default function AttendancePage() {
   const { data: assignments = [] } = useCollection(assignmentsQuery)
   const assignedClassIds = useMemo(() => new Set(assignments.map((a: any) => a.classId)), [assignments])
 
-  // Sync with actual registered classes
   const classesQuery = useMemo(() => {
     if (!db || !institutionId) return null;
     return query(collection(db, "classes"), where("tenantId", "==", institutionId));
@@ -83,6 +82,15 @@ export default function AttendancePage() {
     }
   }, [existingAttendance]);
 
+  const handleToggleAll = (status: boolean) => {
+    const map: Record<string, boolean> = {};
+    students.forEach(s => {
+      map[s.id] = status;
+    });
+    setPresentStudents(map);
+    toast({ title: status ? "All Marked Present" : "All Marked Absent", description: "Remember to save changes to authorize the roll call." });
+  }
+
   const handleSaveAttendance = () => {
     if (!db || !institutionId || !selectedGrade || !selectedDate) return
     setIsSaving(true)
@@ -110,70 +118,126 @@ export default function AttendancePage() {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex justify-between items-center">
-        <div><h1 className="text-3xl font-headline font-bold text-primary">Daily Attendance</h1><p className="text-muted-foreground">Tracking presence across grade modules.</p></div>
-        <Button className="gap-2 bg-primary" onClick={handleSaveAttendance} disabled={isSaving || !selectedGrade}>
+    <div className="space-y-6 animate-in fade-in duration-500 pb-20">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Daily Attendance</h1>
+          <p className="text-muted-foreground font-medium">Tracking presence across grade modules for the 2026 registry.</p>
+        </div>
+        <Button className="gap-2 bg-primary h-11 rounded-xl shadow-lg font-bold px-6" onClick={handleSaveAttendance} disabled={isSaving || !selectedGrade}>
           {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Save Roll Call
         </Button>
       </div>
 
       <div className="grid gap-6 md:grid-cols-4">
-        <Card className="border-none shadow-md">
-          <CardHeader><CardTitle className="text-sm">Capture Context</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2"><Label>Date</Label><Input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} /></div>
-            <div className="space-y-2"><Label>Grade</Label>
+        <Card className="border-none shadow-md h-fit">
+          <CardHeader><CardTitle className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Capture Context</CardTitle></CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <Label className="text-[10px] font-bold uppercase text-muted-foreground">Date</Label>
+              <Input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="h-11 rounded-xl" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[10px] font-bold uppercase text-muted-foreground">Grade Module</Label>
               <Select onValueChange={setSelectedGrade} value={selectedGrade}>
-                <SelectTrigger><SelectValue placeholder="Select Grade" /></SelectTrigger>
+                <SelectTrigger className="h-11 rounded-xl">
+                  <SelectValue placeholder="Select Grade" />
+                </SelectTrigger>
                 <SelectContent>
                   {classes.map(c => (
                     <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
                   ))}
-                  {classes.length === 0 && <div className="p-2 text-center text-[10px] text-muted-foreground italic">No classes found</div>}
+                  {classes.length === 0 && <div className="p-4 text-center text-xs text-muted-foreground">No classes assigned.</div>}
                 </SelectContent>
               </Select>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="md:col-span-3 border-none shadow-md overflow-hidden">
-          <CardContent className="p-0">
-            {!selectedGrade ? (
-              <div className="p-20 text-center text-muted-foreground opacity-30"><Users className="size-12 mx-auto mb-2" /><p>Select a grade to load roster.</p></div>
-            ) : studentsLoading ? (
-              <div className="p-20 text-center"><Loader2 className="size-8 animate-spin mx-auto text-primary" /></div>
-            ) : (
-              <Table>
-                <TableHeader className="bg-muted/30">
-                  <TableRow>
-                    <TableHead className="py-4">Student Name</TableHead>
-                    <TableHead className="w-32 text-center">Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {students.map((stu: any) => (
-                    <TableRow key={stu.id}>
-                      <TableCell className="font-bold text-primary">{stu.firstName} {stu.lastName}</TableCell>
-                      <TableCell className="text-center">
-                        <Checkbox 
-                          checked={presentStudents[stu.id] || false} 
-                          onCheckedChange={(val) => setPresentStudents({...presentStudents, [stu.id]: !!val})} 
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {students.length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-12 text-muted-foreground italic">No students found in this grade.</TableCell></TableRow>}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+        <div className="md:col-span-3 space-y-6">
+          <Card className="border-none shadow-xl rounded-2xl overflow-hidden bg-white">
+            <CardHeader className="border-b bg-slate-50/50 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+               <div>
+                 <CardTitle className="text-lg">Student Roster</CardTitle>
+                 <CardDescription className="text-xs">Synchronizing presence for {selectedGrade || "unselected grade"}.</CardDescription>
+               </div>
+               {selectedGrade && !studentsLoading && students.length > 0 && (
+                 <div className="flex gap-2 p-1 bg-white border rounded-xl shadow-sm">
+                   <Button variant="ghost" size="sm" className="h-8 text-[10px] font-bold uppercase text-primary hover:bg-primary/5 rounded-lg" onClick={() => handleToggleAll(true)}>
+                     <CheckSquare className="size-3.5 mr-1.5" /> Mark All Present
+                   </Button>
+                   <Button variant="ghost" size="sm" className="h-8 text-[10px] font-bold uppercase text-destructive hover:bg-destructive/5 rounded-lg" onClick={() => handleToggleAll(false)}>
+                     <Square className="size-3.5 mr-1.5" /> Mark All Absent
+                   </Button>
+                 </div>
+               )}
+            </CardHeader>
+            <CardContent className="p-0">
+              {!selectedGrade ? (
+                <div className="p-32 text-center text-muted-foreground space-y-4">
+                  <div className="size-16 rounded-full bg-muted flex items-center justify-center mx-auto opacity-20"><Users className="size-8" /></div>
+                  <p className="italic text-sm">Select a grade module to load the active student roster.</p>
+                </div>
+              ) : studentsLoading ? (
+                <div className="p-32 text-center">
+                  <Loader2 className="size-10 animate-spin mx-auto text-primary opacity-20" />
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader className="bg-muted/10">
+                      <TableRow>
+                        <TableHead className="py-4 font-bold px-6">STUDENT IDENTITY</TableHead>
+                        <TableHead className="py-4 font-bold text-center">STATUS</TableHead>
+                        <TableHead className="py-4 font-bold text-right px-6">VERIFICATION</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {students.map((stu: any) => (
+                        <TableRow key={stu.id} className="hover:bg-slate-50/50 transition-colors">
+                          <TableCell className="px-6">
+                            <div className="flex items-center gap-3">
+                              <div className="size-9 rounded-full bg-primary/5 flex items-center justify-center font-bold text-primary text-[10px] border">
+                                {stu.firstName?.charAt(0)}{stu.lastName?.charAt(0)}
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="font-bold text-primary text-sm">{stu.firstName} {stu.lastName}</span>
+                                <span className="text-[10px] font-mono font-bold text-accent uppercase tracking-tighter">{stu.admissionNumber}</span>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex justify-center">
+                              <Checkbox 
+                                id={`att-${stu.id}`}
+                                className="size-6 rounded-lg border-2"
+                                checked={presentStudents[stu.id] || false} 
+                                onCheckedChange={(val) => setPresentStudents({...presentStudents, [stu.id]: !!val})} 
+                              />
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right px-6">
+                            <Badge variant={presentStudents[stu.id] ? "default" : "outline"} className={`text-[9px] uppercase font-bold px-3 h-6 border-none ${presentStudents[stu.id] ? 'bg-green-600' : 'bg-destructive/10 text-destructive'}`}>
+                              {presentStudents[stu.id] ? "Present" : "Absent"}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {students.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-center py-24 text-muted-foreground italic">
+                            No student records detected for this grade in the registry.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   )
-}
-
-function Label({ children }: { children: React.ReactNode }) {
-  return <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{children}</label>
 }
