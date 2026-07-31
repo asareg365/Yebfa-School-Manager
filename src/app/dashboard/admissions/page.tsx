@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -29,7 +30,7 @@ import {
   LayoutGrid
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useFirestore, useCollection } from "@/firebase"
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase"
 import { collection, query, where, addDoc, serverTimestamp, updateDoc, doc, deleteDoc, orderBy } from "firebase/firestore"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -51,7 +52,7 @@ import {
 export default function AdmissionsHubPage() {
   const db = useFirestore()
   const router = useRouter()
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
+  const { user } = useUser()
   const [searchQuery, setSearchQuery] = useState("")
   const [loading, setLoading] = useState(false)
   const [isAppOpen, setIsAppOpen] = useState(false)
@@ -73,25 +74,33 @@ export default function AdmissionsHubPage() {
     interviewNotes: ""
   })
 
-  useEffect(() => {
-    setInstitutionId(localStorage.getItem('selected_institution_id'))
-  }, [])
+  // Durable Context Resolution
+  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
+  const { data: profile, loading: profileLoading } = useDoc(userProfileRef)
 
-  const admissionsQuery = useMemo(() => {
+  const institutionId = useMemo(() => {
+    if (profileLoading || !profile) return null;
+    if (profile.role === 'super_admin') {
+      return typeof window !== 'undefined' ? localStorage.getItem('selected_institution_id') : null;
+    }
+    return profile.tenantId || null;
+  }, [profile, profileLoading]);
+
+  const admissionsQuery = useMemoFirebase(() => {
     if (!db || !institutionId) return null
+    // Removed orderBy to avoid composite index lag during initial registration phases
     return query(
       collection(db, "admissions"), 
-      where("tenantId", "==", institutionId),
-      orderBy("createdAt", "desc")
+      where("tenantId", "==", institutionId)
     )
   }, [db, institutionId])
 
-  const studentsQuery = useMemo(() => {
+  const studentsQuery = useMemoFirebase(() => {
     if (!db || !institutionId) return null
     return query(collection(db, "students"), where("tenantId", "==", institutionId))
   }, [db, institutionId])
 
-  const classesQuery = useMemo(() => {
+  const classesQuery = useMemoFirebase(() => {
     if (!db || !institutionId) return null
     return query(collection(db, "classes"), where("tenantId", "==", institutionId))
   }, [db, institutionId])
@@ -119,11 +128,17 @@ export default function AdmissionsHubPage() {
       }
     });
 
+    // Client-side sorting for immediate responsiveness
     return pipeline
       .filter(a => 
         `${a.firstName} ${a.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
         a.phone?.toLowerCase().includes(searchQuery.toLowerCase())
       )
+      .sort((a, b) => {
+        const dateA = a.createdAt?.toMillis?.() || Date.now();
+        const dateB = b.createdAt?.toMillis?.() || Date.now();
+        return dateB - dateA;
+      });
   }, [rawAdmissions, enrolledStudents, searchQuery])
 
   const groupedAdmissions = useMemo(() => {
@@ -152,7 +167,11 @@ export default function AdmissionsHubPage() {
       toast({ title: "Application Received", description: "The candidate has been added to the pipeline." })
       setIsAppOpen(false)
       setAppForm({ firstName: "", lastName: "", gender: "Male", dateOfBirth: "", gradeLevel: "", email: "", phone: "" })
-    } catch (e: any) { toast({ variant: "destructive", title: "Submission Failed" }) } finally { setLoading(false) }
+    } catch (e: any) { 
+      toast({ variant: "destructive", title: "Submission Failed" }) 
+    } finally { 
+      setLoading(false) 
+    }
   }
 
   const handleUpdateStatus = async (id: string, status: string) => {
@@ -160,7 +179,9 @@ export default function AdmissionsHubPage() {
     try {
       await updateDoc(doc(db, "admissions", id), { status, updatedAt: serverTimestamp() })
       toast({ title: "Pipeline Updated", description: `Candidate status is now ${status}.` })
-    } catch (e) { toast({ variant: "destructive", title: "Update Failed" }) }
+    } catch (e) { 
+      toast({ variant: "destructive", title: "Update Failed" }) 
+    }
   }
 
   const handleInterviewSave = async (e: React.FormEvent) => {
@@ -175,15 +196,21 @@ export default function AdmissionsHubPage() {
       toast({ title: "Interview Recorded", description: "Evaluation notes saved." })
       setIsInterviewOpen(false)
       setSelectedApp(null)
-    } catch (e) { toast({ variant: "destructive", title: "Save Failed" }) } finally { setLoading(false) }
+    } catch (e) { 
+      toast({ variant: "destructive", title: "Save Failed" }) 
+    } finally { 
+      setLoading(false) 
+    }
   }
 
   const handleDelete = async (id: string) => {
-    if (!db) return
+    if (!db || !confirm("Are you sure you want to remove this application?")) return
     try {
       await deleteDoc(doc(db, "admissions", id))
       toast({ title: "Application Removed" })
-    } catch (e) { toast({ variant: "destructive", title: "Action Failed" }) }
+    } catch (e) { 
+      toast({ variant: "destructive", title: "Action Failed" }) 
+    }
   }
 
   const startEnrollment = (app: any) => {
@@ -191,12 +218,19 @@ export default function AdmissionsHubPage() {
     router.push('/dashboard/students?enroll=true')
   }
 
-  if (dataLoading) return (
+  if (profileLoading || dataLoading) return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="flex flex-col items-center gap-4">
         <Loader2 className="size-8 animate-spin text-primary" />
         <p className="font-bold text-muted-foreground animate-pulse uppercase tracking-widest text-xs">Synchronizing Admissions Pipeline...</p>
       </div>
+    </div>
+  )
+
+  if (!institutionId) return (
+    <div className="p-20 text-center space-y-4">
+      <AlertCircle className="size-12 text-primary/30 mx-auto" />
+      <p className="font-bold text-muted-foreground uppercase tracking-widest text-xs">Awaiting Institutional Context...</p>
     </div>
   )
 
@@ -328,7 +362,7 @@ export default function AdmissionsHubPage() {
                                 <div className="flex items-center justify-between pt-2 border-t mt-2">
                                   <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-tighter">Registered</span>
                                   <span className="text-[9px] font-bold text-primary">
-                                    {a.createdAt ? new Date(a.createdAt.toMillis()).toLocaleDateString() : 'N/A'}
+                                    {a.createdAt ? new Date(a.createdAt.toMillis()).toLocaleDateString() : 'Just now'}
                                   </span>
                                 </div>
                               </CardContent>
@@ -346,7 +380,7 @@ export default function AdmissionsHubPage() {
                 })}
             </Accordion>
 
-            {admissions.length === 0 && (
+            {admissions.filter(a => status === 'all' || a.status === status).length === 0 && (
               <div className="py-40 text-center space-y-4 bg-white rounded-3xl shadow-sm border border-dashed">
                 <div className="size-20 bg-muted/20 rounded-full flex items-center justify-center mx-auto">
                   <UserPlus className="size-10 text-muted-foreground/30" />
@@ -392,8 +426,8 @@ export default function AdmissionsHubPage() {
                   </Select>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2"><Label>Contact Phone</Label><Input value={appForm.phone} onChange={e => setAppForm({...appForm, phone: e.target.value})} className="h-11 rounded-xl" /></div>
-                  <div className="space-y-2"><Label>Email Address (Optional)</Label><Input type="email" value={appForm.email} onChange={e => setAppForm({...appForm, email: e.target.value})} className="h-11 rounded-xl" /></div>
+                  <div className="space-y-2"><Label>Contact Phone</Label><Input required value={appForm.phone} onChange={e => setAppForm({...appForm, phone: e.target.value})} className="h-11 rounded-xl" /></div>
+                  <div className="space-y-2"><Label>Email Address (Optional)</Label><Input type="email" value={appForm.email} onChange={e => setAppForm({...appForm, email: e.target.value})} className="h-11 rounded-xl" placeholder="email@address.com" /></div>
                 </div>
               </div>
             </ScrollArea>
