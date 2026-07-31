@@ -663,7 +663,7 @@ export default function StudentsPage() {
                                           <DropdownMenuItem className="gap-2 text-xs font-bold text-accent" onClick={() => handleResetPin(stu)}>
                                             <ShieldAlert className="size-4" /> Reset Portal PIN
                                           </DropdownMenuItem>
-                                          <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onClick={() => handleDelete(stu.id)}>
+                                          <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onClick={(e) => { e.stopPropagation(); handleDelete(stu.id); }}>
                                             <Trash2 className="size-4" /> Remove Record
                                           </DropdownMenuItem>
                                         </DropdownMenuContent>
