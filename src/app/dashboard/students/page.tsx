@@ -37,7 +37,7 @@ import {
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useUser, useFirestore, useCollection, useDoc } from "@/firebase"
-import { collection, addDoc, query, deleteDoc, doc, where, serverTimestamp, updateDoc, writeBatch, setDoc } from "firebase/firestore"
+import { collection, addDoc, query, deleteDoc, doc, where, serverTimestamp, updateDoc, writeBatch, setDoc, getDocs } from "firebase/firestore"
 import { useState, useMemo, useEffect, useRef } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -238,24 +238,18 @@ export default function StudentsPage() {
       if (!editingStudent) {
         finalAdmissionNumber = await generateInstitutionId('STU', institutionId, institution?.schoolCode);
         finalPin = generateStudentPin(); 
-        const studentEmail = `${finalAdmissionNumber.toLowerCase().trim()}@system.yebfa.com`;
+        const studentEmail = `${finalAdmissionNumber.toUpperCase().trim()}@system.yebfa.com`;
         
         let authUser;
         try {
           const credential = await createUserWithEmailAndPassword(provisionAuth, studentEmail, finalPin)
           authUser = credential.user
         } catch (authErr: any) {
-          if (authErr.code === 'auth/email-already-in-use') {
-            // If user exists, we still need to set/sync the user profile in Firestore
-            // We use the email to find the UID if needed, but since we standardized ID-based emails, we can be confident
-            toast({ title: "Portal Account Detected", description: "Existing security account verified and linked." });
-          } else {
-            throw authErr;
-          }
+          if (authErr.code !== 'auth/email-already-in-use') throw authErr;
         }
 
         // Ensuring Firestore profile is synchronized even if auth creation was skipped
-        const userUid = authUser?.uid || studentId; // Fallback to doc ID if auth failed
+        const userUid = authUser?.uid || studentId;
         batch.set(doc(db, "users", userUid), {
           uid: userUid,
           name: `${studentForm.firstName} ${studentForm.lastName}`,
@@ -276,7 +270,7 @@ export default function StudentsPage() {
         let cleanPass = normalizeSecurityPhone(newParentForm.phone);
         if (cleanPass.length < 6) cleanPass = cleanPass.padEnd(6, '0');
         
-        const parentEmail = newParentForm.email || `${finalParentNumber.toLowerCase().trim()}@system.yebfa.com`;
+        const parentEmail = newParentForm.email || `${finalParentNumber.toUpperCase().trim()}@system.yebfa.com`;
         
         let parentAuthUser;
         try {
@@ -438,7 +432,7 @@ export default function StudentsPage() {
 
             const finalAdmissionNumber = await generateInstitutionId('STU', institutionId, institution?.schoolCode);
             const finalPin = generateStudentPin(); 
-            const studentEmail = `${finalAdmissionNumber.toLowerCase().trim()}@system.yebfa.com`;
+            const studentEmail = `${finalAdmissionNumber.toUpperCase().trim()}@system.yebfa.com`;
             
             try {
                let authUser;

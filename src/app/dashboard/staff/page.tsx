@@ -23,7 +23,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { toast } from "@/hooks/use-toast"
 import { useUser, useFirestore, useCollection, useDoc } from "@/firebase"
-import { collection, query, deleteDoc, doc, where, serverTimestamp, updateDoc, setDoc, writeBatch } from "firebase/firestore"
+import { collection, query, deleteDoc, doc, where, serverTimestamp, updateDoc, setDoc, writeBatch, getDocs } from "firebase/firestore"
 import { useState, useMemo, useEffect } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -122,27 +122,31 @@ export default function StaffHRPage() {
         // System Email: standardized to lowercase raw ID
         accountEmail = staffForm.email || `${finalStaffNumber.toLowerCase().trim()}@system.yebfa.com`;
         
+        let authUser;
         try {
           const credential = await createUserWithEmailAndPassword(provisionAuth, accountEmail, cleanPass)
-          const authUser = credential.user
-          
-          batch.set(doc(db, "users", authUser.uid), {
-            uid: authUser.uid,
-            name: `${staffForm.firstName} ${staffForm.lastName}`,
-            email: accountEmail,
-            role: resolveSystemRole(staffForm.designation),
-            tenantId: institutionId,
-            institutionId: institutionId,
-            institutionName: institution?.name || "Academic Hub",
-            schoolCode: institution?.schoolCode || "SCH",
-            staffId: staffId,
-            status: "active",
-            createdAt: serverTimestamp()
-          })
-          await signOut(provisionAuth);
+          authUser = credential.user
         } catch (authErr: any) {
           if (authErr.code !== 'auth/email-already-in-use') throw authErr;
         }
+
+        // Ensuring Firestore profile is synchronized even if auth creation was skipped
+        const userUid = authUser?.uid || staffId;
+        batch.set(doc(db, "users", userUid), {
+          uid: userUid,
+          name: `${staffForm.firstName} ${staffForm.lastName}`,
+          email: accountEmail,
+          role: resolveSystemRole(staffForm.designation),
+          tenantId: institutionId,
+          institutionId: institutionId,
+          institutionName: institution?.name || "Academic Hub",
+          schoolCode: institution?.schoolCode || "SCH",
+          staffId: staffId,
+          status: "active",
+          createdAt: serverTimestamp()
+        }, { merge: true })
+        
+        if (authUser) await signOut(provisionAuth);
 
         batch.set(staffRef, {
           ...staffForm,

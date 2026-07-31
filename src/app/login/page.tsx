@@ -9,8 +9,8 @@ import { Label } from "@/components/ui/label"
 import { School, Loader2, KeyRound, Smartphone, ShieldCheck, Briefcase, Users, GraduationCap, ArrowRight, AlertCircle, Key } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { signInWithEmailAndPassword, signOut } from "firebase/auth"
-import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore"
+import { signInWithEmailAndPassword, signOut, User } from "firebase/auth"
+import { doc, getDoc, collection, query, where, getDocs, setDoc, serverTimestamp } from "firebase/firestore"
 import { auth, db, useUser } from "@/firebase"
 import { firebaseConfig } from "@/firebase/config"
 import { toast } from "@/hooks/use-toast"
@@ -48,14 +48,61 @@ export default function LoginPage() {
     }
   }, [])
 
-  const redirectUser = async (firebaseUser: any) => {
+  const redirectUser = async (firebaseUser: User, roleHint?: string, identifier?: string) => {
     try {
       const userRef = doc(db, "users", firebaseUser.uid);
-      const userSnap = await getDoc(userRef);
+      let userSnap = await getDoc(userRef);
+
+      // --- SELF-HEALING IDENTITY LINK ---
+      if (!userSnap.exists() && roleHint && identifier) {
+        console.log(`[Gateway] Identity doc missing for ${roleHint} ${identifier}. Attempting link restoration...`);
+        
+        let registryDoc = null;
+        let tenantId = null;
+        let name = "";
+
+        if (roleHint === 'student') {
+          const q = query(collection(db, "students"), where("admissionNumber", "==", identifier.trim().toUpperCase()));
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+            registryDoc = snap.docs[0].data();
+            tenantId = registryDoc.tenantId;
+            name = `${registryDoc.firstName} ${registryDoc.lastName}`;
+          }
+        } else if (roleHint === 'staff') {
+          const q = query(collection(db, "staff"), where("staffNumber", "==", identifier.trim().toUpperCase()));
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+            registryDoc = snap.docs[0].data();
+            tenantId = registryDoc.tenantId;
+            name = `${registryDoc.firstName} ${registryDoc.lastName}`;
+          }
+        }
+
+        if (registryDoc && tenantId) {
+          const instSnap = await getDoc(doc(db, "institutions", tenantId));
+          const instData = instSnap.data();
+
+          await setDoc(userRef, {
+            uid: firebaseUser.uid,
+            name: name || "Registry User",
+            email: firebaseUser.email,
+            role: roleHint === 'student' ? 'student' : (registryDoc.designation?.toLowerCase() === 'administrator' ? 'administrator' : 'teacher'),
+            studentId: roleHint === 'student' ? registryDoc.id : null,
+            staffId: roleHint === 'staff' ? registryDoc.id : null,
+            tenantId,
+            institutionId: tenantId,
+            institutionName: instData?.name || "Academic Hub",
+            status: "active",
+            createdAt: serverTimestamp()
+          });
+          
+          userSnap = await getDoc(userRef);
+          toast({ title: "Portal Access Synchronized", description: "Your registry identity link has been restored." });
+        }
+      }
 
       if (!userSnap.exists()) {
-        // If the profile document is missing, it's likely an enrollment sync error.
-        // We sign them out and provide an explicit error instead of redirecting to registration.
         await signOut(auth);
         toast({ 
           variant: "destructive", 
@@ -65,7 +112,7 @@ export default function LoginPage() {
         return;
       }
 
-      const userData = userSnap.data();
+      const userData = userSnap.data()!;
       
       // Verification for non-Super Admins
       if (userData.role !== 'super_admin' && userData.tenantId) {
@@ -89,13 +136,8 @@ export default function LoginPage() {
       // Logic-driven redirection based on verified role
       if (userData.role === "super_admin") {
         router.replace("/admin");
-      } else if (userData.role === "school_owner" && !userData.tenantId) {
-        // Only potential owners without schools go to registration
-        router.replace("/register/institution");
-      } else if (userData.role === "parent") {
+      } else if (userData.role === "parent" || userData.role === "student") {
         router.replace("/dashboard/parent");
-      } else if (userData.role === "student") {
-        router.replace("/dashboard/parent"); // Students share the simplified results portal
       } else {
         router.replace("/dashboard");
       }
@@ -158,7 +200,7 @@ export default function LoginPage() {
 
       const parentEmail = matchedParent.email || `${matchedParent.parentNumber.toUpperCase().trim()}@system.yebfa.com`;
       const credential = await signInWithEmailAndPassword(auth, parentEmail, inputPhone)
-      await redirectUser(credential.user)
+      await redirectUser(credential.user, 'parent', matchedParent.parentNumber)
 
     } catch (error: any) {
       toast({ variant: "destructive", title: "Access Denied", description: error.message })
@@ -174,28 +216,12 @@ export default function LoginPage() {
     setStudentLoading(true)
     const normalizedId = studentIdInput.trim().toUpperCase()
     try {
-      const studentQ = query(collection(db, "students"), where("admissionNumber", "==", normalizedId))
-      const studentSnap = await getDocs(studentQ)
-      
-      if (studentSnap.empty) throw new Error("Student ID not recognized in current registry.");
-      const studentData = studentSnap.docs[0].data();
-
-      if (studentData.studentPin !== studentPinInput.trim()) {
-        throw new Error("Invalid Student PIN. Please check and try again.");
-      }
-      
-      const studentEmail = `${normalizedId.toUpperCase().trim()}@system.yebfa.com`;
-      try {
-        const credential = await signInWithEmailAndPassword(auth, studentEmail, studentPinInput.trim())
-        await redirectUser(credential.user)
-      } catch (authErr: any) {
-        if (authErr.code === 'auth/invalid-credential' || authErr.code === 'auth/user-not-found') {
-           throw new Error("Security account not provisioned. Contact administrator to authorize your registry access.");
-        }
-        throw authErr;
-      }
+      const studentEmail = `${normalizedId}@system.yebfa.com`;
+      const credential = await signInWithEmailAndPassword(auth, studentEmail, studentPinInput.trim())
+      await redirectUser(credential.user, 'student', normalizedId)
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Access Denied", description: error.message })
+      const msg = error.code === 'auth/invalid-credential' ? "Invalid ID or PIN." : (error.message || "Access Denied.");
+      toast({ variant: "destructive", title: "Access Denied", description: msg })
     } finally { setStudentLoading(false) }
   }
 
@@ -208,28 +234,15 @@ export default function LoginPage() {
     setStaffLoading(true)
     const normalizedId = staffIdInput.trim().toUpperCase()
     try {
-      const q = query(collection(db, "staff"), where("staffNumber", "==", normalizedId))
-      const snap = await getDocs(q)
-      
-      if (snap.empty) throw new Error("Staff ID not found in registry.");
-      
-      const personData = snap.docs[0].data()
-      const accountEmail = personData.email || `${normalizedId.toUpperCase().trim()}@system.yebfa.com`
-      
+      const accountEmail = `${normalizedId}@system.yebfa.com`
       let cleanCredential = normalizeSecurityPhone(staffPhoneInput)
       if (cleanCredential.length < 6) cleanCredential = cleanCredential.padEnd(6, '0');
 
-      try {
-        const credential = await signInWithEmailAndPassword(auth, accountEmail, cleanCredential)
-        await redirectUser(credential.user)
-      } catch (authErr: any) {
-        if (authErr.code === 'auth/invalid-credential' || authErr.code === 'auth/user-not-found') {
-          throw new Error("Security verification failed. Please ensure your registered phone number is correct.");
-        }
-        throw authErr;
-      }
+      const credential = await signInWithEmailAndPassword(auth, accountEmail, cleanCredential)
+      await redirectUser(credential.user, 'staff', normalizedId)
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Access Denied", description: error.message })
+      const msg = error.code === 'auth/invalid-credential' ? "Invalid ID or registered phone number." : (error.message || "Access Denied.");
+      toast({ variant: "destructive", title: "Access Denied", description: msg })
     } finally { setStaffLoading(false) }
   }
 
