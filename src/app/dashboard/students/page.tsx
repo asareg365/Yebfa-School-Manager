@@ -33,7 +33,9 @@ import {
   Activity,
   MoreVertical,
   ShieldAlert,
-  Layers
+  Layers,
+  Archive,
+  History
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useUser, useFirestore, useCollection, useDoc } from "@/firebase"
@@ -155,7 +157,16 @@ export default function StudentsPage() {
   const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
   const { data: institution } = useDoc(instRef)
 
-  const studentsQuery = useMemo(() => institutionId ? query(collection(db, "students"), where("tenantId", "==", institutionId)) : null, [db, institutionId]);
+  // STRATEGIC FILTER: Display only Active students in the main registry
+  const studentsQuery = useMemo(() => {
+    if (!db || !institutionId) return null;
+    return query(
+      collection(db, "students"), 
+      where("tenantId", "==", institutionId),
+      where("status", "==", "active")
+    );
+  }, [db, institutionId]);
+
   const parentsQuery = useMemo(() => institutionId ? query(collection(db, "parents"), where("tenantId", "==", institutionId)) : null, [db, institutionId]);
   const classesQuery = useMemo(() => institutionId ? query(collection(db, "classes"), where("tenantId", "==", institutionId)) : null, [db, institutionId]);
   const relsQuery = useMemo(() => institutionId ? query(collection(db, "student_parents"), where("tenantId", "==", institutionId)) : null, [db, institutionId]);
@@ -248,7 +259,6 @@ export default function StudentsPage() {
           if (authErr.code !== 'auth/email-already-in-use') throw authErr;
         }
 
-        // Ensuring Firestore profile is synchronized even if auth creation was skipped
         const userUid = authUser?.uid || studentId;
         batch.set(doc(db, "users", userUid), {
           uid: userUid,
@@ -508,28 +518,35 @@ export default function StudentsPage() {
     setActiveStep("identity")
   }
 
-  const handleDelete = async (id: string) => {
-    if (!db || !confirm("Are you sure you want to PERMANENTLY delete this student? This action cannot be undone.")) return
+  // STRATEGIC SOFT-DELETE: Traceable and Restorable
+  const handleArchiveStudent = async (id: string) => {
+    if (!db || !confirm("Are you sure you want to ARCHIVE this student record? They will be marked as Inactive and removed from the active roster, but their academic and financial history will be preserved for auditing.")) return
     
     setLoading(true);
     const docRef = doc(db, "students", id);
-    try {
-      await deleteDoc(docRef);
-      toast({ title: "Student Deleted", description: "Registry record removed successfully." });
-    } catch (e: any) {
-      console.error("Deletion Failed:", e);
-      if (e.code === 'permission-denied') {
-        const permissionError = new FirestorePermissionError({
-          path: docRef.path,
-          operation: 'delete',
-        } satisfies SecurityRuleContext);
-        errorEmitter.emit('permission-error', permissionError);
-      } else {
-        toast({ variant: "destructive", title: "Action Failed", description: e.message });
-      }
-    } finally {
+    
+    updateDoc(docRef, {
+      status: "inactive",
+      updatedAt: serverTimestamp(),
+      archivedAt: serverTimestamp()
+    })
+    .then(() => {
+      toast({ 
+        title: "Student Archived", 
+        description: "Registry record moved to inactive history." 
+      });
+    })
+    .catch(async (serverError: any) => {
+      const permissionError = new FirestorePermissionError({
+        path: docRef.path,
+        operation: 'update',
+        requestResourceData: { status: "inactive" },
+      } satisfies SecurityRuleContext);
+      errorEmitter.emit('permission-error', permissionError);
+    })
+    .finally(() => {
       setLoading(false);
-    }
+    });
   }
 
   if (profileLoading || studentsLoading) return (
@@ -569,15 +586,15 @@ export default function StudentsPage() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="relative flex-1 max-sm w-full sm:max-w-sm">
               <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
-              <Input placeholder="Search records..." className="pl-10 h-12 bg-white border-none rounded-xl shadow-sm" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+              <Input placeholder="Search active records..." className="pl-10 h-12 bg-white border-none rounded-xl shadow-sm" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
             <div className="flex items-center gap-2">
               <Badge className="bg-primary/5 text-primary border-none text-[10px] font-bold uppercase tracking-widest px-4 h-10 flex items-center">
-                {rawStudents.length} Students Total
+                {rawStudents.length} Active Students
               </Badge>
               <div className="flex items-center gap-1.5 p-2 bg-blue-50 text-blue-700 rounded-xl border border-blue-100 shadow-sm px-3">
                 <LockKeyhole className="size-3.5" />
-                <span className="text-[10px] font-bold uppercase">PIN Protection Active</span>
+                <span className="text-[10px] font-bold uppercase">Soft-Delete Active</span>
               </div>
             </div>
           </div>
@@ -670,8 +687,8 @@ export default function StudentsPage() {
                                           <DropdownMenuItem className="gap-2 text-xs font-bold text-accent" onSelect={() => handleResetPin(stu)}>
                                             <ShieldAlert className="size-4" /> Reset Portal PIN
                                           </DropdownMenuItem>
-                                          <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onSelect={() => handleDelete(stu.id)}>
-                                            <Trash2 className="size-4" /> Delete Student
+                                          <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onSelect={() => handleArchiveStudent(stu.id)}>
+                                            <Archive className="size-4" /> Archive (Soft-Delete)
                                           </DropdownMenuItem>
                                         </DropdownMenuContent>
                                       </DropdownMenu>
@@ -689,7 +706,7 @@ export default function StudentsPage() {
             
             {studentsList.length === 0 && (
               <div className="py-32 text-center text-muted-foreground italic bg-slate-50 rounded-2xl border-2 border-dashed">
-                No student roster detected in your institutional registry.
+                No active student roster detected in your institutional registry.
               </div>
             )}
           </Accordion>

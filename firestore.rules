@@ -43,7 +43,7 @@ service cloud.firestore {
 
     function belongsToUserTenant(data) {
       let tenant = userTenant();
-      // Allow access if tenant matches, or if it's super admin
+      // Robust tenant matching
       return signedIn() && (
         isSuperAdmin() || 
         (data.tenantId != null && data.tenantId == tenant) || 
@@ -70,7 +70,9 @@ service cloud.firestore {
 
     match /students/{studentId} {
       allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
+      // Authorized for status updates (soft-delete)
       allow create, update: if signedIn() && (isSuperAdmin() || isAdmin() || isTeacher());
+      // Explicit deletion authority
       allow delete: if signedIn() && (isSuperAdmin() || isAdmin());
     }
 
@@ -102,6 +104,12 @@ service cloud.firestore {
     }
 
     match /attendance/{id} {
+      allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
+      allow create, update: if signedIn() && (isSuperAdmin() || isAdmin() || isTeacher());
+      allow delete: if signedIn() && (isSuperAdmin() || isAdmin());
+    }
+
+    match /exam_records/{id} {
       allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
       allow create, update: if signedIn() && (isSuperAdmin() || isAdmin() || isTeacher());
       allow delete: if signedIn() && (isSuperAdmin() || isAdmin());
