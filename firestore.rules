@@ -116,13 +116,15 @@ service cloud.firestore {
       allow delete: if signedIn() && (isSuperAdmin() || ((isOwner() || isAdmin()) && belongsToUserTenant(resource.data)));
     }
 
-    // Performance & Attendance - Teacher Restrictions
+    // Performance & Attendance - Teacher/Parent/Student Authorized Reading
     match /exam_records/{id} {
-      allow read, write: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin() || (isTeacher() && belongsToUserTenant(request.resource.data || resource.data)));
+      allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
+      allow write: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin() || (isTeacher() && belongsToUserTenant(request.resource.data || resource.data)));
     }
 
     match /attendance/{id} {
-      allow read, write: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin() || (isTeacher() && belongsToUserTenant(request.resource.data || resource.data)));
+      allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
+      allow write: if signedIn() && (isSuperAdmin() || isOwner() || isAdmin() || (isTeacher() && belongsToUserTenant(request.resource.data || resource.data)));
     }
 
     match /timetables/{id} {

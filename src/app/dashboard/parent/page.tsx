@@ -81,24 +81,41 @@ export default function StudentReportsPortal() {
   const currentTerm = institution?.currentTerm || "Term 1";
 
   const examsQuery = useMemo(() => {
-    if (!db || !selectedStudentId) return null
-    return query(collection(db, "exam_records"), where("studentId", "==", selectedStudentId), where("termId", "==", currentTerm))
-  }, [db, selectedStudentId, currentTerm])
+    if (!db || !selectedStudentId || !tenantId) return null
+    return query(
+      collection(db, "exam_records"), 
+      where("tenantId", "==", tenantId),
+      where("studentId", "==", selectedStudentId), 
+      where("termId", "==", currentTerm)
+    )
+  }, [db, selectedStudentId, currentTerm, tenantId])
 
   const attendanceQuery = useMemo(() => {
-    if (!db || !selectedStudentId) return null
-    return query(collection(db, "attendance"), where("studentId", "==", selectedStudentId))
-  }, [db, selectedStudentId])
+    if (!db || !selectedStudentId || !tenantId) return null
+    return query(
+      collection(db, "attendance"), 
+      where("tenantId", "==", tenantId),
+      where("studentId", "==", selectedStudentId)
+    )
+  }, [db, selectedStudentId, tenantId])
 
   const ledgerQuery = useMemo(() => {
-    if (!db || !selectedStudentId) return null
-    return query(collection(db, "student_ledger"), where("studentId", "==", selectedStudentId))
-  }, [db, selectedStudentId])
+    if (!db || !selectedStudentId || !tenantId) return null
+    return query(
+      collection(db, "student_ledger"), 
+      where("tenantId", "==", tenantId),
+      where("studentId", "==", selectedStudentId)
+    )
+  }, [db, selectedStudentId, tenantId])
 
   const invoicesQuery = useMemo(() => {
-    if (!db || !selectedStudentId) return null
-    return query(collection(db, "invoices"), where("studentId", "==", selectedStudentId))
-  }, [db, selectedStudentId])
+    if (!db || !selectedStudentId || !tenantId) return null
+    return query(
+      collection(db, "invoices"), 
+      where("tenantId", "==", tenantId),
+      where("studentId", "==", selectedStudentId)
+    )
+  }, [db, selectedStudentId, tenantId])
 
   const { data: exams = [] } = useCollection(examsQuery)
   const { data: attendance = [] } = useCollection(attendanceQuery)
@@ -107,7 +124,7 @@ export default function StudentReportsPortal() {
 
   const computedData = useMemo(() => {
     if (exams.length === 0 && invoices.length === 0 && attendance.length === 0) {
-       return { results: [], average: 0, attendance: { percentage: 0, present: 0 }, balance: 0 };
+       return { results: [], average: 0, attendance: { percentage: 0, present: 0, absent: 0 }, balance: 0 };
     }
     
     const results = exams.map((e: any) => {
