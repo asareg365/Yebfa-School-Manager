@@ -21,9 +21,10 @@ import {
   User,
   X,
   Save,
-  Trash2
+  Trash2,
+  Lock
 } from "lucide-react"
-import { useFirestore, useCollection, useDoc, useUser } from "@/firebase"
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase"
 import { collection, query, where, doc, setDoc, serverTimestamp, deleteDoc } from "firebase/firestore"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -69,22 +70,19 @@ export default function TimetablePage() {
   const { data: institution } = useDoc(instRef)
   const currentTerm = institution?.currentTerm || "Term 1"
 
-  // Teacher Assignments Filter
-  const assignmentsQuery = useMemo(() => 
-    institutionId && isTeacher && staffId 
-      ? query(collection(db, "teacher_assignments"), where("tenantId", "==", institutionId), where("teacherId", "==", staffId)) 
-      : null, 
-    [db, institutionId, isTeacher, staffId]
-  )
+  const assignmentsQuery = useMemoFirebase(() => {
+    if (!db || !institutionId || !isTeacher || !staffId) return null
+    return query(collection(db, "teacher_assignments"), where("tenantId", "==", institutionId), where("teacherId", "==", staffId))
+  }, [db, institutionId, isTeacher, staffId])
+  
   const { data: assignments = [] } = useCollection(assignmentsQuery)
   const assignedClassIds = useMemo(() => new Set(assignments.map((a: any) => a.classId)), [assignments])
 
-  const classesQuery = useMemo(() => institutionId ? query(collection(db, "classes"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
-  const subjectsQuery = useMemo(() => institutionId ? query(collection(db, "subjects"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
-  const staffQuery = useMemo(() => institutionId ? query(collection(db, "staff"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
+  const classesQuery = useMemoFirebase(() => institutionId ? query(collection(db, "classes"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
+  const subjectsQuery = useMemoFirebase(() => institutionId ? query(collection(db, "subjects"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
+  const staffQuery = useMemoFirebase(() => institutionId ? query(collection(db, "staff"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   
-  // Persistent Timetable Query
-  const timetableQuery = useMemo(() => 
+  const timetableQuery = useMemoFirebase(() => 
     institutionId && selectedClassId 
       ? query(collection(db, "timetables"), 
           where("tenantId", "==", institutionId), 
@@ -151,14 +149,56 @@ export default function TimetablePage() {
     }
   }
 
+  const getSlot = (day: string, time: string) => {
+    const source = aiResult?.schedule || activeTimetable?.slots || []
+    
+    // 1. Check for exact match
+    const exact = source.find((s: any) => s.day === day && s.time === time)
+    if (exact) return { ...exact, occupancy: 'primary' }
+    
+    // 2. Check if previous slot is a double period covering this slot
+    const timeIndex = TIMES.indexOf(time)
+    if (timeIndex > 0) {
+      const prevTime = TIMES[timeIndex - 1]
+      const prevSlot = source.find((s: any) => s.day === day && s.time === prevTime)
+      if (prevSlot?.isDoublePeriod) {
+        return { ...prevSlot, occupancy: 'extended' }
+      }
+    }
+    
+    return null
+  }
+
   const handleAddManualSlot = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!institutionId || !selectedClassId) return
     
+    // Validate if target slot is already covered by a double period
+    const existingOccupancy = getSlot(manualSlot.day, manualSlot.time)
+    if (existingOccupancy && existingOccupancy.occupancy === 'extended') {
+      toast({
+        variant: "destructive",
+        title: "Slot Blocked",
+        description: `This time is already occupied by a double period for ${existingOccupancy.subject}.`
+      })
+      return
+    }
+
     setSaving(true)
     try {
       const currentSlots = activeTimetable?.slots || []
-      const newSlots = [...currentSlots.filter((s: any) => !(s.day === manualSlot.day && s.time === manualSlot.time)), manualSlot]
+      // Remove any existing direct slot at this time, or any slot that would be covered by this new double period
+      let newSlots = [...currentSlots.filter((s: any) => !(s.day === manualSlot.day && s.time === manualSlot.time))]
+      
+      if (manualSlot.isDoublePeriod) {
+        const timeIndex = TIMES.indexOf(manualSlot.time)
+        if (timeIndex < TIMES.length - 1) {
+          const nextTime = TIMES[timeIndex + 1]
+          newSlots = newSlots.filter((s: any) => !(s.day === manualSlot.day && s.time === nextTime))
+        }
+      }
+
+      newSlots.push(manualSlot)
       
       const timetableId = `${selectedClassId}_${currentTerm.replace(/\s+/g, '')}`
       await setDoc(doc(db, "timetables", timetableId), {
@@ -181,10 +221,23 @@ export default function TimetablePage() {
     }
   }
 
-  const getSlot = (day: string, timePrefix: string) => {
-    // Show AI result preview if available, otherwise show persisted data
-    const source = aiResult?.schedule || activeTimetable?.slots || []
-    return source.find((s: any) => s.day === day && s.time.startsWith(timePrefix))
+  const handleDeleteSlot = async (day: string, time: string) => {
+    if (!institutionId || !selectedClassId || !activeTimetable) return
+    const newSlots = activeTimetable.slots.filter((s: any) => !(s.day === day && s.time === time))
+    
+    setSaving(true)
+    try {
+      const timetableId = `${selectedClassId}_${currentTerm.replace(/\s+/g, '')}`
+      await setDoc(doc(db, "timetables", timetableId), {
+        slots: newSlots,
+        updatedAt: serverTimestamp()
+      }, { merge: true })
+      toast({ title: "Period Removed" })
+    } catch (e) {
+      toast({ variant: "destructive", title: "Action Failed" })
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -369,20 +422,34 @@ export default function TimetablePage() {
                                <div className="flex items-center gap-2"><Clock className="size-3" /> {time}</div>
                             </td>
                             {DAYS.map(day => {
-                              const slot = getSlot(day, time.substring(0, 2))
+                              const slot = getSlot(day, time)
                               return (
-                                <td key={`${day}-${time}`} className="p-4 border-b group-hover:bg-slate-50/50 transition-colors">
+                                <td key={`${day}-${time}`} className="p-4 border-b group-hover:bg-slate-50/50 transition-colors relative">
                                    {slot ? (
-                                     <div className={`p-4 rounded-2xl border-2 transition-all hover:scale-[1.02] cursor-default shadow-sm ${slot.isDoublePeriod ? 'bg-primary/5 border-primary/20' : 'bg-white border-slate-100'}`}>
+                                     <div className={`p-4 rounded-2xl border-2 transition-all hover:scale-[1.02] cursor-default shadow-sm ${slot.isDoublePeriod ? 'bg-primary/5 border-primary/20' : 'bg-white border-slate-100'} ${slot.occupancy === 'extended' ? 'opacity-60 grayscale-[0.5]' : ''}`}>
                                         <div className="flex justify-between items-start mb-2">
-                                           <span className="text-[10px] font-bold text-accent uppercase tracking-tighter">{slot.time}</span>
+                                           <span className="text-[10px] font-bold text-accent uppercase tracking-tighter">
+                                             {slot.occupancy === 'extended' ? 'CONT.' : slot.time}
+                                           </span>
                                            {slot.isDoublePeriod && <Badge className="bg-primary text-white text-[7px] h-3 px-1 border-none">DOUBLE</Badge>}
                                         </div>
                                         <p className="font-bold text-primary text-xs mb-1 line-clamp-1">{slot.subject}</p>
-                                        <div className="flex items-center gap-1.5 opacity-60">
-                                           <User className="size-2.5" />
-                                           <span className="text-[10px] font-bold truncate max-w-[80px]">{slot.teacher}</span>
+                                        <div className="flex items-center justify-between gap-1.5">
+                                           <div className="flex items-center gap-1 opacity-60">
+                                              <User className="size-2.5" />
+                                              <span className="text-[10px] font-bold truncate max-w-[80px]">{slot.teacher}</span>
+                                           </div>
+                                           {slot.occupancy === 'primary' && !isTeacher && (
+                                              <button onClick={() => handleDeleteSlot(day, time)} className="text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+                                                 <Trash2 className="size-3" />
+                                              </button>
+                                           )}
                                         </div>
+                                        {slot.occupancy === 'extended' && (
+                                          <div className="absolute top-2 right-2">
+                                             <Lock className="size-2.5 text-muted-foreground opacity-40" />
+                                          </div>
+                                        )}
                                      </div>
                                    ) : (
                                      <div className="h-20 rounded-2xl border-2 border-dashed border-slate-100 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
