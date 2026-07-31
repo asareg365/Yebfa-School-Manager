@@ -32,7 +32,8 @@ import {
   Key,
   Activity,
   MoreVertical,
-  ShieldAlert
+  ShieldAlert,
+  Layers
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useUser, useFirestore, useCollection, useDoc } from "@/firebase"
@@ -52,6 +53,12 @@ import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth"
 import { firebaseConfig } from "@/firebase/config"
 import { generateInstitutionId, normalizeSecurityPhone, generateStudentPin } from "@/lib/identity-service"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 import Papa from "papaparse"
 
 export default function StudentsPage() {
@@ -162,6 +169,17 @@ export default function StudentsPage() {
       s.admissionNumber?.toLowerCase().includes(searchQuery.toLowerCase())
     ).sort((a: any, b: any) => (a.admissionNumber || "").localeCompare(b.admissionNumber || ""));
   }, [rawStudents, searchQuery]);
+
+  // Strategic Grouping Logic
+  const groupedStudents = useMemo(() => {
+    const groups: Record<string, any[]> = {}
+    studentsList.forEach(s => {
+      const grade = s.gradeLevel || "Unassigned"
+      if (!groups[grade]) groups[grade] = []
+      groups[grade].push(s)
+    })
+    return groups
+  }, [studentsList])
 
   const validateStep = (step: string) => {
     if (step === "identity") {
@@ -541,87 +559,117 @@ export default function StudentsPage() {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="p-0 overflow-x-auto">
-          <Table>
-            <TableHeader className="bg-muted/30">
-              <TableRow>
-                <TableHead className="py-4 font-bold px-6">STUDENT / REGISTRY ID</TableHead>
-                <TableHead className="py-4 font-bold">GRADE</TableHead>
-                <TableHead className="py-4 font-bold">PORTAL PIN</TableHead>
-                <TableHead className="py-4 font-bold">GUARDIAN LINK</TableHead>
-                <TableHead className="py-4 font-bold">STATUS</TableHead>
-                <TableHead className="text-right py-4 font-bold px-6">ACTIONS</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {studentsList.map((stu: any) => {
-                const mainRel = allRels.find(r => r.studentId === stu.id && r.primaryContact);
-                const parent = parents.find(p => p.id === mainRel?.parentId);
-                return (
-                  <TableRow key={stu.id} className="hover:bg-slate-50 transition-colors group">
-                    <TableCell className="px-6">
-                      <div className="flex items-center gap-3">
-                        <div className="size-10 rounded-xl bg-primary/5 flex items-center justify-center overflow-hidden border">
-                          {stu.photoUrl ? <img src={stu.photoUrl} className="w-full h-full object-cover" /> : <User className="size-5 text-primary/20" />}
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="font-bold text-primary">{stu.firstName} {stu.lastName}</span>
-                          <span className="text-[10px] font-mono font-bold text-accent">{stu.admissionNumber}</span>
-                        </div>
+        <CardContent className="p-6">
+          <Accordion type="multiple" className="w-full space-y-4">
+            {Object.entries(groupedStudents)
+              .sort(([gradeA], [gradeB]) => gradeA.localeCompare(gradeB))
+              .map(([grade, students]) => (
+                <AccordionItem 
+                  key={grade} 
+                  value={grade} 
+                  className="border border-slate-100 bg-slate-50/30 rounded-2xl overflow-hidden"
+                >
+                  <AccordionTrigger className="hover:no-underline px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="size-10 rounded-xl bg-primary/5 flex items-center justify-center">
+                        <Layers className="size-5 text-primary" />
                       </div>
-                    </TableCell>
-                    <TableCell><span className="text-sm font-bold text-slate-700">{stu.gradeLevel}</span></TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {stu.studentPin ? (
-                          <Badge className="h-7 px-3 text-xs font-mono bg-primary text-white border-none shadow-sm gap-2 font-bold">
-                            <Key className="size-3 text-accent" />
-                            {stu.studentPin}
-                          </Badge>
-                        ) : (
-                          <Button variant="ghost" size="sm" className="h-7 text-[10px] font-bold uppercase text-accent hover:text-accent hover:bg-accent/5 gap-2" onClick={() => handleResetPin(stu)} disabled={loading}>
-                            <RefreshCw className={`size-3 ${loading ? 'animate-spin' : ''}`} /> Generate PIN
-                          </Button>
-                        )}
+                      <div className="text-left">
+                        <h2 className="text-lg font-headline font-bold text-primary">{grade}</h2>
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">
+                          {students.length} Registered Students
+                        </p>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col text-xs">
-                        <span className="font-bold">{parent ? `${parent.firstName} ${parent.lastName}` : "No Primary"}</span>
-                        <span className="text-muted-foreground text-[10px] uppercase font-bold">{mainRel?.relationship || "Unlinked"}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell><Badge variant="outline" className={`text-[9px] uppercase font-bold ${stu.status === 'active' ? 'text-green-600 bg-green-50' : 'text-slate-500 bg-slate-50'}`}>
-                      {stu.status}
-                    </Badge></TableCell>
-                    <TableCell className="text-right px-6">
-                       <div className="flex items-center justify-end gap-1">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg"><MoreVertical className="size-4" /></Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="rounded-xl border-none shadow-xl w-48">
-                              <DropdownMenuItem className="gap-2 text-xs font-bold" onClick={() => openEdit(stu)}>
-                                <Pencil className="size-4" /> Edit Profile
-                              </DropdownMenuItem>
-                              <DropdownMenuItem className="gap-2 text-xs font-bold text-accent" onClick={() => handleResetPin(stu)}>
-                                <ShieldAlert className="size-4" /> Reset Portal PIN
-                              </DropdownMenuItem>
-                              <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onClick={() => handleDelete(stu.id)}>
-                                <Trash2 className="size-4" /> Remove Record
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                       </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-              {studentsList.length === 0 && (
-                <TableRow><TableCell colSpan={6} className="text-center py-32 text-muted-foreground italic">No student roster detected in your institutional registry.</TableCell></TableRow>
-              )}
-            </TableBody>
-          </Table>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="p-0">
+                    <div className="overflow-x-auto bg-white border-t">
+                      <Table>
+                        <TableHeader className="bg-muted/10">
+                          <TableRow>
+                            <TableHead className="py-4 font-bold px-6">STUDENT / REGISTRY ID</TableHead>
+                            <TableHead className="py-4 font-bold">PORTAL PIN</TableHead>
+                            <TableHead className="py-4 font-bold">GUARDIAN LINK</TableHead>
+                            <TableHead className="py-4 font-bold">STATUS</TableHead>
+                            <TableHead className="text-right py-4 font-bold px-6">ACTIONS</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {students.map((stu: any) => {
+                            const mainRel = allRels.find(r => r.studentId === stu.id && r.primaryContact);
+                            const parent = parents.find(p => p.id === mainRel?.parentId);
+                            return (
+                              <TableRow key={stu.id} className="hover:bg-slate-50 transition-colors group">
+                                <TableCell className="px-6">
+                                  <div className="flex items-center gap-3">
+                                    <div className="size-10 rounded-xl bg-primary/5 flex items-center justify-center overflow-hidden border">
+                                      {stu.photoUrl ? <img src={stu.photoUrl} className="w-full h-full object-cover" /> : <User className="size-5 text-primary/20" />}
+                                    </div>
+                                    <div className="flex flex-col">
+                                      <span className="font-bold text-primary">{stu.firstName} {stu.lastName}</span>
+                                      <span className="text-[10px] font-mono font-bold text-accent">{stu.admissionNumber}</span>
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    {stu.studentPin ? (
+                                      <Badge className="h-7 px-3 text-xs font-mono bg-primary text-white border-none shadow-sm gap-2 font-bold">
+                                        <Key className="size-3 text-accent" />
+                                        {stu.studentPin}
+                                      </Badge>
+                                    ) : (
+                                      <Button variant="ghost" size="sm" className="h-7 text-[10px] font-bold uppercase text-accent hover:text-accent hover:bg-accent/5 gap-2" onClick={() => handleResetPin(stu)} disabled={loading}>
+                                        <RefreshCw className={`size-3 ${loading ? 'animate-spin' : ''}`} /> Generate PIN
+                                      </Button>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex flex-col text-xs">
+                                    <span className="font-bold">{parent ? `${parent.firstName} ${parent.lastName}` : "No Primary"}</span>
+                                    <span className="text-muted-foreground text-[10px] uppercase font-bold">{mainRel?.relationship || "Unlinked"}</span>
+                                  </div>
+                                </TableCell>
+                                <TableCell><Badge variant="outline" className={`text-[9px] uppercase font-bold ${stu.status === 'active' ? 'text-green-600 bg-green-50' : 'text-slate-500 bg-slate-50'}`}>
+                                  {stu.status}
+                                </Badge></TableCell>
+                                <TableCell className="text-right px-6">
+                                   <div className="flex items-center justify-end gap-1">
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg"><MoreVertical className="size-4" /></Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="rounded-xl border-none shadow-xl w-48">
+                                          <DropdownMenuItem className="gap-2 text-xs font-bold" onClick={() => openEdit(stu)}>
+                                            <Pencil className="size-4" /> Edit Profile
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem className="gap-2 text-xs font-bold text-accent" onClick={() => handleResetPin(stu)}>
+                                            <ShieldAlert className="size-4" /> Reset Portal PIN
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onClick={() => handleDelete(stu.id)}>
+                                            <Trash2 className="size-4" /> Remove Record
+                                          </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
+                                   </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            
+            {studentsList.length === 0 && (
+              <div className="py-32 text-center text-muted-foreground italic bg-slate-50 rounded-2xl border-2 border-dashed">
+                No student roster detected in your institutional registry.
+              </div>
+            )}
+          </Accordion>
         </CardContent>
       </Card>
 
