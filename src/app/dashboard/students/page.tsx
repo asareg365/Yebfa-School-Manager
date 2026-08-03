@@ -242,7 +242,6 @@ export default function StudentsPage() {
       studentId = studentRef.id
 
       if (!editingStudent) {
-        // Goal 1: Centralized transactional ID generation
         finalAdmissionNumber = await generateId('students', 'YSM-ST-');
         finalPin = generateStudentPin(); 
         const studentEmail = `${finalAdmissionNumber.trim()}@system.yebfa.com`;
@@ -272,7 +271,6 @@ export default function StudentsPage() {
       }
 
       if (isNewParent && !editingStudent) {
-        // Goal 1: Parent ID generation
         const finalParentNumber = await generateId('parents', 'YSM-PR-');
         let cleanPass = normalizeSecurityPhone(newParentForm.phone);
         if (cleanPass.length < 6) cleanPass = cleanPass.padEnd(6, '0');
@@ -359,24 +357,27 @@ export default function StudentsPage() {
     }
   }
 
-  // Goal 2: Fix Active Enrollment Delete
-  const handleDeleteStudent = async (id: string) => {
-    if (!confirm("Are you sure you want to remove this enrollment? This will PERMANENTLY delete the student record from the registry.")) return
+  const handleDeactivateStudent = async (id: string) => {
+    if (!confirm("Are you sure you want to deactivate this enrollment? The record will be moved to archives and student portal access will be restricted.")) return
     
     setLoading(true);
     const docRef = doc(db, "students", id);
     
-    deleteDoc(docRef)
+    updateDoc(docRef, {
+      status: "inactive",
+      updatedAt: serverTimestamp()
+    })
     .then(() => {
       toast({ 
         title: "Enrollment removed successfully.", 
-        description: "The registry record has been permanently deleted." 
+        description: "The registry record has been moved to archives." 
       });
     })
     .catch(async (serverError: any) => {
       const permissionError = new FirestorePermissionError({
         path: docRef.path,
-        operation: 'delete',
+        operation: 'update',
+        requestResourceData: { status: "inactive" }
       } satisfies SecurityRuleContext);
       errorEmitter.emit('permission-error', permissionError);
     })
@@ -668,9 +669,9 @@ export default function StudentsPage() {
                                           <DropdownMenuItem className="gap-2 text-xs font-bold text-accent" onSelect={() => handleResetPin(stu)}>
                                             <ShieldAlert className="size-4" /> Reset Portal PIN
                                           </DropdownMenuItem>
-                                          <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onSelect={(e) => { e.preventDefault(); 
-                                            handleDeleteStudent(stu.id); }} > <Trash2 className="size-4" /> Remove Record 
-                                            </DropdownMenuItem>
+                                          <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onSelect={(e) => { e.preventDefault(); handleDeactivateStudent(stu.id); }}>
+                                            <Trash2 className="size-4" /> Remove Record
+                                          </DropdownMenuItem>
                                         </DropdownMenuContent>
                                       </DropdownMenu>
                                    </div>
