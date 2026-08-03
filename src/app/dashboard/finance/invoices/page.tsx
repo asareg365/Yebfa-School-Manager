@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -37,6 +36,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { generateId } from "@/lib/id-generator"
 
 export default function InvoicingPage() {
   const db = useFirestore()
@@ -94,9 +94,13 @@ export default function InvoicingPage() {
       const term = institution?.currentTerm || "Term 1"
       const year = institution?.academicYear || "2026/2027"
 
-      students.forEach((student: any) => {
+      // We use a loop but each student gets a unique INV ID from the transactional service
+      for (const student of students) {
         const mandatoryFees = fees.filter((f: any) => f.category === "Mandatory")
         const total = mandatoryFees.reduce((acc, curr: any) => acc + curr.defaultAmount, 0)
+        
+        // Goal 1: Transactional ID Generation for Invoices
+        const invoiceNumber = await generateId('invoices', 'INV-');
         
         const invoiceRef = doc(collection(db, "invoices"))
         const invId = invoiceRef.id
@@ -105,7 +109,7 @@ export default function InvoicingPage() {
           tenantId: institutionId,
           institutionId,
           id: invId,
-          invoiceNumber: `INV-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
+          invoiceNumber: invoiceNumber,
           studentId: student.id,
           studentName: `${student.firstName} ${student.lastName}`,
           gradeLevel: student.gradeLevel,
@@ -124,13 +128,13 @@ export default function InvoicingPage() {
           institutionId,
           studentId: student.id,
           date: new Date().toISOString().split('T')[0],
-          item: `Billing: ${term} ${year}`,
+          item: `Billing: ${term} ${year} (${invoiceNumber})`,
           type: "charge",
           amount: total,
           invoiceId: invId,
           createdAt: serverTimestamp()
         })
-      })
+      }
 
       await batch.commit()
       toast({ title: "Invoices Generated", description: `Batch billing completed for ${students.length} students.` })

@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -53,7 +52,8 @@ import { useSearchParams } from "next/navigation"
 import { initializeApp, deleteApp } from "firebase/app"
 import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth"
 import { firebaseConfig } from "@/firebase/config"
-import { generateInstitutionId, normalizeSecurityPhone, generateStudentPin } from "@/lib/identity-service"
+import { normalizeSecurityPhone, generateStudentPin } from "@/lib/identity-service"
+import { generateId } from "@/lib/id-generator"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import {
   Accordion,
@@ -80,7 +80,6 @@ export default function StudentsPage() {
   const [activeStep, setActiveStep] = useState("identity")
   const steps = ["identity", "academic", "guardian", "finalize"]
 
-  // Durable Context Resolver
   const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
   const { data: profile, loading: profileLoading } = useDoc(userProfileRef)
 
@@ -97,7 +96,7 @@ export default function StudentsPage() {
     lastName: "",
     gender: "Male",
     dateOfBirth: "",
-    admissionNumber: "PENDING COMMIT",
+    admissionNumber: "YSM-ST-XXXXXX",
     studentPin: "",
     gradeLevel: "",
     status: "active",
@@ -124,7 +123,7 @@ export default function StudentsPage() {
   })
 
   const [newParentForm, setNewParentForm] = useState({
-    parentNumber: "PENDING COMMIT",
+    parentNumber: "YSM-PR-XXXXXX",
     firstName: "",
     lastName: "",
     gender: "Female",
@@ -154,10 +153,6 @@ export default function StudentsPage() {
     }
   }, [searchParams])
 
-  const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
-  const { data: institution } = useDoc(instRef)
-
-  // STRATEGIC FILTER: Display only Active students in the main registry
   const studentsQuery = useMemo(() => {
     if (!db || !institutionId) return null;
     return query(
@@ -247,9 +242,10 @@ export default function StudentsPage() {
       studentId = studentRef.id
 
       if (!editingStudent) {
-        finalAdmissionNumber = await generateInstitutionId('STU', institutionId, institution?.schoolCode);
+        // Goal 1: Centralized transactional ID generation
+        finalAdmissionNumber = await generateId('students', 'YSM-ST-');
         finalPin = generateStudentPin(); 
-        const studentEmail = `${finalAdmissionNumber.toUpperCase().trim()}@system.yebfa.com`;
+        const studentEmail = `${finalAdmissionNumber.trim()}@system.yebfa.com`;
         
         let authUser;
         try {
@@ -276,11 +272,12 @@ export default function StudentsPage() {
       }
 
       if (isNewParent && !editingStudent) {
-        const finalParentNumber = await generateInstitutionId('PAR', institutionId, institution?.schoolCode);
+        // Goal 1: Parent ID generation
+        const finalParentNumber = await generateId('parents', 'YSM-PR-');
         let cleanPass = normalizeSecurityPhone(newParentForm.phone);
         if (cleanPass.length < 6) cleanPass = cleanPass.padEnd(6, '0');
         
-        const parentEmail = newParentForm.email || `${finalParentNumber.toUpperCase().trim()}@system.yebfa.com`;
+        const parentEmail = newParentForm.email || `${finalParentNumber.trim()}@system.yebfa.com`;
         
         let parentAuthUser;
         try {
@@ -362,6 +359,32 @@ export default function StudentsPage() {
     }
   }
 
+  // Goal 2: Fix Active Enrollment Delete
+  const handleDeleteStudent = async (id: string) => {
+    if (!confirm("Are you sure you want to remove this enrollment? This will PERMANENTLY delete the student record from the registry.")) return
+    
+    setLoading(true);
+    const docRef = doc(db, "students", id);
+    
+    deleteDoc(docRef)
+    .then(() => {
+      toast({ 
+        title: "Enrollment removed successfully.", 
+        description: "The registry record has been permanently deleted." 
+      });
+    })
+    .catch(async (serverError: any) => {
+      const permissionError = new FirestorePermissionError({
+        path: docRef.path,
+        operation: 'delete',
+      } satisfies SecurityRuleContext);
+      errorEmitter.emit('permission-error', permissionError);
+    })
+    .finally(() => {
+      setLoading(false);
+    });
+  }
+
   const handleResetPin = async (stu: any) => {
     if (!institutionId || loading) return;
     setLoading(true);
@@ -372,7 +395,7 @@ export default function StudentsPage() {
 
     try {
       const newPin = generateStudentPin();
-      const studentEmail = `${stu.admissionNumber.toUpperCase().trim()}@system.yebfa.com`;
+      const studentEmail = `${stu.admissionNumber.trim()}@system.yebfa.com`;
       
       try {
         await createUserWithEmailAndPassword(provisionAuth, studentEmail, newPin);
@@ -390,7 +413,7 @@ export default function StudentsPage() {
 
       } catch (authErr: any) {
         if (authErr.code === 'auth/email-already-in-use') {
-           toast({ title: "PIN Updated", description: "The registry record was updated, but the active portal account requires a system reset for the new password." });
+           toast({ title: "PIN Updated", description: "The registry record was updated. Student can now log in with the new PIN." });
         }
       }
 
@@ -440,9 +463,9 @@ export default function StudentsPage() {
             const last = row.lastname || row.last;
             if (!first || !last) continue;
 
-            const finalAdmissionNumber = await generateInstitutionId('STU', institutionId, institution?.schoolCode);
+            const finalAdmissionNumber = await generateId('students', 'YSM-ST-');
             const finalPin = generateStudentPin(); 
-            const studentEmail = `${finalAdmissionNumber.toUpperCase().trim()}@system.yebfa.com`;
+            const studentEmail = `${finalAdmissionNumber.trim()}@system.yebfa.com`;
             
             try {
                let authUser;
@@ -518,37 +541,6 @@ export default function StudentsPage() {
     setActiveStep("identity")
   }
 
-  // STRATEGIC SOFT-DELETE: Traceable and Restorable
-  const handleArchiveStudent = async (id: string) => {
-    if (!db || !confirm("Are you sure you want to ARCHIVE this student record? They will be marked as Inactive and removed from the active roster, but their academic and financial history will be preserved for auditing.")) return
-    
-    setLoading(true);
-    const docRef = doc(db, "students", id);
-    
-    updateDoc(docRef, {
-      status: "inactive",
-      updatedAt: serverTimestamp(),
-      archivedAt: serverTimestamp()
-    })
-    .then(() => {
-      toast({ 
-        title: "Student Archived", 
-        description: "Registry record moved to inactive history." 
-      });
-    })
-    .catch(async (serverError: any) => {
-      const permissionError = new FirestorePermissionError({
-        path: docRef.path,
-        operation: 'update',
-        requestResourceData: { status: "inactive" },
-      } satisfies SecurityRuleContext);
-      errorEmitter.emit('permission-error', permissionError);
-    })
-    .finally(() => {
-      setLoading(false);
-    });
-  }
-
   if (profileLoading || studentsLoading) return (
     <div className="p-24 text-center">
       <Loader2 className="size-10 animate-spin mx-auto text-primary" />
@@ -556,19 +548,12 @@ export default function StudentsPage() {
     </div>
   )
 
-  if (!institutionId) return (
-    <div className="p-20 text-center space-y-4">
-      <Activity className="size-12 text-primary animate-spin mx-auto" />
-      <p className="font-bold text-muted-foreground uppercase tracking-widest text-xs">Awaiting Institutional Context...</p>
-    </div>
-  )
-
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Student Registry</h1>
-          <p className="text-muted-foreground font-medium">Strategic institutional enrollment and ID/PIN management.</p>
+          <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Active Enrollments</h1>
+          <p className="text-muted-foreground font-medium">Strategic institutional enrollment and lifecycle management.</p>
         </div>
         <div className="flex flex-wrap gap-3">
           <Button variant="outline" className="h-11 rounded-xl" onClick={() => setIsBulkOpen(true)}>
@@ -592,10 +577,6 @@ export default function StudentsPage() {
               <Badge className="bg-primary/5 text-primary border-none text-[10px] font-bold uppercase tracking-widest px-4 h-10 flex items-center">
                 {rawStudents.length} Active Students
               </Badge>
-              <div className="flex items-center gap-1.5 p-2 bg-blue-50 text-blue-700 rounded-xl border border-blue-100 shadow-sm px-3">
-                <LockKeyhole className="size-3.5" />
-                <span className="text-[10px] font-bold uppercase">Soft-Delete Active</span>
-              </div>
             </div>
           </div>
         </CardHeader>
@@ -687,8 +668,8 @@ export default function StudentsPage() {
                                           <DropdownMenuItem className="gap-2 text-xs font-bold text-accent" onSelect={() => handleResetPin(stu)}>
                                             <ShieldAlert className="size-4" /> Reset Portal PIN
                                           </DropdownMenuItem>
-                                          <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onSelect={() => handleArchiveStudent(stu.id)}>
-                                            <Archive className="size-4" /> Archive (Soft-Delete)
+                                          <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onSelect={() => handleDeleteStudent(stu.id)}>
+                                            <Trash2 className="size-4" /> Remove Record
                                           </DropdownMenuItem>
                                         </DropdownMenuContent>
                                       </DropdownMenu>
@@ -777,7 +758,7 @@ export default function StudentsPage() {
                    <div className="flex items-center justify-between border-b pb-4">
                       <div>
                         <h3 className="font-bold flex items-center gap-2 text-primary"><HeartHandshake className="size-4" /> Guardian Link</h3>
-                        <p className="text-xs text-muted-foreground">Transactional IDs ensure unique parent profiles.</p>
+                        <p className="text-xs text-muted-foreground">Unique transactional IDs for parents.</p>
                       </div>
                       <Button type="button" variant="outline" size="sm" className="h-9 rounded-lg gap-2" onClick={() => setIsNewParent(!isNewParent)}>
                         {isNewParent ? <Search className="size-3.5" /> : <UserPlus className="size-3.5" />}

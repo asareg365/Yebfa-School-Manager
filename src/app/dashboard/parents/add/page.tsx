@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -30,7 +29,8 @@ import Link from "next/link"
 import { initializeApp, deleteApp } from "firebase/app"
 import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth"
 import { firebaseConfig } from "@/firebase/config"
-import { generateInstitutionId, normalizeSecurityPhone } from "@/lib/identity-service"
+import { normalizeSecurityPhone } from "@/lib/identity-service"
+import { generateId } from "@/lib/id-generator"
 import { Badge } from "@/components/ui/badge"
 
 export default function AddParentPage() {
@@ -47,7 +47,7 @@ export default function AddParentPage() {
   const { data: institution } = useDoc(instRef)
 
   const [parentForm, setParentForm] = useState({
-    parentNumber: "ASSIGNED ON SAVE",
+    parentNumber: "YSM-PR-XXXXXX",
     firstName: "",
     lastName: "",
     gender: "Female",
@@ -68,14 +68,13 @@ export default function AddParentPage() {
     const provisionAuth = getAuth(provisionApp);
 
     try {
-      // 1. Transactional Sequential ID Generation
-      const finalParentNumber = await generateInstitutionId('PAR', institutionId, institution?.schoolCode);
+      // Goal 1: Transactional ID generation for Parents
+      const finalParentNumber = await generateId('parents', 'YSM-PR-');
       
       let cleanPass = normalizeSecurityPhone(parentForm.phone)
       if (cleanPass.length < 6) cleanPass = cleanPass.padEnd(6, '0');
       
-      // Standardized system email (lowercase raw ID)
-      const parentEmail = parentForm.email || `${finalParentNumber.toLowerCase().trim()}@system.yebfa.com`;
+      const parentEmail = parentForm.email || `${finalParentNumber.trim()}@system.yebfa.com`;
       
       let authUser;
       try {
@@ -112,7 +111,7 @@ export default function AddParentPage() {
         await signOut(provisionAuth);
       }
       
-      toast({ title: "Guardian Registered", description: `Transactional ID: ${finalParentNumber} assigned. Portal access granted.` })
+      toast({ title: "Guardian Registered", description: `ID: ${finalParentNumber} assigned. Portal access active.` })
       router.push("/dashboard/parents")
     } catch (e: any) { 
       toast({ variant: "destructive", title: "Registration Error", description: e.message }) 

@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -42,6 +41,7 @@ import { useRouter } from "next/navigation"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import Link from "next/link"
+import { generateId } from "@/lib/id-generator"
 import {
   Accordion,
   AccordionContent,
@@ -68,7 +68,8 @@ export default function AdmissionsHubPage() {
     dateOfBirth: "",
     gradeLevel: "",
     email: "",
-    phone: ""
+    phone: "",
+    applicationNumber: "ADM-XXXXXX"
   })
 
   const [interviewForm, setInterviewForm] = useState({
@@ -156,17 +157,21 @@ export default function AdmissionsHubPage() {
     if (!db || !institutionId || loading) return
     setLoading(true)
     try {
+      // Goal 1: Transactional sequential ID generation
+      const applicationNumber = await generateId('admissions', 'ADM-');
+
       await addDoc(collection(db, "admissions"), {
         ...appForm,
+        applicationNumber,
         status: "Applied",
         tenantId: institutionId,
         institutionId,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       })
-      toast({ title: "Application Received", description: "The candidate has been added to the pipeline." })
+      toast({ title: "Application Received", description: `Application ${applicationNumber} added to pipeline.` })
       setIsAppOpen(false)
-      setAppForm({ firstName: "", lastName: "", gender: "Male", dateOfBirth: "", gradeLevel: "", email: "", phone: "" })
+      setAppForm({ firstName: "", lastName: "", gender: "Male", dateOfBirth: "", gradeLevel: "", email: "", phone: "", applicationNumber: "ADM-XXXXXX" })
     } catch (e: any) { 
       toast({ variant: "destructive", title: "Submission Failed" }) 
     } finally { 
@@ -207,10 +212,9 @@ export default function AdmissionsHubPage() {
     if (!db || !confirm("Are you sure you want to remove this application?")) return
     
     const docRef = doc(db, "admissions", id);
-    // Optimistic delete with standard error handler
     deleteDoc(docRef)
       .then(() => {
-        toast({ title: "Application Removed" })
+        toast({ title: "Application Removed Successfully" })
       })
       .catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
@@ -232,13 +236,6 @@ export default function AdmissionsHubPage() {
         <Loader2 className="size-8 animate-spin text-primary" />
         <p className="font-bold text-muted-foreground animate-pulse uppercase tracking-widest text-xs">Synchronizing Admissions Pipeline...</p>
       </div>
-    </div>
-  )
-
-  if (!institutionId) return (
-    <div className="p-20 text-center space-y-4">
-      <AlertCircle className="size-12 text-primary/30 mx-auto" />
-      <p className="font-bold text-muted-foreground uppercase tracking-widest text-xs">Awaiting Institutional Context...</p>
     </div>
   )
 
@@ -317,14 +314,17 @@ export default function AdmissionsHubPage() {
                                   </div>
                                   <div className="flex flex-col min-w-0">
                                     <CardTitle className="text-sm font-bold text-primary truncate leading-tight">{a.firstName} {a.lastName}</CardTitle>
-                                    <Badge variant="outline" className={`mt-1 text-[8px] uppercase font-bold w-fit ${
-                                      a.status === 'Enrolled' ? 'bg-green-50 text-green-600 border-green-200' :
-                                      a.status === 'Accepted' ? 'bg-blue-50 text-blue-600 border-blue-200' :
-                                      a.status === 'Interviewed' ? 'bg-amber-50 text-amber-600 border-amber-200' :
-                                      'bg-slate-50 text-slate-600'
-                                    }`}>
-                                      {a.status}
-                                    </Badge>
+                                    <div className="flex flex-col gap-1 mt-1">
+                                      {a.applicationNumber && <span className="text-[9px] font-mono font-bold text-accent uppercase tracking-tighter">{a.applicationNumber}</span>}
+                                      <Badge variant="outline" className={`text-[8px] uppercase font-bold w-fit ${
+                                        a.status === 'Enrolled' ? 'bg-green-50 text-green-600 border-green-200' :
+                                        a.status === 'Accepted' ? 'bg-blue-50 text-blue-600 border-blue-200' :
+                                        a.status === 'Interviewed' ? 'bg-amber-50 text-amber-600 border-amber-200' :
+                                        'bg-slate-50 text-slate-600'
+                                      }`}>
+                                        {a.status}
+                                      </Badge>
+                                    </div>
                                   </div>
                                 </div>
                                 <DropdownMenu>
@@ -416,6 +416,14 @@ export default function AdmissionsHubPage() {
             
             <ScrollArea className="flex-1">
               <div className="grid gap-6 p-8">
+                <div className="space-y-2">
+                   <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Application # (Transactional)</Label>
+                   <div className="h-11 px-4 rounded-xl bg-slate-50 flex items-center border border-dashed border-slate-200">
+                      <Badge variant="secondary" className="font-mono text-xs font-bold uppercase bg-slate-200 text-slate-600 border-none">
+                         {appForm.applicationNumber}
+                      </Badge>
+                   </div>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2"><Label>First Name</Label><Input required value={appForm.firstName} onChange={e => setAppForm({...appForm, firstName: e.target.value})} className="h-11 rounded-xl" /></div>
                   <div className="space-y-2"><Label>Last Name</Label><Input required value={appForm.lastName} onChange={e => setAppForm({...appForm, lastName: e.target.value})} className="h-11 rounded-xl" /></div>

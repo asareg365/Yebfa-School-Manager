@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -37,6 +36,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { generateId } from "@/lib/id-generator"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError, type SecurityRuleContext } from "@/firebase/errors"
 
@@ -60,7 +60,7 @@ export default function PaymentsProcessorPage() {
     invoiceId: "",
     amount: "",
     method: "MTN MoMo",
-    reference: ""
+    reference: "RCPT-XXXXXX"
   })
 
   const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
@@ -122,6 +122,9 @@ export default function PaymentsProcessorPage() {
       return
     }
 
+    // Goal 1: Transactional ID Generation for Receipts
+    const receiptNumber = await generateId('receipts', 'RCPT-');
+
     const payload = {
       tenantId: institutionId,
       institutionId,
@@ -131,7 +134,7 @@ export default function PaymentsProcessorPage() {
       studentName: selectedInvoice.studentName,
       amount,
       paymentMethod: paymentForm.method,
-      reference: paymentForm.reference || `REF-${Date.now()}`,
+      reference: receiptNumber,
       date: new Date().toISOString(),
       createdAt: serverTimestamp()
     }
@@ -160,7 +163,7 @@ export default function PaymentsProcessorPage() {
         institutionId,
         studentId: selectedInvoice.studentId,
         date: new Date().toISOString().split('T')[0],
-        item: `Payment: ${paymentForm.reference}`,
+        item: `Payment: ${receiptNumber}`,
         type: "payment",
         amount,
         transactionId: txnId,
@@ -168,9 +171,9 @@ export default function PaymentsProcessorPage() {
       })
 
       await batch.commit()
-      toast({ title: "Payment Authorized", description: "Ledger and invoice synchronized." })
+      toast({ title: "Payment Authorized", description: `Receipt ${receiptNumber} generated.` })
       setIsPayOpen(false)
-      setPaymentForm({ invoiceId: "", amount: "", method: "MTN MoMo", reference: "" })
+      setPaymentForm({ invoiceId: "", amount: "", method: "MTN MoMo", reference: "RCPT-XXXXXX" })
     } catch (serverError: any) {
       const permissionError = new FirestorePermissionError({
         path: 'transactions/invoices',
@@ -190,7 +193,6 @@ export default function PaymentsProcessorPage() {
     try {
       const batch = writeBatch(db)
       
-      // 1. Update Invoice Balance
       const invoiceRef = doc(db, "invoices", txn.invoiceId)
       const invSnap = await getDoc(invoiceRef)
       if (invSnap.exists()) {
@@ -204,12 +206,10 @@ export default function PaymentsProcessorPage() {
         })
       }
 
-      // 2. Remove Ledger Entry
       const ledgerQ = query(collection(db, "student_ledger"), where("transactionId", "==", txn.id))
       const ledgerSnap = await getDocs(ledgerQ)
       ledgerSnap.forEach(d => batch.delete(d.ref))
 
-      // 3. Delete Transaction
       batch.delete(doc(db, "transactions", txn.id))
 
       await batch.commit()
@@ -236,15 +236,12 @@ export default function PaymentsProcessorPage() {
       const oldAmount = selectedTxn.amount
       const diff = newAmount - oldAmount
 
-      // Update Transaction
       batch.update(doc(db, "transactions", selectedTxn.id), {
         amount: newAmount,
         paymentMethod: paymentForm.method,
-        reference: paymentForm.reference,
         updatedAt: serverTimestamp()
       })
 
-      // Update Invoice
       const invoiceRef = doc(db, "invoices", selectedTxn.invoiceId)
       const invSnap = await getDoc(invoiceRef)
       if (invSnap.exists()) {
@@ -258,10 +255,9 @@ export default function PaymentsProcessorPage() {
         })
       }
 
-      // Update Ledger
       const ledgerQ = query(collection(db, "student_ledger"), where("transactionId", "==", selectedTxn.id))
       const ledgerSnap = await getDocs(ledgerQ)
-      ledgerSnap.forEach(d => batch.update(d.ref, { amount: newAmount, item: `Payment: ${paymentForm.reference}` }))
+      ledgerSnap.forEach(d => batch.update(d.ref, { amount: newAmount }))
 
       await batch.commit()
       toast({ title: "Registry Corrected", description: "Payment details and balances updated." })
@@ -286,7 +282,7 @@ export default function PaymentsProcessorPage() {
           <p className="text-muted-foreground font-medium">Digital collection processing and institutional cash management.</p>
         </div>
         <Button className="bg-primary h-11 rounded-xl shadow-lg gap-2 px-6 font-bold" onClick={() => {
-          setPaymentForm({ invoiceId: "", amount: "", method: "MTN MoMo", reference: "" });
+          setPaymentForm({ invoiceId: "", amount: "", method: "MTN MoMo", reference: "RCPT-XXXXXX" });
           setIsPayOpen(true);
         }}>
           <ArrowDownLeft className="size-5" /> Receive Payment
@@ -451,8 +447,12 @@ export default function PaymentsProcessorPage() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-[10px] font-bold uppercase">Transaction Reference</Label>
-                <Input placeholder="Network ID or Receipt #" value={paymentForm.reference} onChange={e => setPaymentForm({...paymentForm, reference: e.target.value})} className="h-12 rounded-xl" />
+                <Label className="text-[10px] font-bold uppercase">Transaction ID</Label>
+                <div className="h-12 px-4 rounded-xl bg-slate-50 flex items-center border border-dashed border-slate-200">
+                  <Badge variant="secondary" className="font-mono text-xs font-bold uppercase bg-slate-200 text-slate-600 border-none">
+                    {paymentForm.reference}
+                  </Badge>
+                </div>
               </div>
             </div>
             <DialogFooter className="p-8 bg-slate-50 border-t">
@@ -470,7 +470,7 @@ export default function PaymentsProcessorPage() {
           <form onSubmit={handleUpdateTransaction}>
             <DialogHeader className="p-8 bg-slate-50 border-b">
               <DialogTitle className="text-2xl font-headline font-bold">Edit Transaction</DialogTitle>
-              <DialogDescription>Correct errors in payment amount or reference for {selectedTxn?.studentName}.</DialogDescription>
+              <DialogDescription>Correct errors in payment amount or method for {selectedTxn?.studentName}.</DialogDescription>
             </DialogHeader>
             <div className="p-8 space-y-6">
               <div className="space-y-2">
@@ -488,10 +488,6 @@ export default function PaymentsProcessorPage() {
                     <SelectItem value="Cash">Cash</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Reference</Label>
-                <Input value={paymentForm.reference} onChange={e => setPaymentForm({...paymentForm, reference: e.target.value})} className="h-12 rounded-xl" />
               </div>
             </div>
             <DialogFooter className="p-8 bg-slate-50 border-t">
