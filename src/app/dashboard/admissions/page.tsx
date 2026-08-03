@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -112,22 +113,34 @@ export default function AdmissionsHubPage() {
   const { data: classes = [] } = useCollection(classesQuery)
 
   const admissions = useMemo(() => {
-    const pipeline = [...rawAdmissions]
-    const admissionStudentIds = new Set(pipeline.map(a => a.id))
+    // 1. Identify which admission IDs are already finalized in the registry
+    const admissionIdsInRegistry = new Set(enrolledStudents.map((s: any) => s.admissionId).filter(Boolean))
     
+    // 2. Identify by identity (Name + Phone) to catch legacy or direct-entry overlaps
+    const registeredIdentities = new Set(enrolledStudents.map((s: any) => 
+      `${s.firstName} ${s.lastName} ${s.phone}`.toLowerCase().trim()
+    ))
+
+    // 3. Start pipeline with raw admissions, filtering out those already in the registry
+    const pipeline = rawAdmissions.filter((a: any) => {
+      const identity = `${a.firstName} ${a.lastName} ${a.phone}`.toLowerCase().trim()
+      // If admission ID is in students collection OR identity is in students collection, hide original
+      return !admissionIdsInRegistry.has(a.id) && !registeredIdentities.has(identity)
+    })
+    
+    // 4. Inject enrolled students into the pipeline as the "live" registry source
     enrolledStudents.forEach((student: any) => {
-      if (!admissionStudentIds.has(student.id)) {
-        pipeline.push({
-          id: student.id,
-          firstName: student.firstName,
-          lastName: student.lastName,
-          gradeLevel: student.gradeLevel,
-          phone: student.phone || "Direct Registry",
-          status: "Enrolled",
-          createdAt: student.createdAt,
-          isRegistrySync: true
-        })
-      }
+      pipeline.push({
+        id: student.id,
+        firstName: student.firstName,
+        lastName: student.lastName,
+        gradeLevel: student.gradeLevel,
+        phone: student.phone || "Direct Registry",
+        status: "Enrolled",
+        createdAt: student.createdAt,
+        isRegistrySync: true,
+        admissionId: student.admissionId || null
+      })
     });
 
     return pipeline
@@ -157,7 +170,6 @@ export default function AdmissionsHubPage() {
     if (!db || !institutionId || loading) return
     setLoading(true)
     try {
-      // Goal 1: Transactional sequential ID generation
       const applicationNumber = await generateId('admissions', 'ADM-');
 
       await addDoc(collection(db, "admissions"), {
@@ -461,7 +473,7 @@ export default function AdmissionsHubPage() {
 
       {/* Interview Notes Dialog */}
       <Dialog open={isInterviewOpen} onOpenChange={setIsInterviewOpen}>
-        <DialogContent className="max-w-lg rounded-3xl border-none shadow-2xl p-0 overflow-hidden flex flex-col max-h-[90vh]">
+        <DialogContent className="max-lg rounded-3xl border-none shadow-2xl p-0 overflow-hidden flex flex-col max-h-[90vh]">
           <form onSubmit={handleInterviewSave} className="flex flex-col h-full overflow-hidden">
             <DialogHeader className="p-8 bg-slate-50 border-b shrink-0">
               <DialogTitle className="text-2xl font-headline font-bold">Interview Evaluation</DialogTitle>

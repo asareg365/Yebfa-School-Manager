@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -102,6 +103,7 @@ export default function StudentsPage() {
     status: "active",
     house: "",
     photoUrl: "",
+    admissionId: "",
     address: {
       digitalAddress: "",
       town: "",
@@ -145,7 +147,8 @@ export default function StudentsPage() {
           lastName: app.lastName || "",
           gender: app.gender || "Male",
           dateOfBirth: app.dateOfBirth || "",
-          gradeLevel: app.gradeLevel || ""
+          gradeLevel: app.gradeLevel || "",
+          admissionId: app.id || ""
         }))
         setIsEnrollOpen(true)
         localStorage.removeItem('pending_admission_data')
@@ -344,6 +347,14 @@ export default function StudentsPage() {
           institutionId,
           updatedAt: serverTimestamp()
         }, { merge: true })
+      }
+
+      // Automatically update the original admission record to "Enrolled"
+      if (studentForm.admissionId) {
+        batch.update(doc(db, "admissions", studentForm.admissionId), {
+          status: "Enrolled",
+          updatedAt: serverTimestamp()
+        })
       }
 
       await batch.commit()
