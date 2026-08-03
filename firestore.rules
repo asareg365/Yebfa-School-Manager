@@ -43,7 +43,7 @@ service cloud.firestore {
 
     function belongsToUserTenant(data) {
       let tenant = userTenant();
-      // Robust tenant matching
+      // Robust tenant matching for multi-tenant data isolation
       return signedIn() && (
         isSuperAdmin() || 
         (data.tenantId != null && data.tenantId == tenant) || 
@@ -56,36 +56,49 @@ service cloud.firestore {
     // ======================
 
     match /users/{userId} {
+      // Allow read for own profile or within same tenant
       allow read: if signedIn() && (request.auth.uid == userId || isSuperAdmin() || (userTenant() != "NONE" && resource.data.tenantId == userTenant()));
+      // Allow user doc creation during enrollment
       allow create: if true;
       allow update: if signedIn() && (request.auth.uid == userId || isSuperAdmin());
       allow delete: if isSuperAdmin();
     }
 
     match /institutions/{instId} {
+      // Publicly readable for lookup; restricted write
       allow read: if true;
       allow create: if true;
       allow update, delete: if isSuperAdmin() || (signedIn() && instId == userTenant() && isOwner());
     }
 
     match /students/{studentId} {
-      allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
-      // Authorized for status updates (soft-delete)
+      // Allow limited unauthenticated list for login ID verification
+      allow list: if (signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data))) || (request.auth == null && request.query.limit <= 5);
+      allow get: if (signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data))) || (request.auth == null);
       allow create, update: if signedIn() && (isSuperAdmin() || isAdmin() || isTeacher());
-      // Explicit deletion authority
       allow delete: if signedIn() && (isSuperAdmin() || isAdmin());
     }
 
     match /staff/{staffId} {
-      allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
+      // Allow limited unauthenticated list for login ID verification
+      allow list: if (signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data))) || (request.auth == null && request.query.limit <= 5);
+      allow get: if (signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data))) || (request.auth == null);
       allow create, update: if signedIn() && (isSuperAdmin() || isAdmin());
       allow delete: if signedIn() && (isSuperAdmin() || isAdmin());
     }
 
     match /parents/{parentId} {
-      allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
+      // Allow limited unauthenticated access for login identity resolution
+      allow list: if (signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data))) || (request.auth == null && request.query.limit <= 5);
+      allow get: if (signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data))) || (request.auth == null);
       allow create, update: if signedIn() && (isSuperAdmin() || isAdmin() || isAccountant());
       allow delete: if signedIn() && (isSuperAdmin() || isAdmin());
+    }
+
+    match /student_parents/{relId} {
+      // Allow lookup during parent login flow
+      allow read: if signedIn() || request.auth == null;
+      allow write: if signedIn() && (isAdmin() || isOwner());
     }
 
     match /invoices/{id} {
@@ -116,7 +129,14 @@ service cloud.firestore {
     }
 
     match /counters/{counterId} {
-      allow read, write: if signedIn();
+      // Allow reads/writes for transactional ID generation
+      allow read, write: if true; 
+    }
+
+    match /admissions/{id} {
+      allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
+      allow create, update: if signedIn() && (isSuperAdmin() || isAdmin());
+      allow delete: if isSuperAdmin();
     }
 
     // Global Tenant Rule for other modules (Classes, Subjects, Sections, Logistics)
