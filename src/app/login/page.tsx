@@ -10,7 +10,7 @@ import { School, Loader2, KeyRound, Smartphone, ShieldCheck, Briefcase, Users, G
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { signInWithEmailAndPassword, signOut, User, sendPasswordResetEmail } from "firebase/auth"
-import { doc, getDoc, collection, query, where, getDocs, setDoc, serverTimestamp } from "firebase/firestore"
+import { doc, getDoc, collection, query, where, getDocs, setDoc, serverTimestamp, limit } from "firebase/firestore"
 import { auth, db, useUser } from "@/firebase"
 import { firebaseConfig } from "@/firebase/config"
 import { toast } from "@/hooks/use-toast"
@@ -68,8 +68,10 @@ export default function LoginPage() {
         let tenantId = null;
         let name = "";
 
+        const normalizedId = identifier.trim().toUpperCase();
+
         if (roleHint === 'student') {
-          const q = query(collection(db, "students"), where("admissionNumber", "==", identifier.trim().toUpperCase()));
+          const q = query(collection(db, "students"), where("admissionNumber", "==", normalizedId), limit(1));
           const snap = await getDocs(q);
           if (!snap.empty) {
             registryDoc = snap.docs[0].data();
@@ -77,7 +79,7 @@ export default function LoginPage() {
             name = `${registryDoc.firstName} ${registryDoc.lastName}`;
           }
         } else if (roleHint === 'staff') {
-          const q = query(collection(db, "staff"), where("staffNumber", "==", identifier.trim().toUpperCase()));
+          const q = query(collection(db, "staff"), where("staffNumber", "==", normalizedId), limit(1));
           const snap = await getDocs(q);
           if (!snap.empty) {
             registryDoc = snap.docs[0].data();
@@ -198,13 +200,13 @@ export default function LoginPage() {
     setParentLoading(true)
     const normalizedStudentId = parentStudentId.trim().toUpperCase()
     try {
-      const studentQ = query(collection(db, "students"), where("admissionNumber", "==", normalizedStudentId))
+      const studentQ = query(collection(db, "students"), where("admissionNumber", "==", normalizedStudentId), limit(1))
       const studentSnap = await getDocs(studentQ)
       
       if (studentSnap.empty) throw new Error("Student ID not found in registry.");
       const studentDocId = studentSnap.docs[0].id;
 
-      const relsQ = query(collection(db, "student_parents"), where("studentId", "==", studentDocId))
+      const relsQ = query(collection(db, "student_parents"), where("studentId", "==", studentDocId), limit(5))
       const relsSnap = await getDocs(relsQ)
       
       if (relsSnap.empty) throw new Error("No guardians are linked to this student ID.");
@@ -265,7 +267,7 @@ export default function LoginPage() {
     const normalizedId = staffIdInput.trim().toUpperCase()
     try {
       // 1. Registry Lookup for Strategic Identity Resolution
-      const q = query(collection(db, "staff"), where("staffNumber", "==", normalizedId))
+      const q = query(collection(db, "staff"), where("staffNumber", "==", normalizedId), limit(1))
       const snap = await getDocs(q)
       
       if (snap.empty) throw new Error("Staff ID not found in institutional registry.");
