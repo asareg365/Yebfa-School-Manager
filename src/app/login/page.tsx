@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -59,10 +60,11 @@ export default function LoginPage() {
       let userSnap = await getDoc(userRef);
 
       // --- SELF-HEALING IDENTITY LINK ---
+      // If user doc is missing (e.g. deleted but Auth remains), restore it from Registry.
       if (!userSnap.exists() && roleHint && identifier) {
         console.log(`[Gateway] Identity doc missing for ${roleHint} ${identifier}. Attempting link restoration...`);
         
-        let registryDoc = null;
+        let registryDoc: any = null;
         let tenantId = null;
         let name = "";
 

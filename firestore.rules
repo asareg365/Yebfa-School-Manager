@@ -72,25 +72,25 @@ service cloud.firestore {
     }
 
     match /students/{studentId} {
-      // Allow limited unauthenticated list for login ID verification
-      allow list: if (signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data))) || (request.auth == null && request.query.limit <= 5);
-      allow get: if (signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data))) || (request.auth == null);
+      // Allow limited list for login ID verification (Unauthenticated or Profile-less Auth)
+      allow list: if (signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data))) || (request.query.limit <= 5);
+      allow get: if true;
       allow create, update: if signedIn() && (isSuperAdmin() || isAdmin() || isTeacher());
       allow delete: if signedIn() && (isSuperAdmin() || isAdmin());
     }
 
     match /staff/{staffId} {
-      // Allow limited unauthenticated list for login ID verification
-      allow list: if (signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data))) || (request.auth == null && request.query.limit <= 5);
-      allow get: if (signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data))) || (request.auth == null);
+      // Allow limited list for login ID verification (Unauthenticated or Profile-less Auth)
+      allow list: if (signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data))) || (request.query.limit <= 5);
+      allow get: if true;
       allow create, update: if signedIn() && (isSuperAdmin() || isAdmin());
       allow delete: if signedIn() && (isSuperAdmin() || isAdmin());
     }
 
     match /parents/{parentId} {
-      // Allow limited unauthenticated access for login identity resolution
-      allow list: if (signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data))) || (request.auth == null && request.query.limit <= 5);
-      allow get: if (signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data))) || (request.auth == null);
+      // Allow lookup during parent login flow
+      allow list: if (signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data))) || (request.query.limit <= 5);
+      allow get: if true;
       allow create, update: if signedIn() && (isSuperAdmin() || isAdmin() || isAccountant());
       allow delete: if signedIn() && (isSuperAdmin() || isAdmin());
     }
@@ -135,7 +135,7 @@ service cloud.firestore {
 
     match /admissions/{id} {
       allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
-      allow create, update: if signedIn() && (isSuperAdmin() || isAdmin());
+      allow create, update: if signedIn() && (isSuperAdmin() || belongsToUserTenant(request.resource.data || resource.data));
       allow delete: if isSuperAdmin();
     }
 
