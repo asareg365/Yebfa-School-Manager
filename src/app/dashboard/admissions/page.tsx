@@ -369,7 +369,11 @@ export default function AdmissionsHubPage() {
                                       </DropdownMenuItem>
                                     )}
                                     {!a.isRegistrySync && (
-                                      <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onClick={() => handleDelete(a.id)}>
+                                      <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onSelect={(e) => {
+                                        e.preventDefault();
+                                        handleDelete(a.id);
+                                    }}
+                                >
                                         <Trash2 className="size-4" /> Remove Application
                                       </DropdownMenuItem>
                                     )}

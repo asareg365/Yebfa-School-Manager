@@ -136,7 +136,11 @@ service cloud.firestore {
     match /admissions/{id} {
       allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
       allow create, update: if signedIn() && (isSuperAdmin() || belongsToUserTenant(request.resource.data || resource.data));
-      allow delete: if isSuperAdmin();
+      allow delete: if signedIn() &&
+(
+    isSuperAdmin() ||
+    (belongsToUserTenant(resource.data) && isAdmin())
+);
     }
 
     // Global Tenant Rule for other modules (Classes, Subjects, Sections, Logistics)
