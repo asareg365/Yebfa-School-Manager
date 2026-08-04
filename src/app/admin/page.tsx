@@ -497,7 +497,7 @@ export default function AdminPortal() {
               <Button type="submit" disabled={provisioning} className="w-full h-12 bg-primary font-bold rounded-xl shadow-lg">
                 {provisioning ? <Loader2 className="animate-spin mr-2" /> : <Database className="mr-2" />} Confirm Provisioning
               </Button>
-            </div>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
