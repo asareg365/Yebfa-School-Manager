@@ -57,15 +57,15 @@ export default function LoginPage() {
       }
 
       const userRef = doc(db, "users", firebaseUser.uid);
-      let userSnap;
-      
-      try {
-        userSnap = await getDoc(userRef);
-      } catch (e) {
-        console.error("[Gateway] Permission denied reading user profile:", e);
-        await signOut(auth!);
-        toast({ variant: "destructive", title: "Security Error", description: "Authorization failed during profile lookup." });
-        return;
+      console.log("Firebase UID:", firebaseUser.uid);
+      console.log("Firebase Email:", firebaseUser.email);
+
+      console.log("Reading users document...");
+      let userSnap = await getDoc(userRef);
+      console.log("User exists:", userSnap.exists());
+
+      if (userSnap.exists()) {
+        console.log("User data:", userSnap.data());
       }
 
       if (!userSnap.exists()) {
@@ -153,6 +153,7 @@ export default function LoginPage() {
 
       const userData = userSnap.data()!;
       if (userData.role !== 'super_admin' && userData.tenantId) {
+        console.log("Reading institution:", userData.tenantId);
         const instSnap = await getDoc(doc(db, "institutions", userData.tenantId));
         if (!instSnap.exists()) {
           await signOut(auth!);
@@ -171,9 +172,16 @@ export default function LoginPage() {
       else if (userData.role === "parent" || userData.role === "student") router.replace("/dashboard/parent");
       else router.replace("/dashboard");
       
-    } catch (e) { 
-      console.error("Gateway Auth Error:", e);
-      toast({ variant: "destructive", title: "Gateway Error", description: "Failed to resolve identity context." });
+    } catch (e: any) {
+      console.error("Gateway Error", e);
+      console.error("Error code:", e.code);
+      console.error("Error message:", e.message);
+
+      toast({
+        variant: "destructive",
+        title: "Gateway Error",
+        description: e.message
+      });
     }
   }
 
