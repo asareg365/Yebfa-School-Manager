@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -19,27 +18,22 @@ import { normalizeSecurityPhone } from "@/lib/identity-service"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 export default function LoginPage() {
-  // --- ADMIN PORTAL STATE ---
   const [adminEmail, setAdminEmail] = useState("")
   const [adminPassword, setAdminPassword] = useState("")
   const [adminLoading, setAdminLoading] = useState(false)
   
-  // --- STAFF PORTAL STATE ---
   const [staffIdInput, setStaffIdInput] = useState("")
   const [staffPhoneInput, setStaffPhoneInput] = useState("")
   const [staffLoading, setStaffLoading] = useState(false)
   
-  // --- PARENT PORTAL STATE ---
   const [parentStudentId, setParentStudentId] = useState("")
   const [parentPhoneInput, setParentPhoneInput] = useState("")
   const [parentLoading, setParentLoading] = useState(false)
   
-  // --- STUDENT PORTAL STATE ---
   const [studentIdInput, setStudentIdInput] = useState("")
   const [studentPinInput, setStudentPinInput] = useState("")
   const [studentLoading, setStudentLoading] = useState(false)
 
-  // --- PASSWORD RESET STATE ---
   const [isResetOpen, setIsResetOpen] = useState(false)
   const [resetEmail, setResetEmail] = useState("")
   const [resetLoading, setResetLoading] = useState(false)
@@ -59,80 +53,95 @@ export default function LoginPage() {
       const userRef = doc(db, "users", firebaseUser.uid);
       let userSnap = await getDoc(userRef);
 
-      // --- SELF-HEALING IDENTITY LINK ---
-      // If user doc is missing (e.g. deleted but Auth remains), restore it from Registry.
-      if (!userSnap.exists() && roleHint && identifier) {
-        console.log(`[Gateway] Identity doc missing for ${roleHint} ${identifier}. Attempting link restoration...`);
+      if (!userSnap.exists()) {
+        console.log(`[Gateway] Identity doc missing for ${firebaseUser.uid}. Resolving from Registry...`);
         
         let registryDoc: any = null;
         let tenantId = null;
         let name = "";
+        let role = roleHint || "guest";
+        let studentId = null;
+        let staffId = null;
 
-        const normalizedId = identifier.trim().toUpperCase();
+        const findInCollection = async (coll: string, uidField: string) => {
+          const q = query(collection(db, coll), where(uidField, "==", firebaseUser.uid), limit(1));
+          const snap = await getDocs(q);
+          return snap.empty ? null : snap.docs[0].data();
+        };
 
-        if (roleHint === 'student') {
-          const q = query(collection(db, "students"), where("admissionNumber", "==", normalizedId), limit(1));
-          const snap = await getDocs(q);
-          if (!snap.empty) {
-            registryDoc = snap.docs[0].data();
-            tenantId = registryDoc.tenantId;
-            name = `${registryDoc.firstName} ${registryDoc.lastName}`;
-          }
-        } else if (roleHint === 'staff') {
-          const q = query(collection(db, "staff"), where("staffNumber", "==", normalizedId), limit(1));
-          const snap = await getDocs(q);
-          if (!snap.empty) {
-            registryDoc = snap.docs[0].data();
-            tenantId = registryDoc.tenantId;
-            name = `${registryDoc.firstName} ${registryDoc.lastName}`;
+        // Proper Fix: Search by authUid
+        registryDoc = await findInCollection("students", "authUid");
+        if (registryDoc) {
+          role = "student";
+          studentId = registryDoc.id;
+        } else {
+          registryDoc = await findInCollection("staff", "authUid");
+          if (registryDoc) {
+            role = registryDoc.designation?.toLowerCase() === 'administrator' ? 'administrator' : 'teacher';
+            staffId = registryDoc.id;
+          } else {
+            registryDoc = await findInCollection("parents", "authUid");
+            if (registryDoc) role = "parent";
           }
         }
 
-        if (registryDoc && tenantId) {
+        // Legacy Fallback: Search by Identifier
+        if (!registryDoc && identifier) {
+          const normId = identifier.trim().toUpperCase();
+          const qS = query(collection(db, "students"), where("admissionNumber", "==", normId), limit(1));
+          const snapS = await getDocs(qS);
+          if (!snapS.empty) {
+            registryDoc = snapS.docs[0].data();
+            role = "student";
+            studentId = registryDoc.id;
+          } else {
+            const qSt = query(collection(db, "staff"), where("staffNumber", "==", normId), limit(1));
+            const snapSt = await getDocs(qSt);
+            if (!snapSt.empty) {
+              registryDoc = snapSt.docs[0].data();
+              role = registryDoc.designation?.toLowerCase() === 'administrator' ? 'administrator' : 'teacher';
+              staffId = registryDoc.id;
+            }
+          }
+        }
+
+        if (registryDoc) {
+          tenantId = registryDoc.tenantId;
+          name = `${registryDoc.firstName} ${registryDoc.lastName}`;
           const instSnap = await getDoc(doc(db, "institutions", tenantId));
-          const instData = instSnap.data();
+          const instName = instSnap.data()?.name || "Registry Hub";
 
           await setDoc(userRef, {
             uid: firebaseUser.uid,
-            name: name || "Registry User",
+            name,
             email: firebaseUser.email,
-            role: roleHint === 'student' ? 'student' : (registryDoc.designation?.toLowerCase() === 'administrator' ? 'administrator' : 'teacher'),
-            studentId: roleHint === 'student' ? registryDoc.id : null,
-            staffId: roleHint === 'staff' ? registryDoc.id : null,
+            role,
+            studentId,
+            staffId,
             tenantId,
             institutionId: tenantId,
-            institutionName: instData?.name || "Academic Hub",
+            institutionName: instName,
             status: "active",
             createdAt: serverTimestamp()
           });
           
           userSnap = await getDoc(userRef);
-          toast({ title: "Portal Access Synchronized", description: "Your registry identity link has been restored." });
+          toast({ title: "Profile Restored", description: "Identity link synchronized via Registry Hub." });
         }
       }
 
       if (!userSnap.exists()) {
         await signOut(auth!);
-        toast({ 
-          variant: "destructive", 
-          title: "Identity Link Required", 
-          description: "Your portal account is not linked to any active registry record. Contact your administrator." 
-        });
+        toast({ variant: "destructive", title: "Identity Link Required", description: "Your portal account is not linked to any registry record." });
         return;
       }
 
       const userData = userSnap.data()!;
-      
-      // Verification for non-Super Admins
       if (userData.role !== 'super_admin' && userData.tenantId) {
         const instSnap = await getDoc(doc(db, "institutions", userData.tenantId));
         if (!instSnap.exists()) {
           await signOut(auth!);
-          toast({ 
-            variant: "destructive", 
-            title: "Access Revoked", 
-            description: "Your institution node is no longer active in the global registry." 
-          });
+          toast({ variant: "destructive", title: "Access Revoked", description: "Institutional node deactivated." });
           return;
         }
       }
@@ -142,17 +151,13 @@ export default function LoginPage() {
         localStorage.setItem('selected_institution_name', userData.institutionName || 'Registry Hub');
       }
 
-      // Logic-driven redirection based on verified role
-      if (userData.role === "super_admin") {
-        router.replace("/admin");
-      } else if (userData.role === "parent" || userData.role === "student") {
-        router.replace("/dashboard/parent");
-      } else {
-        router.replace("/dashboard");
-      }
+      if (userData.role === "super_admin") router.replace("/admin");
+      else if (userData.role === "parent" || userData.role === "student") router.replace("/dashboard/parent");
+      else router.replace("/dashboard");
+      
     } catch (e) { 
       console.error("Gateway Auth Error:", e);
-      toast({ variant: "destructive", title: "Gateway Error", description: "Failed to resolve identity context." });
+      toast({ variant: "destructive", title: "Gateway Error" });
     }
   }
 
@@ -164,7 +169,7 @@ export default function LoginPage() {
       const credential = await signInWithEmailAndPassword(auth, adminEmail.trim(), adminPassword)
       await redirectUser(credential.user)
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Login Failed", description: "Invalid email or security password." })
+      toast({ variant: "destructive", title: "Login Failed", description: "Invalid credentials." })
     } finally { setAdminLoading(false) }
   }
 
@@ -174,131 +179,88 @@ export default function LoginPage() {
     setResetLoading(true)
     try {
       await sendPasswordResetEmail(auth, resetEmail.trim())
-      toast({
-        title: "Recovery Dispatched",
-        description: "Instructions have been sent to your verified email address.",
-      })
+      toast({ title: "Recovery Dispatched", description: "Check your email." })
       setIsResetOpen(false)
       setResetEmail("")
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Recovery Failed",
-        description: "Could not find an active security account with this email address.",
-      })
-    } finally {
-      setResetLoading(false)
-    }
+      toast({ variant: "destructive", title: "Recovery Failed" })
+    } finally { setResetLoading(false) }
   }
 
   const handleParentLogin = async () => {
-    if (!parentStudentId || !parentPhoneInput) {
-      toast({ variant: "destructive", title: "Credentials Required", description: "Enter Student ID and your phone number." })
-      return
-    }
-
+    if (!parentStudentId || !parentPhoneInput) return
     setParentLoading(true)
-    const normalizedStudentId = parentStudentId.trim().toUpperCase()
+    const normST = parentStudentId.trim().toUpperCase()
     try {
-      const studentQ = query(collection(db, "students"), where("admissionNumber", "==", normalizedStudentId), limit(1))
+      const studentQ = query(collection(db, "students"), where("admissionNumber", "==", normST), limit(1))
       const studentSnap = await getDocs(studentQ)
-      
-      if (studentSnap.empty) throw new Error("Student ID not found in registry.");
+      if (studentSnap.empty) throw new Error("Student ID not found.");
       const studentDocId = studentSnap.docs[0].id;
 
       const relsQ = query(collection(db, "student_parents"), where("studentId", "==", studentDocId), limit(5))
       const relsSnap = await getDocs(relsQ)
-      
-      if (relsSnap.empty) throw new Error("No guardians are linked to this student ID.");
+      if (relsSnap.empty) throw new Error("No guardians linked.");
 
       let inputPhone = normalizeSecurityPhone(parentPhoneInput)
       if (inputPhone.length < 6) inputPhone = inputPhone.padEnd(6, '0');
       
       let matchedParent = null;
-
       for (const relDoc of relsSnap.docs) {
-        const parentId = relDoc.data().parentId;
-        const parentSnap = await getDoc(doc(db, "parents", parentId));
-        if (parentSnap.exists()) {
-          const parentData = parentSnap.data();
-          if (normalizeSecurityPhone(parentData.phone) === normalizeSecurityPhone(parentPhoneInput)) {
-            matchedParent = parentData;
-            break;
-          }
+        const pSnap = await getDoc(doc(db, "parents", relDoc.data().parentId));
+        if (pSnap.exists() && normalizeSecurityPhone(pSnap.data().phone) === normalizeSecurityPhone(parentPhoneInput)) {
+          matchedParent = pSnap.data();
+          break;
         }
       }
 
-      if (!matchedParent) throw new Error("Verification failed: Phone number not recognized for this student.");
-
-      const parentEmail = matchedParent.email || `${matchedParent.parentNumber.toUpperCase().trim()}@system.yebfa.com`;
-      const credential = await signInWithEmailAndPassword(auth!, parentEmail, inputPhone)
-      await redirectUser(credential.user, 'parent', matchedParent.parentNumber)
-
+      if (!matchedParent) throw new Error("Phone number mismatch.");
+      const pEmail = matchedParent.email || `${matchedParent.parentNumber.toUpperCase().trim()}@system.yebfa.com`;
+      const cred = await signInWithEmailAndPassword(auth!, pEmail, inputPhone)
+      await redirectUser(cred.user, 'parent', matchedParent.parentNumber)
     } catch (error: any) {
       toast({ variant: "destructive", title: "Access Denied", description: error.message })
     } finally { setParentLoading(false) }
   }
 
   const handleStudentLogin = async () => {
-    if (!studentIdInput || !studentPinInput) {
-      toast({ variant: "destructive", title: "Credentials Required", description: "Enter Student ID and PIN." })
-      return
-    }
-
+    if (!studentIdInput || !studentPinInput) return
     setStudentLoading(true)
-    const normalizedId = studentIdInput.trim().toUpperCase()
+    const normID = studentIdInput.trim().toUpperCase()
     try {
-      const studentEmail = `${normalizedId}@system.yebfa.com`;
-      const credential = await signInWithEmailAndPassword(auth!, studentEmail, studentPinInput.trim())
-      await redirectUser(credential.user, 'student', normalizedId)
+      const email = `${normID}@system.yebfa.com`;
+      const cred = await signInWithEmailAndPassword(auth!, email, studentPinInput.trim())
+      await redirectUser(cred.user, 'student', normID)
     } catch (error: any) {
-      const msg = error.code === 'auth/invalid-credential' ? "Invalid ID or PIN." : (error.message || "Access Denied.");
-      toast({ variant: "destructive", title: "Access Denied", description: msg })
+      toast({ variant: "destructive", title: "Access Denied" })
     } finally { setStudentLoading(false) }
   }
 
   const handleStaffLogin = async () => {
-    if (!staffIdInput || !staffPhoneInput) {
-      toast({ variant: "destructive", title: "Credentials Required" })
-      return
-    }
-    
+    if (!staffIdInput || !staffPhoneInput) return
     setStaffLoading(true)
-    const normalizedId = staffIdInput.trim().toUpperCase()
+    const normID = staffIdInput.trim().toUpperCase()
     try {
-      // 1. Registry Lookup for Strategic Identity Resolution
-      const q = query(collection(db, "staff"), where("staffNumber", "==", normalizedId), limit(1))
+      const q = query(collection(db, "staff"), where("staffNumber", "==", normID), limit(1))
       const snap = await getDocs(q)
-      
-      if (snap.empty) throw new Error("Staff ID not found in institutional registry.");
-      const staffData = snap.docs[0].data();
+      if (snap.empty) throw new Error("Staff ID not found.");
+      const sData = snap.docs[0].data();
 
-      // 2. Normalize Credential (Password)
       let inputPhone = normalizeSecurityPhone(staffPhoneInput)
       if (inputPhone.length < 6) inputPhone = inputPhone.padEnd(6, '0');
 
-      // 3. Verify phone matches registry (Pre-Auth Check)
-      if (normalizeSecurityPhone(staffData.phone) !== normalizeSecurityPhone(staffPhoneInput)) {
-         throw new Error("Verification failed: Phone number not recognized for this Staff ID.");
-      }
+      if (normalizeSecurityPhone(sData.phone) !== normalizeSecurityPhone(staffPhoneInput)) throw new Error("Phone mismatch.");
 
-      // 4. Resolve Email (Use registry email or system fallback - normalized to UPPERCASE)
-      const accountEmail = staffData.email || `${normalizedId}@system.yebfa.com`;
-
-      const credential = await signInWithEmailAndPassword(auth!, accountEmail, inputPhone)
-      await redirectUser(credential.user, 'staff', normalizedId)
+      const email = sData.email || `${normID}@system.yebfa.com`;
+      const cred = await signInWithEmailAndPassword(auth!, email, inputPhone)
+      await redirectUser(cred.user, 'staff', normID)
     } catch (error: any) {
-      const msg = error.code === 'auth/invalid-credential' ? "Invalid ID or registered phone number." : (error.message || "Access Denied.");
-      toast({ variant: "destructive", title: "Access Denied", description: msg })
+      toast({ variant: "destructive", title: "Access Denied", description: error.message })
     } finally { setStaffLoading(false) }
   }
 
   if (authLoading) return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <div className="flex flex-col items-center gap-4">
-        <Loader2 className="animate-spin text-primary size-10" />
-        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground animate-pulse">Resolving Session Context...</p>
-      </div>
+      <Loader2 className="animate-spin text-primary size-10" />
     </div>
   )
 
@@ -357,10 +319,6 @@ export default function LoginPage() {
                 <Button className="w-full h-14 font-bold rounded-2xl bg-primary shadow-xl shadow-primary/20" onClick={handleParentLogin} disabled={parentLoading}>
                   {parentLoading ? <Loader2 className="animate-spin mr-2" /> : "Authorize Guardian Portal"}
                 </Button>
-                <div className="p-4 rounded-xl bg-blue-50 text-blue-700 border border-blue-100 flex gap-3">
-                   <Users className="size-4 shrink-0 mt-0.5" />
-                   <p className="text-[10px] leading-relaxed font-medium italic">Access all your children by entering any one of their Student IDs.</p>
-                </div>
               </div>
             </TabsContent>
 
@@ -371,10 +329,6 @@ export default function LoginPage() {
                 <Button className="w-full h-14 font-bold rounded-2xl bg-primary shadow-xl shadow-primary/20" onClick={handleStudentLogin} disabled={studentLoading}>
                   {studentLoading ? <Loader2 className="animate-spin mr-2" /> : "Verify Student Identity"}
                 </Button>
-                <div className="p-4 rounded-xl bg-slate-50 border flex gap-3">
-                   <KeyRound className="size-4 text-primary shrink-0 mt-0.5" />
-                   <p className="text-[10px] text-muted-foreground leading-relaxed font-medium">Use the 6-digit PIN generated during your enrollment.</p>
-                </div>
               </div>
             </TabsContent>
           </CardContent>
@@ -390,30 +344,14 @@ export default function LoginPage() {
         <DialogContent className="max-w-md rounded-3xl border-none shadow-2xl p-0 overflow-hidden">
           <form onSubmit={handleResetPassword}>
             <DialogHeader className="p-8 bg-primary text-primary-foreground">
-              <div className="size-12 rounded-2xl bg-white/10 flex items-center justify-center mb-4">
-                <RefreshCw className="size-6 text-accent" />
-              </div>
+              <div className="size-12 rounded-2xl bg-white/10 flex items-center justify-center mb-4"><RefreshCw className="size-6 text-accent" /></div>
               <DialogTitle className="text-2xl font-headline font-bold">Security Recovery</DialogTitle>
               <DialogDescription className="text-primary-foreground/70">Enter your master email to receive a recovery link.</DialogDescription>
             </DialogHeader>
             <div className="p-8 space-y-6">
               <div className="space-y-2">
                 <Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Registered Email Address</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 size-4 text-muted-foreground" />
-                  <Input 
-                    type="email" 
-                    required 
-                    value={resetEmail} 
-                    onChange={e => setResetEmail(e.target.value)} 
-                    placeholder="admin@institution.com" 
-                    className="h-12 pl-10 rounded-xl" 
-                  />
-                </div>
-              </div>
-              <div className="p-4 rounded-2xl bg-slate-50 border flex gap-3">
-                 <ShieldCheck className="size-5 text-primary/40 shrink-0 mt-0.5" />
-                 <p className="text-[10px] text-muted-foreground leading-relaxed">For staff or student password resets, please contact your school's IT administrator for a direct registry PIN reset.</p>
+                <Input type="email" required value={resetEmail} onChange={e => setResetEmail(e.target.value)} placeholder="admin@institution.com" className="h-12 rounded-xl" />
               </div>
             </div>
             <DialogFooter className="p-8 bg-slate-50 border-t">

@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -240,6 +239,7 @@ export default function StudentsPage() {
       let studentId = editingStudent?.id
       let finalAdmissionNumber = studentForm.admissionNumber
       let finalPin = studentForm.studentPin
+      let authUid = editingStudent?.authUid || null;
 
       const studentRef = editingStudent ? doc(db, "students", editingStudent.id) : doc(collection(db, "students"))
       studentId = studentRef.id
@@ -253,11 +253,12 @@ export default function StudentsPage() {
         try {
           const credential = await createUserWithEmailAndPassword(provisionAuth, studentEmail, finalPin)
           authUser = credential.user
+          authUid = authUser.uid;
         } catch (authErr: any) {
           if (authErr.code !== 'auth/email-already-in-use') throw authErr;
         }
 
-        const userUid = authUser?.uid || studentId;
+        const userUid = authUid || studentId;
         batch.set(doc(db, "users", userUid), {
           uid: userUid,
           name: `${studentForm.firstName} ${studentForm.lastName}`,
@@ -281,9 +282,11 @@ export default function StudentsPage() {
         const parentEmail = newParentForm.email || `${finalParentNumber.trim()}@system.yebfa.com`;
         
         let parentAuthUser;
+        let parentAuthUid = null;
         try {
           const credential = await createUserWithEmailAndPassword(provisionAuth, parentEmail, cleanPass);
           parentAuthUser = credential.user;
+          parentAuthUid = parentAuthUser.uid;
         } catch (authErr: any) {
           if (authErr.code !== 'auth/email-already-in-use') throw authErr;
         }
@@ -296,13 +299,14 @@ export default function StudentsPage() {
           phone: normalizeSecurityPhone(newParentForm.phone),
           email: parentEmail,
           id: finalParentId,
+          authUid: parentAuthUid,
           tenantId: institutionId,
           institutionId: institutionId,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         })
 
-        const pUid = parentAuthUser?.uid || finalParentId;
+        const pUid = parentAuthUid || finalParentId;
         batch.set(doc(db, "users", pUid), {
           uid: pUid,
           name: `${newParentForm.firstName} ${newParentForm.lastName}`,
@@ -321,6 +325,7 @@ export default function StudentsPage() {
         ...studentForm,
         admissionNumber: finalAdmissionNumber,
         studentPin: finalPin,
+        authUid,
         tenantId: institutionId,
         institutionId,
         updatedAt: serverTimestamp()
@@ -349,7 +354,6 @@ export default function StudentsPage() {
         }, { merge: true })
       }
 
-      // Automatically update the original admission record to "Enrolled"
       if (studentForm.admissionId) {
         batch.update(doc(db, "admissions", studentForm.admissionId), {
           status: "Enrolled",
@@ -408,11 +412,12 @@ export default function StudentsPage() {
     try {
       const newPin = generateStudentPin();
       const studentEmail = `${stu.admissionNumber.trim()}@system.yebfa.com`;
+      const uid = stu.authUid || stu.id;
       
       try {
         await createUserWithEmailAndPassword(provisionAuth, studentEmail, newPin);
-        await setDoc(doc(db, "users", stu.id), {
-          uid: stu.id,
+        await setDoc(doc(db, "users", uid), {
+          uid: uid,
           name: `${stu.firstName} ${stu.lastName}`,
           email: studentEmail,
           role: "student",
@@ -481,9 +486,11 @@ export default function StudentsPage() {
             
             try {
                let authUser;
+               let authUid = null;
                try {
                  const credential = await createUserWithEmailAndPassword(provisionAuth, studentEmail, finalPin);
                  authUser = credential.user;
+                 authUid = authUser.uid;
                } catch (authErr: any) {
                  if (authErr.code !== 'auth/email-already-in-use') throw authErr;
                }
@@ -499,6 +506,7 @@ export default function StudentsPage() {
                  dateOfBirth: row.dob || row.dateofbirth || "",
                  admissionNumber: finalAdmissionNumber,
                  studentPin: finalPin,
+                 authUid,
                  tenantId: institutionId,
                  institutionId,
                  status: "active",
@@ -507,7 +515,7 @@ export default function StudentsPage() {
                  updatedAt: serverTimestamp()
                });
 
-               const userUid = authUser?.uid || studentId;
+               const userUid = authUid || studentId;
                batch.set(doc(db, "users", userUid), {
                  uid: userUid,
                  name: `${first} ${last}`,
@@ -681,7 +689,7 @@ export default function StudentsPage() {
                                             <ShieldAlert className="size-4" /> Reset Portal PIN
                                           </DropdownMenuItem>
                                           <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onSelect={(e) => { e.preventDefault(); handleDeactivateStudent(stu.id); }}>
-                                            <Trash2 className="size-4" /> Remove Record
+                                            <Trash2 className="size-4" /> Deactivate Enrollment
                                           </DropdownMenuItem>
                                         </DropdownMenuContent>
                                       </DropdownMenu>

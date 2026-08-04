@@ -68,7 +68,6 @@ export default function AddParentPage() {
     const provisionAuth = getAuth(provisionApp);
 
     try {
-      // Goal 1: Transactional ID generation for Parents
       const finalParentNumber = await generateId('parents', 'YSM-PR-');
       
       let cleanPass = normalizeSecurityPhone(parentForm.phone)
@@ -77,9 +76,11 @@ export default function AddParentPage() {
       const parentEmail = parentForm.email || `${finalParentNumber.trim()}@system.yebfa.com`;
       
       let authUser;
+      let authUid = null;
       try {
         const credential = await createUserWithEmailAndPassword(provisionAuth, parentEmail, cleanPass)
         authUser = credential.user
+        authUid = authUser.uid;
       } catch (authErr: any) {
         if (authErr.code !== 'auth/email-already-in-use') throw authErr;
       }
@@ -91,25 +92,26 @@ export default function AddParentPage() {
         phone: normalizeSecurityPhone(parentForm.phone),
         email: parentEmail,
         id: parentRef.id,
+        authUid,
         tenantId: institutionId,
         institutionId,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       })
 
-      if (authUser) {
-        await setDoc(doc(db, "users", authUser.uid), {
-          uid: authUser.uid,
-          name: `${parentForm.firstName} ${parentForm.lastName}`,
-          email: parentEmail,
-          role: "parent",
-          tenantId: institutionId,
-          institutionId: institutionId,
-          status: "active",
-          createdAt: serverTimestamp()
-        })
-        await signOut(provisionAuth);
-      }
+      const finalUid = authUid || parentRef.id;
+      await setDoc(doc(db, "users", finalUid), {
+        uid: finalUid,
+        name: `${parentForm.firstName} ${parentForm.lastName}`,
+        email: parentEmail,
+        role: "parent",
+        tenantId: institutionId,
+        institutionId: institutionId,
+        status: "active",
+        createdAt: serverTimestamp()
+      })
+      
+      if (authUser) await signOut(provisionAuth);
       
       toast({ title: "Guardian Registered", description: `ID: ${finalParentNumber} assigned. Portal access active.` })
       router.push("/dashboard/parents")

@@ -108,29 +108,29 @@ export default function StaffHRPage() {
       let staffId = editingStaff?.id
       let finalStaffNumber = staffForm.staffNumber
       let accountEmail = staffForm.email
+      let authUid = editingStaff?.authUid || null;
 
       const staffRef = editingStaff ? doc(db, "staff", editingStaff.id) : doc(collection(db, "staff"))
       staffId = staffRef.id
 
       if (!editingStaff) {
-        // Goal 1: Transactional ID Generation
         finalStaffNumber = await generateId('staff', 'YSM-SF-');
         
         let cleanPass = normalizeSecurityPhone(staffForm.phone);
         if (cleanPass.length < 6) cleanPass = cleanPass.padEnd(6, '0');
         
-        // System Email: standardized to use the generated ID
         accountEmail = staffForm.email || `${finalStaffNumber.trim()}@system.yebfa.com`;
         
         let authUser;
         try {
           const credential = await createUserWithEmailAndPassword(provisionAuth, accountEmail, cleanPass)
           authUser = credential.user
+          authUid = authUser.uid;
         } catch (authErr: any) {
           if (authErr.code !== 'auth/email-already-in-use') throw authErr;
         }
 
-        const userUid = authUser?.uid || staffId;
+        const userUid = authUid || staffId;
         batch.set(doc(db, "users", userUid), {
           uid: userUid,
           name: `${staffForm.firstName} ${staffForm.lastName}`,
@@ -153,6 +153,7 @@ export default function StaffHRPage() {
           email: accountEmail,
           salary: parseFloat(staffForm.salary as string) || 0,
           id: staffId,
+          authUid,
           tenantId: institutionId,
           institutionId: institutionId,
           createdAt: serverTimestamp(),
