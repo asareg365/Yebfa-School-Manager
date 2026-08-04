@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -51,7 +52,16 @@ export default function LoginPage() {
   const redirectUser = async (firebaseUser: User, roleHint?: string, identifier?: string) => {
     try {
       const userRef = doc(db, "users", firebaseUser.uid);
-      let userSnap = await getDoc(userRef);
+      let userSnap;
+      
+      try {
+        userSnap = await getDoc(userRef);
+      } catch (e) {
+        console.error("[Gateway] Permission denied reading user profile:", e);
+        await signOut(auth!);
+        toast({ variant: "destructive", title: "Security Error", description: "Authorization failed during profile lookup." });
+        return;
+      }
 
       if (!userSnap.exists()) {
         console.log(`[Gateway] Identity doc missing for ${firebaseUser.uid}. Resolving from Registry...`);
@@ -69,7 +79,7 @@ export default function LoginPage() {
           return snap.empty ? null : snap.docs[0].data();
         };
 
-        // Proper Fix: Search by authUid
+        // Proper Fix: Search by authUid first
         registryDoc = await findInCollection("students", "authUid");
         if (registryDoc) {
           role = "student";
@@ -85,7 +95,7 @@ export default function LoginPage() {
           }
         }
 
-        // Legacy Fallback: Search by Identifier
+        // Legacy Fallback: Search by Identifier if authUid lookup failed
         if (!registryDoc && identifier) {
           const normId = identifier.trim().toUpperCase();
           const qS = query(collection(db, "students"), where("admissionNumber", "==", normId), limit(1));
@@ -157,7 +167,7 @@ export default function LoginPage() {
       
     } catch (e) { 
       console.error("Gateway Auth Error:", e);
-      toast({ variant: "destructive", title: "Gateway Error" });
+      toast({ variant: "destructive", title: "Gateway Error", description: "Failed to resolve identity context." });
     }
   }
 

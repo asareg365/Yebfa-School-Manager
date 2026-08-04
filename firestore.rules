@@ -12,19 +12,21 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function userProfile() {
-      let path = /databases/$(database)/documents/users/$(request.auth.uid);
-      return exists(path) ? get(path).data : null;
+    // Direct lookup of the user document
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function userExists() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
     function userTenant() {
-      let profile = userProfile();
-      return profile != null ? profile.tenantId : "NONE";
+      return signedIn() && userExists() ? userDoc().tenantId : "NONE";
     }
 
     function userRole() {
-      let profile = userProfile();
-      return profile != null ? profile.role : "GUEST";
+      return signedIn() && userExists() ? userDoc().role : "GUEST";
     }
 
     // ======================
@@ -32,10 +34,8 @@ service cloud.firestore {
     // ======================
     
     function isSuperAdmin() { return signedIn() && userRole() == "super_admin"; }
-    function isOwner() { return signedIn() && (userRole() == "school_owner" || userRole() == "administrator"); }
     function isAdmin() { return signedIn() && (userRole() == "school_owner" || userRole() == "administrator"); }
-    function isAccountant() { return signedIn() && userRole() == "accountant"; }
-    function isTeacher() { return signedIn() && userRole() == "teacher"; }
+    function isOwner() { return signedIn() && userRole() == "school_owner"; }
     
     // ======================
     // TENANT ISOLATION LOGIC
@@ -43,7 +43,6 @@ service cloud.firestore {
 
     function belongsToUserTenant(data) {
       let tenant = userTenant();
-      // Robust tenant matching for multi-tenant data isolation
       return signedIn() && (
         isSuperAdmin() || 
         (data.tenantId != null && data.tenantId == tenant) || 
@@ -56,95 +55,84 @@ service cloud.firestore {
     // ======================
 
     match /users/{userId} {
-      // Allow read for own profile or within same tenant
-      allow read: if signedIn() && (request.auth.uid == userId || isSuperAdmin() || (userTenant() != "NONE" && resource.data.tenantId == userTenant()));
-      // Allow user doc creation during enrollment
-      allow create: if true;
-      allow update: if signedIn() && (request.auth.uid == userId || isSuperAdmin());
+      // Users can always read and manage their own profile
+      allow read, update: if signedIn() && (request.auth.uid == userId || isSuperAdmin());
+      allow create: if signedIn() && request.auth.uid == userId;
       allow delete: if isSuperAdmin();
     }
 
     match /institutions/{instId} {
-      // Publicly readable for lookup; restricted write
       allow read: if true;
       allow create: if true;
-      allow update, delete: if isSuperAdmin() || (signedIn() && instId == userTenant() && isOwner());
+      allow update: if isSuperAdmin() || (signedIn() && instId == userTenant() && (isOwner() || isAdmin()));
+      allow delete: if isSuperAdmin();
     }
 
     match /students/{studentId} {
-      // Allow limited list for login ID verification (Unauthenticated or Profile-less Auth)
-      allow list: if (signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data))) || (request.query.limit <= 5);
+      // Allow limited list for login/identity verification
+      allow list: if (request.query.limit <= 5) || (signedIn() && belongsToUserTenant(resource.data));
       allow get: if true;
-      allow create, update: if signedIn() && (isSuperAdmin() || isAdmin() || isTeacher());
-      allow delete: if signedIn() && (isSuperAdmin() || isAdmin());
+      allow create, update: if signedIn() && (isSuperAdmin() || isAdmin() || userRole() == "teacher");
+      allow delete: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data) && isAdmin());
     }
 
     match /staff/{staffId} {
-      // Allow limited list for login ID verification (Unauthenticated or Profile-less Auth)
-      allow list: if (signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data))) || (request.query.limit <= 5);
+      allow list: if (request.query.limit <= 5) || (signedIn() && belongsToUserTenant(resource.data));
       allow get: if true;
       allow create, update: if signedIn() && (isSuperAdmin() || isAdmin());
-      allow delete: if signedIn() && (isSuperAdmin() || isAdmin());
+      allow delete: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data) && isAdmin());
     }
 
     match /parents/{parentId} {
-      // Allow lookup during parent login flow
-      allow list: if (signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data))) || (request.query.limit <= 5);
+      allow list: if (request.query.limit <= 5) || (signedIn() && belongsToUserTenant(resource.data));
       allow get: if true;
-      allow create, update: if signedIn() && (isSuperAdmin() || isAdmin() || isAccountant());
-      allow delete: if signedIn() && (isSuperAdmin() || isAdmin());
+      allow create, update: if signedIn() && (isSuperAdmin() || isAdmin() || userRole() == "accountant");
+      allow delete: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data) && isAdmin());
     }
 
     match /student_parents/{relId} {
-      // Allow lookup during parent login flow
-      allow read: if signedIn() || request.auth == null;
+      allow read: if (request.query.limit <= 10) || signedIn();
       allow write: if signedIn() && (isAdmin() || isOwner());
     }
 
     match /invoices/{id} {
       allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
-      allow create, update, delete: if signedIn() && (isSuperAdmin() || isAdmin() || isAccountant());
+      allow create, update, delete: if signedIn() && (isSuperAdmin() || isAdmin() || userRole() == "accountant");
     }
 
     match /transactions/{id} {
       allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
-      allow create, update, delete: if signedIn() && (isSuperAdmin() || isAdmin() || isAccountant());
+      allow create, update, delete: if signedIn() && (isSuperAdmin() || isAdmin() || userRole() == "accountant");
     }
 
     match /student_ledger/{id} {
       allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
-      allow create, update, delete: if signedIn() && (isSuperAdmin() || isAdmin() || isAccountant());
+      allow create, update, delete: if signedIn() && (isSuperAdmin() || isAdmin() || userRole() == "accountant");
     }
 
     match /attendance/{id} {
       allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
-      allow create, update: if signedIn() && (isSuperAdmin() || isAdmin() || isTeacher());
+      allow create, update: if signedIn() && (isSuperAdmin() || isAdmin() || userRole() == "teacher");
       allow delete: if signedIn() && (isSuperAdmin() || isAdmin());
     }
 
     match /exam_records/{id} {
       allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
-      allow create, update: if signedIn() && (isSuperAdmin() || isAdmin() || isTeacher());
+      allow create, update: if signedIn() && (isSuperAdmin() || isAdmin() || userRole() == "teacher");
       allow delete: if signedIn() && (isSuperAdmin() || isAdmin());
     }
 
     match /counters/{counterId} {
-      // Allow reads/writes for transactional ID generation
       allow read, write: if true; 
     }
 
     match /admissions/{id} {
       allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
       allow create, update: if signedIn() && (isSuperAdmin() || belongsToUserTenant(request.resource.data || resource.data));
-      allow delete: if signedIn() &&
-(
-    isSuperAdmin()
-    ||
-    isAdmin()
-);
+      allow delete: if signedIn() && (isSuperAdmin() || isAdmin());
     }
 
-    // Global Tenant Rule for other modules (Classes, Subjects, Sections, Logistics)
+    // Global Tenant Rule for other modules
     match /{collectionName}/{docId} {
       allow read: if signedIn() && (isSuperAdmin() || belongsToUserTenant(resource.data));
       allow create, update: if signedIn() && (isSuperAdmin() || belongsToUserTenant(request.resource.data || resource.data));
