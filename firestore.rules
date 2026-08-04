@@ -138,8 +138,9 @@ service cloud.firestore {
       allow create, update: if signedIn() && (isSuperAdmin() || belongsToUserTenant(request.resource.data || resource.data));
       allow delete: if signedIn() &&
 (
-    isSuperAdmin() ||
-    (belongsToUserTenant(resource.data) && isAdmin())
+    isSuperAdmin()
+    ||
+    isAdmin()
 );
     }
 
