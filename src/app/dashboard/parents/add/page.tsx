@@ -82,7 +82,10 @@ export default function AddParentPage() {
         authUser = credential.user
         authUid = authUser.uid;
       } catch (authErr: any) {
-        if (authErr.code !== 'auth/email-already-in-use') throw authErr;
+        console.log("Parent Auth Error");
+        console.log(authErr.code);
+        console.log(authErr.message);
+        throw authErr;
       }
 
       const parentRef = doc(collection(db, "parents"))

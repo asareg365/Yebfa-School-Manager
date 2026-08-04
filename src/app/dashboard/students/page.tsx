@@ -203,10 +203,12 @@ export default function StudentsPage() {
         return false;
       }
     }
-    if (step === "guardian" && isNewParent && !editingStudent) {
-      if (!newParentForm.firstName || !newParentForm.lastName || !newParentForm.phone) {
-        toast({ variant: "destructive", title: "Guardian Details Required", description: "First name, last name, and phone number are mandatory for new guardians." });
-        return false;
+    if (step === "guardian") {
+      if (isNewParent && !editingStudent) {
+        if (!newParentForm.firstName || !newParentForm.lastName || !newParentForm.phone) {
+          toast({ variant: "destructive", title: "Guardian Details Required", description: "First name, last name, and phone number are mandatory for new guardians." });
+          return false;
+        }
       }
     }
     return true;
@@ -255,7 +257,10 @@ export default function StudentsPage() {
           authUser = credential.user
           authUid = authUser.uid;
         } catch (authErr: any) {
-          if (authErr.code !== 'auth/email-already-in-use') throw authErr;
+          console.log("Student Auth Error");
+          console.log(authErr.code);
+          console.log(authErr.message);
+          throw authErr;
         }
 
         const userUid = authUid || studentId;
@@ -288,7 +293,10 @@ export default function StudentsPage() {
           parentAuthUser = credential.user;
           parentAuthUid = parentAuthUser.uid;
         } catch (authErr: any) {
-          if (authErr.code !== 'auth/email-already-in-use') throw authErr;
+          console.log("Parent Auth Error");
+          console.log(authErr.code);
+          console.log(authErr.message);
+          throw authErr;
         }
 
         const parentRef = doc(collection(db, "parents"))
@@ -416,23 +424,27 @@ export default function StudentsPage() {
       
       try {
         await createUserWithEmailAndPassword(provisionAuth, studentEmail, newPin);
-        await setDoc(doc(db, "users", uid), {
-          uid: uid,
-          name: `${stu.firstName} ${stu.lastName}`,
-          email: studentEmail,
-          role: "student",
-          studentId: stu.id,
-          tenantId: institutionId,
-          institutionId: institutionId,
-          status: "active",
-          createdAt: serverTimestamp()
-        }, { merge: true });
-
       } catch (authErr: any) {
-        if (authErr.code === 'auth/email-already-in-use') {
-           toast({ title: "PIN Updated", description: "The registry record was updated. Student can now log in with the new PIN." });
+        console.log("PIN Reset Auth Error");
+        console.log(authErr.code);
+        console.log(authErr.message);
+        
+        if (authErr.code !== 'auth/email-already-in-use') {
+           throw authErr;
         }
       }
+
+      await setDoc(doc(db, "users", uid), {
+        uid: uid,
+        name: `${stu.firstName} ${stu.lastName}`,
+        email: studentEmail,
+        role: "student",
+        studentId: stu.id,
+        tenantId: institutionId,
+        institutionId: institutionId,
+        status: "active",
+        createdAt: serverTimestamp()
+      }, { merge: true });
 
       await updateDoc(doc(db, "students", stu.id), {
         studentPin: newPin,
@@ -492,7 +504,10 @@ export default function StudentsPage() {
                  authUser = credential.user;
                  authUid = authUser.uid;
                } catch (authErr: any) {
-                 if (authErr.code !== 'auth/email-already-in-use') throw authErr;
+                 console.log("Bulk Intake Auth Error");
+                 console.log(authErr.code);
+                 console.log(authErr.message);
+                 throw authErr;
                }
 
                const studentRef = doc(collection(db, "students"))
