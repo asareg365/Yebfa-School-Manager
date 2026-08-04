@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -59,16 +60,24 @@ export default function LoginPage() {
       const userRef = doc(db, "users", firebaseUser.uid);
       console.log("Firebase UID:", firebaseUser.uid);
       console.log("Firebase Email:", firebaseUser.email);
+      console.log("Reading:", userRef.path);
 
-      console.log("Reading users document...");
-      let userSnap = await getDoc(userRef);
-      console.log("User exists:", userSnap.exists());
-
-      if (userSnap.exists()) {
-        console.log("User data:", userSnap.data());
+      let userSnap;
+      try {
+        userSnap = await getDoc(userRef);
+        console.log("Exists:", userSnap.exists());
+        if (userSnap.exists()) {
+          console.log("User data:", userSnap.data());
+        }
+      } catch (e: any) {
+        console.error("Failed reading user document");
+        console.error(e.code);
+        console.error(e.message);
       }
 
-      if (!userSnap.exists()) {
+      let userData = userSnap?.exists() ? userSnap.data() : null;
+
+      if (!userData) {
         console.log(`[Gateway] Identity doc missing for ${firebaseUser.uid}. Resolving from Registry...`);
         
         let registryDoc: any = null;
@@ -126,7 +135,7 @@ export default function LoginPage() {
           const instSnap = await getDoc(doc(db, "institutions", tenantId));
           const instName = instSnap.data()?.name || "Registry Hub";
 
-          await setDoc(userRef, {
+          userData = {
             uid: firebaseUser.uid,
             name,
             email: firebaseUser.email,
@@ -138,20 +147,19 @@ export default function LoginPage() {
             institutionName: instName,
             status: "active",
             createdAt: serverTimestamp()
-          });
-          
-          userSnap = await getDoc(userRef);
+          };
+
+          await setDoc(userRef, userData);
           toast({ title: "Profile Restored", description: "Identity link synchronized via Registry Hub." });
         }
       }
 
-      if (!userSnap.exists()) {
+      if (!userData) {
         await signOut(auth!);
         toast({ variant: "destructive", title: "Identity Link Required", description: "Your portal account is not linked to any registry record." });
         return;
       }
 
-      const userData = userSnap.data()!;
       if (userData.role !== 'super_admin' && userData.tenantId) {
         console.log("Reading institution:", userData.tenantId);
         const instSnap = await getDoc(doc(db, "institutions", userData.tenantId));
@@ -193,7 +201,10 @@ export default function LoginPage() {
       const credential = await signInWithEmailAndPassword(auth, adminEmail.trim(), adminPassword)
       await redirectUser(credential.user)
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Login Failed", description: "Invalid credentials." })
+      console.log(error);
+      console.log(error.code);
+      console.log(error.message);
+      toast({ variant: "destructive", title: error.code, description: error.message })
     } finally { setAdminLoading(false) }
   }
 
@@ -242,7 +253,10 @@ export default function LoginPage() {
       const cred = await signInWithEmailAndPassword(auth!, pEmail, inputPhone)
       await redirectUser(cred.user, 'parent', matchedParent.parentNumber)
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Access Denied", description: error.message })
+      console.log(error);
+      console.log(error.code);
+      console.log(error.message);
+      toast({ variant: "destructive", title: error.code, description: error.message })
     } finally { setParentLoading(false) }
   }
 
@@ -255,7 +269,10 @@ export default function LoginPage() {
       const cred = await signInWithEmailAndPassword(auth!, email, studentPinInput.trim())
       await redirectUser(cred.user, 'student', normID)
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Access Denied" })
+      console.log(error);
+      console.log(error.code);
+      console.log(error.message);
+      toast({ variant: "destructive", title: error.code, description: error.message })
     } finally { setStudentLoading(false) }
   }
 
@@ -278,7 +295,10 @@ export default function LoginPage() {
       const cred = await signInWithEmailAndPassword(auth!, email, inputPhone)
       await redirectUser(cred.user, 'staff', normID)
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Access Denied", description: error.message })
+      console.log(error);
+      console.log(error.code);
+      console.log(error.message);
+      toast({ variant: "destructive", title: error.code, description: error.message })
     } finally { setStaffLoading(false) }
   }
 
