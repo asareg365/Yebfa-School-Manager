@@ -66,6 +66,11 @@ export default function DashboardLayout({
 
   const handleLogout = useCallback(async () => {
     if (auth) {
+      // Strategic Context Purge: Remove stale institution IDs to prevent phantom redirections
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('selected_institution_id');
+        localStorage.removeItem('selected_institution_name');
+      }
       await signOut(auth);
       router.push('/login');
       toast({

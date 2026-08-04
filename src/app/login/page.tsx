@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -51,6 +50,12 @@ export default function LoginPage() {
 
   const redirectUser = async (firebaseUser: User, roleHint?: string, identifier?: string) => {
     try {
+      // Strategic Context Purge: Clear stale institution IDs before starting a new session
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('selected_institution_id');
+        localStorage.removeItem('selected_institution_name');
+      }
+
       const userRef = doc(db, "users", firebaseUser.uid);
       let userSnap;
       
@@ -156,7 +161,8 @@ export default function LoginPage() {
         }
       }
 
-      if (userData.tenantId) {
+      // Map the institutional context to the local session
+      if (userData.tenantId && userData.role !== 'super_admin') {
         localStorage.setItem('selected_institution_id', userData.tenantId);
         localStorage.setItem('selected_institution_name', userData.institutionName || 'Registry Hub');
       }

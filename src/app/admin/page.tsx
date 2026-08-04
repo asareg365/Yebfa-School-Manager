@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -93,6 +92,9 @@ export default function AdminPortal() {
 
   const handleLogout = async () => {
     if (auth) {
+      // Strategic Context Purge: Resets institutional mapping for super admins
+      localStorage.removeItem('selected_institution_id');
+      localStorage.removeItem('selected_institution_name');
       await signOut(auth)
       router.push("/login")
       toast({ title: "Session Terminated", description: "Super Admin signed out successfully." })
@@ -129,12 +131,12 @@ export default function AdminPortal() {
     try {
       await setDoc(doc(db, "institutions", instId), data)
       
-      // Auto-switch context to the new institution to ensure IDs start fresh (0001)
+      // Auto-switch context to the new institution
       localStorage.setItem('selected_institution_id', instId)
       localStorage.setItem('selected_institution_name', newSchool.name)
       setActiveNodeId(instId)
 
-      toast({ title: "School Provisioned", description: `${newSchool.name} is now live. Registry Node: 0001.` })
+      toast({ title: "School Provisioned", description: `${newSchool.name} is now live.` })
       setIsProvisionDialogOpen(false)
       setNewSchool({ name: "", ownerEmail: "", type: "Secondary", location: "Goaso, Ahafo", schoolCode: "" })
     } catch (err: any) {
@@ -495,7 +497,7 @@ export default function AdminPortal() {
               <Button type="submit" disabled={provisioning} className="w-full h-12 bg-primary font-bold rounded-xl shadow-lg">
                 {provisioning ? <Loader2 className="animate-spin mr-2" /> : <Database className="mr-2" />} Confirm Provisioning
               </Button>
-            </DialogFooter>
+            </div>
           </form>
         </DialogContent>
       </Dialog>
