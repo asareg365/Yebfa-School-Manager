@@ -51,7 +51,6 @@ export default function LoginPage() {
 
   const redirectUser = async (firebaseUser: User, roleHint?: string, identifier?: string) => {
     try {
-      // Strategic Context Purge: Clear stale institution IDs before starting a new session
       if (typeof window !== 'undefined') {
         localStorage.removeItem('selected_institution_id');
         localStorage.removeItem('selected_institution_name');
@@ -67,7 +66,7 @@ export default function LoginPage() {
         userSnap = await getDoc(userRef);
         console.log("Exists:", userSnap.exists());
         if (userSnap.exists()) {
-          console.log("User data:", userSnap.data());
+          console.log(userSnap.data());
         }
       } catch (e: any) {
         console.error("Failed reading user document");
@@ -93,7 +92,6 @@ export default function LoginPage() {
           return snap.empty ? null : snap.docs[0].data();
         };
 
-        // Proper Fix: Search by authUid first
         registryDoc = await findInCollection("students", "authUid");
         if (registryDoc) {
           role = "student";
@@ -109,7 +107,6 @@ export default function LoginPage() {
           }
         }
 
-        // Legacy Fallback: Search by Identifier if authUid lookup failed
         if (!registryDoc && identifier) {
           const normId = identifier.trim().toUpperCase();
           const qS = query(collection(db, "students"), where("admissionNumber", "==", normId), limit(1));
@@ -170,7 +167,6 @@ export default function LoginPage() {
         }
       }
 
-      // Map the institutional context to the local session
       if (userData.tenantId && userData.role !== 'super_admin') {
         localStorage.setItem('selected_institution_id', userData.tenantId);
         localStorage.setItem('selected_institution_name', userData.institutionName || 'Registry Hub');
@@ -266,6 +262,8 @@ export default function LoginPage() {
     const normID = studentIdInput.trim().toUpperCase()
     try {
       const email = `${normID}@system.yebfa.com`;
+      console.log("LOGIN EMAIL:", email);
+      console.log("LOGIN PIN:", studentPinInput.trim());
       const cred = await signInWithEmailAndPassword(auth!, email, studentPinInput.trim())
       await redirectUser(cred.user, 'student', normID)
     } catch (error: any) {
