@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { School, ArrowLeft, Loader2, MapPin, Mail, User, ShieldCheck, Lock, Eye, EyeOff, Phone } from "lucide-react"
+import { School, ArrowLeft, Loader2, MapPin, Mail, User, ShieldCheck, Lock, Eye, EyeOff, Phone, Globe } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useFirestore, useUser, useAuth } from "@/firebase"
 import { 
@@ -40,7 +40,8 @@ export default function InstitutionRegistrationPage() {
     ownerName: "",
     ownerEmail: "",
     password: "",
-    confirmPassword: ""
+    confirmPassword: "",
+    emailDomain: ""
   })
   
   const router = useRouter()
@@ -59,7 +60,7 @@ export default function InstitutionRegistrationPage() {
     if (cleanName.length >= 3) {
       return cleanName.substring(0, 3).toUpperCase();
     }
-    return cleanName.toUpperCase();
+    return cleanName.toUpperCase() || "SCH";
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -98,6 +99,7 @@ export default function InstitutionRegistrationPage() {
       const institutionRef = doc(collection(db, "institutions"))
       const tenantId = institutionRef.id
       const schoolCode = generateSchoolCode(formData.name)
+      const emailDomain = formData.emailDomain || `${schoolCode.toLowerCase()}.ysm.local`
 
       const batch = writeBatch(db)
 
@@ -108,6 +110,7 @@ export default function InstitutionRegistrationPage() {
           tenantId,
           name: formData.name,
           schoolCode: schoolCode,
+          emailDomain: emailDomain,
           type: formData.gradeLevel,
           gradeLevel: formData.gradeLevel,
           specificGrades: formData.specificGrades,
@@ -264,6 +267,19 @@ export default function InstitutionRegistrationPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
+                  <Label>Hub Email Domain (Portal IDs)</Label>
+                  <div className="relative">
+                    <Globe className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                    <Input 
+                      placeholder="e.g. gis.local" 
+                      className="pl-10 h-12 rounded-xl" 
+                      value={formData.emailDomain}
+                      onChange={(e) => setFormData(prev => ({ ...prev, emailDomain: e.target.value.toLowerCase().replace(/\s+/g, '') }))}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2">
                   <Label>Institutional Phone</Label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-3 size-4 text-muted-foreground" />
@@ -276,7 +292,6 @@ export default function InstitutionRegistrationPage() {
                     />
                   </div>
                 </div>
-              </div>
             </div>
 
             <div className="space-y-6">

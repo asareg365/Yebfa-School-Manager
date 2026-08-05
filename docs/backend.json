@@ -25,6 +25,7 @@
         "tenantId": { "type": "string" },
         "name": { "type": "string" },
         "schoolCode": { "type": "string" },
+        "emailDomain": { "type": "string" },
         "ownerEmail": { "type": "string" },
         "ownerUid": { "type": "string" },
         "location": { "type": "string" },
@@ -35,7 +36,7 @@
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["name", "tenantId"]
+      "required": ["name", "tenantId", "schoolCode", "emailDomain"]
     },
     "Notification": {
       "title": "Notification",

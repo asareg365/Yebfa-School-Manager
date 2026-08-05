@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -49,8 +50,8 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Checkbox } from "@/components/ui/checkbox"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import { initializeApp, deleteApp } from "firebase/app"
-import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth"
+import { initializeApp, deleteApp, FirebaseApp } from "firebase/app"
+import { getAuth, createUserWithEmailAndPassword, signOut, Auth } from "firebase/auth"
 import { firebaseConfig } from "@/firebase/config"
 import { normalizeSecurityPhone, generateStudentPin } from "@/lib/identity-service"
 import { generateId } from "@/lib/id-generator"
@@ -91,12 +92,15 @@ export default function StudentsPage() {
     return profile.tenantId || null;
   }, [profile, profileLoading]);
 
+  const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
+  const { data: institution } = useDoc(instRef)
+
   const initialForm = {
     firstName: "",
     lastName: "",
     gender: "Male",
     dateOfBirth: "",
-    admissionNumber: "YSM-ST-XXXXXX",
+    admissionNumber: "PENDING",
     studentPin: "",
     gradeLevel: "",
     status: "active",
@@ -124,7 +128,7 @@ export default function StudentsPage() {
   })
 
   const [newParentForm, setNewParentForm] = useState({
-    parentNumber: "YSM-PR-XXXXXX",
+    parentNumber: "PENDING",
     firstName: "",
     lastName: "",
     gender: "Female",
@@ -225,9 +229,69 @@ export default function StudentsPage() {
     }
   }
 
+  /**
+   * Shared Provisioning Workflow for Student Accounts.
+   * Ensures absolute consistency between manual and bulk enrollment.
+   */
+  const createStudentAccount = async (
+    data: any, 
+    provisionAuth: Auth, 
+    batch: any,
+    inst: any
+  ) => {
+    const finalAdmissionNumber = await generateId('students', inst.schoolCode, 'ST');
+    const finalPin = generateStudentPin(); 
+    const studentEmail = `${finalAdmissionNumber.trim()}@${inst.emailDomain}`;
+    
+    let authUser;
+    let authUid = null;
+    try {
+      const credential = await createUserWithEmailAndPassword(provisionAuth, studentEmail, finalPin);
+      authUser = credential.user;
+      authUid = authUser.uid;
+    } catch (authErr: any) {
+      console.log("Student Auth Error", authErr.code, authErr.message);
+      throw authErr;
+    }
+
+    const studentRef = doc(collection(db, "students"));
+    const studentId = studentRef.id;
+
+    const studentDoc = {
+      ...data,
+      id: studentId,
+      admissionNumber: finalAdmissionNumber,
+      studentPin: finalPin,
+      authUid,
+      tenantId: inst.id,
+      institutionId: inst.id,
+      status: "active",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    };
+
+    batch.set(studentRef, studentDoc);
+
+    const userUid = authUid || studentId;
+    batch.set(doc(db, "users", userUid), {
+      uid: userUid,
+      name: `${data.firstName} ${data.lastName}`,
+      email: studentEmail,
+      role: "student",
+      studentId: studentId,
+      tenantId: inst.id,
+      institutionId: inst.id,
+      status: "active",
+      createdAt: serverTimestamp()
+    }, { merge: true });
+
+    if (authUser) await signOut(provisionAuth);
+    return { studentId, admissionNumber: finalAdmissionNumber, pin: finalPin, authUid };
+  };
+
   const handleEnroll = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!db || !institutionId || loading) return
+    if (!db || !institutionId || !institution || loading) return
     if (!validateStep(activeStep)) return
 
     setLoading(true)
@@ -239,118 +303,65 @@ export default function StudentsPage() {
       const batch = writeBatch(db)
       let finalParentId = linkedParentId
       let studentId = editingStudent?.id
-      let finalAdmissionNumber = studentForm.admissionNumber
-      let finalPin = studentForm.studentPin
-      let authUid = editingStudent?.authUid || null;
-
-      const studentRef = editingStudent ? doc(db, "students", editingStudent.id) : doc(collection(db, "students"))
-      studentId = studentRef.id
-
+      
       if (!editingStudent) {
-        finalAdmissionNumber = await generateId('students', 'YSM-ST-');
-        finalPin = generateStudentPin(); 
-        const studentEmail = `${finalAdmissionNumber.trim()}@system.yebfa.com`;
-        
-        let authUser;
-        try {
-          const credential = await createUserWithEmailAndPassword(provisionAuth, studentEmail, finalPin)
-          authUser = credential.user
-          authUid = authUser.uid;
-        } catch (authErr: any) {
-          console.log("Student Auth Error");
-          console.log(authErr.code);
-          console.log(authErr.message);
-          throw authErr;
+        const { studentId: newId, admissionNumber, pin } = await createStudentAccount(studentForm, provisionAuth, batch, institution);
+        studentId = newId;
+
+        if (isNewParent) {
+          const finalParentNumber = await generateId('parents', institution.schoolCode, 'PR');
+          let cleanPass = normalizeSecurityPhone(newParentForm.phone);
+          if (cleanPass.length < 6) cleanPass = cleanPass.padEnd(6, '0');
+          
+          const parentEmail = newParentForm.email || `${finalParentNumber.trim()}@${institution.emailDomain}`;
+          
+          let parentAuthUser;
+          let parentAuthUid = null;
+          try {
+            const credential = await createUserWithEmailAndPassword(provisionAuth, parentEmail, cleanPass);
+            parentAuthUser = credential.user;
+            parentAuthUid = parentAuthUser.uid;
+          } catch (authErr: any) {
+            console.log("Parent Auth Error", authErr.code, authErr.message);
+            throw authErr;
+          }
+
+          const parentRef = doc(collection(db, "parents"))
+          finalParentId = parentRef.id
+          batch.set(parentRef, {
+            ...newParentForm,
+            parentNumber: finalParentNumber,
+            phone: normalizeSecurityPhone(newParentForm.phone),
+            email: parentEmail,
+            id: finalParentId,
+            authUid: parentAuthUid,
+            tenantId: institutionId,
+            institutionId: institutionId,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          })
+
+          const pUid = parentAuthUid || finalParentId;
+          batch.set(doc(db, "users", pUid), {
+            uid: pUid,
+            name: `${newParentForm.firstName} ${newParentForm.lastName}`,
+            email: parentEmail,
+            role: "parent",
+            tenantId: institutionId,
+            institutionId: institutionId,
+            status: "active",
+            createdAt: serverTimestamp()
+          }, { merge: true })
+
+          if (parentAuthUser) await signOut(provisionAuth);
         }
-
-        const userUid = authUid || studentId;
-        batch.set(doc(db, "users", userUid), {
-          uid: userUid,
-          name: `${studentForm.firstName} ${studentForm.lastName}`,
-          email: studentEmail,
-          role: "student",
-          studentId: studentId,
-          tenantId: institutionId,
-          institutionId: institutionId,
-          status: "active",
-          createdAt: serverTimestamp()
-        }, { merge: true })
-        
-        if (authUser) await signOut(provisionAuth);
-      }
-
-      if (isNewParent && !editingStudent) {
-        const finalParentNumber = await generateId('parents', 'YSM-PR-');
-        let cleanPass = normalizeSecurityPhone(newParentForm.phone);
-        if (cleanPass.length < 6) cleanPass = cleanPass.padEnd(6, '0');
-        
-        const parentEmail = newParentForm.email || `${finalParentNumber.trim()}@system.yebfa.com`;
-        
-        let parentAuthUser;
-        let parentAuthUid = null;
-        try {
-          const credential = await createUserWithEmailAndPassword(provisionAuth, parentEmail, cleanPass);
-          parentAuthUser = credential.user;
-          parentAuthUid = parentAuthUser.uid;
-        } catch (authErr: any) {
-          console.log("Parent Auth Error");
-          console.log(authErr.code);
-          console.log(authErr.message);
-          throw authErr;
-        }
-
-        const parentRef = doc(collection(db, "parents"))
-        finalParentId = parentRef.id
-        batch.set(parentRef, {
-          ...newParentForm,
-          parentNumber: finalParentNumber,
-          phone: normalizeSecurityPhone(newParentForm.phone),
-          email: parentEmail,
-          id: finalParentId,
-          authUid: parentAuthUid,
-          tenantId: institutionId,
-          institutionId: institutionId,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        })
-
-        const pUid = parentAuthUid || finalParentId;
-        batch.set(doc(db, "users", pUid), {
-          uid: pUid,
-          name: `${newParentForm.firstName} ${newParentForm.lastName}`,
-          email: parentEmail,
-          role: "parent",
-          tenantId: institutionId,
-          institutionId: institutionId,
-          status: "active",
-          createdAt: serverTimestamp()
-        }, { merge: true })
-
-        if (parentAuthUser) await signOut(provisionAuth);
-      }
-
-      const studentData = {
-        ...studentForm,
-        admissionNumber: finalAdmissionNumber,
-        studentPin: finalPin,
-        authUid,
-        tenantId: institutionId,
-        institutionId,
-        updatedAt: serverTimestamp()
-      }
-
-      if (editingStudent) {
-        const { id, createdAt, ...sanitizedData } = studentData as any;
-        batch.update(studentRef, sanitizedData);
       } else {
-        batch.set(studentRef, {
-          ...studentData,
-          id: studentId,
-          createdAt: serverTimestamp()
-        });
+        const studentRef = doc(db, "students", editingStudent.id)
+        const { id, createdAt, ...sanitizedData } = studentForm as any;
+        batch.update(studentRef, { ...sanitizedData, updatedAt: serverTimestamp() });
       }
 
-      if (finalParentId) {
+      if (finalParentId && studentId) {
         const relId = `${studentId}_${finalParentId}`
         batch.set(doc(db, "student_parents", relId), {
           ...relationshipData,
@@ -370,7 +381,7 @@ export default function StudentsPage() {
       }
 
       await batch.commit()
-      toast({ title: editingStudent ? "Registry Synchronized" : "Enrollment Successful", description: `ID: ${finalAdmissionNumber} • PIN: ${finalPin}` })
+      toast({ title: editingStudent ? "Registry Synchronized" : "Enrollment Successful" })
       setIsEnrollOpen(false); setEditingStudent(null); setStudentForm(initialForm); setActiveStep("identity")
     } catch (error: any) {
       toast({ variant: "destructive", title: "Enrollment Failed", description: error.message });
@@ -380,89 +391,9 @@ export default function StudentsPage() {
     }
   }
 
-  const handleDeactivateStudent = async (id: string) => {
-    if (!confirm("Are you sure you want to deactivate this enrollment? The record will be moved to archives and student portal access will be restricted.")) return
-    
-    setLoading(true);
-    const docRef = doc(db, "students", id);
-    
-    updateDoc(docRef, {
-      status: "inactive",
-      updatedAt: serverTimestamp()
-    })
-    .then(() => {
-      toast({ 
-        title: "Enrollment removed successfully.", 
-        description: "The registry record has been moved to archives." 
-      });
-    })
-    .catch(async (serverError: any) => {
-      const permissionError = new FirestorePermissionError({
-        path: docRef.path,
-        operation: 'update',
-        requestResourceData: { status: "inactive" }
-      } satisfies SecurityRuleContext);
-      errorEmitter.emit('permission-error', permissionError);
-    })
-    .finally(() => {
-      setLoading(false);
-    });
-  }
-
-  const handleResetPin = async (stu: any) => {
-    if (!institutionId || loading) return;
-    setLoading(true);
-    
-    const provisionAppName = `reset-pin-${Date.now()}`;
-    const provisionApp = initializeApp(firebaseConfig, provisionAppName);
-    const provisionAuth = getAuth(provisionApp);
-
-    try {
-      const newPin = generateStudentPin();
-      const studentEmail = `${stu.admissionNumber.trim()}@system.yebfa.com`;
-      const uid = stu.authUid || stu.id;
-      
-      try {
-        await createUserWithEmailAndPassword(provisionAuth, studentEmail, newPin);
-      } catch (authErr: any) {
-        console.log("PIN Reset Auth Error");
-        console.log(authErr.code);
-        console.log(authErr.message);
-        
-        if (authErr.code !== 'auth/email-already-in-use') {
-           throw authErr;
-        }
-      }
-
-      await setDoc(doc(db, "users", uid), {
-        uid: uid,
-        name: `${stu.firstName} ${stu.lastName}`,
-        email: studentEmail,
-        role: "student",
-        studentId: stu.id,
-        tenantId: institutionId,
-        institutionId: institutionId,
-        status: "active",
-        createdAt: serverTimestamp()
-      }, { merge: true });
-
-      await updateDoc(doc(db, "students", stu.id), {
-        studentPin: newPin,
-        updatedAt: serverTimestamp()
-      });
-
-      toast({ title: "Access PIN Synchronized", description: `New Secure PIN: ${newPin}` });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Synchronization Failed", description: e.message });
-    } finally {
-      setLoading(false);
-      try { await deleteApp(provisionApp); } catch (e) {}
-    }
-  }
-
   const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file || !institutionId) return
+    if (!file || !institutionId || !institution) return
 
     setBulkLoading(true)
     const provisionAppName = `bulk-provision-${Date.now()}`;
@@ -492,66 +423,22 @@ export default function StudentsPage() {
             const last = row.lastname || row.last;
             if (!first || !last) continue;
 
-            const finalAdmissionNumber = await generateId('students', 'YSM-ST-');
-            const finalPin = generateStudentPin(); 
-            const studentEmail = `${finalAdmissionNumber.trim()}@system.yebfa.com`;
-            
             try {
-               let authUser;
-               let authUid = null;
-               try {
-                 const credential = await createUserWithEmailAndPassword(provisionAuth, studentEmail, finalPin);
-                 authUser = credential.user;
-                 authUid = authUser.uid;
-               } catch (authErr: any) {
-                 console.log("Bulk Intake Auth Error");
-                 console.log(authErr.code);
-                 console.log(authErr.message);
-                 throw authErr;
-               }
-
-               const studentRef = doc(collection(db, "students"))
-               const studentId = studentRef.id;
-
-               batch.set(studentRef, {
+               await createStudentAccount({
                  firstName: first,
                  lastName: last,
                  gender: row.gender || "Male",
                  gradeLevel: row.grade || row.gradelevel || "Unassigned",
                  dateOfBirth: row.dob || row.dateofbirth || "",
-                 admissionNumber: finalAdmissionNumber,
-                 studentPin: finalPin,
-                 authUid,
-                 tenantId: institutionId,
-                 institutionId,
-                 status: "active",
-                 id: studentId,
-                 createdAt: serverTimestamp(),
-                 updatedAt: serverTimestamp()
-               });
-
-               const userUid = authUid || studentId;
-               batch.set(doc(db, "users", userUid), {
-                 uid: userUid,
-                 name: `${first} ${last}`,
-                 email: studentEmail,
-                 role: "student",
-                 studentId: studentId,
-                 tenantId: institutionId,
-                 institutionId: institutionId,
-                 status: "active",
-                 createdAt: serverTimestamp()
-               }, { merge: true });
-
-               if (authUser) await signOut(provisionAuth);
+               }, provisionAuth, batch, institution);
                count++;
             } catch (err: any) {
-               console.error(`Failed to provision student ${first}:`, err);
+               console.error(`Bulk Intake Failure: ${first}`, err);
             }
           }
 
           await batch.commit();
-          toast({ title: "Bulk Intake Successful", description: `Enrolled and provisioned ${count} students.` })
+          toast({ title: "Bulk Intake Successful", description: `Enrolled ${count} students.` })
           setIsBulkOpen(false)
         } catch (error: any) {
           toast({ variant: "destructive", title: "Bulk Intake Failed", description: error.message })
@@ -562,6 +449,63 @@ export default function StudentsPage() {
         }
       }
     })
+  }
+
+  const handleDeactivateStudent = async (id: string) => {
+    if (!confirm("Are you sure you want to deactivate this enrollment?")) return
+    setLoading(true);
+    const docRef = doc(db, "students", id);
+    updateDoc(docRef, { status: "inactive", updatedAt: serverTimestamp() })
+      .then(() => toast({ title: "Enrollment removed successfully." }))
+      .catch(async (err: any) => {
+        const pError = new FirestorePermissionError({ path: docRef.path, operation: 'update', requestResourceData: { status: "inactive" } });
+        errorEmitter.emit('permission-error', pError);
+      })
+      .finally(() => setLoading(false));
+  }
+
+  const handleResetPin = async (stu: any) => {
+    if (!institutionId || !institution || loading) return;
+    setLoading(true);
+    const provisionAppName = `reset-pin-${Date.now()}`;
+    const provisionApp = initializeApp(firebaseConfig, provisionAppName);
+    const provisionAuth = getAuth(provisionApp);
+
+    try {
+      const newPin = generateStudentPin();
+      const studentEmail = `${stu.admissionNumber.trim()}@${institution.emailDomain}`;
+      const uid = stu.authUid || stu.id;
+      
+      try {
+        await createUserWithEmailAndPassword(provisionAuth, studentEmail, newPin);
+      } catch (authErr: any) {
+        if (authErr.code !== 'auth/email-already-in-use') throw authErr;
+      }
+
+      await setDoc(doc(db, "users", uid), {
+        uid: uid,
+        name: `${stu.firstName} ${stu.lastName}`,
+        email: studentEmail,
+        role: "student",
+        studentId: stu.id,
+        tenantId: institutionId,
+        institutionId: institutionId,
+        status: "active",
+        createdAt: serverTimestamp()
+      }, { merge: true });
+
+      await updateDoc(doc(db, "students", stu.id), {
+        studentPin: newPin,
+        updatedAt: serverTimestamp()
+      });
+
+      toast({ title: "Access PIN Synchronized", description: `New Secure PIN: ${newPin}` });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Synchronization Failed", description: e.message });
+    } finally {
+      setLoading(false);
+      try { await deleteApp(provisionApp); } catch (e) {}
+    }
   }
 
   const openEdit = (stu: any) => {
@@ -719,12 +663,6 @@ export default function StudentsPage() {
                   </AccordionContent>
                 </AccordionItem>
               ))}
-            
-            {studentsList.length === 0 && (
-              <div className="py-32 text-center text-muted-foreground italic bg-slate-50 rounded-2xl border-2 border-dashed">
-                No active student roster detected in your institutional registry.
-              </div>
-            )}
           </Accordion>
         </CardContent>
       </Card>
@@ -742,18 +680,10 @@ export default function StudentsPage() {
                 <TabsContent value="identity" className="space-y-6 mt-0">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                       <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Admission # (Transactional)</Label>
+                       <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Admission Number</Label>
                        <div className="h-11 px-4 rounded-xl bg-slate-50 flex items-center border border-dashed border-slate-200">
                           <Badge variant="secondary" className="font-mono text-xs font-bold uppercase bg-slate-200 text-slate-600 border-none">
                              {studentForm.admissionNumber}
-                          </Badge>
-                       </div>
-                    </div>
-                    <div className="space-y-2">
-                       <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Portal Access PIN (6 Digits)</Label>
-                       <div className="h-11 px-4 rounded-xl bg-slate-50 flex items-center border border-dashed border-slate-200">
-                          <Badge className="font-mono text-xs font-bold uppercase bg-primary text-white border-none shadow-sm px-3">
-                             {studentForm.studentPin || '------'}
                           </Badge>
                        </div>
                     </div>
@@ -791,10 +721,7 @@ export default function StudentsPage() {
 
                 <TabsContent value="guardian" className="space-y-8 mt-0">
                    <div className="flex items-center justify-between border-b pb-4">
-                      <div>
-                        <h3 className="font-bold flex items-center gap-2 text-primary"><HeartHandshake className="size-4" /> Guardian Link</h3>
-                        <p className="text-xs text-muted-foreground">Unique transactional IDs for parents.</p>
-                      </div>
+                      <h3 className="font-bold flex items-center gap-2 text-primary"><HeartHandshake className="size-4" /> Guardian Link</h3>
                       <Button type="button" variant="outline" size="sm" className="h-9 rounded-lg gap-2" onClick={() => setIsNewParent(!isNewParent)}>
                         {isNewParent ? <Search className="size-3.5" /> : <UserPlus className="size-3.5" />}
                         {isNewParent ? "Registry Search" : "Register New Profile"}
@@ -803,14 +730,6 @@ export default function StudentsPage() {
                    
                    {isNewParent ? (
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6 bg-slate-50 rounded-2xl border-2 border-dashed animate-in fade-in zoom-in-95 duration-200">
-                        <div className="space-y-2">
-                           <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Parent # (Transactional)</Label>
-                           <div className="h-11 px-4 rounded-xl bg-white flex items-center border border-dashed border-slate-200">
-                              <Badge variant="secondary" className="font-mono text-xs font-bold uppercase bg-slate-200 text-slate-600 border-none">
-                                 {newParentForm.parentNumber}
-                              </Badge>
-                           </div>
-                        </div>
                         <div className="space-y-2">
                           <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">First Name</Label>
                           <Input value={newParentForm.firstName} onChange={e => setNewParentForm({...newParentForm, firstName: e.target.value})} className="h-11 bg-white" />
@@ -823,14 +742,14 @@ export default function StudentsPage() {
                           <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">Contact Phone (Portal Password)</Label>
                           <Input value={newParentForm.phone} onChange={e => setNewParentForm({...newParentForm, phone: e.target.value})} className="h-11 bg-white" />
                         </div>
-                        <div className="space-y-2 md:col-span-2"><Label>Guardian Email (Required for Portal)</Label><Input type="email" value={newParentForm.email} onChange={e => setNewParentForm({...newParentForm, email: e.target.value})} className="h-11 bg-white" /></div>
+                        <div className="space-y-2 md:col-span-2"><Label>Guardian Email (Portal ID)</Label><Input type="email" value={newParentForm.email} onChange={e => setNewParentForm({...newParentForm, email: e.target.value})} className="h-11 bg-white" /></div>
                      </div>
                    ) : (
                      <div className="space-y-4 animate-in fade-in duration-200">
-                        <Label>Search Existing Parents (Siblings Check)</Label>
+                        <Label>Search Existing Parents</Label>
                         <Select value={linkedParentId} onValueChange={setLinkedParentId}>
                            <SelectTrigger className="h-14 rounded-xl text-primary font-medium">
-                              <SelectValue placeholder="🔍 Search registry by name or ID..." />
+                              <SelectValue placeholder="🔍 Search registry..." />
                            </SelectTrigger>
                            <SelectContent>
                               {parents.map(p => <SelectItem key={p.id} value={p.id}>{p.firstName} {p.lastName} • {p.parentNumber}</SelectItem>)}
@@ -840,31 +759,23 @@ export default function StudentsPage() {
                    )}
 
                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t">
-                      <div className="space-y-2"><Label>Relationship Type</Label>
+                      <div className="space-y-2"><Label>Relationship</Label>
                          <Select value={relationshipData.relationship} onValueChange={v => setRelationshipData({...relationshipData, relationship: v})}>
                             <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Mother">Mother</SelectItem>
-                              <SelectItem value="Father">Father</SelectItem>
-                              <SelectItem value="Guardian">Guardian</SelectItem>
-                            </SelectContent>
+                            <SelectContent><SelectItem value="Mother">Mother</SelectItem><SelectItem value="Father">Father</SelectItem><SelectItem value="Guardian">Guardian</SelectItem></SelectContent>
                          </Select>
                       </div>
                       <div className="flex items-center gap-2 pt-8">
                         <Checkbox id="primary" checked={relationshipData.primaryContact} onCheckedChange={v => setRelationshipData({...relationshipData, primaryContact: !!v})} />
                         <Label htmlFor="primary" className="cursor-pointer">Primary Contact</Label>
                       </div>
-                      <div className="flex items-center gap-2 pt-8">
-                        <Checkbox id="emergency" checked={relationshipData.emergencyContact} onCheckedChange={v => setRelationshipData({...relationshipData, emergencyContact: !!v})} />
-                        <Label htmlFor="emergency" className="cursor-pointer">Emergency Hub</Label>
-                      </div>
                    </div>
                 </TabsContent>
 
                 <TabsContent value="finalize" className="space-y-8 mt-0 text-center py-10">
                    <div className="size-20 bg-green-50 rounded-full flex items-center justify-center mx-auto text-green-600 mb-4"><CheckCircle2 className="size-12" /></div>
-                   <h3 className="text-xl font-bold font-headline">Institutional Enrollment Authorized</h3>
-                   <p className="text-sm text-muted-foreground max-sm mx-auto">A unique Student ID and 6-digit Portal PIN will be generated and secure access will be granted immediately.</p>
+                   <h3 className="text-xl font-bold font-headline">Authorization Required</h3>
+                   <p className="text-sm text-muted-foreground">Confirm to authorize unique ID generation and portal access.</p>
                    <div className="p-4 bg-slate-50 rounded-2xl border flex items-center justify-center gap-3">
                       <KeyRound className="size-5 text-primary" />
                       <span className="text-xs font-bold text-primary uppercase">Direct Portal Access Active</span>
@@ -885,51 +796,12 @@ export default function StudentsPage() {
                    </Button>
                  ) : (
                    <Button type="button" className="h-12 px-8 rounded-xl bg-primary font-bold gap-2" onClick={() => navigateStep('next')}>
-                     Next Step <ChevronRight className="size-4" />
+                     Next <ChevronRight className="size-4" />
                    </Button>
                  )}
               </div>
             </DialogFooter>
           </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Bulk Intake Dialog */}
-      <Dialog open={isBulkOpen} onOpenChange={setIsBulkOpen}>
-        <DialogContent className="max-md rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-headline font-bold">Bulk Student Intake</DialogTitle>
-            <DialogDescription>Enroll entire classes using a CSV template. Portal access is granted automatically.</DialogDescription>
-          </DialogHeader>
-          <div className="py-12 flex flex-col items-center justify-center border-2 border-dashed rounded-3xl bg-muted/5 space-y-6">
-            <div className="size-20 bg-primary/5 rounded-full flex items-center justify-center text-primary/30">
-               {bulkLoading ? <Loader2 className="size-10 animate-spin" /> : <Upload className="size-10" />}
-            </div>
-            <div className="text-center px-8">
-               <p className="text-sm font-bold text-primary">Upload Enrollment CSV</p>
-               <p className="text-[10px] text-muted-foreground mt-1 uppercase font-bold">Columns: firstName, lastName, gender, grade, dob</p>
-            </div>
-            <div className="relative">
-               <input 
-                type="file" 
-                accept=".csv" 
-                ref={bulkFileRef}
-                className="absolute inset-0 opacity-0 cursor-pointer" 
-                onChange={handleBulkUpload}
-                disabled={bulkLoading}
-               />
-               <Button className="bg-primary rounded-xl font-bold shadow-lg" disabled={bulkLoading}>
-                  {bulkLoading ? "Granting Portal Access..." : "Select File"}
-               </Button>
-            </div>
-          </div>
-          <DialogFooter className="bg-slate-50 p-6 -mx-6 -mb-6 rounded-b-2xl border-t">
-             <Button variant="ghost" className="w-full text-xs font-bold uppercase gap-2" asChild>
-                <a href="data:text/csv;charset=utf-8,firstName,lastName,gender,grade,dob" download="student_enrollment_template.csv">
-                   <Download className="size-4" /> Download Template
-                </a>
-             </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

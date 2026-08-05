@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
@@ -44,7 +45,7 @@ export default function StaffHRPage() {
   const [searchQuery, setSearchQuery] = useState("")
 
   const initialForm = {
-    staffNumber: "YSM-SF-XXXXXX",
+    staffNumber: "PENDING",
     firstName: "",
     lastName: "",
     gender: "Male",
@@ -96,7 +97,7 @@ export default function StaffHRPage() {
 
   const handleEnroll = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!db || !institutionId || loading) return
+    if (!db || !institutionId || !institution || loading) return
 
     setLoading(true)
     const provisionAppName = `staff-enroll-${Date.now()}`;
@@ -114,12 +115,12 @@ export default function StaffHRPage() {
       staffId = staffRef.id
 
       if (!editingStaff) {
-        finalStaffNumber = await generateId('staff', 'YSM-SF-');
+        finalStaffNumber = await generateId('staff', institution.schoolCode, 'SF');
         
         let cleanPass = normalizeSecurityPhone(staffForm.phone);
         if (cleanPass.length < 6) cleanPass = cleanPass.padEnd(6, '0');
         
-        accountEmail = staffForm.email || `${finalStaffNumber.trim()}@system.yebfa.com`;
+        accountEmail = staffForm.email || `${finalStaffNumber.trim()}@${institution.emailDomain}`;
         
         let authUser;
         try {
@@ -127,9 +128,7 @@ export default function StaffHRPage() {
           authUser = credential.user
           authUid = authUser.uid;
         } catch (authErr: any) {
-          console.log("Staff Auth Error");
-          console.log(authErr.code);
-          console.log(authErr.message);
+          console.log("Staff Auth Error", authErr.code, authErr.message);
           throw authErr;
         }
 
@@ -172,7 +171,7 @@ export default function StaffHRPage() {
       }
 
       await batch.commit()
-      toast({ title: editingStaff ? "Registry Updated" : `Faculty Enrolled: ${finalStaffNumber}` })
+      toast({ title: editingStaff ? "Registry Updated" : `Faculty Enrolled` })
       setIsEnrollOpen(false); setEditingStaff(null); setStaffForm(initialForm);
     } catch (error: any) {
       toast({ variant: "destructive", title: "Action Failed", description: error.message });
@@ -189,10 +188,10 @@ export default function StaffHRPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to remove this staff member? This action is permanent.")) return
+    if (!confirm("Are you sure?")) return
     try {
       await deleteDoc(doc(db!, "staff", id))
-      toast({ title: "Profile Removed Successfully" })
+      toast({ title: "Profile Removed" })
     } catch (e) { 
       toast({ variant: "destructive", title: "Action Failed" }) 
     }
@@ -269,9 +268,6 @@ export default function StaffHRPage() {
                   </TableCell>
                 </TableRow>
               ))}
-              {staffList.length === 0 && (
-                <TableRow><TableCell colSpan={5} className="text-center py-20 text-muted-foreground italic">No faculty records detected for this institution.</TableCell></TableRow>
-              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -283,15 +279,12 @@ export default function StaffHRPage() {
             <DialogHeader className="bg-primary text-primary-foreground p-8 shrink-0 relative">
               <DialogTitle className="text-2xl font-headline font-bold">{editingStaff ? "Update Registry" : "Faculty Enrollment"}</DialogTitle>
               <DialogDescription className="text-primary-foreground/70">Portal access is provisioned automatically with secure ID generation.</DialogDescription>
-              <button type="button" onClick={() => setIsEnrollOpen(false)} className="absolute right-4 top-4 p-2 text-white hover:bg-white/10 rounded-xl transition-colors">
-                <X className="size-5" />
-              </button>
             </DialogHeader>
 
             <ScrollArea className="flex-1 p-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Staff Number (Transactional)</Label>
+                  <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Staff Number</Label>
                   <div className="h-12 px-4 rounded-xl bg-slate-50 flex items-center border border-dashed border-slate-200">
                     <Badge variant="secondary" className="font-mono text-xs font-bold uppercase bg-slate-200 text-slate-600 border-none">
                       {staffForm.staffNumber}
@@ -301,7 +294,7 @@ export default function StaffHRPage() {
                 <div className="space-y-2"><Label>First Name</Label><Input required value={staffForm.firstName} onChange={e => setStaffForm({...staffForm, firstName: e.target.value})} className="h-12 rounded-xl" /></div>
                 <div className="space-y-2"><Label>Last Name</Label><Input required value={staffForm.lastName} onChange={e => setStaffForm({...staffForm, lastName: e.target.value})} className="h-12 rounded-xl" /></div>
                 <div className="space-y-2"><Label>Phone Number (Portal Password)</Label><Input required value={staffForm.phone} onChange={e => setStaffForm({...staffForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
-                <div className="space-y-2 md:col-span-2"><Label>Email Address (Optional)</Label><Input type="email" value={staffForm.email} onChange={e => setStaffForm({...staffForm, email: e.target.value})} className="h-12 rounded-xl" placeholder="Leave blank for system auto-email" /></div>
+                <div className="space-y-2 md:col-span-2"><Label>Email Address (Optional)</Label><Input type="email" value={staffForm.email} onChange={e => setStaffForm({...staffForm, email: e.target.value})} className="h-12 rounded-xl" /></div>
                 <div className="space-y-2"><Label>Monthly Salary (GH₵)</Label><Input type="number" required value={staffForm.salary} onChange={e => setStaffForm({...staffForm, salary: e.target.value})} className="h-12 rounded-xl" /></div>
                 <div className="space-y-2"><Label>Designation</Label>
                    <Select value={staffForm.designation} onValueChange={v => setStaffForm({...staffForm, designation: v})}>
@@ -311,8 +304,6 @@ export default function StaffHRPage() {
                          <SelectItem value="Head Teacher">Head Teacher</SelectItem>
                          <SelectItem value="Administrator">Administrator</SelectItem>
                          <SelectItem value="Accountant">Accountant</SelectItem>
-                         <SelectItem value="Librarian">Librarian</SelectItem>
-                         <SelectItem value="Security">Security / Staff</SelectItem>
                       </SelectContent>
                    </Select>
                 </div>
@@ -322,7 +313,7 @@ export default function StaffHRPage() {
             <DialogFooter className="bg-slate-50 p-8 border-t shrink-0">
               <Button type="submit" disabled={loading} className="w-full h-14 rounded-2xl bg-primary font-bold shadow-xl text-lg gap-2">
                 {loading ? <Loader2 className="mr-2 animate-spin" /> : <ShieldCheck className="size-5" />} 
-                Authorize Enrollment & Access
+                Authorize Provisioning
               </Button>
             </DialogFooter>
           </form>
