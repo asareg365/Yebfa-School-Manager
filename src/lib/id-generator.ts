@@ -50,6 +50,14 @@ export async function generateId(
   const cleanShortCode = shortCode.trim().toUpperCase();
   const cleanEntityCode = entityCode.trim().toUpperCase();
 
+  /**
+   * Each institution/entity gets its own counter.
+   *
+   * Examples:
+   * counters/VOD_students
+   * counters/VOD_staff
+   * counters/TES_students
+   */
   const counterId = `${cleanShortCode}_${type}`;
   const counterRef = doc(db, 'counters', counterId);
 
@@ -70,6 +78,9 @@ export async function generateId(
       }
     }
 
+    /**
+     * Reserve the next number atomically.
+     */
     transaction.set(
       counterRef,
       {

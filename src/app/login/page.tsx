@@ -56,7 +56,6 @@ export default function LoginPage() {
       }
 
       const userRef = doc(db, "users", firebaseUser.uid);
-      console.log("Firebase UID:", firebaseUser.uid);
       
       let userSnap;
       try {
