@@ -1,5 +1,3 @@
-import { initializeFirebase } from './index';
-
 /**
  * @fileOverview Central Firebase Registry.
  * Exports core instances and client-side hooks.

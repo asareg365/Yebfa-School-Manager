@@ -53,7 +53,11 @@ import { useSearchParams } from "next/navigation"
 import { initializeApp, deleteApp, FirebaseApp } from "firebase/app"
 import { getAuth, createUserWithEmailAndPassword, signOut, Auth as FirebaseAuth } from "firebase/auth"
 import { firebaseConfig } from "@/firebase/config"
-import { normalizeSecurityPhone, generateStudentPin, getInstitutionEmailDomain } from "@/lib/identity-service"
+import { 
+  normalizeSecurityPhone, 
+  generateStudentPin, 
+  getInstitutionEmailDomain 
+} from "@/lib/identity-service"
 import { generateId } from "@/lib/id-generator"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import {
@@ -240,7 +244,16 @@ export default function StudentsPage() {
     const finalAdmissionNumber = await generateId('students', inst.schoolCode, 'ST');
     const finalPin = generateStudentPin(); 
     const domain = getInstitutionEmailDomain(inst);
-    const studentEmail = `${finalAdmissionNumber.trim().replace(/\s+/g, '.')}@${domain}`.toLowerCase();
+
+    const studentEmail =
+      `${finalAdmissionNumber.trim()}@${domain}`;
+
+    console.log("[Provisioning] Student credentials:", {
+      school: inst.name,
+      schoolCode: inst.schoolCode,
+      admissionNumber: finalAdmissionNumber,
+      email: studentEmail
+    });
     
     let authUser;
     let authUid = null;
@@ -314,7 +327,7 @@ export default function StudentsPage() {
           if (cleanPass.length < 6) cleanPass = cleanPass.padEnd(6, '0');
           
           const domain = getInstitutionEmailDomain(institution);
-          const parentEmail = (newParentForm.email || `${finalParentNumber.trim().replace(/\s+/g, '.')}@${domain}`).toLowerCase();
+          const parentEmail = (newParentForm.email || `${finalParentNumber.trim()}@${domain}`).toLowerCase();
           
           let parentAuthUser;
           let parentAuthUid = null;
@@ -418,7 +431,10 @@ export default function StudentsPage() {
             const first = row.firstname || row.first || row.name?.split(' ')[0];
             const last = row.lastname || row.last || row.name?.split(' ').slice(1).join(' ');
             
-            if (!first || !last) continue;
+            if (!first || !last) {
+               console.warn(`[Bulk Intake] Skipping invalid row: Missing Name context.`);
+               continue;
+            }
 
             try {
                const batch = writeBatch(db);
@@ -478,7 +494,7 @@ export default function StudentsPage() {
     try {
       const newPin = generateStudentPin();
       const domain = getInstitutionEmailDomain(institution);
-      const studentEmail = `${stu.admissionNumber.trim().replace(/\s+/g, '.')}@${domain}`.toLowerCase();
+      const studentEmail = `${stu.admissionNumber.trim()}@${domain}`;
       const uid = stu.authUid || stu.id;
       
       try {
