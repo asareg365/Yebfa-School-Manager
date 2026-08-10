@@ -230,29 +230,40 @@ export default function StudentsPage() {
     }
   }
 
+  /**
+   * SHARED PROVISIONING LOGIC
+   * Handles ID generation, PIN creation, Auth Account, and Firestore Registry.
+   */
   const createStudentAccount = async (
     data: any, 
     provisionAuth: Auth, 
     batch: any,
     inst: any
   ) => {
-    console.log(`[Provisioning] Initiating account for: ${data.firstName} ${data.lastName}`);
+    console.log(`[Provisioning] Processing: ${data.firstName} ${data.lastName}`);
+    
+    // 1. Generate Transactional ID (Sequential VOD-ST-XXXXXX)
     const finalAdmissionNumber = await generateId('students', inst.schoolCode, 'ST');
+    
+    // 2. Generate Security PIN (6 digits)
     const finalPin = generateStudentPin(); 
+    
+    // 3. Resolve System Email
     const studentEmail = `${finalAdmissionNumber.trim()}@${inst.emailDomain}`;
     
+    // 4. Provision Firebase Auth Identity
     let authUser;
     let authUid = null;
     try {
       const credential = await createUserWithEmailAndPassword(provisionAuth, studentEmail, finalPin);
       authUser = credential.user;
       authUid = authUser.uid;
-      console.log(`[Provisioning] Auth created for ${studentEmail}: ${authUid}`);
     } catch (authErr: any) {
-      console.log("Student Auth Error", authErr.code, authErr.message);
+      console.log(`[Provisioning Error] ${data.firstName}: ${authErr.code}`);
       throw authErr;
     }
 
+    // 5. Build Registry Documents
     const studentRef = doc(collection(db, "students"));
     const studentId = studentRef.id;
 
@@ -271,6 +282,7 @@ export default function StudentsPage() {
 
     batch.set(studentRef, studentDoc);
 
+    // 6. Build User Profile Document
     const userUid = authUid || studentId;
     batch.set(doc(db, "users", userUid), {
       uid: userUid,
@@ -284,7 +296,9 @@ export default function StudentsPage() {
       createdAt: serverTimestamp()
     }, { merge: true });
 
+    // 7. Cleanup Auth Session for this provision
     if (authUser) await signOut(provisionAuth);
+    
     return { studentId, admissionNumber: finalAdmissionNumber, pin: finalPin, authUid };
   };
 
@@ -304,9 +318,11 @@ export default function StudentsPage() {
       let studentId = editingStudent?.id
       
       if (!editingStudent) {
+        // Run full provisioning workflow
         const { studentId: newId } = await createStudentAccount(studentForm, provisionAuth, batch, institution);
         studentId = newId;
 
+        // Handle Guardian Provisioning if new
         if (isNewParent) {
           const finalParentNumber = await generateId('parents', institution.schoolCode, 'PR');
           let cleanPass = normalizeSecurityPhone(newParentForm.phone);
@@ -360,6 +376,7 @@ export default function StudentsPage() {
         batch.update(studentRef, { ...sanitizedData, updatedAt: serverTimestamp() });
       }
 
+      // Finalize Relationships
       if (finalParentId && studentId) {
         const relId = `${studentId}_${finalParentId}`
         batch.set(doc(db, "student_parents", relId), {
@@ -370,13 +387,6 @@ export default function StudentsPage() {
           institutionId,
           updatedAt: serverTimestamp()
         }, { merge: true })
-      }
-
-      if (studentForm.admissionId) {
-        batch.update(doc(db, "admissions", studentForm.admissionId), {
-          status: "Enrolled",
-          updatedAt: serverTimestamp()
-        })
       }
 
       await batch.commit()
@@ -390,6 +400,10 @@ export default function StudentsPage() {
     }
   }
 
+  /**
+   * REWRITTEN BULK INTAKE
+   * Uses sequential processing to ensure ID integrity and multi-account provisioning.
+   */
   const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !institutionId || !institution) return
@@ -399,16 +413,15 @@ export default function StudentsPage() {
     const provisionApp = initializeApp(firebaseConfig, provisionAppName);
     const provisionAuth = getAuth(provisionApp);
 
-    console.log("[Bulk Intake] Starting CSV parse...");
-
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
       complete: async (results) => {
         try {
           const rawRows = results.data as any[]
-          console.log(`[Bulk Intake] Parsed ${rawRows.length} rows.`);
+          console.log(`[Bulk Intake] Initiating sequential sync for ${rawRows.length} students...`);
 
+          // Normalize Headers
           const rows = rawRows.map(row => {
             const normalized: any = {};
             Object.keys(row).forEach(key => {
@@ -418,55 +431,49 @@ export default function StudentsPage() {
             return normalized;
           });
 
-          let count = 0;
-          let batch = writeBatch(db)
-          
-          for (let i = 0; i < rows.length; i++) {
-            const row = rows[i];
+          let successCount = 0;
+          let failCount = 0;
+
+          // Sequential Processing Loop (Required for unique sequential ID integrity)
+          for (const row of rows) {
             const first = row.firstname || row.first || row.name?.split(' ')[0];
             const last = row.lastname || row.last || row.name?.split(' ').slice(1).join(' ');
             
             if (!first || !last) {
-              console.log(`[Bulk Intake] Skipping row ${i+1}: Missing name.`);
+              console.warn(`[Bulk Intake] Skipping record: Missing first or last name.`);
               continue;
             }
 
             try {
-               // Perform the account creation logic sequentially to ensure stability
+               const batch = writeBatch(db);
+               // Call the shared high-fidelity provisioning function
                await createStudentAccount({
                  firstName: first,
                  lastName: last,
                  gender: row.gender || "Male",
-                 gradeLevel: row.grade || row.gradelevel || row.class || "Unassigned",
+                 gradeLevel: row.grade || row.class || "Unassigned",
                  dateOfBirth: row.dob || row.dateofbirth || "",
+                 status: "active"
                }, provisionAuth, batch, institution);
-               
-               count++;
 
-               // Periodic batch commit to stay under the 500 operation limit
-               if (count % 200 === 0) {
-                 await batch.commit();
-                 batch = writeBatch(db);
-                 console.log(`[Bulk Intake] Committed chunk of ${count} students.`);
-               }
+               await batch.commit();
+               successCount++;
             } catch (err: any) {
-               console.error(`Bulk Intake Failure for row ${i+1} (${first}):`, err);
+               console.error(`[Bulk Intake] Row failed for ${first} ${last}:`, err.message);
+               failCount++;
             }
           }
 
-          // Final commit for remaining operations
-          if (count % 200 !== 0) {
-            await batch.commit();
-          }
-
-          console.log(`[Bulk Intake] Successfully enrolled ${count} students.`);
-          toast({ title: "Bulk Intake Successful", description: `Enrolled ${count} students into the 2026 Registry.` })
-          setIsBulkOpen(false)
+          toast({ 
+            title: "Registry Sync Complete", 
+            description: `Authorized ${successCount} new enrollments. ${failCount} failures recorded in log.` 
+          });
+          setIsBulkOpen(false);
         } catch (error: any) {
-          console.error("[Bulk Intake] Master Failure:", error);
-          toast({ variant: "destructive", title: "Bulk Intake Failed", description: error.message })
+          console.error("[Bulk Intake] Fatal Failure:", error);
+          toast({ variant: "destructive", title: "Intake Halted", description: error.message })
         } finally {
-          setBulkLoading(false)
+          setBulkLoading(false);
           if (bulkFileRef.current) bulkFileRef.current.value = "";
           try { await deleteApp(provisionApp); } catch (e) {}
         }
@@ -502,10 +509,7 @@ export default function StudentsPage() {
       try {
         await createUserWithEmailAndPassword(provisionAuth, studentEmail, newPin);
       } catch (authErr: any) {
-        console.log("PIN Reset Auth Log:", authErr.code, authErr.message);
-        // If already exists, we might not be able to "reset" the password without their old one or admin privileges 
-        // in this specific client-side setup without Cloud Functions.
-        // However, we still update the Registry doc for display.
+        console.log("PIN Reset Auth Context:", authErr.code);
       }
 
       await setDoc(doc(db, "users", uid), {
@@ -525,9 +529,9 @@ export default function StudentsPage() {
         updatedAt: serverTimestamp()
       });
 
-      toast({ title: "Access PIN Synchronized", description: `New Secure PIN: ${newPin}` });
+      toast({ title: "PIN Synchronized", description: `New Secure PIN: ${newPin}` });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Synchronization Failed", description: e.message });
+      toast({ variant: "destructive", title: "Sync Failed", description: e.message });
     } finally {
       setLoading(false);
       try { await deleteApp(provisionApp); } catch (e) {}
@@ -586,7 +590,7 @@ export default function StudentsPage() {
           </div>
         </CardHeader>
         <CardContent className="p-6">
-          <Accordion type="multiple" className="w-full space-y-4">
+          <Accordion type="multiple" className="w-full space-y-4" defaultValue={[...Object.keys(groupedStudents)]}>
             {Object.entries(groupedStudents)
               .sort(([gradeA], [gradeB]) => gradeA.localeCompare(gradeB))
               .map(([grade, students]) => (
