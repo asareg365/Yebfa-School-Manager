@@ -22,7 +22,7 @@ import {
   ShieldCheck
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useFirestore, useDoc } from "@/firebase"
+import { useUser, useFirestore, useDoc } from "@/firebase"
 import { collection, serverTimestamp, doc, setDoc } from "firebase/firestore"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -74,7 +74,8 @@ export default function AddParentPage() {
       let cleanPass = normalizeSecurityPhone(parentForm.phone)
       if (cleanPass.length < 6) cleanPass = cleanPass.padEnd(6, '0');
       
-      const parentEmail = parentForm.email || `${finalParentNumber.trim()}@${institution.emailDomain}`;
+      const domain = (institution.emailDomain || `${institution.schoolCode?.toLowerCase() || 'sch'}.ysm.local`).toLowerCase().trim();
+      const parentEmail = parentForm.email || `${finalParentNumber.trim().replace(/\s+/g, '.')}@${domain}`;
       
       let authUser;
       let authUid = null;
@@ -83,7 +84,9 @@ export default function AddParentPage() {
         authUser = credential.user
         authUid = authUser.uid;
       } catch (authErr: any) {
-        console.log("Parent Auth Error", authErr.code, authErr.message);
+        console.log("Parent Auth Error");
+        console.log(authErr.code);
+        console.log(authErr.message);
         throw authErr;
       }
 

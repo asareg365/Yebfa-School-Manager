@@ -62,7 +62,7 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion"
+} from "@/components/accordion"
 import Papa from "papaparse"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError, type SecurityRuleContext } from "@/firebase/errors"
@@ -242,14 +242,15 @@ export default function StudentsPage() {
   ) => {
     console.log(`[Provisioning] Processing: ${data.firstName} ${data.lastName}`);
     
-    // 1. Generate Transactional ID (Sequential VOD-ST-XXXXXX)
+    // 1. Generate Transactional ID (Sequential VOD-ST-000001)
     const finalAdmissionNumber = await generateId('students', inst.schoolCode, 'ST');
     
     // 2. Generate Security PIN (6 digits)
     const finalPin = generateStudentPin(); 
     
-    // 3. Resolve System Email
-    const studentEmail = `${finalAdmissionNumber.trim()}@${inst.emailDomain}`;
+    // 3. Resolve System Email (Sanitized for Firebase Auth)
+    const domain = (inst.emailDomain || `${inst.schoolCode?.toLowerCase() || 'sch'}.ysm.local`).toLowerCase().trim();
+    const studentEmail = `${finalAdmissionNumber.trim().replace(/\s+/g, '.')}@${domain}`;
     
     // 4. Provision Firebase Auth Identity
     let authUser;
@@ -259,7 +260,9 @@ export default function StudentsPage() {
       authUser = credential.user;
       authUid = authUser.uid;
     } catch (authErr: any) {
-      console.log(`[Provisioning Error] ${data.firstName}: ${authErr.code}`);
+      console.log("Student Auth Error");
+      console.log(authErr.code);
+      console.log(authErr.message);
       throw authErr;
     }
 
@@ -328,7 +331,8 @@ export default function StudentsPage() {
           let cleanPass = normalizeSecurityPhone(newParentForm.phone);
           if (cleanPass.length < 6) cleanPass = cleanPass.padEnd(6, '0');
           
-          const parentEmail = newParentForm.email || `${finalParentNumber.trim()}@${institution.emailDomain}`;
+          const domain = (institution.emailDomain || `${institution.schoolCode?.toLowerCase() || 'sch'}.ysm.local`).toLowerCase().trim();
+          const parentEmail = newParentForm.email || `${finalParentNumber.trim().replace(/\s+/g, '.')}@${domain}`;
           
           let parentAuthUser;
           let parentAuthUid = null;
@@ -337,7 +341,9 @@ export default function StudentsPage() {
             parentAuthUser = credential.user;
             parentAuthUid = parentAuthUser.uid;
           } catch (authErr: any) {
-            console.log("Parent Auth Error", authErr.code, authErr.message);
+            console.log("Parent Auth Error");
+            console.log(authErr.code);
+            console.log(authErr.message);
             throw authErr;
           }
 
@@ -400,10 +406,6 @@ export default function StudentsPage() {
     }
   }
 
-  /**
-   * REWRITTEN BULK INTAKE
-   * Uses sequential processing to ensure ID integrity and multi-account provisioning.
-   */
   const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !institutionId || !institution) return
@@ -421,7 +423,6 @@ export default function StudentsPage() {
           const rawRows = results.data as any[]
           console.log(`[Bulk Intake] Initiating sequential sync for ${rawRows.length} students...`);
 
-          // Normalize Headers
           const rows = rawRows.map(row => {
             const normalized: any = {};
             Object.keys(row).forEach(key => {
@@ -434,19 +435,14 @@ export default function StudentsPage() {
           let successCount = 0;
           let failCount = 0;
 
-          // Sequential Processing Loop (Required for unique sequential ID integrity)
           for (const row of rows) {
             const first = row.firstname || row.first || row.name?.split(' ')[0];
             const last = row.lastname || row.last || row.name?.split(' ').slice(1).join(' ');
             
-            if (!first || !last) {
-              console.warn(`[Bulk Intake] Skipping record: Missing first or last name.`);
-              continue;
-            }
+            if (!first || !last) continue;
 
             try {
                const batch = writeBatch(db);
-               // Call the shared high-fidelity provisioning function
                await createStudentAccount({
                  firstName: first,
                  lastName: last,
@@ -459,18 +455,17 @@ export default function StudentsPage() {
                await batch.commit();
                successCount++;
             } catch (err: any) {
-               console.error(`[Bulk Intake] Row failed for ${first} ${last}:`, err.message);
+               console.error(`[Bulk Intake] Row failed:`, err.message);
                failCount++;
             }
           }
 
           toast({ 
             title: "Registry Sync Complete", 
-            description: `Authorized ${successCount} new enrollments. ${failCount} failures recorded in log.` 
+            description: `Authorized ${successCount} enrollments. ${failCount} failures.` 
           });
           setIsBulkOpen(false);
         } catch (error: any) {
-          console.error("[Bulk Intake] Fatal Failure:", error);
           toast({ variant: "destructive", title: "Intake Halted", description: error.message })
         } finally {
           setBulkLoading(false);
@@ -482,13 +477,13 @@ export default function StudentsPage() {
   }
 
   const handleDeactivateStudent = async (id: string) => {
-    if (!confirm("Are you sure you want to deactivate this enrollment?")) return
+    if (!confirm("Are you sure?")) return
     setLoading(true);
     const docRef = doc(db, "students", id);
     updateDoc(docRef, { status: "inactive", updatedAt: serverTimestamp() })
-      .then(() => toast({ title: "Enrollment removed successfully." }))
+      .then(() => toast({ title: "Enrollment deactivated." }))
       .catch(async (err: any) => {
-        const pError = new FirestorePermissionError({ path: docRef.path, operation: 'update', requestResourceData: { status: "inactive" } });
+        const pError = new FirestorePermissionError({ path: docRef.path, operation: 'update' });
         errorEmitter.emit('permission-error', pError);
       })
       .finally(() => setLoading(false));
@@ -503,13 +498,14 @@ export default function StudentsPage() {
 
     try {
       const newPin = generateStudentPin();
-      const studentEmail = `${stu.admissionNumber.trim()}@${institution.emailDomain}`;
+      const domain = (institution.emailDomain || `${institution.schoolCode?.toLowerCase() || 'sch'}.ysm.local`).toLowerCase().trim();
+      const studentEmail = `${stu.admissionNumber.trim().replace(/\s+/g, '.')}@${domain}`;
       const uid = stu.authUid || stu.id;
       
       try {
         await createUserWithEmailAndPassword(provisionAuth, studentEmail, newPin);
       } catch (authErr: any) {
-        console.log("PIN Reset Auth Context:", authErr.code);
+        console.log("PIN Reset Auth context caught.");
       }
 
       await setDoc(doc(db, "users", uid), {
@@ -529,7 +525,7 @@ export default function StudentsPage() {
         updatedAt: serverTimestamp()
       });
 
-      toast({ title: "PIN Synchronized", description: `New Secure PIN: ${newPin}` });
+      toast({ title: "PIN Synchronized", description: `New PIN: ${newPin}` });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Sync Failed", description: e.message });
     } finally {

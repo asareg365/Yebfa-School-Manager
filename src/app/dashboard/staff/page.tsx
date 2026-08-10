@@ -120,7 +120,8 @@ export default function StaffHRPage() {
         let cleanPass = normalizeSecurityPhone(staffForm.phone);
         if (cleanPass.length < 6) cleanPass = cleanPass.padEnd(6, '0');
         
-        accountEmail = staffForm.email || `${finalStaffNumber.trim()}@${institution.emailDomain}`;
+        const domain = (institution.emailDomain || `${institution.schoolCode?.toLowerCase() || 'sch'}.ysm.local`).toLowerCase().trim();
+        accountEmail = staffForm.email || `${finalStaffNumber.trim().replace(/\s+/g, '.')}@${domain}`;
         
         let authUser;
         try {
@@ -128,7 +129,9 @@ export default function StaffHRPage() {
           authUser = credential.user
           authUid = authUser.uid;
         } catch (authErr: any) {
-          console.log("Staff Auth Error", authErr.code, authErr.message);
+          console.log("Staff Auth Error");
+          console.log(authErr.code);
+          console.log(authErr.message);
           throw authErr;
         }
 
