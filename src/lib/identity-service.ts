@@ -52,6 +52,30 @@ export async function generateInstitutionId(
 }
 
 /**
+ * Resolves the official email domain for an institution.
+ * Sanitizes input and provides a deterministic fallback.
+ */
+export function getInstitutionEmailDomain(institution: any): string {
+  const schoolCode = String(institution?.schoolCode || "SCH")
+    .trim()
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .toLowerCase();
+
+  const configuredDomain = String(institution?.emailDomain || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/\/+$/, "")
+    .replace(/\s+/g, "");
+
+  if (configuredDomain) {
+    return configuredDomain;
+  }
+
+  return `${schoolCode}.ysm.local`;
+}
+
+/**
  * Generates a random 6-digit PIN for student access.
  * Upgraded from 4 to 6 digits to satisfy Firebase Auth password length requirements.
  */

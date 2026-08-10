@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -52,9 +51,9 @@ import { Checkbox } from "@/components/ui/checkbox"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { initializeApp, deleteApp, FirebaseApp } from "firebase/app"
-import { getAuth, createUserWithEmailAndPassword, signOut, Auth } from "firebase/auth"
+import { getAuth, createUserWithEmailAndPassword, signOut, Auth as FirebaseAuth } from "firebase/auth"
 import { firebaseConfig } from "@/firebase/config"
-import { normalizeSecurityPhone, generateStudentPin } from "@/lib/identity-service"
+import { normalizeSecurityPhone, generateStudentPin, getInstitutionEmailDomain } from "@/lib/identity-service"
 import { generateId } from "@/lib/id-generator"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import {
@@ -62,7 +61,7 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/accordion"
+} from "@/components/ui/accordion"
 import Papa from "papaparse"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError, type SecurityRuleContext } from "@/firebase/errors"
@@ -230,29 +229,19 @@ export default function StudentsPage() {
     }
   }
 
-  /**
-   * SHARED PROVISIONING LOGIC
-   * Handles ID generation, PIN creation, Auth Account, and Firestore Registry.
-   */
   const createStudentAccount = async (
     data: any, 
-    provisionAuth: Auth, 
+    provisionAuth: FirebaseAuth, 
     batch: any,
     inst: any
   ) => {
-    console.log(`[Provisioning] Processing: ${data.firstName} ${data.lastName}`);
+    if (!inst) throw new Error("Institutional context is missing during provisioning.");
     
-    // 1. Generate Transactional ID (Sequential VOD-ST-000001)
     const finalAdmissionNumber = await generateId('students', inst.schoolCode, 'ST');
-    
-    // 2. Generate Security PIN (6 digits)
     const finalPin = generateStudentPin(); 
+    const domain = getInstitutionEmailDomain(inst);
+    const studentEmail = `${finalAdmissionNumber.trim().replace(/\s+/g, '.')}@${domain}`.toLowerCase();
     
-    // 3. Resolve System Email (Sanitized for Firebase Auth)
-    const domain = (inst.emailDomain || `${inst.schoolCode?.toLowerCase() || 'sch'}.ysm.local`).toLowerCase().trim();
-    const studentEmail = `${finalAdmissionNumber.trim().replace(/\s+/g, '.')}@${domain}`;
-    
-    // 4. Provision Firebase Auth Identity
     let authUser;
     let authUid = null;
     try {
@@ -266,11 +255,10 @@ export default function StudentsPage() {
       throw authErr;
     }
 
-    // 5. Build Registry Documents
     const studentRef = doc(collection(db, "students"));
     const studentId = studentRef.id;
 
-    const studentDoc = {
+    batch.set(studentRef, {
       ...data,
       id: studentId,
       admissionNumber: finalAdmissionNumber,
@@ -281,11 +269,8 @@ export default function StudentsPage() {
       status: "active",
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
-    };
+    });
 
-    batch.set(studentRef, studentDoc);
-
-    // 6. Build User Profile Document
     const userUid = authUid || studentId;
     batch.set(doc(db, "users", userUid), {
       uid: userUid,
@@ -299,7 +284,6 @@ export default function StudentsPage() {
       createdAt: serverTimestamp()
     }, { merge: true });
 
-    // 7. Cleanup Auth Session for this provision
     if (authUser) await signOut(provisionAuth);
     
     return { studentId, admissionNumber: finalAdmissionNumber, pin: finalPin, authUid };
@@ -321,18 +305,16 @@ export default function StudentsPage() {
       let studentId = editingStudent?.id
       
       if (!editingStudent) {
-        // Run full provisioning workflow
         const { studentId: newId } = await createStudentAccount(studentForm, provisionAuth, batch, institution);
         studentId = newId;
 
-        // Handle Guardian Provisioning if new
         if (isNewParent) {
           const finalParentNumber = await generateId('parents', institution.schoolCode, 'PR');
           let cleanPass = normalizeSecurityPhone(newParentForm.phone);
           if (cleanPass.length < 6) cleanPass = cleanPass.padEnd(6, '0');
           
-          const domain = (institution.emailDomain || `${institution.schoolCode?.toLowerCase() || 'sch'}.ysm.local`).toLowerCase().trim();
-          const parentEmail = newParentForm.email || `${finalParentNumber.trim().replace(/\s+/g, '.')}@${domain}`;
+          const domain = getInstitutionEmailDomain(institution);
+          const parentEmail = (newParentForm.email || `${finalParentNumber.trim().replace(/\s+/g, '.')}@${domain}`).toLowerCase();
           
           let parentAuthUser;
           let parentAuthUid = null;
@@ -382,7 +364,6 @@ export default function StudentsPage() {
         batch.update(studentRef, { ...sanitizedData, updatedAt: serverTimestamp() });
       }
 
-      // Finalize Relationships
       if (finalParentId && studentId) {
         const relId = `${studentId}_${finalParentId}`
         batch.set(doc(db, "student_parents", relId), {
@@ -421,8 +402,6 @@ export default function StudentsPage() {
       complete: async (results) => {
         try {
           const rawRows = results.data as any[]
-          console.log(`[Bulk Intake] Initiating sequential sync for ${rawRows.length} students...`);
-
           const rows = rawRows.map(row => {
             const normalized: any = {};
             Object.keys(row).forEach(key => {
@@ -498,8 +477,8 @@ export default function StudentsPage() {
 
     try {
       const newPin = generateStudentPin();
-      const domain = (institution.emailDomain || `${institution.schoolCode?.toLowerCase() || 'sch'}.ysm.local`).toLowerCase().trim();
-      const studentEmail = `${stu.admissionNumber.trim().replace(/\s+/g, '.')}@${domain}`;
+      const domain = getInstitutionEmailDomain(institution);
+      const studentEmail = `${stu.admissionNumber.trim().replace(/\s+/g, '.')}@${domain}`.toLowerCase();
       const uid = stu.authUid || stu.id;
       
       try {

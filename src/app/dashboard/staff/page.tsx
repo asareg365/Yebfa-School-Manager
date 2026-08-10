@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
@@ -17,7 +16,7 @@ import {
   CheckCircle2,
   Activity,
   RefreshCw,
-  AlertTriangle,
+  AlertCircle,
   X
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
@@ -33,7 +32,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { initializeApp, deleteApp } from "firebase/app"
 import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth"
 import { firebaseConfig } from "@/firebase/config"
-import { normalizeSecurityPhone } from "@/lib/identity-service"
+import { normalizeSecurityPhone, getInstitutionEmailDomain } from "@/lib/identity-service"
 import { generateId } from "@/lib/id-generator"
 
 export default function StaffHRPage() {
@@ -120,8 +119,8 @@ export default function StaffHRPage() {
         let cleanPass = normalizeSecurityPhone(staffForm.phone);
         if (cleanPass.length < 6) cleanPass = cleanPass.padEnd(6, '0');
         
-        const domain = (institution.emailDomain || `${institution.schoolCode?.toLowerCase() || 'sch'}.ysm.local`).toLowerCase().trim();
-        accountEmail = staffForm.email || `${finalStaffNumber.trim().replace(/\s+/g, '.')}@${domain}`;
+        const domain = getInstitutionEmailDomain(institution);
+        accountEmail = (staffForm.email || `${finalStaffNumber.trim().replace(/\s+/g, '.')}@${domain}`).toLowerCase();
         
         let authUser;
         try {

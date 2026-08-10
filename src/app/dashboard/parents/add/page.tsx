@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -30,7 +29,7 @@ import Link from "next/link"
 import { initializeApp, deleteApp } from "firebase/app"
 import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth"
 import { firebaseConfig } from "@/firebase/config"
-import { normalizeSecurityPhone } from "@/lib/identity-service"
+import { normalizeSecurityPhone, getInstitutionEmailDomain } from "@/lib/identity-service"
 import { generateId } from "@/lib/id-generator"
 import { Badge } from "@/components/ui/badge"
 
@@ -74,8 +73,8 @@ export default function AddParentPage() {
       let cleanPass = normalizeSecurityPhone(parentForm.phone)
       if (cleanPass.length < 6) cleanPass = cleanPass.padEnd(6, '0');
       
-      const domain = (institution.emailDomain || `${institution.schoolCode?.toLowerCase() || 'sch'}.ysm.local`).toLowerCase().trim();
-      const parentEmail = parentForm.email || `${finalParentNumber.trim().replace(/\s+/g, '.')}@${domain}`;
+      const domain = getInstitutionEmailDomain(institution);
+      const parentEmail = (parentForm.email || `${finalParentNumber.trim().replace(/\s+/g, '.')}@${domain}`).toLowerCase();
       
       let authUser;
       let authUid = null;
