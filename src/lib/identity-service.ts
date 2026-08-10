@@ -1,5 +1,4 @@
-
-import { db } from '@/firebase';
+import { db } from '@/firebase/core';
 import { doc, runTransaction, serverTimestamp } from 'firebase/firestore';
 
 /**
@@ -23,7 +22,6 @@ export async function generateInstitutionId(
     throw new Error("Identity Error: Missing Institutional Context. Please select an active school node.");
   }
 
-  // Counter is unique per institution and per registry type
   const counterRef = doc(db, 'counters', `${institutionId}_${type}`);
   const year = new Date().getFullYear();
 
@@ -36,7 +34,6 @@ export async function generateInstitutionId(
       nextSeq = (typeof current === 'number' ? current : 0) + 1;
     }
 
-    // Atomically update the counter for this specific school node
     transaction.set(counterRef, {
       currentSequence: nextSeq,
       type,
@@ -45,7 +42,6 @@ export async function generateInstitutionId(
     }, { merge: true });
 
     const sequenceStr = String(nextSeq).padStart(4, '0');
-    // Fallback if schoolCode is missing - ensure we always return a valid string
     const cleanCode = schoolCode ? schoolCode.replace(/\s+/g, '').toUpperCase().substring(0, 4) : 'SCH';
     return `${cleanCode}-${type}-${year}-${sequenceStr}`;
   });
@@ -88,7 +84,6 @@ export function generateStudentPin(): string {
  */
 export function normalizeSecurityPhone(num: string): string {
   if (!num) return "";
-  // Strip all non-numeric characters except + and then normalize +233 to 0
   let clean = num.replace(/\s+/g, '').replace(/-/g, '').replace(/\(/g, '').replace(/\)/g, '');
   if (clean.startsWith('+233')) return '0' + clean.substring(4);
   if (clean.startsWith('233')) return '0' + clean.substring(3);

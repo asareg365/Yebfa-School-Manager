@@ -1,8 +1,9 @@
-import { db } from '@/firebase';
+import { db } from '@/firebase/core';
 import { collection, query, where, getDocs, DocumentData } from 'firebase/firestore';
 
 /**
  * @fileOverview Base Service for multi-tenant Firestore access.
+ * Uses core Firebase instance to prevent server-side hook errors.
  */
 
 export abstract class BaseAIService {

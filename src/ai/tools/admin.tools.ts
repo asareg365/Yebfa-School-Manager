@@ -2,8 +2,7 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { academicService } from '@/ai/services/academic.service';
 import { financeService } from '@/ai/services/finance.service';
-import { BaseAIService } from '@/ai/services/base.service';
-import { db } from '@/firebase';
+import { db } from '@/firebase/core';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 
 export const getStudentPerformanceTool = ai.defineTool(
