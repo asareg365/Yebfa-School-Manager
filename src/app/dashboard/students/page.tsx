@@ -40,7 +40,7 @@ import {
 import { toast } from "@/hooks/use-toast"
 import { useUser, useFirestore, useCollection, useDoc } from "@/firebase"
 import { collection, addDoc, query, deleteDoc, doc, where, serverTimestamp, updateDoc, writeBatch, setDoc, getDocs } from "firebase/firestore"
-import { useState, useMemo, useEffect, useRef } from "react"
+import { useState, useMemo, useEffect, useRef, Suspense } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
@@ -70,7 +70,7 @@ import Papa from "papaparse"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError, type SecurityRuleContext } from "@/firebase/errors"
 
-export default function StudentsPage() {
+function StudentsRegistryContent() {
   const db = useFirestore()
   const searchParams = useSearchParams()
   const { user } = useUser()
@@ -883,5 +883,18 @@ export default function StudentsPage() {
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+export default function StudentsPage() {
+  return (
+    <Suspense fallback={
+      <div className="p-24 text-center">
+        <Loader2 className="size-10 animate-spin mx-auto text-primary opacity-20" />
+        <p className="mt-4 font-bold text-muted-foreground animate-pulse uppercase tracking-widest text-xs">Hydrating Student Registry...</p>
+      </div>
+    }>
+      <StudentsRegistryContent />
+    </Suspense>
   )
 }

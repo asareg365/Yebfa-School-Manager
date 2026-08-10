@@ -120,7 +120,7 @@ export default function StaffHRPage() {
         if (cleanPass.length < 6) cleanPass = cleanPass.padEnd(6, '0');
         
         const domain = getInstitutionEmailDomain(institution);
-        accountEmail = (staffForm.email || `${finalStaffNumber.trim().replace(/\s+/g, '.')}@${domain}`).toLowerCase();
+        accountEmail = (staffForm.email || `${finalStaffNumber.trim()}@${domain}`).toLowerCase();
         
         let authUser;
         try {

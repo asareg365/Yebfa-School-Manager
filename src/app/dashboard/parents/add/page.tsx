@@ -74,7 +74,7 @@ export default function AddParentPage() {
       if (cleanPass.length < 6) cleanPass = cleanPass.padEnd(6, '0');
       
       const domain = getInstitutionEmailDomain(institution);
-      const parentEmail = (parentForm.email || `${finalParentNumber.trim().replace(/\s+/g, '.')}@${domain}`).toLowerCase();
+      const parentEmail = (parentForm.email || `${finalParentNumber.trim()}@${domain}`).toLowerCase();
       
       let authUser;
       let authUid = null;

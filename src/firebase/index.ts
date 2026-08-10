@@ -9,8 +9,3 @@ export * from './auth/use-user';
 export * from './firestore/use-collection';
 export * from './firestore/use-doc';
 export * from './firestore/use-memo-firebase';
-
-export function initializeFirebase() {
-  const { app, db, auth } = require('./core');
-  return { app, db, auth };
-}
