@@ -3,6 +3,7 @@
 /**
  * @fileOverview Central Firebase Registry.
  * Exports core instances and client-side hooks.
+ * Standardized to prevent boundary violations in the 2026 Registry Hub.
  */
 
 export * from './core';
