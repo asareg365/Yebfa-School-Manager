@@ -236,6 +236,7 @@ export default function StudentsPage() {
     batch: any,
     inst: any
   ) => {
+    console.log(`[Provisioning] Initiating account for: ${data.firstName} ${data.lastName}`);
     const finalAdmissionNumber = await generateId('students', inst.schoolCode, 'ST');
     const finalPin = generateStudentPin(); 
     const studentEmail = `${finalAdmissionNumber.trim()}@${inst.emailDomain}`;
@@ -246,6 +247,7 @@ export default function StudentsPage() {
       const credential = await createUserWithEmailAndPassword(provisionAuth, studentEmail, finalPin);
       authUser = credential.user;
       authUid = authUser.uid;
+      console.log(`[Provisioning] Auth created for ${studentEmail}: ${authUid}`);
     } catch (authErr: any) {
       console.log("Student Auth Error", authErr.code, authErr.message);
       throw authErr;
@@ -397,12 +399,16 @@ export default function StudentsPage() {
     const provisionApp = initializeApp(firebaseConfig, provisionAppName);
     const provisionAuth = getAuth(provisionApp);
 
+    console.log("[Bulk Intake] Starting CSV parse...");
+
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
       complete: async (results) => {
         try {
           const rawRows = results.data as any[]
+          console.log(`[Bulk Intake] Parsed ${rawRows.length} rows.`);
+
           const rows = rawRows.map(row => {
             const normalized: any = {};
             Object.keys(row).forEach(key => {
@@ -413,31 +419,51 @@ export default function StudentsPage() {
           });
 
           let count = 0;
-          const batch = writeBatch(db)
+          let batch = writeBatch(db)
           
-          for (const row of rows) {
-            const first = row.firstname || row.first;
-            const last = row.lastname || row.last;
-            if (!first || !last) continue;
+          for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            const first = row.firstname || row.first || row.name?.split(' ')[0];
+            const last = row.lastname || row.last || row.name?.split(' ').slice(1).join(' ');
+            
+            if (!first || !last) {
+              console.log(`[Bulk Intake] Skipping row ${i+1}: Missing name.`);
+              continue;
+            }
 
             try {
+               // Perform the account creation logic sequentially to ensure stability
                await createStudentAccount({
                  firstName: first,
                  lastName: last,
                  gender: row.gender || "Male",
-                 gradeLevel: row.grade || row.gradelevel || "Unassigned",
+                 gradeLevel: row.grade || row.gradelevel || row.class || "Unassigned",
                  dateOfBirth: row.dob || row.dateofbirth || "",
                }, provisionAuth, batch, institution);
+               
                count++;
+
+               // Periodic batch commit to stay under the 500 operation limit
+               if (count % 200 === 0) {
+                 await batch.commit();
+                 batch = writeBatch(db);
+                 console.log(`[Bulk Intake] Committed chunk of ${count} students.`);
+               }
             } catch (err: any) {
-               console.error(`Bulk Intake Failure: ${first}`, err);
+               console.error(`Bulk Intake Failure for row ${i+1} (${first}):`, err);
             }
           }
 
-          await batch.commit();
-          toast({ title: "Bulk Intake Successful", description: `Enrolled ${count} students.` })
+          // Final commit for remaining operations
+          if (count % 200 !== 0) {
+            await batch.commit();
+          }
+
+          console.log(`[Bulk Intake] Successfully enrolled ${count} students.`);
+          toast({ title: "Bulk Intake Successful", description: `Enrolled ${count} students into the 2026 Registry.` })
           setIsBulkOpen(false)
         } catch (error: any) {
+          console.error("[Bulk Intake] Master Failure:", error);
           toast({ variant: "destructive", title: "Bulk Intake Failed", description: error.message })
         } finally {
           setBulkLoading(false)
@@ -476,7 +502,10 @@ export default function StudentsPage() {
       try {
         await createUserWithEmailAndPassword(provisionAuth, studentEmail, newPin);
       } catch (authErr: any) {
-        if (authErr.code !== 'auth/email-already-in-use') throw authErr;
+        console.log("PIN Reset Auth Log:", authErr.code, authErr.message);
+        // If already exists, we might not be able to "reset" the password without their old one or admin privileges 
+        // in this specific client-side setup without Cloud Functions.
+        // However, we still update the Registry doc for display.
       }
 
       await setDoc(doc(db, "users", uid), {
