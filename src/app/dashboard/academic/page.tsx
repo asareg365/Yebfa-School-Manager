@@ -1,7 +1,8 @@
 
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, Suspense } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -45,11 +46,28 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
 
-export default function AcademicFoundationPage() {
+function AcademicFoundationContent() {
   const db = useFirestore()
   const { user } = useUser()
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+
+  // URL Tab Sync
+  const tabParam = searchParams.get('tab') || 'cycle'
+  const [activeTab, setActiveTab] = useState(tabParam)
+
+  useEffect(() => {
+    if (tabParam && tabParam !== activeTab) {
+      setActiveTab(tabParam)
+    }
+  }, [tabParam])
+
+  const handleTabChange = (val: string) => {
+    setActiveTab(val)
+    router.push(`/dashboard/academic?tab=${val}`, { scroll: false })
+  }
 
   // Form States
   const [yearForm, setYearForm] = useState({ year: "", status: "Active" })
@@ -139,7 +157,7 @@ export default function AcademicFoundationPage() {
         <p className="text-muted-foreground">Establish the institutional structure for classes, subjects, and assignments.</p>
       </div>
 
-      <Tabs defaultValue="cycle" className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="bg-muted/50 p-1 rounded-xl mb-8 flex-wrap h-auto">
           <TabsTrigger value="cycle" className="rounded-lg gap-2"><Calendar className="size-4" /> Academic Cycle</TabsTrigger>
           <TabsTrigger value="classes" className="rounded-lg gap-2"><Layers className="size-4" /> Grade Modules</TabsTrigger>
@@ -415,5 +433,13 @@ export default function AcademicFoundationPage() {
         </TabsContent>
       </Tabs>
     </div>
+  )
+}
+
+export default function AcademicFoundationPage() {
+  return (
+    <Suspense fallback={<div className="p-10 text-center animate-pulse font-headline font-bold text-primary">Synchronizing Academic Hub...</div>}>
+      <AcademicFoundationContent />
+    </Suspense>
   )
 }

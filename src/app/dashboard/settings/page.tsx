@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { School, Shield, Building, Plus, Layers, Trash2, Save, Loader2, Upload, X, Wallet, CheckCircle2, Clock, AlertTriangle, KeyRound, Phone, Sparkles } from "lucide-react"
-import { useState, useEffect, useRef, useMemo } from "react"
+import { useState, useEffect, useRef, useMemo, Suspense } from "react"
 import { useFirestore, useDoc, useUser } from "@/firebase"
 import { doc, updateDoc } from "firebase/firestore"
 import { toast } from "@/hooks/use-toast"
@@ -17,14 +17,32 @@ import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
 import { differenceInDays } from "date-fns"
 import { Badge } from "@/components/ui/badge"
+import { useSearchParams, useRouter } from "next/navigation"
 
-export default function SettingsPage() {
+function SettingsContent() {
   const db = useFirestore()
   const { user } = useUser()
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [logoPreview, setLogoUrl] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // URL Tab Sync
+  const tabParam = searchParams.get('tab') || 'profile'
+  const [activeTab, setActiveTab] = useState(tabParam)
+
+  useEffect(() => {
+    if (tabParam && tabParam !== activeTab) {
+      setActiveTab(tabParam)
+    }
+  }, [tabParam])
+
+  const handleTabChange = (val: string) => {
+    setActiveTab(val)
+    router.push(`/dashboard/settings?tab=${val}`, { scroll: false })
+  }
 
   // Form State
   const [form, setForm] = useState({
@@ -131,7 +149,7 @@ export default function SettingsPage() {
         <p className="text-muted-foreground">Managing {institution?.name} • Global Ecosystem</p>
       </div>
 
-      <Tabs defaultValue="profile" className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="bg-muted/50 p-1 rounded-xl mb-6 flex-wrap h-auto">
           <TabsTrigger value="profile" className="rounded-lg gap-2"><Building className="size-4" /> Identity</TabsTrigger>
           <TabsTrigger value="academic" className="rounded-lg gap-2"><School className="size-4" /> Academic</TabsTrigger>
@@ -302,5 +320,13 @@ export default function SettingsPage() {
         </TabsContent>
       </Tabs>
     </div>
+  )
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={<div className="p-10 text-center animate-pulse font-headline font-bold text-primary">Synchronizing Settings...</div>}>
+      <SettingsContent />
+    </Suspense>
   )
 }
