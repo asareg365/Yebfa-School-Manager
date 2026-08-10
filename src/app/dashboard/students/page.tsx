@@ -427,6 +427,7 @@ function StudentsRegistryContent() {
           let successCount = 0;
           let failCount = 0;
 
+          // Sequential processing to ensure ID stability
           for (const row of rows) {
             const first = row.firstname || row.first || row.name?.split(' ')[0];
             const last = row.lastname || row.last || row.name?.split(' ').slice(1).join(' ');

@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -15,7 +14,7 @@ import { auth, db, useUser } from "@/firebase"
 import { firebaseConfig } from "@/firebase/config"
 import { toast } from "@/hooks/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { normalizeSecurityPhone } from "@/lib/identity-service"
+import { normalizeSecurityPhone, getInstitutionEmailDomain } from "@/lib/identity-service"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 export default function LoginPage() {
@@ -180,7 +179,8 @@ export default function LoginPage() {
       const inst = await getInstitutionByCode(schoolCode);
       if (!inst) throw new Error("Invalid Institution Prefix.");
 
-      const email = `${normID}@${inst.emailDomain}`;
+      const domain = getInstitutionEmailDomain(inst);
+      const email = `${normID}@${domain}`;
       let inputPass = normalizeSecurityPhone(staffPhoneInput)
       if (inputPass.length < 6) inputPass = inputPass.padEnd(6, '0');
 
@@ -219,7 +219,9 @@ export default function LoginPage() {
       }
 
       if (!matchedParent) throw new Error("No linked guardian found for this phone.");
-      const pEmail = matchedParent.email || `${matchedParent.parentNumber}@${inst.emailDomain}`;
+      
+      const domain = getInstitutionEmailDomain(inst);
+      const pEmail = matchedParent.email || `${matchedParent.parentNumber}@${domain}`;
       let inputPass = normalizeSecurityPhone(parentPhoneInput)
       if (inputPass.length < 6) inputPass = inputPass.padEnd(6, '0');
 
@@ -240,8 +242,8 @@ export default function LoginPage() {
       const inst = await getInstitutionByCode(schoolCode);
       if (!inst) throw new Error("Invalid Institution Prefix.");
 
-      const email = `${normID}@${inst.emailDomain}`;
-      console.log("LOGGING IN:", email);
+      const domain = getInstitutionEmailDomain(inst);
+      const email = `${normID}@${domain}`;
       const cred = await signInWithEmailAndPassword(auth!, email, studentPinInput.trim())
       await redirectUser(cred.user, 'student', normID)
     } catch (error: any) {
