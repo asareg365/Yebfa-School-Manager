@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * @fileOverview Central Firebase Registry.
  * Exports core instances and client-side hooks.
