@@ -35,7 +35,8 @@ import {
   ShieldAlert,
   Layers,
   Archive,
-  History
+  History,
+  FileText
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useUser, useFirestore, useCollection, useDoc } from "@/firebase"
@@ -229,10 +230,6 @@ export default function StudentsPage() {
     }
   }
 
-  /**
-   * Shared Provisioning Workflow for Student Accounts.
-   * Ensures absolute consistency between manual and bulk enrollment.
-   */
   const createStudentAccount = async (
     data: any, 
     provisionAuth: Auth, 
@@ -305,7 +302,7 @@ export default function StudentsPage() {
       let studentId = editingStudent?.id
       
       if (!editingStudent) {
-        const { studentId: newId, admissionNumber, pin } = await createStudentAccount(studentForm, provisionAuth, batch, institution);
+        const { studentId: newId } = await createStudentAccount(studentForm, provisionAuth, batch, institution);
         studentId = newId;
 
         if (isNewParent) {
@@ -802,6 +799,63 @@ export default function StudentsPage() {
               </div>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isBulkOpen} onOpenChange={setIsBulkOpen}>
+        <DialogContent className="max-w-2xl rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
+           <DialogHeader className="p-8 bg-primary text-primary-foreground">
+              <div className="flex items-center gap-3 mb-2">
+                 <div className="size-10 rounded-xl bg-white/10 flex items-center justify-center"><FileSpreadsheet className="size-6 text-accent" /></div>
+                 <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Bulk Data Intake</span>
+              </div>
+              <DialogTitle className="text-2xl font-headline font-bold">CSV Enrollment Wizard</DialogTitle>
+              <DialogDescription className="text-primary-foreground/70">Provision multiple student accounts simultaneously with verified registry mapping.</DialogDescription>
+           </DialogHeader>
+
+           <div className="p-8 space-y-8">
+              <div className="p-6 rounded-2xl border-2 border-dashed bg-slate-50 space-y-4">
+                 <h4 className="text-sm font-bold flex items-center gap-2 text-primary"><FileText className="size-4" /> Expected CSV Structure</h4>
+                 <p className="text-xs text-muted-foreground leading-relaxed">
+                   Upload a UTF-8 encoded CSV file with the following headers (order does not matter):
+                 </p>
+                 <div className="flex flex-wrap gap-2">
+                    {['FirstName', 'LastName', 'Gender', 'Grade', 'DOB'].map(h => (
+                      <Badge key={h} variant="secondary" className="font-mono text-[10px] bg-white border">{h}</Badge>
+                    ))}
+                 </div>
+                 <p className="text-[10px] text-muted-foreground italic font-medium">Note: Portal Access IDs and PINs will be generated automatically for every row.</p>
+              </div>
+
+              <div className="space-y-4">
+                 <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Authorize Registry File</Label>
+                 <Input 
+                   type="file" 
+                   ref={bulkFileRef} 
+                   accept=".csv" 
+                   onChange={handleBulkUpload} 
+                   disabled={bulkLoading}
+                   className="h-14 rounded-2xl bg-white border-2 border-slate-100 flex items-center p-4 cursor-pointer file:bg-primary file:text-white file:rounded-lg file:border-none file:text-[10px] file:uppercase file:font-bold file:px-4 file:h-full file:mr-4 hover:border-primary/20 transition-all"
+                 />
+              </div>
+           </div>
+
+           <DialogFooter className="p-8 bg-slate-50 border-t flex justify-between items-center">
+              <div className="flex items-center gap-2 text-[10px] font-bold uppercase text-muted-foreground">
+                 <ShieldCheck className="size-4 text-green-600" /> Multi-Tenant Sync Active
+              </div>
+              <Button variant="ghost" onClick={() => setIsBulkOpen(false)} className="rounded-xl font-bold uppercase text-xs">Close Wizard</Button>
+           </DialogFooter>
+
+           {bulkLoading && (
+             <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-[60] flex flex-col items-center justify-center gap-4">
+                <Loader2 className="size-12 animate-spin text-primary" />
+                <div className="text-center">
+                   <p className="font-headline font-bold text-lg text-primary animate-pulse">Provisioning Registry...</p>
+                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Generating unique IDs and Portal Credentials</p>
+                </div>
+             </div>
+           )}
         </DialogContent>
       </Dialog>
     </div>
