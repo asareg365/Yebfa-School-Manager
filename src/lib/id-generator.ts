@@ -1,10 +1,16 @@
-
 import { db } from '@/firebase';
 import { doc, runTransaction } from 'firebase/firestore';
 
 /**
- * @fileOverview Transactional ID Generation Service.
- * Generates unique, sequential IDs for institutional entities.
+ * Transactional ID Generation Service.
+ *
+ * Generates unique, sequential IDs independently for each institution.
+ *
+ * Examples:
+ * VOD-ST-000001
+ * VOD-ST-000002
+ * VOD-PR-000001
+ * TES-ST-000001
  */
 
 export type IDType =
@@ -16,35 +22,79 @@ export type IDType =
   | 'receipts';
 
 /**
- * Generates a unique sequential ID for a specific entity type.
- * Format: {SHORTCODE}-{ENTITY}-{SEQUENCE}
- * Example: VOD-ST-000001
+ * Generates a unique sequential ID for an institution/entity combination.
+ *
+ * Counter is isolated by institution short code and entity type.
+ *
+ * Example:
+ * generateId('students', 'VOD', 'ST')
+ * => VOD-ST-000001
  */
 export async function generateId(
   type: IDType,
   shortCode: string,
   entityCode: string
 ): Promise<string> {
-  if (!shortCode) throw new Error("Institution shortCode is required for ID generation.");
+  if (!shortCode?.trim()) {
+    throw new Error(
+      'Institution shortCode is required for ID generation.'
+    );
+  }
 
-  const counterRef = doc(db, "counters", type);
+  if (!entityCode?.trim()) {
+    throw new Error(
+      'Entity code is required for ID generation.'
+    );
+  }
 
-  return runTransaction(db, async (tx) => {
-    const snap = await tx.get(counterRef);
+  const cleanShortCode = shortCode.trim().toUpperCase();
+  const cleanEntityCode = entityCode.trim().toUpperCase();
+
+  /**
+   * Each institution/entity gets its own counter.
+   *
+   * Examples:
+   * counters/VOD_students
+   * counters/VOD_staff
+   * counters/TES_students
+   */
+  const counterId = `${cleanShortCode}_${type}`;
+  const counterRef = doc(db, 'counters', counterId);
+
+  return await runTransaction(db, async (transaction) => {
+    const counterSnap = await transaction.get(counterRef);
+
     let nextNumber = 1;
 
-    if (snap.exists()) {
-      nextNumber = snap.data().nextNumber ?? 1;
+    if (counterSnap.exists()) {
+      const data = counterSnap.data();
+
+      if (
+        typeof data.nextNumber === 'number' &&
+        Number.isFinite(data.nextNumber) &&
+        data.nextNumber > 0
+      ) {
+        nextNumber = data.nextNumber;
+      }
     }
 
-    tx.set(counterRef, {
-      nextNumber: nextNumber + 1
-    }, { merge: true });
+    /**
+     * Reserve the next number atomically.
+     */
+    transaction.set(
+      counterRef,
+      {
+        nextNumber: nextNumber + 1,
+        shortCode: cleanShortCode,
+        entityType: type,
+        entityCode: cleanEntityCode,
+        updatedAt: new Date(),
+      },
+      { merge: true }
+    );
 
-    const sequenceStr = String(nextNumber).padStart(6, "0");
-    const cleanShort = shortCode.toUpperCase().trim();
-    const cleanEntity = entityCode.toUpperCase().trim();
+    const sequence = String(nextNumber).padStart(6, '0');
 
-    return `${cleanShort}-${cleanEntity}-${sequenceStr}`;
+    return `${cleanShortCode}-${cleanEntityCode}-${sequence}`;
   });
 }
