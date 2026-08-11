@@ -42,7 +42,7 @@ import { useUser, useFirestore, useCollection, useDoc } from "@/firebase"
 import { collection, addDoc, query, deleteDoc, doc, where, serverTimestamp, updateDoc, writeBatch, setDoc, getDocs } from "firebase/firestore"
 import { useState, useMemo, useEffect, useRef, Suspense } from "react"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -420,22 +420,16 @@ function StudentsRegistryContent() {
       Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
+      
         transformHeader: (header) => {
-          // Remove BOM, spaces, underscores, hyphens and punctuation.
-          // This makes all of these equivalent:
-          // FirstName
-          // First Name
-          // first_name
-          // first-name
-          // ﻿FirstName
           return header
             .replace(/^\uFEFF/, "")
             .trim()
             .toLowerCase()
             .replace(/[^a-z0-9]/g, "");
         },
-  
-        complete: async (results) => {
+        
+          complete: async (results) => {
           try {
             const rawRows = results.data as any[];
   
@@ -464,51 +458,84 @@ function StudentsRegistryContent() {
             for (let index = 0; index < rawRows.length; index++) {
               const row = rawRows[index];
   
-              // Support multiple possible column names.
-              const first =
-                String(
-                  row.firstname ||
-                  row.first ||
-                  row.givenname ||
-                  ""
-                ).trim();
-  
-              const last =
-                String(
-                  row.lastname ||
-                  row.last ||
-                  row.surname ||
-                  row.familyname ||
-                  ""
-                ).trim();
-  
-              // Optional combined Name column.
-              let resolvedFirst = first;
-              let resolvedLast = last;
-  
-              if ((!resolvedFirst || !resolvedLast) && row.name) {
-                const fullName = String(row.name).trim();
-  
-                const nameParts = fullName
-                  .split(/\s+/)
-                  .filter(Boolean);
-  
-                if (nameParts.length >= 2) {
-                  resolvedFirst = nameParts[0];
-                  resolvedLast = nameParts.slice(1).join(" ");
+              // ---------------------------------------------------------
+              // Resolve student name from multiple possible CSV formats
+              // ---------------------------------------------------------
+
+              const getValue = (...keys: string[]) => {
+                for (const key of keys) {
+                  const value = row[key];
+
+                  if (value !== undefined && value !== null) {
+                    const cleaned = String(value).trim();
+
+                    if (cleaned) {
+                      return cleaned;
+                    }
+                  }
+                }
+
+                return "";
+              };
+
+              let first = getValue(
+                "firstname",
+                "first",
+                "givenname",
+                "studentfirstname",
+                "studentfirst",
+                "forename"
+              );
+
+              let last = getValue(
+                "lastname",
+                "last",
+                "surname",
+                "familyname",
+                "studentlastname",
+                "studentlast"
+              );
+
+              // Support combined name fields.
+              if (!first || !last) {
+                const fullName = getValue(
+                  "name",
+                  "fullname",
+                  "studentname",
+                  "studentfullname",
+                  "student"
+                );
+
+                if (fullName) {
+                  const nameParts = fullName
+                    .trim()
+                    .split(/\s+/)
+                    .filter(Boolean);
+
+                  if (nameParts.length >= 2) {
+                    first = nameParts[0];
+                    last = nameParts.slice(1).join(" ");
+                  }
                 }
               }
-  
-              if (!resolvedFirst || !resolvedLast) {
-                skippedCount++;
-  
+
+              // Final validation.
+              if (!first || !last) {
                 console.warn(
-                  `[Bulk Intake] Row ${index + 2} skipped: Missing student name.`,
-                  row
+                  `[Bulk Intake] Row ${index + 2} skipped: Missing name.`,
+                  {
+                    availableColumns: Object.keys(row),
+                    row
+                  }
                 );
-  
+
+                skippedCount++;
                 continue;
               }
+
+              console.log(
+                `[Bulk Intake] Resolved student: ${first} ${last}`
+              );
   
               const gender =
                 String(row.gender || "Male").trim() || "Male";
@@ -531,7 +558,7 @@ function StudentsRegistryContent() {
                 ).trim();
   
               console.log(
-                `[Bulk Intake] Processing ${index + 1}/${rawRows.length}: ${resolvedFirst} ${resolvedLast}`
+                `[Bulk Intake] Processing ${index + 1}/${rawRows.length}: ${first} ${last}`
               );
   
               try {
@@ -539,8 +566,8 @@ function StudentsRegistryContent() {
   
                 const result = await createStudentAccount(
                   {
-                    firstName: resolvedFirst,
-                    lastName: resolvedLast,
+                    firstName: first,
+                    lastName: last,
                     gender,
                     gradeLevel,
                     dateOfBirth,
@@ -556,14 +583,14 @@ function StudentsRegistryContent() {
                 successCount++;
   
                 console.log(
-                  `[Bulk Intake] SUCCESS: ${resolvedFirst} ${resolvedLast} → ${result.admissionNumber}`
+                  `[Bulk Intake] SUCCESS: ${first} ${last} → ${result.admissionNumber}`
                 );
   
               } catch (rowError: any) {
                 failCount++;
   
                 console.error(
-                  `[Bulk Intake] Row ${index + 2} failed for ${resolvedFirst} ${resolvedLast}:`,
+                  `[Bulk Intake] Row ${index + 2} failed for ${first} ${last}:`,
                   rowError?.code || "",
                   rowError?.message || rowError
                 );
