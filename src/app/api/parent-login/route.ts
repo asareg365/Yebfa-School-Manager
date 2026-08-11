@@ -174,11 +174,19 @@ export async function POST(request: Request) {
       studentId: studentFirestoreId,
       tenantId,
     });
-  } catch (error) {
-    console.error("[Parent Login] Server error:", error);
-
+  } catch (error: any) {
+    console.error("[Parent Login] Server error:", {
+      name: error?.name,
+      code: error?.code,
+      message: error?.message,
+      stack: error?.stack,
+    });
+  
     return NextResponse.json(
-      { error: "Unable to process parent login." },
+      {
+        error: error?.message || "Unable to process parent login.",
+        code: error?.code || "UNKNOWN_ERROR",
+      },
       { status: 500 }
     );
   }
