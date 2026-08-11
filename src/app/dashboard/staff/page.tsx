@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
@@ -76,7 +77,21 @@ export default function StaffHRPage() {
   const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
   const { data: institution } = useDoc(instRef)
 
-  const staffQuery = useMemo(() => institutionId ? query(collection(db, "staff"), where("tenantId", "==", institutionId)) : null, [db, institutionId]);
+  const staffQuery = useMemo(() => {
+    if (!db || !profile) return null;
+
+    if (profile.role === "super_admin") {
+      return query(collection(db, "staff"));
+    }
+
+    if (!institutionId) return null;
+
+    return query(
+      collection(db, "staff"),
+      where("tenantId", "==", institutionId)
+    );
+  }, [db, profile, institutionId]);
+
   const { data: rawStaff = [], loading: dataLoading } = useCollection(staffQuery)
 
   const staffList = useMemo(() => {

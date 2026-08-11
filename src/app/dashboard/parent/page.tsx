@@ -27,7 +27,7 @@ import {
 import { useUser, useFirestore, useCollection, useDoc } from "@/firebase"
 import { query, collection, where, doc } from "firebase/firestore"
 import { Progress } from "@/components/ui/progress"
-import { calculateGrade, calculateAttendanceSummary } from "@/lib/academic-engine"
+import { calculateGrade, calculateAttendanceSummary, calculatePositions } from "@/lib/academic-engine"
 import { ResponsiveContainer, BarChart as ReBarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts"
 
 export default function StudentReportsPortal() {
@@ -51,16 +51,19 @@ export default function StudentReportsPortal() {
   const studentsQuery = useMemo(() => {
     if (!db || !profile) return null
     if (isStudent) {
-       const sId = profile.studentId;
-       if (!sId) return null;
-       return query(collection(db, "students"), where("id", "==", sId))
+      if (!user?.uid) return null;
+
+      return query(
+        collection(db, "students"),
+        where("authUid", "==", user.uid)
+      );
     }
     if (isParent && relations.length > 0) {
       const studentIds = relations.map(r => r.studentId)
       return query(collection(db, "students"), where("id", "in", studentIds))
     }
     return null;
-  }, [db, relations, isStudent, isParent, profile])
+  }, [db, relations, isStudent, isParent, profile, user?.uid])
 
   const { data: children = [], loading: childrenLoading } = useCollection(studentsQuery)
 
@@ -139,6 +142,15 @@ export default function StudentReportsPortal() {
 
     const totalMarks = results.reduce((acc, curr) => acc + curr.total, 0);
     const average = results.length > 0 ? totalMarks / results.length : 0;
+    const overallGrade = calculateGrade(average);
+    
+    const studentAverages = Array.from(new Set(exams.map((e: any) => e.studentId))).map(sid => {
+      const sExams = exams.filter((e: any) => e.studentId === sid);
+      const total = sExams.reduce((acc, curr: any) => acc + curr.totalScore, 0);
+      return { studentId: sid, average: sExams.length > 0 ? total / sExams.length : 0 };
+    });
+    
+    const positions = calculatePositions(studentAverages);
     const attSummary = calculateAttendanceSummary(attendance);
 
     // Accounting Polarity: Paid - Charged = Balance
@@ -148,9 +160,10 @@ export default function StudentReportsPortal() {
       results,
       average: parseFloat(average.toFixed(1)),
       attendance: attSummary,
-      balance
+      balance,
+      position: selectedStudentId ? positions[selectedStudentId] : "N/A"
     };
-  }, [exams, attendance, ledger, invoices]);
+  }, [exams, attendance, ledger, invoices, selectedStudentId]);
 
   if (childrenLoading || relsLoading) return (
     <div className="p-24 text-center">
@@ -213,7 +226,7 @@ export default function StudentReportsPortal() {
                 <CardTitle className="text-xl md:text-2xl font-headline font-bold">GH₵ {computedData?.balance?.toLocaleString() || "0.00"}</CardTitle>
               </CardHeader>
               <CardContent>
-                <Badge className={`border-none text-[8px] font-bold uppercase ${computedData?.balance < 0 ? 'bg-accent text-accent-foreground' : 'bg-green-500/20 text-green-400'}`}>
+                <Badge className={`border-none text-[8px] font-bold uppercase px-3 ${computedData?.balance < 0 ? 'bg-accent text-accent-foreground' : 'bg-green-500/20 text-green-400'}`}>
                   {computedData?.balance < 0 ? 'Payment Required' : computedData?.balance > 0 ? 'Credit Balance' : 'Account Balanced'}
                 </Badge>
               </CardContent>
