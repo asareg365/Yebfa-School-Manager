@@ -495,6 +495,7 @@ function StudentsRegistryContent() {
 
               let last = getValue(
                 "lastname",
+                "lastnames",
                 "last",
                 "surname",
                 "familyname",
