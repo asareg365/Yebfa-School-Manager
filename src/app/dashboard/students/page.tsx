@@ -434,7 +434,18 @@ function StudentsRegistryContent() {
             const rawRows = results.data as any[];
   
             console.log(
-              `[Bulk Intake] CSV parsed successfully. Rows detected: ${rawRows.length}`
+              "[Bulk Intake] Raw rows detected:",
+              rawRows.length
+            );
+
+            console.log(
+              "[Bulk Intake] CSV columns detected:",
+              rawRows.length > 0 ? Object.keys(rawRows[0]) : []
+            );
+
+            console.log(
+              "[Bulk Intake] First CSV row:",
+              rawRows.length > 0 ? rawRows[0] : null
             );
   
             if (!rawRows.length) {
@@ -445,11 +456,6 @@ function StudentsRegistryContent() {
               });
               return;
             }
-  
-            console.log(
-              "[Bulk Intake] First normalized row:",
-              rawRows[0]
-            );
   
             let successCount = 0;
             let failCount = 0;
@@ -556,10 +562,6 @@ function StudentsRegistryContent() {
                   row.birthdate ||
                   ""
                 ).trim();
-  
-              console.log(
-                `[Bulk Intake] Processing ${index + 1}/${rawRows.length}: ${first} ${last}`
-              );
   
               try {
                 const batch = writeBatch(db);
