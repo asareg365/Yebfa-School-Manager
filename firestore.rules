@@ -138,20 +138,31 @@ service cloud.firestore {
 
     match /students/{studentId} {
 
-      // The dashboard query must include the student's tenantId.
-      // Super admins can query all students.
+      // Collection queries
       allow list:
         if signedIn() &&
         (
           isSuperAdmin() ||
-          belongsToUserTenant(resource.data)
+          belongsToUserTenant(resource.data) ||
+          (
+            userRole() == "student" &&
+            resource.data.authUid == request.auth.uid
+          )
         );
 
-      // Individual student lookup.
+      // Individual document access
       allow get:
-        if true;
+        if signedIn() &&
+        (
+          isSuperAdmin() ||
+          belongsToUserTenant(resource.data) ||
+          (
+            userRole() == "student" &&
+            resource.data.authUid == request.auth.uid
+          )
+        );
 
-      // Enrollment and updates.
+      // Enrollment
       allow create:
         if signedIn() &&
         (
@@ -160,6 +171,7 @@ service cloud.firestore {
           userRole() == "teacher"
         );
 
+      // Updates
       allow update:
         if signedIn() &&
         (
@@ -168,7 +180,7 @@ service cloud.firestore {
           userRole() == "teacher"
         );
 
-      // Deletion/deactivation.
+      // Delete
       allow delete:
         if signedIn() &&
         (
