@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -9,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { School, Loader2, KeyRound, Smartphone, ShieldCheck, Briefcase, Users, GraduationCap, ArrowRight, AlertCircle, Key, Mail, RefreshCw } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { signInWithEmailAndPassword, signOut, User, sendPasswordResetEmail } from "firebase/auth"
+import { signInWithEmailAndPassword, signOut, User, sendPasswordResetEmail, signInWithCustomToken } from "firebase/auth"
 import { doc, getDoc, collection, query, where, getDocs, setDoc, serverTimestamp, limit } from "firebase/firestore"
 import { auth, db, useUser } from "@/firebase"
 import { firebaseConfig } from "@/firebase/config"
@@ -192,45 +191,50 @@ export default function LoginPage() {
   }
 
   const handleParentLogin = async () => {
-    if (!parentStudentId || !parentPhoneInput) return
-    setParentLoading(true)
-    const normST = parentStudentId.trim().toUpperCase()
-    const schoolCode = normST.split('-')[0];
+    if (!parentStudentId || !parentPhoneInput) return;
+
+    setParentLoading(true);
+
+    const normST = parentStudentId.trim().toUpperCase();
+    const phone = normalizeSecurityPhone(parentPhoneInput);
 
     try {
-      const inst = await getInstitutionByCode(schoolCode);
-      if (!inst) throw new Error("Invalid Institution Prefix.");
+      const response = await fetch("/api/parent-login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          studentId: normST,
+          phone,
+        }),
+      });
 
-      const studentQ = query(collection(db, "students"), where("admissionNumber", "==", normST), limit(1))
-      const studentSnap = await getDocs(studentQ)
-      if (studentSnap.empty) throw new Error("Student ID not found.");
-      const studentDoc = studentSnap.docs[0].data();
+      const data = await response.json();
 
-      const relsQ = query(collection(db, "student_parents"), where("studentId", "==", studentDoc.id), limit(5))
-      const relsSnap = await getDocs(relsQ)
-      
-      let matchedParent = null;
-      for (const relDoc of relsSnap.docs) {
-        const pSnap = await getDoc(doc(db, "parents", relDoc.data().parentId));
-        if (pSnap.exists() && normalizeSecurityPhone(pSnap.data().phone) === normalizeSecurityPhone(parentPhoneInput)) {
-          matchedParent = pSnap.data();
-          break;
-        }
+      if (!response.ok) {
+        throw new Error(data.error || "Parent login failed.");
       }
 
-      if (!matchedParent) throw new Error("No linked guardian found for this phone.");
-      
-      const domain = getInstitutionEmailDomain(inst);
-      const pEmail = matchedParent.email || `${matchedParent.parentNumber}@${domain}`;
-      let inputPass = normalizeSecurityPhone(parentPhoneInput)
-      if (inputPass.length < 6) inputPass = inputPass.padEnd(6, '0');
+      const cred = await signInWithCustomToken(auth!, data.token);
 
-      const cred = await signInWithEmailAndPassword(auth!, pEmail, inputPass)
-      await redirectUser(cred.user, 'parent', matchedParent.parentNumber)
+      await redirectUser(cred.user, "parent", normST);
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Login Error", description: error.message })
-    } finally { setParentLoading(false) }
-  }
+      console.error(
+        "[Parent Login Error]",
+        error.code,
+        error.message
+      );
+
+      toast({
+        variant: "destructive",
+        title: "Login Error",
+        description: error.message,
+      });
+    } finally {
+      setParentLoading(false);
+    }
+  };
 
   const handleStudentLogin = async () => {
     if (!studentIdInput || !studentPinInput) return
