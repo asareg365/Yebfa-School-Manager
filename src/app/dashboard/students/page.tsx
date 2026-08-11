@@ -401,76 +401,295 @@ function StudentsRegistryContent() {
   }
 
   const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !institutionId || !institution) return
-
-    setBulkLoading(true)
-    const provisionAppName = `bulk-provision-${Date.now()}`;
-    const provisionApp = initializeApp(firebaseConfig, provisionAppName);
-    const provisionAuth = getAuth(provisionApp);
-
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: async (results) => {
-        try {
-          const rawRows = results.data as any[]
-          const rows = rawRows.map(row => {
-            const normalized: any = {};
-            Object.keys(row).forEach(key => {
-              const cleanKey = key.trim().toLowerCase().replace(/[\s_]/g, '');
-              normalized[cleanKey] = row[key];
-            });
-            return normalized;
-          });
-
-          let successCount = 0;
-          let failCount = 0;
-
-          for (const row of rows) {
-            const first = row.firstname || row.first || row.name?.split(' ')[0];
-            const last = row.lastname || row.last || row.name?.split(' ').slice(1).join(' ');
-            
-            if (!first || !last) {
-               console.warn(`[Bulk Intake] Skipping invalid row: Missing Name context.`);
-               continue;
+    const file = e.target.files?.[0];
+  
+    if (!file || !institutionId || !institution) {
+      return;
+    }
+  
+    setBulkLoading(true);
+  
+    let provisionApp: FirebaseApp | null = null;
+  
+    try {
+      const provisionAppName = `bulk-provision-${Date.now()}`;
+  
+      provisionApp = initializeApp(firebaseConfig, provisionAppName);
+      const provisionAuth = getAuth(provisionApp);
+  
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        transformHeader: (header) => {
+          // Remove BOM, spaces, underscores, hyphens and punctuation.
+          // This makes all of these equivalent:
+          // FirstName
+          // First Name
+          // first_name
+          // first-name
+          // ﻿FirstName
+          return header
+            .replace(/^\uFEFF/, "")
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, "");
+        },
+  
+        complete: async (results) => {
+          try {
+            const rawRows = results.data as any[];
+  
+            console.log(
+              `[Bulk Intake] CSV parsed successfully. Rows detected: ${rawRows.length}`
+            );
+  
+            if (!rawRows.length) {
+              toast({
+                variant: "destructive",
+                title: "Empty CSV",
+                description: "No student records were found in the uploaded file."
+              });
+              return;
             }
-
-            try {
-               const batch = writeBatch(db);
-               await createStudentAccount({
-                 firstName: first,
-                 lastName: last,
-                 gender: row.gender || "Male",
-                 gradeLevel: row.grade || row.class || "Unassigned",
-                 dateOfBirth: row.dob || row.dateofbirth || "",
-                 status: "active"
-               }, provisionAuth, batch, institution);
-
-               await batch.commit();
-               successCount++;
-            } catch (err: any) {
-               console.error(`[Bulk Intake] Row failed:`, err.message);
-               failCount++;
+  
+            console.log(
+              "[Bulk Intake] First normalized row:",
+              rawRows[0]
+            );
+  
+            let successCount = 0;
+            let failCount = 0;
+            let skippedCount = 0;
+  
+            for (let index = 0; index < rawRows.length; index++) {
+              const row = rawRows[index];
+  
+              // Support multiple possible column names.
+              const first =
+                String(
+                  row.firstname ||
+                  row.first ||
+                  row.givenname ||
+                  ""
+                ).trim();
+  
+              const last =
+                String(
+                  row.lastname ||
+                  row.last ||
+                  row.surname ||
+                  row.familyname ||
+                  ""
+                ).trim();
+  
+              // Optional combined Name column.
+              let resolvedFirst = first;
+              let resolvedLast = last;
+  
+              if ((!resolvedFirst || !resolvedLast) && row.name) {
+                const fullName = String(row.name).trim();
+  
+                const nameParts = fullName
+                  .split(/\s+/)
+                  .filter(Boolean);
+  
+                if (nameParts.length >= 2) {
+                  resolvedFirst = nameParts[0];
+                  resolvedLast = nameParts.slice(1).join(" ");
+                }
+              }
+  
+              if (!resolvedFirst || !resolvedLast) {
+                skippedCount++;
+  
+                console.warn(
+                  `[Bulk Intake] Row ${index + 2} skipped: Missing student name.`,
+                  row
+                );
+  
+                continue;
+              }
+  
+              const gender =
+                String(row.gender || "Male").trim() || "Male";
+  
+              const gradeLevel =
+                String(
+                  row.grade ||
+                  row.class ||
+                  row.gradelevel ||
+                  row.classlevel ||
+                  "Unassigned"
+                ).trim() || "Unassigned";
+  
+              const dateOfBirth =
+                String(
+                  row.dob ||
+                  row.dateofbirth ||
+                  row.birthdate ||
+                  ""
+                ).trim();
+  
+              console.log(
+                `[Bulk Intake] Processing ${index + 1}/${rawRows.length}: ${resolvedFirst} ${resolvedLast}`
+              );
+  
+              try {
+                const batch = writeBatch(db);
+  
+                const result = await createStudentAccount(
+                  {
+                    firstName: resolvedFirst,
+                    lastName: resolvedLast,
+                    gender,
+                    gradeLevel,
+                    dateOfBirth,
+                    status: "active"
+                  },
+                  provisionAuth,
+                  batch,
+                  institution
+                );
+  
+                await batch.commit();
+  
+                successCount++;
+  
+                console.log(
+                  `[Bulk Intake] SUCCESS: ${resolvedFirst} ${resolvedLast} → ${result.admissionNumber}`
+                );
+  
+              } catch (rowError: any) {
+                failCount++;
+  
+                console.error(
+                  `[Bulk Intake] Row ${index + 2} failed for ${resolvedFirst} ${resolvedLast}:`,
+                  rowError?.code || "",
+                  rowError?.message || rowError
+                );
+              }
+            }
+  
+            console.log("[Bulk Intake] Final results:", {
+              total: rawRows.length,
+              successful: successCount,
+              failed: failCount,
+              skipped: skippedCount
+            });
+  
+            toast({
+              title: "Registry Sync Complete",
+              description:
+                `${successCount} students enrolled. ` +
+                `${failCount} failed. ` +
+                `${skippedCount} skipped.`
+            });
+  
+            setIsBulkOpen(false);
+  
+          } catch (error: any) {
+            console.error("[Bulk Intake] Fatal Failure:", error);
+  
+            toast({
+              variant: "destructive",
+              title: "Intake Halted",
+              description:
+                error?.message || "The bulk enrollment process failed."
+            });
+  
+          } finally {
+            setBulkLoading(false);
+  
+            if (bulkFileRef.current) {
+              bulkFileRef.current.value = "";
+            }
+  
+            // Cleanup is handled here exactly once.
+            if (provisionApp) {
+              try {
+                await deleteApp(provisionApp);
+                console.log("[Bulk Intake] Temporary Firebase app cleaned up.");
+              } catch (cleanupError: any) {
+                // Ignore Firebase's "already deleted" error.
+                if (cleanupError?.code !== "app/app-deleted") {
+                  console.warn(
+                    "[Bulk Intake] Firebase app cleanup warning:",
+                    cleanupError
+                  );
+                }
+              } finally {
+                provisionApp = null;
+              }
             }
           }
-
-          toast({ 
-            title: "Registry Sync Complete", 
-            description: `Authorized ${successCount} enrollments. ${failCount} failures.` 
-          });
-          setIsBulkOpen(false);
-        } catch (error: any) {
-          toast({ variant: "destructive", title: "Intake Halted", description: error.message })
-        } finally {
+        },
+  
+        error: (parseError) => {
+          console.error("[Bulk Intake] CSV Parse Error:", parseError);
+  
           setBulkLoading(false);
-          if (bulkFileRef.current) bulkFileRef.current.value = "";
-          try { await deleteApp(provisionApp); } catch (e) {}
+  
+          if (bulkFileRef.current) {
+            bulkFileRef.current.value = "";
+          }
+  
+          toast({
+            variant: "destructive",
+            title: "CSV Import Failed",
+            description:
+              parseError?.message ||
+              "The uploaded CSV file could not be read."
+          });
+  
+          if (provisionApp) {
+            deleteApp(provisionApp)
+              .catch((cleanupError: any) => {
+                if (cleanupError?.code !== "app/app-deleted") {
+                  console.warn(
+                    "[Bulk Intake] Cleanup warning:",
+                    cleanupError
+                  );
+                }
+              });
+  
+            provisionApp = null;
+          }
         }
+      });
+  
+    } catch (error: any) {
+      console.error("[Bulk Intake] Initialization Error:", error);
+  
+      setBulkLoading(false);
+  
+      if (bulkFileRef.current) {
+        bulkFileRef.current.value = "";
       }
-    })
-  }
-
+  
+      if (provisionApp) {
+        try {
+          await deleteApp(provisionApp);
+        } catch (cleanupError: any) {
+          if (cleanupError?.code !== "app/app-deleted") {
+            console.warn(
+              "[Bulk Intake] Cleanup warning:",
+              cleanupError
+            );
+          }
+        }
+  
+        provisionApp = null;
+      }
+  
+      toast({
+        variant: "destructive",
+        title: "Bulk Intake Failed",
+        description:
+          error?.message ||
+          "Unable to initialize the student provisioning service."
+      });
+    }
+  };
   const handleDeactivateStudent = async (id: string) => {
     if (!confirm("Are you sure?")) return
     setLoading(true);
