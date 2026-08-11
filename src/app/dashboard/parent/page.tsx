@@ -127,7 +127,7 @@ export default function StudentReportsPortal() {
 
   const computedData = useMemo(() => {
     if (exams.length === 0 && invoices.length === 0 && attendance.length === 0) {
-       return { results: [], average: 0, attendance: { percentage: 0, present: 0, absent: 0 }, balance: 0 };
+       return { results: [], average: 0, attendance: { percentage: 0, present: 0, absent: 0 }, balance: 0, position: "N/A" };
     }
     
     const results = exams.map((e: any) => {
@@ -142,7 +142,6 @@ export default function StudentReportsPortal() {
 
     const totalMarks = results.reduce((acc, curr) => acc + curr.total, 0);
     const average = results.length > 0 ? totalMarks / results.length : 0;
-    const overallGrade = calculateGrade(average);
     
     const studentAverages = Array.from(new Set(exams.map((e: any) => e.studentId))).map(sid => {
       const sExams = exams.filter((e: any) => e.studentId === sid);
