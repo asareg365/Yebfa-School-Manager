@@ -8,7 +8,13 @@ import { Label } from "@/components/ui/label"
 import { School, Loader2, KeyRound, Smartphone, ShieldCheck, Briefcase, Users, GraduationCap, ArrowRight, AlertCircle, Key, Mail, RefreshCw } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { signInWithEmailAndPassword, signOut, User, sendPasswordResetEmail, signInWithCustomToken } from "firebase/auth"
+import { 
+  signInWithEmailAndPassword, 
+  signInWithCustomToken,
+  signOut, 
+  User, 
+  sendPasswordResetEmail 
+} from "firebase/auth"
 import { doc, getDoc, collection, query, where, getDocs, setDoc, serverTimestamp, limit } from "firebase/firestore"
 import { auth, db, useUser } from "@/firebase"
 import { firebaseConfig } from "@/firebase/config"
