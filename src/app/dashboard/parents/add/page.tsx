@@ -74,12 +74,14 @@ export default function AddParentPage() {
       if (cleanPass.length < 6) cleanPass = cleanPass.padEnd(6, '0');
       
       const domain = getInstitutionEmailDomain(institution);
-      const parentEmail = (parentForm.email || `${finalParentNumber.trim()}@${domain}`).toLowerCase();
+      
+      const authEmail = `${finalParentNumber.trim()}@${domain}`.toLowerCase();
+      const contactEmail = parentForm.email?.trim().toLowerCase() || authEmail;
       
       let authUser;
       let authUid = null;
       try {
-        const credential = await createUserWithEmailAndPassword(provisionAuth, parentEmail, cleanPass)
+        const credential = await createUserWithEmailAndPassword(provisionAuth, authEmail, cleanPass)
         authUser = credential.user
         authUid = authUser.uid;
       } catch (authErr: any) {
@@ -94,7 +96,8 @@ export default function AddParentPage() {
         ...parentForm,
         parentNumber: finalParentNumber,
         phone: normalizeSecurityPhone(parentForm.phone),
-        email: parentEmail,
+        email: contactEmail,
+        authEmail: authEmail,
         id: parentRef.id,
         authUid,
         tenantId: institutionId,
@@ -107,7 +110,8 @@ export default function AddParentPage() {
       await setDoc(doc(db, "users", finalUid), {
         uid: finalUid,
         name: `${parentForm.firstName} ${parentForm.lastName}`,
-        email: parentEmail,
+        email: contactEmail,
+        authEmail: authEmail,
         role: "parent",
         tenantId: institutionId,
         institutionId: institutionId,

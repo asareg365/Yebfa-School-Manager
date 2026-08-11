@@ -121,7 +121,6 @@ export default function StaffHRPage() {
       const batch = writeBatch(db)
       let staffId = editingStaff?.id
       let finalStaffNumber = staffForm.staffNumber
-      let accountEmail = staffForm.email
       let authUid = editingStaff?.authUid || null;
 
       const staffRef = editingStaff ? doc(db, "staff", editingStaff.id) : doc(collection(db, "staff"))
@@ -134,11 +133,13 @@ export default function StaffHRPage() {
         if (cleanPass.length < 6) cleanPass = cleanPass.padEnd(6, '0');
         
         const domain = getInstitutionEmailDomain(institution);
-        accountEmail = (staffForm.email || `${finalStaffNumber.trim()}@${domain}`).toLowerCase();
+        
+        const authEmail = `${finalStaffNumber.trim()}@${domain}`.toLowerCase();
+        const contactEmail = staffForm.email?.trim().toLowerCase() || authEmail;
         
         let authUser;
         try {
-          const credential = await createUserWithEmailAndPassword(provisionAuth, accountEmail, cleanPass)
+          const credential = await createUserWithEmailAndPassword(provisionAuth, authEmail, cleanPass)
           authUser = credential.user
           authUid = authUser.uid;
         } catch (authErr: any) {
@@ -152,7 +153,8 @@ export default function StaffHRPage() {
         batch.set(doc(db, "users", userUid), {
           uid: userUid,
           name: `${staffForm.firstName} ${staffForm.lastName}`,
-          email: accountEmail,
+          email: contactEmail,
+          authEmail: authEmail,
           role: resolveSystemRole(staffForm.designation),
           tenantId: institutionId,
           institutionId: institutionId,
@@ -168,7 +170,8 @@ export default function StaffHRPage() {
           ...staffForm,
           staffNumber: finalStaffNumber,
           phone: normalizeSecurityPhone(staffForm.phone),
-          email: accountEmail,
+          email: contactEmail,
+          authEmail: authEmail,
           salary: parseFloat(staffForm.salary as string) || 0,
           id: staffId,
           authUid,

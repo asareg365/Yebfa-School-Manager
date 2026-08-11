@@ -245,20 +245,13 @@ function StudentsRegistryContent() {
     const finalPin = generateStudentPin(); 
     const domain = getInstitutionEmailDomain(inst);
 
-    const studentEmail =
-      `${finalAdmissionNumber.trim()}@${domain}`;
-
-    console.log("[Provisioning] Student credentials:", {
-      school: inst.name,
-      schoolCode: inst.schoolCode,
-      admissionNumber: finalAdmissionNumber,
-      email: studentEmail
-    });
+    const authEmail = `${finalAdmissionNumber.trim()}@${domain}`.toLowerCase();
+    const contactEmail = authEmail;
     
     let authUser;
     let authUid = null;
     try {
-      const credential = await createUserWithEmailAndPassword(provisionAuth, studentEmail, finalPin);
+      const credential = await createUserWithEmailAndPassword(provisionAuth, authEmail, finalPin);
       authUser = credential.user;
       authUid = authUser.uid;
     } catch (authErr: any) {
@@ -276,6 +269,8 @@ function StudentsRegistryContent() {
       id: studentId,
       admissionNumber: finalAdmissionNumber,
       studentPin: finalPin,
+      email: contactEmail,
+      authEmail: authEmail,
       authUid,
       tenantId: inst.id,
       institutionId: inst.id,
@@ -288,7 +283,8 @@ function StudentsRegistryContent() {
     batch.set(doc(db, "users", userUid), {
       uid: userUid,
       name: `${data.firstName} ${data.lastName}`,
-      email: studentEmail,
+      email: contactEmail,
+      authEmail: authEmail,
       role: "student",
       studentId: studentId,
       tenantId: inst.id,
@@ -327,12 +323,14 @@ function StudentsRegistryContent() {
           if (cleanPass.length < 6) cleanPass = cleanPass.padEnd(6, '0');
           
           const domain = getInstitutionEmailDomain(institution);
-          const parentEmail = (newParentForm.email || `${finalParentNumber.trim()}@${domain}`).toLowerCase();
+          
+          const authEmail = `${finalParentNumber.trim()}@${domain}`.toLowerCase();
+          const contactEmail = newParentForm.email?.trim().toLowerCase() || authEmail;
           
           let parentAuthUser;
           let parentAuthUid = null;
           try {
-            const credential = await createUserWithEmailAndPassword(provisionAuth, parentEmail, cleanPass);
+            const credential = await createUserWithEmailAndPassword(provisionAuth, authEmail, cleanPass);
             parentAuthUser = credential.user;
             parentAuthUid = parentAuthUser.uid;
           } catch (authErr: any) {
@@ -348,7 +346,8 @@ function StudentsRegistryContent() {
             ...newParentForm,
             parentNumber: finalParentNumber,
             phone: normalizeSecurityPhone(newParentForm.phone),
-            email: parentEmail,
+            email: contactEmail,
+            authEmail: authEmail,
             id: finalParentId,
             authUid: parentAuthUid,
             tenantId: institutionId,
@@ -361,7 +360,8 @@ function StudentsRegistryContent() {
           batch.set(doc(db, "users", pUid), {
             uid: pUid,
             name: `${newParentForm.firstName} ${newParentForm.lastName}`,
-            email: parentEmail,
+            email: contactEmail,
+            authEmail: authEmail,
             role: "parent",
             tenantId: institutionId,
             institutionId: institutionId,
@@ -495,7 +495,6 @@ function StudentsRegistryContent() {
 
               let last = getValue(
                 "lastname",
-                "lastnames",
                 "last",
                 "surname",
                 "familyname",
@@ -743,11 +742,14 @@ function StudentsRegistryContent() {
     try {
       const newPin = generateStudentPin();
       const domain = getInstitutionEmailDomain(institution);
-      const studentEmail = `${stu.admissionNumber.trim()}@${domain}`;
+      
+      const authEmail = `${stu.admissionNumber.trim()}@${domain}`.toLowerCase();
+      const contactEmail = stu.email || authEmail;
+      
       const uid = stu.authUid || stu.id;
       
       try {
-        await createUserWithEmailAndPassword(provisionAuth, studentEmail, newPin);
+        await createUserWithEmailAndPassword(provisionAuth, authEmail, newPin);
       } catch (authErr: any) {
         console.log("PIN Reset Auth context caught.");
       }
@@ -755,7 +757,8 @@ function StudentsRegistryContent() {
       await setDoc(doc(db, "users", uid), {
         uid: uid,
         name: `${stu.firstName} ${stu.lastName}`,
-        email: studentEmail,
+        email: contactEmail,
+        authEmail: authEmail,
         role: "student",
         studentId: stu.id,
         tenantId: institutionId,
@@ -766,6 +769,8 @@ function StudentsRegistryContent() {
 
       await updateDoc(doc(db, "students", stu.id), {
         studentPin: newPin,
+        email: contactEmail,
+        authEmail: authEmail,
         updatedAt: serverTimestamp()
       });
 
