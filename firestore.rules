@@ -297,10 +297,13 @@ service cloud.firestore {
 
     match /student_parents/{relId} {
 
+      // School management and the linked parent can read
+      // the relationship record.
       allow read:
         if signedIn() &&
         (
           isSuperAdmin() ||
+          isParentOf(resource.data) ||
           belongsToUserTenant(resource.data)
         );
 

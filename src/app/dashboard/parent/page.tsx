@@ -162,7 +162,6 @@ export default function StudentReportsPortal() {
     const positions = calculatePositions(studentAverages);
     const attSummary = calculateAttendanceSummary(attendance);
 
-    // Accounting Polarity: Paid - Charged = Balance
     const balance = ledger.reduce((acc, curr: any) => curr.type === 'charge' ? acc - curr.amount : acc + curr.amount, 0);
 
     return {

@@ -145,8 +145,6 @@ export default function StaffHRPage() {
           authUid = authUser.uid;
         } catch (authErr: any) {
           console.log("Staff Auth Error");
-          console.log(authErr.code);
-          console.log(authErr.message);
           throw authErr;
         }
 
