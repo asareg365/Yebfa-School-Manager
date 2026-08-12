@@ -167,7 +167,7 @@ export function AppSidebar() {
         visible: isSuperAdmin || isOwner || isAdmin || isAccountant || isTeacher,
         items: [
           { title: "Active Enrollment", url: "/dashboard/students", visible: isSuperAdmin || isOwner || isAdmin || isTeacher },
-          { title: "Personal Ledgers", url: "/dashboard/students/accounts", visible: !isTeacher },
+          { title: "Personal Ledgers", url: "/dashboard/students/accounts", visible: isSuperAdmin || isOwner || isAdmin || isAccountant },
           { title: "Daily Attendance", url: "/dashboard/attendance", visible: isSuperAdmin || isOwner || isAdmin || isTeacher },
         ].filter(i => i.visible),
       },
@@ -224,7 +224,7 @@ export function AppSidebar() {
        <SidebarHeader className="h-16 border-b flex items-center px-6" />
        <SidebarContent />
        <SidebarFooter className="border-t p-4 h-20" />
-    </Sidebar>
+  </Sidebar>
   )
 
   const displayName = profile?.name || user?.displayName || user?.email || "Registry User";
