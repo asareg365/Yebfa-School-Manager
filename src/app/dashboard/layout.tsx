@@ -168,7 +168,17 @@ export default function DashboardLayout({
   }
 
   const isTrial = institution?.subscriptionPlan?.toLowerCase().includes('trial');
-  const userDisplayName = profile?.name || user?.displayName || user?.email || "Registry User";
+
+  const canManageSubscription =
+    profile?.role === "super_admin" ||
+    profile?.role === "school_owner" ||
+    profile?.role === "administrator";
+  
+  const userDisplayName =
+    profile?.name ||
+    user?.displayName ||
+    user?.email ||
+    "Registry User";
 
   return (
     <SidebarProvider className="print-provider h-screen overflow-hidden">
@@ -176,7 +186,7 @@ export default function DashboardLayout({
         <AppSidebar />
       </div>
       <SidebarInset className="bg-background print-inset flex flex-col h-screen w-full overflow-hidden">
-        {isTrial && trialDaysLeft !== null && (
+      {canManageSubscription && isTrial && trialDaysLeft !== null &&  (
           <div className={`no-print py-2 px-4 md:px-6 flex items-center justify-between transition-colors shrink-0 ${trialDaysLeft <= 7 ? 'bg-orange-600 text-white' : 'bg-blue-600 text-white'}`}>
             <div className="flex items-center gap-2 text-[10px] md:text-xs font-bold uppercase tracking-widest truncate">
               {trialDaysLeft <= 7 ? <AlertTriangle className="size-3 md:size-4" /> : <Clock className="size-3 md:size-4" />}
@@ -260,7 +270,14 @@ export default function DashboardLayout({
             <div className="flex flex-col text-right border-l pl-4 border-border/40">
               <span className="text-xs md:text-sm font-black truncate max-w-[120px] md:max-w-[180px] text-primary uppercase tracking-tighter">{institutionName}</span>
               <div className="flex items-center justify-end gap-1">
-                 <Badge variant="outline" className="text-[7px] md:text-[8px] h-3.5 md:h-4 px-1 md:px-1.5 font-bold uppercase tracking-tighter bg-primary/5">{institution?.subscriptionPlan || 'Trial'}</Badge>
+              {canManageSubscription && (
+  <Badge
+    variant="outline"
+    className="text-[7px] md:text-[8px] h-3.5 md:h-4 px-1 md:px-1.5 font-bold uppercase tracking-tighter bg-primary/5"
+  >
+    {institution?.subscriptionPlan || "Trial"}
+  </Badge>
+)}
                  <span className="hidden xs:inline text-[9px] text-muted-foreground uppercase font-black tracking-tighter">NODE 2026</span>
               </div>
             </div>

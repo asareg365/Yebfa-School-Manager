@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -61,6 +62,17 @@ service cloud.firestore {
 
     function isOwner() {
       return signedIn() && userRole() == "school_owner";
+    }
+
+    function isParent() {
+      return signedIn() && userRole() == "parent";
+    }
+
+    function isParentOf(data) {
+      return isParent() &&
+        data.parentId != null &&
+        data.parentId == userDoc().parentId &&
+        data.tenantId == userTenant();
     }
 
 
@@ -328,7 +340,8 @@ service cloud.firestore {
         if signedIn() &&
         (
           isSuperAdmin() ||
-          belongsToUserTenant(resource.data)
+          belongsToUserTenant(resource.data) ||
+          isParentOf(resource.data)
         );
 
       allow create, update, delete:
@@ -351,7 +364,8 @@ service cloud.firestore {
         if signedIn() &&
         (
           isSuperAdmin() ||
-          belongsToUserTenant(resource.data)
+          belongsToUserTenant(resource.data) ||
+          isParentOf(resource.data)
         );
 
       allow create, update, delete:
@@ -374,7 +388,8 @@ service cloud.firestore {
         if signedIn() &&
         (
           isSuperAdmin() ||
-          belongsToUserTenant(resource.data)
+          belongsToUserTenant(resource.data) ||
+          isParentOf(resource.data)
         );
 
       allow create, update, delete:
@@ -397,7 +412,8 @@ service cloud.firestore {
         if signedIn() &&
         (
           isSuperAdmin() ||
-          belongsToUserTenant(resource.data)
+          belongsToUserTenant(resource.data) ||
+          isParentOf(resource.data)
         );
 
       allow create, update:
@@ -427,7 +443,8 @@ service cloud.firestore {
         if signedIn() &&
         (
           isSuperAdmin() ||
-          belongsToUserTenant(resource.data)
+          belongsToUserTenant(resource.data) ||
+          isParentOf(resource.data)
         );
 
       allow create, update:

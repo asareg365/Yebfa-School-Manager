@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -55,7 +56,8 @@ export default function StudentReportsPortal() {
   const { data: relations = [], loading: relsLoading } = useCollection(relsQuery)
 
   const studentsQuery = useMemo(() => {
-    if (!db || !profile) return null
+    if (!db || !profile) return null;
+
     if (isStudent) {
       if (!user?.uid) return null;
 
@@ -64,10 +66,12 @@ export default function StudentReportsPortal() {
         where("authUid", "==", user.uid)
       );
     }
+
     if (isParent && relations.length > 0) {
       const studentIds = relations.map(r => r.studentId)
       return query(collection(db, "students"), where("id", "in", studentIds))
     }
+
     return null;
   }, [db, relations, isStudent, isParent, profile, user?.uid])
 
