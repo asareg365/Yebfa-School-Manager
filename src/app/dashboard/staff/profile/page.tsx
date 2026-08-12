@@ -24,14 +24,18 @@ import {
   Building2,
   AlertCircle,
   Camera,
-  Upload
+  Upload,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { toast } from '@/hooks/use-toast';
+import { Button } from "@/components/ui/button";
 
 export default function StaffProfilePage() {
   const { user, loading: authLoading } = useUser();
   const db = useFirestore();
   const [uploading, setUploading] = useState(false);
+  const [showSalary, setShowSalary] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user]);
@@ -163,9 +167,18 @@ export default function StaffProfilePage() {
              <CardHeader className="pb-2">
                 <div className="flex justify-between items-center">
                    <CardDescription className="text-accent-foreground/60 text-[10px] font-bold uppercase tracking-widest">Monthly Compensation</CardDescription>
-                   <Wallet className="size-4 opacity-50" />
+                   <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 rounded-full hover:bg-white/10 text-white/50 hover:text-white"
+                    onClick={() => setShowSalary(!showSalary)}
+                   >
+                     {showSalary ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                   </Button>
                 </div>
-                <CardTitle className="text-3xl font-headline font-bold">GH₵ {staff.salary?.toLocaleString() || "0.00"}</CardTitle>
+                <CardTitle className="text-3xl font-headline font-bold">
+                  {showSalary ? `GH₵ ${staff.salary?.toLocaleString() || "0.00"}` : "••••••••"}
+                </CardTitle>
              </CardHeader>
              <CardContent>
                 <p className="text-[10px] uppercase font-bold opacity-70">Base Net Salary • Cycle 2026</p>

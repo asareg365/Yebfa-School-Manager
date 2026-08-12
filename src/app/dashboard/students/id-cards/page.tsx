@@ -1,20 +1,23 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Printer, ArrowLeft, User, Search, School as SchoolIcon, Phone, MapPin, ShieldCheck } from "lucide-react"
+import { Printer, ArrowLeft, User, Search, School as SchoolIcon, Phone, MapPin, ShieldCheck, Camera, Upload, Loader2 } from "lucide-react"
 import { useFirestore, useCollection, useDoc } from "@/firebase"
-import { collection, query, where, doc } from "firebase/firestore"
-import { useState, useMemo, useEffect } from "react"
+import { collection, query, where, doc, updateDoc, serverTimestamp } from "firebase/firestore"
+import { useState, useMemo, useEffect, useRef } from "react"
 import Link from "next/link"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { toast } from "@/hooks/use-toast"
 
 export default function StudentIDCardsPage() {
   const db = useFirestore()
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [targetStudentId, setTargetStudentId] = useState<string | null>(null)
 
   useEffect(() => {
     const storedId = localStorage.getItem('selected_institution_id')
@@ -26,7 +29,7 @@ export default function StudentIDCardsPage() {
 
   const studentsQuery = useMemo(() => {
     if (!db || !institutionId) return null;
-    return query(collection(db, "students"), where("tenantId", "==", institutionId));
+    return query(collection(db, "students"), where("tenantId", "==", institutionId), where("status", "==", "active"));
   }, [db, institutionId]);
 
   const { data: students = [] } = useCollection(studentsQuery)
@@ -35,15 +38,59 @@ export default function StudentIDCardsPage() {
     return students.filter(s => 
       `${s.firstName} ${s.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.admissionNumber?.toLowerCase().includes(searchQuery.toLowerCase())
-    )
+    ).sort((a, b) => (a.admissionNumber || "").localeCompare(b.admissionNumber || ""))
   }, [students, searchQuery])
 
   const handlePrint = () => {
     window.print()
   }
 
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !targetStudentId || !db) return
+
+    if (file.size > 800000) {
+      toast({ variant: "destructive", title: "File Too Large", description: "Portrait must be under 800KB." })
+      return
+    }
+
+    setUpdatingId(targetStudentId)
+    const reader = new FileReader()
+    reader.onloadend = async () => {
+      try {
+        const base64 = reader.result as string
+        await updateDoc(doc(db, "students", targetStudentId), {
+          photoUrl: base64,
+          updatedAt: serverTimestamp()
+        })
+        toast({ title: "Identity Synchronized", description: "Portrait updated in registry." })
+      } catch (err) {
+        toast({ variant: "destructive", title: "Sync Failed" })
+      } finally {
+        setUpdatingId(null)
+        setTargetStudentId(null)
+        if (fileInputRef.current) fileInputRef.current.value = ""
+      }
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const triggerUpload = (studentId: string) => {
+    setTargetStudentId(studentId)
+    fileInputRef.current?.click()
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Hidden File Input */}
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        onChange={handlePhotoUpload} 
+        accept="image/*" 
+        className="hidden" 
+      />
+
       {/* Screen view content */}
       <div className="no-print space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -79,8 +126,25 @@ export default function StudentIDCardsPage() {
                 <div key={stu.id} className="w-[3.375in] h-[2.125in] bg-white rounded-2xl shadow-xl border-2 border-primary/5 p-5 flex flex-col relative overflow-hidden group">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110" />
                   <div className="flex items-start gap-5 flex-1 relative z-10">
-                    <div className="size-28 rounded-2xl border-2 border-white bg-slate-50 overflow-hidden shrink-0 flex items-center justify-center shadow-md">
-                      {stu.photoUrl ? <img src={stu.photoUrl} className="w-full h-full object-cover" alt="Student" /> : <User className="size-14 text-primary/10" />}
+                    <div 
+                      className="size-28 rounded-2xl border-2 border-white bg-slate-50 overflow-hidden shrink-0 flex items-center justify-center shadow-md relative group/photo cursor-pointer"
+                      onClick={() => triggerUpload(stu.id)}
+                    >
+                      {stu.photoUrl ? (
+                        <img src={stu.photoUrl} className="w-full h-full object-cover" alt="Student" />
+                      ) : (
+                        <User className="size-14 text-primary/10" />
+                      )}
+                      <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 group-hover/photo:opacity-100 transition-opacity gap-1">
+                        {updatingId === stu.id ? (
+                          <Loader2 className="size-6 text-white animate-spin" />
+                        ) : (
+                          <>
+                            <Camera className="size-5 text-white" />
+                            <span className="text-[7px] text-white font-bold uppercase tracking-widest">Upload</span>
+                          </>
+                        )}
+                      </div>
                     </div>
                     <div className="flex flex-col justify-between py-1 h-28 flex-1 min-w-0">
                       <div>
