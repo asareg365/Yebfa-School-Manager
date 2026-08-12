@@ -118,7 +118,7 @@ export function AppSidebar() {
     }
 
     return [
-      { title: "Overview", url: "/dashboard", icon: LayoutDashboard, visible: true },
+      { title: "Overview", url: "/dashboard", icon: LayoutDashboard, visible: !isTeacher },
       { title: "My Profile", url: "/dashboard/staff/profile", icon: UserIcon, visible: isStaff },
       {
         title: "AI Strategic Hub",
@@ -154,10 +154,10 @@ export function AppSidebar() {
         title: "HR & Faculty",
         url: "#",
         icon: Briefcase,
-        visible: isSuperAdmin || isOwner || isAdmin || isAccountant || isTeacher,
+        visible: (isSuperAdmin || isOwner || isAdmin || isAccountant) && !isTeacher,
         items: [
-          { title: "Staff Directory", url: "/dashboard/staff", visible: isSuperAdmin || isOwner || isAdmin || isAccountant },
-          { title: "Payroll Processor", url: "/dashboard/finance/payroll", visible: isSuperAdmin || isOwner || isAccountant },
+          { title: "Staff Directory", url: "/dashboard/staff", visible: true },
+          { title: "Payroll Processor", url: "/dashboard/finance/payroll", visible: true },
         ].filter(i => i.visible),
       },
       {
@@ -167,7 +167,7 @@ export function AppSidebar() {
         visible: isSuperAdmin || isOwner || isAdmin || isAccountant || isTeacher,
         items: [
           { title: "Active Enrollment", url: "/dashboard/students", visible: true },
-          { title: "Personal Ledgers", url: "/dashboard/students/accounts", visible: isSuperAdmin || isOwner || isAdmin || isAccountant },
+          { title: "Personal Ledgers", url: "/dashboard/students/accounts", visible: !isTeacher },
           { title: "Daily Attendance", url: "/dashboard/attendance", visible: true },
         ].filter(i => i.visible),
       },

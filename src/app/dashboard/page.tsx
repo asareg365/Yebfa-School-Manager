@@ -47,10 +47,14 @@ export default function Dashboard() {
     return profile.tenantId || null;
   }, [profile, profileLoading]);
 
-  // Explicit Role Guard: Redirect parents away from the staff-oriented "System Pulse"
+  // Explicit Role Guard: Redirect teachers and parents away from the staff-oriented administrative "System Pulse"
   useEffect(() => {
-    if (!profileLoading && profile?.role === 'parent') {
-      router.replace("/dashboard/parent")
+    if (!profileLoading && profile) {
+      if (profile.role === 'parent') {
+        router.replace("/dashboard/parent")
+      } else if (profile.role === 'teacher') {
+        router.replace("/dashboard/attendance")
+      }
     }
   }, [profile, profileLoading, router])
 
@@ -115,7 +119,7 @@ export default function Dashboard() {
     }
   }
 
-  if (authLoading || profileLoading || (profile && profile.role === 'parent')) return (
+  if (authLoading || profileLoading || (profile && (profile.role === 'parent' || profile.role === 'teacher'))) return (
     <div className="p-10 text-center space-y-4">
       <Activity className="size-10 text-primary animate-spin mx-auto" />
       <p className="font-headline font-bold text-muted-foreground animate-pulse">Synchronizing Dashboard...</p>
@@ -130,7 +134,7 @@ export default function Dashboard() {
         </div>
         <div className="space-y-2">
           <h2 className="text-xl md:text-2xl font-bold font-headline">System Hub Offline</h2>
-          <p className="text-muted-foreground max-w-sm mx-auto text-sm">Please visit the Admin Hub to select or provision an active school instance.</p>
+          <p className="text-muted-foreground max-sm mx-auto text-sm">Please visit the Admin Hub to select or provision an active school instance.</p>
         </div>
         <Button asChild className="h-11 px-8"><Link href="/admin">Visit Admin Hub</Link></Button>
       </div>

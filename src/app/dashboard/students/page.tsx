@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -101,6 +102,9 @@ function StudentsRegistryContent() {
   const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
   const { data: institution } = useDoc(instRef)
 
+  const isTeacher = profile?.role === 'teacher'
+  const staffId = profile?.staffId
+
   const initialForm = {
     firstName: "",
     lastName: "",
@@ -165,6 +169,16 @@ function StudentsRegistryContent() {
     }
   }, [searchParams])
 
+  // Teacher Assignments for filtering
+  const assignmentsQuery = useMemo(() => 
+    institutionId && isTeacher && staffId 
+      ? query(collection(db, "teacher_assignments"), where("tenantId", "==", institutionId), where("teacherId", "==", staffId)) 
+      : null, 
+    [db, institutionId, isTeacher, staffId]
+  )
+  const { data: assignments = [] } = useCollection(assignmentsQuery)
+  const assignedClassIds = useMemo(() => new Set(assignments.map((a: any) => a.classId)), [assignments])
+
   const studentsQuery = useMemo(() => {
     if (!db || !institutionId) return null;
     return query(
@@ -180,15 +194,26 @@ function StudentsRegistryContent() {
 
   const { data: rawStudents = [], loading: studentsLoading } = useCollection(studentsQuery)
   const { data: parents = [] } = useCollection(parentsQuery)
-  const { data: registeredClasses = [] } = useCollection(classesQuery)
+  const { data: allRegisteredClasses = [] } = useCollection(classesQuery)
   const { data: allRels = [] } = useCollection(relsQuery)
 
+  const registeredClasses = useMemo(() => 
+    isTeacher ? allRegisteredClasses.filter(c => assignedClassIds.has(c.id)) : allRegisteredClasses,
+    [allRegisteredClasses, isTeacher, assignedClassIds]
+  )
+
   const studentsList = useMemo(() => {
-    return rawStudents.filter(s => 
+    let list = rawStudents;
+    if (isTeacher) {
+      const assignedClassNames = new Set(registeredClasses.map(c => c.name));
+      list = list.filter(s => assignedClassNames.has(s.gradeLevel));
+    }
+
+    return list.filter(s => 
       `${s.firstName || ""} ${s.lastName || ""}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.admissionNumber?.toLowerCase().includes(searchQuery.toLowerCase())
     ).sort((a: any, b: any) => (a.admissionNumber || "").localeCompare(b.admissionNumber || ""));
-  }, [rawStudents, searchQuery]);
+  }, [rawStudents, searchQuery, isTeacher, registeredClasses]);
 
   const groupedStudents = useMemo(() => {
     const groups: Record<string, any[]> = {}
@@ -271,8 +296,6 @@ function StudentsRegistryContent() {
       authUid = authUser.uid;
     } catch (authErr: any) {
       console.log("Student Auth Error");
-      console.log(authErr.code);
-      console.log(authErr.message);
       throw authErr;
     }
 
@@ -350,8 +373,6 @@ function StudentsRegistryContent() {
             parentAuthUid = parentAuthUser.uid;
           } catch (authErr: any) {
             console.log("Parent Auth Error");
-            console.log(authErr.code);
-            console.log(authErr.message);
             throw authErr;
           }
 
@@ -417,58 +438,25 @@ function StudentsRegistryContent() {
 
   const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-  
-    if (!file || !institutionId || !institution) {
-      return;
-    }
+    if (!file || !institutionId || !institution) return;
   
     setBulkLoading(true);
-  
     let provisionApp: FirebaseApp | null = null;
   
     try {
       const provisionAppName = `bulk-provision-${Date.now()}`;
-  
       provisionApp = initializeApp(firebaseConfig, provisionAppName);
       const provisionAuth = getAuth(provisionApp);
   
       Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
-      
-        transformHeader: (header) => {
-          return header
-            .replace(/^\uFEFF/, "")
-            .trim()
-            .toLowerCase()
-            .replace(/[^a-z0-9]/g, "");
-        },
-        
-          complete: async (results) => {
+        transformHeader: (header) => header.replace(/^\uFEFF/, "").trim().toLowerCase().replace(/[^a-z0-9]/g, ""),
+        complete: async (results) => {
           try {
             const rawRows = results.data as any[];
-  
-            console.log(
-              "[Bulk Intake] Raw rows detected:",
-              rawRows.length
-            );
-
-            console.log(
-              "[Bulk Intake] CSV columns detected:",
-              rawRows.length > 0 ? Object.keys(rawRows[0]) : []
-            );
-
-            console.log(
-              "[Bulk Intake] First CSV row:",
-              rawRows.length > 0 ? rawRows[0] : null
-            );
-  
             if (!rawRows.length) {
-              toast({
-                variant: "destructive",
-                title: "Empty CSV",
-                description: "No student records were found in the uploaded file."
-              });
+              toast({ variant: "destructive", title: "Empty CSV", description: "No student records were found." });
               return;
             }
   
@@ -478,254 +466,65 @@ function StudentsRegistryContent() {
   
             for (let index = 0; index < rawRows.length; index++) {
               const row = rawRows[index];
-  
               const getValue = (...keys: string[]) => {
                 for (const key of keys) {
                   const value = row[key];
-
                   if (value !== undefined && value !== null) {
                     const cleaned = String(value).trim();
-
-                    if (cleaned) {
-                      return cleaned;
-                    }
+                    if (cleaned) return cleaned;
                   }
                 }
-
                 return "";
               };
 
-              let first = getValue(
-                "firstname",
-                "first",
-                "givenname",
-                "studentfirstname",
-                "studentfirst",
-                "forename"
-              );
-
-              let last = getValue(
-                "lastname",
-                "last",
-                "surname",
-                "familyname",
-                "studentlastname",
-                "studentlast"
-              );
+              let first = getValue("firstname", "first", "givenname", "studentfirstname", "studentfirst", "forename");
+              let last = getValue("lastname", "last", "surname", "familyname", "studentlastname", "studentlast");
 
               if (!first || !last) {
-                const fullName = getValue(
-                  "name",
-                  "fullname",
-                  "studentname",
-                  "studentfullname",
-                  "student"
-                );
-
+                const fullName = getValue("name", "fullname", "studentname", "studentfullname", "student");
                 if (fullName) {
-                  const nameParts = fullName
-                    .trim()
-                    .split(/\s+/)
-                    .filter(Boolean);
-
-                  if (nameParts.length >= 2) {
-                    first = nameParts[0];
-                    last = nameParts.slice(1).join(" ");
-                  }
+                  const nameParts = fullName.trim().split(/\s+/).filter(Boolean);
+                  if (nameParts.length >= 2) { first = nameParts[0]; last = nameParts.slice(1).join(" "); }
                 }
               }
 
-              if (!first || !last) {
-                console.warn(
-                  `[Bulk Intake] Row ${index + 2} skipped: Missing name.`,
-                  {
-                    availableColumns: Object.keys(row),
-                    row
-                  }
-                );
-
-                skippedCount++;
-                continue;
-              }
-
-              console.log(
-                `[Bulk Intake] Resolved student: ${first} ${last}`
-              );
+              if (!first || !last) { skippedCount++; continue; }
   
-              const gender =
-                String(row.gender || "Male").trim() || "Male";
-  
-              const gradeLevel =
-                String(
-                  row.grade ||
-                  row.class ||
-                  row.gradelevel ||
-                  row.classlevel ||
-                  "Unassigned"
-                ).trim() || "Unassigned";
-  
-              const dateOfBirth =
-                String(
-                  row.dob ||
-                  row.dateofbirth ||
-                  row.birthdate ||
-                  ""
-                ).trim();
+              const gender = String(row.gender || "Male").trim() || "Male";
+              const gradeLevel = String(row.grade || row.class || row.gradelevel || row.classlevel || "Unassigned").trim() || "Unassigned";
+              const dateOfBirth = String(row.dob || row.dateofbirth || row.birthdate || "").trim();
   
               try {
                 const batch = writeBatch(db);
-  
-                const result = await createStudentAccount(
-                  {
-                    firstName: first,
-                    lastName: last,
-                    gender,
-                    gradeLevel,
-                    dateOfBirth,
-                    status: "active"
-                  },
-                  provisionAuth,
-                  batch,
-                  institution
-                );
-  
+                await createStudentAccount({ firstName: first, lastName: last, gender, gradeLevel, dateOfBirth, status: "active" }, provisionAuth, batch, institution);
                 await batch.commit();
-  
                 successCount++;
-  
-                console.log(
-                  `[Bulk Intake] SUCCESS: ${first} ${last} → ${result.admissionNumber}`
-                );
-  
               } catch (rowError: any) {
                 failCount++;
-  
-                console.error(
-                  `[Bulk Intake] Row ${index + 2} failed for ${first} ${last}:`,
-                  rowError?.code || "",
-                  rowError?.message || rowError
-                );
               }
             }
   
-            console.log("[Bulk Intake] Final results:", {
-              total: rawRows.length,
-              successful: successCount,
-              failed: failCount,
-              skipped: skippedCount
-            });
-  
-            toast({
-              title: "Registry Sync Complete",
-              description:
-                `${successCount} students enrolled. ` +
-                `${failCount} failed. ` +
-                `${skippedCount} skipped.`
-            });
-  
+            toast({ title: "Registry Sync Complete", description: `${successCount} students enrolled. ${failCount} failed. ${skippedCount} skipped.` });
             setIsBulkOpen(false);
-  
           } catch (error: any) {
-            console.error("[Bulk Intake] Fatal Failure:", error);
-  
-            toast({
-              variant: "destructive",
-              title: "Intake Halted",
-              description:
-                error?.message || "The bulk enrollment process failed."
-            });
-  
+            toast({ variant: "destructive", title: "Intake Halted", description: error?.message || "The bulk enrollment process failed." });
           } finally {
             setBulkLoading(false);
-  
-            if (bulkFileRef.current) {
-              bulkFileRef.current.value = "";
-            }
-  
-            if (provisionApp) {
-              try {
-                await deleteApp(provisionApp);
-                console.log("[Bulk Intake] Temporary Firebase app cleaned up.");
-              } catch (cleanupError: any) {
-                if (cleanupError?.code !== "app/app-deleted") {
-                  console.warn(
-                    "[Bulk Intake] Firebase app cleanup warning:",
-                    cleanupError
-                  );
-                }
-              } finally {
-                provisionApp = null;
-              }
-            }
+            if (bulkFileRef.current) bulkFileRef.current.value = "";
+            if (provisionApp) try { await deleteApp(provisionApp); } catch (e) {}
           }
         },
-  
         error: (parseError) => {
-          console.error("[Bulk Intake] CSV Parse Error:", parseError);
-  
           setBulkLoading(false);
-  
-          if (bulkFileRef.current) {
-            bulkFileRef.current.value = "";
-          }
-  
-          toast({
-            variant: "destructive",
-            title: "CSV Import Failed",
-            description:
-              parseError?.message ||
-              "The uploaded CSV file could not be read."
-          });
-  
-          if (provisionApp) {
-            deleteApp(provisionApp)
-              .catch((cleanupError: any) => {
-                if (cleanupError?.code !== "app/app-deleted") {
-                  console.warn(
-                    "[Bulk Intake] Cleanup warning:",
-                    cleanupError
-                  );
-                }
-              });
-  
-            provisionApp = null;
-          }
+          toast({ variant: "destructive", title: "CSV Import Failed", description: parseError?.message || "The file could not be read." });
         }
       });
-  
     } catch (error: any) {
-      console.error("[Bulk Intake] Initialization Error:", error);
-  
       setBulkLoading(false);
-  
-      if (bulkFileRef.current) {
-        bulkFileRef.current.value = "";
-      }
-  
-      if (provisionApp) {
-        try {
-          await deleteApp(provisionApp);
-        } catch (cleanupError: any) {
-          if (cleanupError?.code !== "app/app-deleted") {
-            console.warn(
-              "[Bulk Intake] Cleanup warning:",
-              cleanupError
-            );
-          }
-        }
-  
-        provisionApp = null;
-      }
-  
-      toast({
-        variant: "destructive",
-        title: "Bulk Intake Failed",
-        description:
-          error?.message ||
-          "Unable to initialize the student provisioning service."
-      });
+      toast({ variant: "destructive", title: "Bulk Intake Failed", description: error?.message || "Unable to initialize the student provisioning service." });
     }
   };
+
   const handleDeactivateStudent = async (id: string) => {
     if (!confirm("Are you sure?")) return
     setLoading(true);
@@ -749,10 +548,8 @@ function StudentsRegistryContent() {
     try {
       const newPin = generateStudentPin();
       const domain = getInstitutionEmailDomain(institution);
-      
       const authEmail = `${stu.admissionNumber.trim()}@${domain}`.toLowerCase();
       const contactEmail = stu.email || authEmail;
-      
       const uid = stu.authUid || stu.id;
       
       try {
@@ -817,13 +614,17 @@ function StudentsRegistryContent() {
           <p className="text-muted-foreground font-medium">Strategic institutional enrollment and lifecycle management.</p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <Button variant="outline" className="h-11 rounded-xl" onClick={() => setIsBulkOpen(true)}>
-            <FileSpreadsheet className="size-4 mr-2" /> Bulk Intake
-          </Button>
-          <Button variant="outline" className="h-11 rounded-xl" asChild><Link href="/dashboard/students/id-cards"><IdCard className="size-4 mr-2" /> ID Cards</Link></Button>
-          <Button className="bg-primary rounded-xl h-11 shadow-lg gap-2" onClick={() => { setEditingStudent(null); setStudentForm(initialForm); setIsEnrollOpen(true); setActiveStep("identity"); }}>
-            <UserPlus className="size-4" /> Enroll Student
-          </Button>
+          {!isTeacher && (
+            <>
+              <Button variant="outline" className="h-11 rounded-xl" onClick={() => setIsBulkOpen(true)}>
+                <FileSpreadsheet className="size-4 mr-2" /> Bulk Intake
+              </Button>
+              <Button variant="outline" className="h-11 rounded-xl" asChild><Link href="/dashboard/students/id-cards"><IdCard className="size-4 mr-2" /> ID Cards</Link></Button>
+              <Button className="bg-primary rounded-xl h-11 shadow-lg gap-2" onClick={() => { setEditingStudent(null); setStudentForm(initialForm); setIsEnrollOpen(true); setActiveStep("identity"); }}>
+                <UserPlus className="size-4" /> Enroll Student
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -836,7 +637,7 @@ function StudentsRegistryContent() {
             </div>
             <div className="flex items-center gap-2">
               <Badge className="bg-primary/5 text-primary border-none text-[10px] font-bold uppercase tracking-widest px-4 h-10 flex items-center">
-                {rawStudents.length} Active Students
+                {studentsList.length} Records Found
               </Badge>
             </div>
           </div>
@@ -923,15 +724,26 @@ function StudentsRegistryContent() {
                                           <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg"><MoreVertical className="size-4" /></Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end" className="rounded-xl border-none shadow-xl w-48">
-                                          <DropdownMenuItem className="gap-2 text-xs font-bold" onSelect={() => openEdit(stu)}>
-                                            <Pencil className="size-4" /> Edit Profile
-                                          </DropdownMenuItem>
-                                          <DropdownMenuItem className="gap-2 text-xs font-bold text-accent" onSelect={() => handleResetPin(stu)}>
-                                            <ShieldAlert className="size-4" /> Reset Portal PIN
-                                          </DropdownMenuItem>
-                                          <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onSelect={(e) => { e.preventDefault(); handleDeactivateStudent(stu.id); }}>
-                                            <Trash2 className="size-4" /> Deactivate Enrollment
-                                          </DropdownMenuItem>
+                                          {!isTeacher && (
+                                            <>
+                                              <DropdownMenuItem className="gap-2 text-xs font-bold" onSelect={() => openEdit(stu)}>
+                                                <Pencil className="size-4" /> Edit Profile
+                                              </DropdownMenuItem>
+                                              <DropdownMenuItem className="gap-2 text-xs font-bold text-accent" onSelect={() => handleResetPin(stu)}>
+                                                <ShieldAlert className="size-4" /> Reset Portal PIN
+                                              </DropdownMenuItem>
+                                              <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onSelect={(e) => { e.preventDefault(); handleDeactivateStudent(stu.id); }}>
+                                                <Trash2 className="size-4" /> Deactivate Enrollment
+                                              </DropdownMenuItem>
+                                            </>
+                                          )}
+                                          {isTeacher && (
+                                            <DropdownMenuItem className="gap-2 text-xs font-bold" asChild>
+                                              <Link href={`/dashboard/reports?student=${stu.id}`}>
+                                                <FileText className="size-4" /> View Report
+                                              </Link>
+                                            </DropdownMenuItem>
+                                          )}
                                         </DropdownMenuContent>
                                       </DropdownMenu>
                                    </div>
@@ -945,6 +757,9 @@ function StudentsRegistryContent() {
                   </AccordionContent>
                 </AccordionItem>
               ))}
+              {Object.keys(groupedStudents).length === 0 && (
+                <div className="p-24 text-center text-muted-foreground italic">No student records found matching your current context.</div>
+              )}
           </Accordion>
         </CardContent>
       </Card>
