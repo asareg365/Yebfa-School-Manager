@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
@@ -18,13 +17,15 @@ import {
   Activity,
   RefreshCw,
   AlertCircle,
-  X
+  X,
+  Camera,
+  Upload
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { toast } from "@/hooks/use-toast"
 import { useUser, useFirestore, useCollection, useDoc } from "@/firebase"
 import { collection, query, deleteDoc, doc, where, serverTimestamp, updateDoc, setDoc, writeBatch, getDocs } from "firebase/firestore"
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
@@ -43,6 +44,7 @@ export default function StaffHRPage() {
   const [isEnrollOpen, setIsEnrollOpen] = useState(false)
   const [editingStaff, setEditingStaff] = useState<any>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const initialForm = {
     staffNumber: "PENDING",
@@ -54,7 +56,8 @@ export default function StaffHRPage() {
     designation: "Teacher",
     employmentDate: "",
     salary: "",
-    status: "active"
+    status: "active",
+    photoURL: ""
   }
 
   const [staffForm, setStaffForm] = useState(initialForm)
@@ -107,6 +110,19 @@ export default function StaffHRPage() {
     if (d === 'accountant') return 'accountant'
     if (d === 'librarian') return 'librarian'
     return 'teacher' 
+  }
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (file.size > 800000) {
+        toast({ variant: "destructive", title: "File Too Large", description: "Image must be under 800KB." })
+        return
+      }
+      const reader = new FileReader()
+      reader.onloadend = () => setStaffForm(prev => ({ ...prev, photoURL: reader.result as string }))
+      reader.readAsDataURL(file)
+    }
   }
 
   const handleEnroll = async (e: React.FormEvent) => {
@@ -266,8 +282,8 @@ export default function StaffHRPage() {
                 <TableRow key={s.id} className="hover:bg-slate-50 transition-colors group">
                   <TableCell className="px-6">
                     <div className="flex items-center gap-3">
-                      <div className="size-10 rounded-xl bg-primary/5 flex items-center justify-center font-bold text-primary text-xs border">
-                        {s.firstName?.charAt(0)}{s.lastName?.charAt(0)}
+                      <div className="size-10 rounded-xl bg-primary/5 flex items-center justify-center font-bold text-primary text-xs border overflow-hidden">
+                        {s.photoURL ? <img src={s.photoURL} className="w-full h-full object-cover" /> : <span className="uppercase">{s.firstName?.charAt(0)}{s.lastName?.charAt(0)}</span>}
                       </div>
                       <div className="flex flex-col">
                         <span className="text-[10px] font-mono font-bold text-accent">{s.staffNumber}</span>
@@ -300,7 +316,22 @@ export default function StaffHRPage() {
             </DialogHeader>
 
             <ScrollArea className="flex-1 p-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="md:col-span-2 flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-3xl bg-slate-50/50">
+                  <div className="relative size-32 rounded-2xl bg-white border flex items-center justify-center overflow-hidden shadow-sm group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                    {staffForm.photoURL ? (
+                      <img src={staffForm.photoURL} className="w-full h-full object-cover" alt="Staff Preview" />
+                    ) : (
+                      <Camera className="size-10 text-muted-foreground/20" />
+                    )}
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Upload className="size-6 text-white" />
+                    </div>
+                  </div>
+                  <input type="file" ref={fileInputRef} onChange={handlePhotoUpload} accept="image/*" className="hidden" />
+                  <p className="mt-3 text-xs font-bold text-muted-foreground uppercase tracking-widest">Faculty Portrait (Under 800KB)</p>
+                </div>
+
                 <div className="space-y-2">
                   <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Staff Number</Label>
                   <div className="h-12 px-4 rounded-xl bg-slate-50 flex items-center border border-dashed border-slate-200">

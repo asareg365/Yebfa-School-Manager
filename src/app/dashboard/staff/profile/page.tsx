@@ -1,14 +1,13 @@
-
 'use client';
 
 /**
  * @fileOverview Staff Personnel Portal.
- * Allows faculty to view their personal institutional data and compensation.
+ * Allows faculty to view and manage their personal institutional data.
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import { useUser, useFirestore, useDoc } from '@/firebase';
-import { doc } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -23,12 +22,17 @@ import {
   Clock,
   IdCard,
   Building2,
-  AlertCircle
+  AlertCircle,
+  Camera,
+  Upload
 } from "lucide-react";
+import { toast } from '@/hooks/use-toast';
 
 export default function StaffProfilePage() {
   const { user, loading: authLoading } = useUser();
   const db = useFirestore();
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user]);
   const { data: profile, loading: profileLoading } = useDoc(userProfileRef);
@@ -40,6 +44,34 @@ export default function StaffProfilePage() {
   , [db, profile?.staffId]);
 
   const { data: staff, loading: staffLoading } = useDoc(staffRef);
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !staffRef) return;
+
+    if (file.size > 800000) {
+      toast({ variant: "destructive", title: "File Too Large", description: "Profile photo must be under 800KB." });
+      return;
+    }
+
+    setUploading(true);
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      try {
+        const base64 = reader.result as string;
+        await updateDoc(staffRef, {
+          photoURL: base64,
+          updatedAt: serverTimestamp()
+        });
+        toast({ title: "Photo Updated", description: "Your digital portrait has been synchronized." });
+      } catch (err) {
+        toast({ variant: "destructive", title: "Upload Failed" });
+      } finally {
+        setUploading(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   if (authLoading || profileLoading || (profile?.staffId && staffLoading)) {
     return (
@@ -90,9 +122,20 @@ export default function StaffProfilePage() {
           <Card className="border-none shadow-xl rounded-3xl overflow-hidden bg-white">
             <div className="h-32 bg-primary relative">
               <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 p-2 bg-white rounded-full shadow-2xl">
-                <div className="size-32 rounded-full bg-slate-100 flex items-center justify-center border-4 border-white overflow-hidden">
-                   <User className="size-16 text-primary/10" />
+                <div 
+                  className="size-32 rounded-full bg-slate-100 flex items-center justify-center border-4 border-white overflow-hidden cursor-pointer group"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                   {staff.photoURL ? (
+                     <img src={staff.photoURL} className="w-full h-full object-cover" alt="Avatar" />
+                   ) : (
+                     <User className="size-16 text-primary/10" />
+                   )}
+                   <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
+                      {uploading ? <Loader2 className="size-6 text-white animate-spin" /> : <Camera className="size-6 text-white" />}
+                   </div>
                 </div>
+                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handlePhotoUpload} disabled={uploading} />
               </div>
             </div>
             <CardContent className="pt-20 pb-8 text-center space-y-4">

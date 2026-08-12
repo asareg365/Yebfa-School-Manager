@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, use } from "react"
+import { useState, useEffect, useMemo, use, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -16,10 +16,12 @@ import {
   Phone,
   Briefcase,
   IdCard,
-  AlertCircle
+  AlertCircle,
+  Camera,
+  Upload
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useFirestore, useDoc } from "@/firebase"
+import { useUser, useFirestore, useDoc } from "@/firebase"
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Link from "next/link"
@@ -29,6 +31,7 @@ export default function EditParentPage({ params }: { params: Promise<{ id: strin
   const db = useFirestore()
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const photoInputRef = useRef<HTMLInputElement>(null)
 
   const parentRef = useMemo(() => doc(db, "parents", parentId), [db, parentId])
   const { data: parent, loading: pLoading } = useDoc(parentRef)
@@ -40,6 +43,19 @@ export default function EditParentPage({ params }: { params: Promise<{ id: strin
       setParentForm(parent)
     }
   }, [parent])
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (file.size > 800000) {
+        toast({ variant: "destructive", title: "File Too Large", description: "Image must be under 800KB." })
+        return
+      }
+      const reader = new FileReader()
+      reader.onloadend = () => setParentForm((prev: any) => ({ ...prev, photoURL: reader.result as string }))
+      reader.readAsDataURL(file)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -102,6 +118,21 @@ export default function EditParentPage({ params }: { params: Promise<{ id: strin
 
             <CardContent className="p-8">
               <TabsContent value="personal" className="space-y-6 mt-0">
+                <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-3xl bg-slate-50/50 mb-6">
+                  <div className="relative size-32 rounded-2xl bg-white border flex items-center justify-center overflow-hidden shadow-sm group cursor-pointer" onClick={() => photoInputRef.current?.click()}>
+                    {parentForm.photoURL ? (
+                      <img src={parentForm.photoURL} className="w-full h-full object-cover" alt="Parent Preview" />
+                    ) : (
+                      <Camera className="size-10 text-muted-foreground/20" />
+                    )}
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Upload className="size-6 text-white" />
+                    </div>
+                  </div>
+                  <input type="file" ref={photoInputRef} onChange={handlePhotoUpload} accept="image/*" className="hidden" />
+                  <p className="mt-3 text-xs font-bold text-muted-foreground uppercase tracking-widest">Update Photo (Optional)</p>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                    <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">First Name</Label><Input required value={parentForm.firstName || ""} onChange={e => setParentForm({...parentForm, firstName: e.target.value})} className="h-11 rounded-xl" /></div>
                    <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Middle Name</Label><Input value={parentForm.middleName || ""} onChange={e => setParentForm({...parentForm, middleName: e.target.value})} className="h-11 rounded-xl" /></div>

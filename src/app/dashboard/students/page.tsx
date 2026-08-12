@@ -35,7 +35,8 @@ import {
   Layers,
   Archive,
   History,
-  FileText
+  FileText,
+  Camera
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useUser, useFirestore, useCollection, useDoc } from "@/firebase"
@@ -81,6 +82,7 @@ function StudentsRegistryContent() {
   const [editingStudent, setEditingStudent] = useState<any>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const bulkFileRef = useRef<HTMLInputElement>(null)
+  const photoInputRef = useRef<HTMLInputElement>(null)
   
   const [activeStep, setActiveStep] = useState("identity")
   const steps = ["identity", "academic", "guardian", "finalize"]
@@ -197,6 +199,19 @@ function StudentsRegistryContent() {
     })
     return groups
   }, [studentsList])
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (file.size > 800000) {
+        toast({ variant: "destructive", title: "File Too Large", description: "Profile photo must be under 800KB." })
+        return
+      }
+      const reader = new FileReader()
+      reader.onloadend = () => setStudentForm(prev => ({ ...prev, photoUrl: reader.result as string }))
+      reader.readAsDataURL(file)
+    }
+  }
 
   const validateStep = (step: string) => {
     if (step === "identity") {
@@ -464,10 +479,6 @@ function StudentsRegistryContent() {
             for (let index = 0; index < rawRows.length; index++) {
               const row = rawRows[index];
   
-              // ---------------------------------------------------------
-              // Resolve student name from multiple possible CSV formats
-              // ---------------------------------------------------------
-
               const getValue = (...keys: string[]) => {
                 for (const key of keys) {
                   const value = row[key];
@@ -502,7 +513,6 @@ function StudentsRegistryContent() {
                 "studentlast"
               );
 
-              // Support combined name fields.
               if (!first || !last) {
                 const fullName = getValue(
                   "name",
@@ -525,7 +535,6 @@ function StudentsRegistryContent() {
                 }
               }
 
-              // Final validation.
               if (!first || !last) {
                 console.warn(
                   `[Bulk Intake] Row ${index + 2} skipped: Missing name.`,
@@ -633,13 +642,11 @@ function StudentsRegistryContent() {
               bulkFileRef.current.value = "";
             }
   
-            // Cleanup is handled here exactly once.
             if (provisionApp) {
               try {
                 await deleteApp(provisionApp);
                 console.log("[Bulk Intake] Temporary Firebase app cleaned up.");
               } catch (cleanupError: any) {
-                // Ignore Firebase's "already deleted" error.
                 if (cleanupError?.code !== "app/app-deleted") {
                   console.warn(
                     "[Bulk Intake] Firebase app cleanup warning:",
@@ -953,6 +960,21 @@ function StudentsRegistryContent() {
             <Tabs value={activeStep} className="flex-1 flex flex-col overflow-hidden">
               <ScrollArea className="flex-1 p-8">
                 <TabsContent value="identity" className="space-y-6 mt-0">
+                  <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-3xl bg-slate-50/50 mb-6">
+                    <div className="relative size-32 rounded-2xl bg-white border flex items-center justify-center overflow-hidden shadow-sm group cursor-pointer" onClick={() => photoInputRef.current?.click()}>
+                      {studentForm.photoUrl ? (
+                        <img src={studentForm.photoUrl} className="w-full h-full object-cover" alt="Student Preview" />
+                      ) : (
+                        <Camera className="size-10 text-muted-foreground/20" />
+                      )}
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Upload className="size-6 text-white" />
+                      </div>
+                    </div>
+                    <input type="file" ref={photoInputRef} onChange={handlePhotoUpload} accept="image/*" className="hidden" />
+                    <p className="mt-3 text-xs font-bold text-muted-foreground uppercase tracking-widest">Digital Portrait (Under 800KB)</p>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                        <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Admission Number</Label>

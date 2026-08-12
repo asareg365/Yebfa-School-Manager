@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -18,7 +18,8 @@ import {
   AlertCircle,
   Camera,
   Save,
-  ShieldCheck
+  ShieldCheck,
+  Upload
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useUser, useFirestore, useDoc } from "@/firebase"
@@ -38,6 +39,7 @@ export default function AddParentPage() {
   const router = useRouter()
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const photoInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     setInstitutionId(localStorage.getItem('selected_institution_id'))
@@ -55,8 +57,22 @@ export default function AddParentPage() {
     email: "",
     occupation: "",
     address: "",
-    status: "Active"
+    status: "Active",
+    photoURL: ""
   })
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (file.size > 800000) {
+        toast({ variant: "destructive", title: "File Too Large", description: "Image must be under 800KB." })
+        return
+      }
+      const reader = new FileReader()
+      reader.onloadend = () => setParentForm(prev => ({ ...prev, photoURL: reader.result as string }))
+      reader.readAsDataURL(file)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -86,8 +102,6 @@ export default function AddParentPage() {
         authUid = authUser.uid;
       } catch (authErr: any) {
         console.log("Parent Auth Error");
-        console.log(authErr.code);
-        console.log(authErr.message);
         throw authErr;
       }
 
@@ -146,7 +160,22 @@ export default function AddParentPage() {
           <CardHeader className="bg-primary text-primary-foreground p-8">
             <CardTitle className="text-3xl font-headline font-bold">New Parent Entry</CardTitle>
           </CardHeader>
-          <CardContent className="p-8 space-y-6">
+          <CardContent className="p-8 space-y-8">
+            <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-3xl bg-slate-50/50">
+              <div className="relative size-32 rounded-2xl bg-white border flex items-center justify-center overflow-hidden shadow-sm group cursor-pointer" onClick={() => photoInputRef.current?.click()}>
+                {parentForm.photoURL ? (
+                  <img src={parentForm.photoURL} className="w-full h-full object-cover" alt="Parent Preview" />
+                ) : (
+                  <Camera className="size-10 text-muted-foreground/20" />
+                )}
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Upload className="size-6 text-white" />
+                </div>
+              </div>
+              <input type="file" ref={photoInputRef} onChange={handlePhotoUpload} accept="image/*" className="hidden" />
+              <p className="mt-3 text-xs font-bold text-muted-foreground uppercase tracking-widest">Guardian Photo (Optional)</p>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                <div className="space-y-1.5">
                  <Label className="text-[10px] uppercase font-bold text-muted-foreground">Parent Number</Label>
