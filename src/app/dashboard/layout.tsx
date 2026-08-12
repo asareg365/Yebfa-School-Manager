@@ -66,7 +66,7 @@ export default function DashboardLayout({
 
   const handleLogout = useCallback(async () => {
     if (auth) {
-      // Strategic Context Purge: Remove stale institution IDs to prevent phantom redirections
+      // Strategic Context Perme: Remove stale institution IDs to prevent phantom redirections
       if (typeof window !== 'undefined') {
         localStorage.removeItem('selected_institution_id');
         localStorage.removeItem('selected_institution_name');
@@ -108,6 +108,15 @@ export default function DashboardLayout({
     const diff = differenceInDays(new Date(), start);
     return Math.max(0, 30 - diff);
   }, [institution]);
+
+  // Subscription information is only visible to users who manage
+  // the school's subscription/account.
+  // Teachers, parents, students and other staff should not see it.
+  const canManageSubscription =
+    profile?.role === 'super_admin' ||
+    profile?.role === 'school_owner' ||
+    profile?.role === 'administrator' ||
+    profile?.role === 'head_teacher';
 
   const handleDeleteNotification = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -169,11 +178,6 @@ export default function DashboardLayout({
 
   // Safe property access to prevent 500 error during SSR
   const isTrial = institution?.subscriptionPlan?.toLowerCase()?.includes('trial') ?? false;
-
-  const canManageSubscription =
-    profile?.role === "super_admin" ||
-    profile?.role === "school_owner" ||
-    profile?.role === "administrator";
   
   const userDisplayName =
     profile?.name ||
@@ -187,7 +191,7 @@ export default function DashboardLayout({
         <AppSidebar />
       </div>
       <SidebarInset className="bg-background print-inset flex flex-col h-screen w-full overflow-hidden">
-      {canManageSubscription && isTrial && trialDaysLeft !== null &&  (
+      {canManageSubscription && isTrial && trialDaysLeft !== null && (
           <div className={`no-print py-2 px-4 md:px-6 flex items-center justify-between transition-colors shrink-0 ${trialDaysLeft <= 7 ? 'bg-orange-600 text-white' : 'bg-blue-600 text-white'}`}>
             <div className="flex items-center gap-2 text-[10px] md:text-xs font-bold uppercase tracking-widest truncate">
               {trialDaysLeft <= 7 ? <AlertTriangle className="size-3 md:size-4" /> : <Clock className="size-3 md:size-4" />}
@@ -272,13 +276,13 @@ export default function DashboardLayout({
               <span className="text-xs md:text-sm font-black truncate max-w-[120px] md:max-w-[180px] text-primary uppercase tracking-tighter">{institutionName}</span>
               <div className="flex items-center justify-end gap-1">
               {canManageSubscription && (
-  <Badge
-    variant="outline"
-    className="text-[7px] md:text-[8px] h-3.5 md:h-4 px-1 md:px-1.5 font-bold uppercase tracking-tighter bg-primary/5"
-  >
-    {institution?.subscriptionPlan || "Trial"}
-  </Badge>
-)}
+                <Badge
+                  variant="outline"
+                  className="text-[7px] md:text-[8px] h-3.5 md:h-4 px-1 md:px-1.5 font-bold uppercase tracking-tighter bg-primary/5"
+                >
+                  {institution?.subscriptionPlan || 'Trial'}
+                </Badge>
+              )}
                  <span className="hidden xs:inline text-[9px] text-muted-foreground uppercase font-black tracking-tighter">NODE 2026</span>
               </div>
             </div>
