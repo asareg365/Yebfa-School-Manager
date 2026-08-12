@@ -168,14 +168,14 @@ export function AppSidebar() {
         items: [
           { title: "Active Enrollment", url: "/dashboard/students", visible: true },
           { title: "Personal Ledgers", url: "/dashboard/students/accounts", visible: !isTeacher },
-          { title: "Daily Attendance", url: "/dashboard/attendance", visible: true },
+          { title: "Daily Attendance", url: "/dashboard/attendance", visible: isSuperAdmin || isOwner || isAdmin || isTeacher },
         ].filter(i => i.visible),
       },
       {
         title: "Guardian Database",
         url: "/dashboard/parents",
         icon: Users,
-        visible: isSuperAdmin || isOwner || isAdmin || isAccountant,
+        visible: isSuperAdmin || isOwner || isAdmin,
       },
       {
         title: "Academic Analysis",
