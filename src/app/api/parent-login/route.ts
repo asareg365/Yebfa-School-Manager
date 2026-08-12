@@ -172,6 +172,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       token: customToken,
       studentId: studentFirestoreId,
+      parentId: matchedParent.id,
       tenantId,
     });
   } catch (error: any) {

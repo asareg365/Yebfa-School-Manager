@@ -223,6 +223,20 @@ export default function LoginPage() {
       }
 
       const cred = await signInWithCustomToken(auth!, data.token);
+      
+      await setDoc(
+        doc(db, "users", cred.user.uid),
+        {
+          uid: cred.user.uid,
+          role: "parent",
+          parentId: data.parentId,
+          studentId: data.studentId,
+          tenantId: data.tenantId,
+          institutionId: data.tenantId,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
 
       await redirectUser(cred.user, "parent", normST);
     } catch (error: any) {

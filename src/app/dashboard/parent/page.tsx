@@ -41,9 +41,16 @@ export default function StudentReportsPortal() {
   const isParent = profile?.role === 'parent'
 
   const relsQuery = useMemo(() => {
-    if (!db || !user?.uid || !isParent) return null
-    return query(collection(db, "student_parents"), where("parentId", "==", user.uid))
-  }, [db, user?.uid, isParent])
+    if (!db || !profile?.parentId || !profile?.tenantId || !isParent) {
+      return null;
+    }
+  
+    return query(
+      collection(db, "student_parents"),
+      where("parentId", "==", profile.parentId),
+      where("tenantId", "==", profile.tenantId)
+    );
+  }, [db, profile?.parentId, profile?.tenantId, isParent]);
 
   const { data: relations = [], loading: relsLoading } = useCollection(relsQuery)
 
@@ -408,7 +415,7 @@ export default function StudentReportsPortal() {
                         <ReBarChart data={computedData.results}>
                           <XAxis dataKey="subject" hide />
                           <YAxis hide domain={[0, 100]} />
-                          <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', shadow: 'none' }} />
+                          <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: 'none' }} />
                           <Bar dataKey="total" fill="#1a1f2c" radius={[4, 4, 0, 0]} barSize={20} />
                         </ReBarChart>
                       </ResponsiveContainer>
