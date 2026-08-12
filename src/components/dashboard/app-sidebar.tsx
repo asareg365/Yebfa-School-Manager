@@ -166,7 +166,7 @@ export function AppSidebar() {
         icon: GraduationCap,
         visible: isSuperAdmin || isOwner || isAdmin || isAccountant || isTeacher,
         items: [
-          { title: "Active Enrollment", url: "/dashboard/students", visible: true },
+          { title: "Active Enrollment", url: "/dashboard/students", visible: isSuperAdmin || isOwner || isAdmin || isTeacher },
           { title: "Personal Ledgers", url: "/dashboard/students/accounts", visible: !isTeacher },
           { title: "Daily Attendance", url: "/dashboard/attendance", visible: isSuperAdmin || isOwner || isAdmin || isTeacher },
         ].filter(i => i.visible),
