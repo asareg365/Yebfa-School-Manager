@@ -19,6 +19,7 @@ import {
   writeBatch
 } from "firebase/firestore"
 import { createUserWithEmailAndPassword } from "firebase/auth"
+import { generateId } from "@/lib/id-generator"
 
 const GRADE_LEVEL_CATEGORIES = [
   { id: "basic", label: "Basic Education (KG - Primary)", grades: ["KG 1-2", "Primary 1-6", "KG - Primary 6", "Primary - JHS 3"] },
@@ -101,6 +102,15 @@ export default function InstitutionRegistrationPage() {
       const schoolCode = generateSchoolCode(formData.name)
       const emailDomain = formData.emailDomain || `${schoolCode.toLowerCase()}.ysm.local`
 
+      // --- AUTOMATIC STAFF ENROLLMENT FOR OWNER ---
+      const staffRef = doc(collection(db, "staff"))
+      const staffId = staffRef.id
+      const staffNumber = await generateId('staff', schoolCode, 'SF')
+      
+      const nameParts = formData.ownerName.trim().split(/\s+/);
+      const firstName = nameParts[0] || "Owner";
+      const lastName = nameParts.slice(1).join(" ") || "Admin";
+
       const batch = writeBatch(db)
 
       batch.set(
@@ -126,6 +136,26 @@ export default function InstitutionRegistrationPage() {
         }
       )
 
+      // Provision Staff Record for Owner
+      batch.set(staffRef, {
+        id: staffId,
+        staffNumber,
+        firstName,
+        lastName,
+        gender: "Other",
+        phone: formData.phone,
+        email: formData.ownerEmail,
+        designation: "School Owner",
+        employmentDate: new Date().toISOString().split('T')[0],
+        salary: 0,
+        status: "active",
+        authUid: activeUser.uid,
+        tenantId,
+        institutionId: tenantId,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      })
+
       batch.set(
         doc(db, "users", activeUser.uid),
         {
@@ -137,6 +167,7 @@ export default function InstitutionRegistrationPage() {
           institutionId: tenantId,
           institutionName: formData.name,
           schoolCode: schoolCode,
+          staffId: staffId, // Link user to staff record
           status: "active",
           createdAt: serverTimestamp()
         }
@@ -150,7 +181,7 @@ export default function InstitutionRegistrationPage() {
 
       toast({
         title: "Workspace Provisioned",
-        description: `Welcome. Your School Code is ${schoolCode}.`
+        description: `Welcome. Your School Code is ${schoolCode}. Owner enrolled as faculty.`
       })
 
       router.replace("/dashboard")

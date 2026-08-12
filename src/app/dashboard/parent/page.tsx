@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -141,35 +140,40 @@ export default function StudentReportsPortal() {
     }
     
     const results = exams.map((e: any) => {
-      const gradeInfo = calculateGrade(e.totalScore);
+      const score = typeof e.totalScore === 'number' ? e.totalScore : 0;
+      const gradeInfo = calculateGrade(score);
       return {
         subject: e.subjectId, 
-        total: e.totalScore,
+        total: score,
         grade: gradeInfo.grade,
         remark: gradeInfo.remark
       };
     });
 
     const totalMarks = results.reduce((acc, curr) => acc + curr.total, 0);
-    const average = results.length > 0 ? totalMarks / results.length : 0;
+    const averageRaw = results.length > 0 ? totalMarks / results.length : 0;
+    const average = Number.isFinite(averageRaw) ? averageRaw : 0;
     
     const studentAverages = Array.from(new Set(exams.map((e: any) => e.studentId))).map(sid => {
       const sExams = exams.filter((e: any) => e.studentId === sid);
-      const total = sExams.reduce((acc, curr: any) => acc + curr.totalScore, 0);
+      const total = sExams.reduce((acc, curr: any) => acc + (typeof curr.totalScore === 'number' ? curr.totalScore : 0), 0);
       return { studentId: sid, average: sExams.length > 0 ? total / sExams.length : 0 };
     });
     
     const positions = calculatePositions(studentAverages);
     const attSummary = calculateAttendanceSummary(attendance);
 
-    const balance = ledger.reduce((acc, curr: any) => curr.type === 'charge' ? acc - curr.amount : acc + curr.amount, 0);
+    const balance = ledger.reduce((acc, curr: any) => {
+      const amount = typeof curr.amount === 'number' ? curr.amount : 0;
+      return curr.type === 'charge' ? acc - amount : acc + amount;
+    }, 0);
 
     return {
       results,
       average: parseFloat(average.toFixed(1)),
       attendance: attSummary,
       balance,
-      position: selectedStudentId ? positions[selectedStudentId] : "N/A"
+      position: (selectedStudentId && positions[selectedStudentId]) ? positions[selectedStudentId] : "N/A"
     };
   }, [exams, attendance, ledger, invoices, selectedStudentId]);
 
@@ -245,7 +249,7 @@ export default function StudentReportsPortal() {
                 <CardDescription className="text-[9px] font-bold uppercase text-muted-foreground tracking-widest">Average Score</CardDescription>
                 <CardTitle className="text-xl md:text-2xl font-headline font-bold text-primary">{computedData?.average}%</CardTitle>
               </CardHeader>
-              <CardContent><Progress value={computedData?.average || 0} className="h-1.5" /></CardContent>
+              <CardContent><Progress value={Number.isFinite(computedData?.average) ? computedData.average : 0} className="h-1.5" /></CardContent>
             </Card>
 
             <Card className="border-none shadow-md bg-white rounded-2xl md:rounded-3xl">

@@ -167,7 +167,8 @@ export default function DashboardLayout({
     );
   }
 
-  const isTrial = institution?.subscriptionPlan?.toLowerCase().includes('trial');
+  // Safe property access to prevent 500 error during SSR
+  const isTrial = institution?.subscriptionPlan?.toLowerCase()?.includes('trial') ?? false;
 
   const canManageSubscription =
     profile?.role === "super_admin" ||
