@@ -21,7 +21,9 @@ import {
   Save,
   Download,
   AlertCircle,
-  X
+  X,
+  GraduationCap,
+  ChevronDown
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase"
@@ -63,21 +65,21 @@ export default function StudentReportsPage() {
   const currentTerm = institution?.currentTerm || "Term 1"
 
   const classesQuery = useMemoFirebase(() => institutionId ? query(collection(db, "classes"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
-  const studentsQuery = useMemoFirebase(() => institutionId && selectedGrade ? query(collection(db, "students"), where("tenantId", "==", institutionId), where("gradeLevel", "==", selectedGrade)) : null, [db, institutionId, selectedGrade])
+  const studentsQuery = useMemoFirebase(() => institutionId && selectedGrade ? query(collection(db, "students"), where("tenantId", "==", institutionId), where("gradeLevel", "==", selectedGrade), where("status", "==", "active")) : null, [db, institutionId, selectedGrade])
   const subjectsQuery = useMemoFirebase(() => institutionId ? query(collection(db, "subjects"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   
   const classExamsQuery = useMemoFirebase(() => institutionId && selectedGrade ? query(collection(db, "exam_records"), where("tenantId", "==", institutionId), where("gradeLevel", "==", selectedGrade), where("termId", "==", currentTerm)) : null, [db, institutionId, selectedGrade, currentTerm])
   const attendanceQuery = useMemoFirebase(() => institutionId && selectedStudentId ? query(collection(db, "attendance"), where("studentId", "==", selectedStudentId)) : null, [db, institutionId, selectedStudentId])
 
   const { data: classes = [] } = useCollection(classesQuery)
-  const { data: students = [] } = useCollection(studentsQuery)
+  const { data: students = [], loading: sLoading } = useCollection(studentsQuery)
   const { data: subjects = [] } = useCollection(subjectsQuery)
   const { data: allClassExams = [] } = useCollection(classExamsQuery)
   const { data: studentAttendance = [] } = useCollection(attendanceQuery)
 
   const filteredStudents = useMemo(() => {
     return students.filter(s => 
-      `${s.firstName} ${s.lastName}`.toLowerCase().includes(studentSearch.toLowerCase()) ||
+      `${s.firstName || ""} ${s.lastName || ""}`.toLowerCase().includes(studentSearch.toLowerCase()) ||
       s.admissionNumber?.toLowerCase().includes(studentSearch.toLowerCase())
     )
   }, [students, studentSearch])
@@ -142,7 +144,7 @@ export default function StudentReportsPage() {
         status: "Published",
         updatedAt: serverTimestamp()
       });
-      toast({ title: "Report Published" });
+      toast({ title: "Report Published", description: "Identity Hub synchronized." });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Error", description: e.message });
     } finally {
@@ -150,29 +152,33 @@ export default function StudentReportsPage() {
     }
   }
 
+  const handlePrint = () => {
+    window.print();
+  }
+
   return (
     <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500 pb-20">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 no-print">
         <div className="space-y-1">
           <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Report Hub</h1>
           <p className="text-muted-foreground font-medium text-sm">Deterministic computation for <span className="text-accent font-bold uppercase">{currentTerm}</span>.</p>
         </div>
-        <div className="flex flex-wrap gap-3 no-print w-full md:w-auto">
-          <Button variant="outline" className="flex-1 md:flex-none h-11 rounded-xl gap-2 text-xs font-bold uppercase" onClick={() => window.print()} disabled={!reportData}>
-            <Printer className="size-4" /> Print
+        <div className="flex flex-wrap gap-3 w-full md:w-auto">
+          <Button variant="outline" className="flex-1 md:flex-none h-11 rounded-xl gap-2 text-xs font-bold uppercase" onClick={handlePrint} disabled={!reportData}>
+            <Printer className="size-4" /> Print PDF
           </Button>
-          <Button className="flex-1 md:flex-none bg-primary h-11 rounded-xl shadow-lg gap-2 text-xs font-bold uppercase" onClick={handleSaveReport} disabled={!reportData || isComputing}>
-            {isComputing ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Publish
+          <Button className="flex-1 md:flex-none bg-primary h-11 rounded-xl shadow-lg gap-2 text-xs font-bold uppercase px-8" onClick={handleSaveReport} disabled={!reportData || isComputing}>
+            {isComputing ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Publish Result
           </Button>
         </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-4 no-print">
         <div className="lg:col-span-1 space-y-6">
-          <Card className="border-none shadow-md rounded-3xl bg-white overflow-hidden h-fit">
+          <Card className="border-none shadow-xl rounded-3xl bg-white overflow-hidden h-fit">
             <CardHeader className="bg-slate-50 border-b p-6">
                <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                 <Calculator className="size-4" /> Logic Context
+                 <Calculator className="size-4" /> Strategic Context
                </CardTitle>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
@@ -190,13 +196,13 @@ export default function StudentReportsPage() {
                   </Select>
                </div>
                
-               <div className="space-y-2">
+               <div className="space-y-2 relative">
                   <Label className="text-[10px] font-bold uppercase text-muted-foreground">Find Student</Label>
                   <div className="relative">
                      <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
                      <Input 
-                      placeholder="Search name..." 
-                      className="pl-10 h-11 rounded-xl"
+                      placeholder="Name or ID..." 
+                      className="pl-10 h-11 rounded-xl bg-white"
                       value={studentSearch}
                       onChange={(e) => {
                         setStudentSearch(e.target.value);
@@ -205,23 +211,32 @@ export default function StudentReportsPage() {
                       onFocus={() => setShowSuggestions(true)}
                       disabled={!selectedGrade}
                      />
-                     {showSuggestions && studentSearch.length >= 2 && (
-                       <div className="absolute z-50 w-full mt-1 bg-white border rounded-xl shadow-xl overflow-hidden">
-                          <ScrollArea className="max-h-[200px]">
-                            {filteredStudents.map(s => (
-                              <button
-                                key={s.id}
-                                className="w-full text-left p-3 text-sm hover:bg-slate-50 border-b last:border-none flex flex-col"
-                                onClick={() => {
-                                  setSelectedStudentId(s.id);
-                                  setStudentSearch(`${s.firstName} ${s.lastName}`);
-                                  setShowSuggestions(false);
-                                }}
-                              >
-                                <span className="font-bold">{s.firstName} {s.lastName}</span>
-                                <span className="text-[10px] text-muted-foreground font-mono">{s.admissionNumber}</span>
-                              </button>
-                            ))}
+                     {showSuggestions && studentSearch.length >= 1 && (
+                       <div className="absolute z-50 w-full mt-1 bg-white border rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                          <ScrollArea className="max-h-[250px]">
+                            <div className="p-2 space-y-1">
+                              {filteredStudents.length > 0 ? (
+                                filteredStudents.map(s => (
+                                  <button
+                                    key={s.id}
+                                    className={`w-full text-left p-3 rounded-xl transition-all flex items-center gap-3 border border-transparent ${selectedStudentId === s.id ? 'bg-primary/5 border-primary/10' : 'hover:bg-slate-50'}`}
+                                    onClick={() => {
+                                      setSelectedStudentId(s.id);
+                                      setStudentSearch(`${s.firstName} ${s.lastName}`);
+                                      setShowSuggestions(false);
+                                    }}
+                                  >
+                                    <div className="size-8 rounded-lg bg-primary/5 flex items-center justify-center font-bold text-primary text-[10px]">{s.firstName?.charAt(0)}{s.lastName?.charAt(0)}</div>
+                                    <div className="flex flex-col min-w-0">
+                                      <span className="font-bold text-sm text-primary truncate">{s.firstName} {s.lastName}</span>
+                                      <span className="text-[9px] text-muted-foreground font-mono font-bold">{s.admissionNumber}</span>
+                                    </div>
+                                  </button>
+                                ))
+                              ) : (
+                                <div className="p-8 text-center text-xs text-muted-foreground italic">No students found in this grade.</div>
+                              )}
+                            </div>
                           </ScrollArea>
                        </div>
                      )}
@@ -229,14 +244,18 @@ export default function StudentReportsPage() {
                </div>
 
                {reportData && (
-                 <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 space-y-3">
+                 <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 space-y-3 animate-in fade-in duration-300">
                     <div className="flex justify-between items-center text-xs">
                       <span className="text-muted-foreground font-bold text-[9px] uppercase">Mean Average</span>
                       <span className="font-bold text-primary">{reportData.average}%</span>
                     </div>
                     <div className="flex justify-between items-center text-xs">
-                      <span className="text-muted-foreground font-bold text-[9px] uppercase">Attendance</span>
-                      <span className="font-bold text-primary">{reportData.attendance.percentage}%</span>
+                      <span className="text-muted-foreground font-bold text-[9px] uppercase">Class Position</span>
+                      <span className="font-bold text-accent">{reportData.position}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs pt-2 border-t border-primary/10">
+                      <span className="text-muted-foreground font-bold text-[9px] uppercase">Promotion</span>
+                      <Badge className="bg-green-600 text-white border-none text-[8px] font-bold uppercase h-5">{reportData.promotion}</Badge>
                     </div>
                  </div>
                )}
@@ -246,32 +265,54 @@ export default function StudentReportsPage() {
 
         <div className="lg:col-span-3 space-y-6">
            {!reportData ? (
-             <Card className="h-[300px] flex flex-col items-center justify-center border-2 border-dashed rounded-3xl bg-muted/5 p-12 text-center space-y-4">
-                <TableIcon className="size-10 text-primary/10" />
-                <p className="text-sm text-muted-foreground italic">Search for a student to compute academic data.</p>
+             <Card className="h-full min-h-[400px] flex flex-col items-center justify-center border-2 border-dashed rounded-[2.5rem] bg-muted/5 p-12 text-center space-y-6">
+                <div className="size-20 rounded-full bg-primary/5 flex items-center justify-center text-primary/20">
+                  <TableIcon className="size-10" />
+                </div>
+                <div className="max-w-xs mx-auto">
+                   <h3 className="text-xl font-bold font-headline text-primary/60 uppercase">Awaiting Computation</h3>
+                   <p className="text-sm text-muted-foreground mt-2 leading-relaxed italic">Search for an active student in the registry to determine terminal performance metrics.</p>
+                </div>
              </Card>
            ) : (
              <div className="space-y-6 animate-in slide-in-from-right-2 duration-300">
-               <Card className="border-none shadow-xl rounded-3xl overflow-hidden bg-white">
-                  <CardHeader className="bg-slate-50 border-b p-6"><CardTitle className="text-lg">Performance Records</CardTitle></CardHeader>
+               <Card id="printable-report" className="border-none shadow-2xl rounded-3xl overflow-hidden bg-white">
+                  <CardHeader className="bg-slate-50 border-b p-8 flex flex-col sm:flex-row items-center justify-between gap-6">
+                    <div className="flex items-center gap-4">
+                       <div className="size-16 rounded-2xl bg-primary flex items-center justify-center text-white shadow-xl shadow-primary/10">
+                          <GraduationCap className="size-8" />
+                       </div>
+                       <div>
+                          <CardTitle className="text-2xl font-headline font-bold text-primary">{selectedStudent?.firstName} {selectedStudent?.lastName}</CardTitle>
+                          <CardDescription className="font-bold uppercase tracking-tighter text-accent">{selectedStudent?.admissionNumber} • {selectedGrade}</CardDescription>
+                       </div>
+                    </div>
+                    <div className="text-right">
+                       <Badge variant="outline" className="text-[10px] font-bold uppercase px-4 py-1.5 rounded-full border-primary/20 text-primary bg-white shadow-sm">{currentTerm} • 2026/2027</Badge>
+                    </div>
+                  </CardHeader>
                   <CardContent className="p-0">
                     <div className="overflow-x-auto w-full">
-                      <Table className="min-w-[600px]">
+                      <Table className="min-w-[700px]">
                         <TableHeader className="bg-muted/10">
                           <TableRow>
-                            <TableHead className="font-bold px-6">SUBJECT</TableHead>
-                            <TableHead className="text-center font-bold">TOTAL</TableHead>
-                            <TableHead className="text-center font-bold">GRADE</TableHead>
-                            <TableHead className="text-right font-bold pr-6">REMARK</TableHead>
+                            <TableHead className="font-bold px-8 py-5 text-primary uppercase text-[10px] tracking-widest">Instructional Area</TableHead>
+                            <TableHead className="text-center font-bold text-primary uppercase text-[10px] tracking-widest">CA (30)</TableHead>
+                            <TableHead className="text-center font-bold text-primary uppercase text-[10px] tracking-widest">Exam (70)</TableHead>
+                            <TableHead className="text-center font-bold text-primary uppercase text-[10px] tracking-widest">Total</TableHead>
+                            <TableHead className="text-center font-bold text-primary uppercase text-[10px] tracking-widest">Grade</TableHead>
+                            <TableHead className="text-right font-bold pr-8 text-primary uppercase text-[10px] tracking-widest">Remark</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {reportData.results.map((r, i) => (
-                            <TableRow key={i}>
-                              <TableCell className="font-bold text-primary px-6">{r.subject}</TableCell>
-                              <TableCell className="text-center font-bold">{r.total}</TableCell>
-                              <TableCell className="text-center"><Badge variant="outline" className="font-bold">{r.grade}</Badge></TableCell>
-                              <TableCell className="text-right pr-6"><span className="text-[10px] font-bold uppercase text-muted-foreground">{r.remark}</span></TableCell>
+                            <TableRow key={i} className="hover:bg-slate-50/50 transition-colors border-b last:border-none">
+                              <TableCell className="font-bold text-primary px-8 py-4">{r.subject}</TableCell>
+                              <TableCell className="text-center font-medium text-slate-600">{r.ca}</TableCell>
+                              <TableCell className="text-center font-medium text-slate-600">{r.exam}</TableCell>
+                              <TableCell className="text-center font-black text-primary">{r.total}</TableCell>
+                              <TableCell className="text-center"><Badge variant="outline" className="font-bold bg-white">{r.grade}</Badge></TableCell>
+                              <TableCell className="text-right pr-8"><span className="text-[10px] font-black uppercase text-accent tracking-tighter">{r.remark}</span></TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -280,30 +321,61 @@ export default function StudentReportsPage() {
                   </CardContent>
                </Card>
 
-               <div className="grid gap-6 md:grid-cols-2">
-                  <Card className="border-none shadow-md rounded-2xl bg-white p-6 space-y-4">
-                    <Label className="text-[10px] font-bold uppercase tracking-widest text-primary">Teacher's Remark</Label>
+               <div className="grid gap-6 md:grid-cols-2 no-print">
+                  <Card className="border-none shadow-xl rounded-[2rem] bg-white p-8 space-y-4">
+                    <Label className="text-[10px] font-bold uppercase tracking-widest text-primary flex items-center gap-2">
+                       <User className="size-3.5" /> Class Teacher's Narrative
+                    </Label>
                     <Textarea 
-                      placeholder="..." 
-                      className="min-h-[80px] rounded-xl text-sm"
+                      placeholder="Provide qualitative feedback on growth..." 
+                      className="min-h-[120px] rounded-2xl text-sm bg-slate-50 border-none italic font-medium"
                       value={teacherRemark}
                       onChange={(e) => setTeacherRemark(e.target.value)}
                     />
                   </Card>
-                  <Card className="border-none shadow-md rounded-2xl bg-white p-6 space-y-4">
-                    <Label className="text-[10px] font-bold uppercase tracking-widest text-accent">Head Teacher Remark</Label>
+                  <Card className="border-none shadow-xl rounded-[2rem] bg-white p-8 space-y-4">
+                    <Label className="text-[10px] font-bold uppercase tracking-widest text-accent flex items-center gap-2">
+                       <ShieldCheck className="size-3.5" /> Head Teacher's Authorization
+                    </Label>
                     <Textarea 
-                      placeholder="..." 
-                      className="min-h-[80px] rounded-xl text-sm"
+                      placeholder="Official closing remarks..." 
+                      className="min-h-[120px] rounded-2xl text-sm bg-slate-50 border-none italic font-medium"
                       value={headRemark}
                       onChange={(e) => setHeadRemark(e.target.value)}
                     />
                   </Card>
                </div>
+               
+               <div className="flex justify-center pt-6 no-print">
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter flex items-center gap-2">
+                    <CheckCircle2 className="size-3 text-green-600" /> Authorized Registry Computation • 2026 Academic Hub
+                  </p>
+               </div>
              </div>
            )}
         </div>
       </div>
+
+      <style jsx global>{`
+        @media print {
+          body * { visibility: hidden; }
+          #printable-report, #printable-report * { visibility: visible; }
+          #printable-report {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: auto;
+            margin: 0;
+            padding: 30px;
+            border: none !important;
+            box-shadow: none !important;
+            background: white !important;
+            overflow: visible !important;
+          }
+          .no-print { display: none !important; }
+        }
+      `}</style>
     </div>
   )
 }

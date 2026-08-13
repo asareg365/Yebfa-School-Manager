@@ -50,7 +50,7 @@ export default function AttendancePage() {
 
   const studentsQuery = useMemo(() => {
     if (!db || !institutionId || !selectedGrade) return null;
-    return query(collection(db, "students"), where("tenantId", "==", institutionId), where("gradeLevel", "==", selectedGrade));
+    return query(collection(db, "students"), where("tenantId", "==", institutionId), where("gradeLevel", "==", selectedGrade), where("status", "==", "active"));
   }, [db, institutionId, selectedGrade]);
 
   const attendanceQuery = useMemo(() => {
@@ -64,7 +64,7 @@ export default function AttendancePage() {
   }, [db, institutionId, selectedGrade, selectedDate]);
 
   const { data: allClasses = [] } = useCollection(classesQuery)
-  const { data: students, loading: studentsLoading } = useCollection(studentsQuery)
+  const { data: students = [], loading: studentsLoading } = useCollection(studentsQuery)
   const { data: existingAttendance } = useCollection(attendanceQuery)
 
   const classes = useMemo(() => isTeacher ? allClasses.filter(c => assignedClassIds.has(c.id)) : allClasses, [allClasses, isTeacher, assignedClassIds])
@@ -79,7 +79,7 @@ export default function AttendancePage() {
     } else {
       setPresentStudents({});
     }
-  }, [existingAttendance]);
+  }, [existingAttendance, students]);
 
   const handleToggleAll = (status: boolean) => {
     const map: Record<string, boolean> = {};
@@ -87,7 +87,7 @@ export default function AttendancePage() {
       map[s.id] = status;
     });
     setPresentStudents(map);
-    toast({ title: status ? "All Marked Present" : "All Marked Absent", description: "Remember to save changes to authorize the roll call." });
+    toast({ title: status ? "All Marked Present" : "All Marked Absent", description: "Registry synchronized." });
   }
 
   const handleSaveAttendance = () => {
@@ -227,7 +227,7 @@ export default function AttendancePage() {
                       {students.length === 0 && (
                         <TableRow>
                           <TableCell colSpan={3} className="text-center py-24 text-muted-foreground italic">
-                            No student records detected for this grade in the registry.
+                            No active student records detected for this grade in the registry.
                           </TableCell>
                         </TableRow>
                       )}

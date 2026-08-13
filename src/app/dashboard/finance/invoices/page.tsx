@@ -207,7 +207,7 @@ export default function InvoicingPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-20">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 no-print">
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Invoicing Hub</h1>
           <p className="text-muted-foreground font-medium text-sm">Strategic term billing for <span className="text-accent font-bold uppercase">{institution?.currentTerm || "Term 1"}</span>.</p>
@@ -239,7 +239,7 @@ export default function InvoicingPage() {
       </div>
 
       <Card className="border-none shadow-xl rounded-2xl overflow-hidden bg-white">
-        <CardHeader className="border-b py-6 px-6 bg-slate-50/50">
+        <CardHeader className="border-b py-6 px-6 bg-slate-50/50 no-print">
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
              <div className="relative w-full max-w-sm">
                 <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
@@ -267,7 +267,7 @@ export default function InvoicingPage() {
                 <TableHead className="py-4 font-bold">TOTAL</TableHead>
                 <TableHead className="py-4 font-bold text-destructive">DUE</TableHead>
                 <TableHead className="py-4 font-bold">STATUS</TableHead>
-                <TableHead className="text-right py-4 font-bold px-6">ACTIONS</TableHead>
+                <TableHead className="text-right py-4 font-bold px-6 no-print">ACTIONS</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -287,9 +287,9 @@ export default function InvoicingPage() {
                       {inv.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right px-6">
+                  <TableCell className="text-right px-6 no-print">
                     <div className="flex items-center justify-end gap-1">
-                       <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => { setSelectedInvoice(inv); setIsPrintOpen(true); }}>
+                       <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => window.print()}>
                          <Printer className="size-4" />
                        </Button>
                        <DropdownMenu>

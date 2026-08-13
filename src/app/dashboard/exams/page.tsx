@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -72,7 +71,7 @@ export default function ExaminationCenterPage() {
 
   const studentsQuery = useMemo(() => {
     if (!db || !institutionId || !selectedGrade) return null;
-    return query(collection(db, "students"), where("tenantId", "==", institutionId), where("gradeLevel", "==", selectedGrade));
+    return query(collection(db, "students"), where("tenantId", "==", institutionId), where("gradeLevel", "==", selectedGrade), where("status", "==", "active"));
   }, [db, institutionId, selectedGrade]);
 
   const subjectsQuery = useMemo(() => {
@@ -112,7 +111,7 @@ export default function ExaminationCenterPage() {
     } else {
       setScores({});
     }
-  }, [existingScores, selectedSubject, selectedTerm]);
+  }, [existingScores, selectedSubject, selectedTerm, students]);
 
   const handleScoreChange = (studentId: string, field: 'ca' | 'exam', value: string) => {
     const numValue = parseFloat(value) || 0;
@@ -138,7 +137,7 @@ export default function ExaminationCenterPage() {
 
   const handleSaveScores = async () => {
     if (!db || !institutionId || !selectedSubject || !selectedGrade || !selectedTerm) {
-      toast({ variant: "destructive", title: "Selection Required", description: "Select grade, subject, and term to save scores." })
+      toast({ variant: "destructive", title: "Selection Required", description: "Select grade, subject, and term." })
       return
     }
 
@@ -173,7 +172,7 @@ export default function ExaminationCenterPage() {
       })
 
       await batch.commit()
-      toast({ title: "Scores Finalized", description: `Academic records synchronized for ${students.length} students.` })
+      toast({ title: "Scores Finalized", description: `Registry synchronized for ${students.length} students.` })
     } catch (err: any) {
       toast({ variant: "destructive", title: "Save Failed", description: err.message })
     } finally {
@@ -246,7 +245,7 @@ export default function ExaminationCenterPage() {
                 <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Select Grade" /></SelectTrigger>
                 <SelectContent>
                   {classes.filter(c => !!c.id).map(c => (
-                    <SelectItem key={c.id} value={c.id || c.name}>
+                    <SelectItem key={c.id} value={c.name || c.id}>
                       {c.name || "Unnamed Class"}
                     </SelectItem>
                   ))}
@@ -289,10 +288,10 @@ export default function ExaminationCenterPage() {
                     <Table className="min-w-[600px]">
                       <TableHeader className="bg-muted/30">
                         <TableRow>
-                          <TableHead className="py-4 font-bold">STUDENT NAME</TableHead>
+                          <TableHead className="py-4 font-bold px-8">STUDENT NAME</TableHead>
                           <TableHead className="py-4 font-bold w-32 text-center">CA (30)</TableHead>
                           <TableHead className="py-4 font-bold w-32 text-center">EXAM (70)</TableHead>
-                          <TableHead className="py-4 font-bold w-24 text-right px-6">TOTAL</TableHead>
+                          <TableHead className="py-4 font-bold w-24 text-right px-8">TOTAL</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -302,7 +301,7 @@ export default function ExaminationCenterPage() {
                           
                           return (
                             <TableRow key={stu.id} className="hover:bg-slate-50/50 transition-colors">
-                              <TableCell className="font-bold text-primary px-6">
+                              <TableCell className="font-bold text-primary px-8">
                                 <div className="flex items-center gap-3">
                                   <div className="size-8 rounded-full bg-primary/5 flex items-center justify-center text-[10px] font-bold shrink-0">{stu.firstName?.charAt(0)}{stu.lastName?.charAt(0)}</div>
                                   <span className="truncate">{stu.firstName} {stu.lastName}</span>
@@ -324,7 +323,7 @@ export default function ExaminationCenterPage() {
                                   onChange={(e) => handleScoreChange(stu.id, 'exam', e.target.value)}
                                 />
                               </TableCell>
-                              <TableCell className="text-right px-6">
+                              <TableCell className="text-right px-8">
                                 <Badge className={`text-sm font-bold h-9 w-16 flex items-center justify-center ${total >= 50 ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'} border-none`}>
                                   {total}
                                 </Badge>

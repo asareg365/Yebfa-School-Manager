@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo, Suspense } from "react"
@@ -31,7 +30,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select"
-import { useFirestore, useCollection, useUser, useDoc } from "@/firebase"
+import { useFirestore, useCollection, useUser, useDoc, useMemoFirebase } from "@/firebase"
 import { 
   collection, 
   query, 
@@ -67,7 +66,7 @@ function AcademicFoundationContent() {
     if (tabParam && tabParam !== activeTab) {
       setActiveTab(tabParam)
     }
-  }, [tabParam])
+  }, [tabParam, activeTab])
 
   const handleTabChange = (val: string) => {
     setActiveTab(val)
@@ -92,25 +91,14 @@ function AcademicFoundationContent() {
     }
   }, [profile])
 
-  // Teacher Assignments Filter
-  const myAssignmentsQuery = useMemo(() => 
-    institutionId && isTeacher && staffId 
-      ? query(collection(db, "teacher_assignments"), where("tenantId", "==", institutionId), where("teacherId", "==", staffId)) 
-      : null, 
-    [db, institutionId, isTeacher, staffId]
-  )
-  const { data: myAssignments = [] } = useCollection(myAssignmentsQuery)
-  const assignedClassIds = useMemo(() => new Set(myAssignments.map((a: any) => a.classId)), [myAssignments])
-  const assignedSubjectIds = useMemo(() => new Set(myAssignments.map((a: any) => a.subjectId)), [myAssignments])
-
   // Foundation Queries
-  const yearsQuery = useMemo(() => institutionId ? query(collection(db, "academic_years"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
-  const termsQuery = useMemo(() => institutionId ? query(collection(db, "terms"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
-  const classesQuery = useMemo(() => institutionId ? query(collection(db, "classes"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
-  const sectionsQuery = useMemo(() => institutionId ? query(collection(db, "sections"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
-  const subjectsQuery = useMemo(() => institutionId ? query(collection(db, "subjects"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
-  const staffQuery = useMemo(() => institutionId ? query(collection(db, "staff"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
-  const assignmentsQuery = useMemo(() => institutionId ? query(collection(db, "teacher_assignments"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
+  const yearsQuery = useMemoFirebase(() => institutionId ? query(collection(db, "academic_years"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
+  const termsQuery = useMemoFirebase(() => institutionId ? query(collection(db, "terms"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
+  const classesQuery = useMemoFirebase(() => institutionId ? query(collection(db, "classes"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
+  const sectionsQuery = useMemoFirebase(() => institutionId ? query(collection(db, "sections"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
+  const subjectsQuery = useMemoFirebase(() => institutionId ? query(collection(db, "subjects"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
+  const staffQuery = useMemoFirebase(() => institutionId ? query(collection(db, "staff"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
+  const assignmentsQuery = useMemoFirebase(() => institutionId ? query(collection(db, "teacher_assignments"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
 
   const { data: rawYears = [] } = useCollection(yearsQuery)
   const { data: rawTerms = [] } = useCollection(termsQuery)
@@ -120,21 +108,10 @@ function AcademicFoundationContent() {
   const { data: rawStaff = [] } = useCollection(staffQuery)
   const { data: rawAssignments = [] } = useCollection(assignmentsQuery)
 
-  const years = useMemo(() => [...rawYears].sort((a: any, b: any) => b.year.localeCompare(a.year)), [rawYears])
-  const terms = useMemo(() => [...rawTerms].sort((a: any, b: any) => a.name.localeCompare(b.name)), [rawTerms])
-  
-  const classes = useMemo(() => {
-    let list = rawClasses;
-    if (isTeacher) list = list.filter(c => assignedClassIds.has(c.id));
-    return [...list].sort((a: any, b: any) => a.name.localeCompare(b.name));
-  }, [rawClasses, isTeacher, assignedClassIds])
-
-  const subjects = useMemo(() => {
-    let list = rawSubjects;
-    if (isTeacher) list = list.filter(s => assignedSubjectIds.has(s.id));
-    return [...list].sort((a: any, b: any) => a.name.localeCompare(b.name));
-  }, [rawSubjects, isTeacher, assignedSubjectIds])
-
+  const years = useMemo(() => [...rawYears].sort((a: any, b: any) => (b.year || "").localeCompare(a.year || "")), [rawYears])
+  const terms = useMemo(() => [...rawTerms].sort((a: any, b: any) => (a.name || "").localeCompare(b.name || "")), [rawTerms])
+  const classes = useMemo(() => [...rawClasses].sort((a: any, b: any) => (a.name || "").localeCompare(b.name || "")), [rawClasses])
+  const subjects = useMemo(() => [...rawSubjects].sort((a: any, b: any) => (a.name || "").localeCompare(b.name || "")), [rawSubjects])
   const staff = rawStaff;
   const sections = rawSections;
   const assignments = rawAssignments;
@@ -150,7 +127,7 @@ function AcademicFoundationContent() {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       })
-      toast({ title: "Structure Updated", description: "The academic foundation has been updated." })
+      toast({ title: "Structure Updated", description: "Identity Hub synchronized." })
       reset()
     } catch (err: any) {
       toast({ variant: "destructive", title: "Update Failed", description: err.message })
@@ -232,14 +209,13 @@ function AcademicFoundationContent() {
                 <CardContent className="space-y-6">
                   <div className="grid gap-4">
                     <Select 
-                      key={years.length} 
                       onValueChange={v => setTermForm({...termForm, academicYearId: v})} 
                       value={termForm.academicYearId}
                     >
                       <SelectTrigger><SelectValue placeholder="Select Academic Year" /></SelectTrigger>
                       <SelectContent>
                           {years.length > 0 ? (
-                            years.map((y: any) => <SelectItem key={y.id} value={y.id}>{y.year}</SelectItem>)
+                            years.map((y: any) => <SelectItem key={y.id} value={y.id || "unspecified"}>{y.year}</SelectItem>)
                           ) : (
                             <div className="p-2 text-center text-xs text-muted-foreground">No years found</div>
                           )}
@@ -255,7 +231,7 @@ function AcademicFoundationContent() {
                       <div key={t.id} className="flex items-center justify-between p-4 rounded-xl border bg-white">
                         <div>
                           <p className="font-bold text-sm">{t.name}</p>
-                          <p className="text-[10px] text-muted-foreground uppercase font-bold">{years.find((y: any) => y.id === t.academicYearId)?.year || "Registry ID: " + t.academicYearId.substring(0, 5)}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase font-bold">{years.find((y: any) => y.id === t.academicYearId)?.year || "Registry Hub"}</p>
                         </div>
                         <Button variant="ghost" size="icon" onClick={() => handleDelete("terms", t.id)} className="h-8 w-8 text-destructive"><Trash2 className="size-4" /></Button>
                       </div>
@@ -358,7 +334,7 @@ function AcademicFoundationContent() {
                     {subjects.map((s: any) => (
                       <div key={s.id} className="p-4 flex items-center justify-between hover:bg-slate-50/50">
                         <div className="flex items-center gap-3">
-                          <div className="size-8 rounded-lg bg-primary/5 flex items-center justify-center font-bold text-primary text-[10px]">{s.code || s.name.substring(0, 3).toUpperCase()}</div>
+                          <div className="size-8 rounded-lg bg-primary/5 flex items-center justify-center font-bold text-primary text-[10px]">{s.code || (s.name || "SUB").substring(0, 3).toUpperCase()}</div>
                           <span className="font-bold text-sm">{s.name}</span>
                         </div>
                         {!isTeacher && <Button variant="ghost" size="icon" onClick={() => handleDelete("subjects", s.id)} className="text-destructive"><Trash2 className="size-4" /></Button>}
@@ -382,58 +358,55 @@ function AcademicFoundationContent() {
                     <div className="space-y-2">
                       <Label>Teacher</Label>
                       <Select 
-                        key={`staff-select-${staff.length}`}
                         onValueChange={v => setAssignForm({...assignForm, teacherId: v})}
+                        value={assignForm.teacherId}
                       >
                         <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                         <SelectContent>
-                          {staff.filter((s: any) => s.designation?.toLowerCase().includes("teacher")).length > 0 ? (
-                            staff.filter((s: any) => s.designation?.toLowerCase().includes("teacher")).map((s: any) => <SelectItem key={s.id} value={s.id}>{s.firstName} {s.lastName}</SelectItem>)
-                          ) : (
-                            <div className="p-2 text-center text-xs">No teachers found</div>
-                          )}
+                          {staff.filter((s: any) => s.designation?.toLowerCase().includes("teacher")).map((s: any) => <SelectItem key={s.id} value={s.id || "unspecified"}>{s.firstName} {s.lastName}</SelectItem>)}
+                          {staff.filter((s: any) => s.designation?.toLowerCase().includes("teacher")).length === 0 && <div className="p-2 text-center text-xs">No teachers found</div>}
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
                       <Label>Grade</Label>
                       <Select 
-                        key={`class-select-${classes.length}`}
                         onValueChange={v => setAssignForm({...assignForm, classId: v})}
+                        value={assignForm.classId}
                       >
                         <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                         <SelectContent>
-                          {classes.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                          {classes.map((c: any) => <SelectItem key={c.id} value={c.id || "unspecified"}>{c.name}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
                       <Label>Section</Label>
                       <Select 
-                        key={`section-select-${assignForm.classId}-${sections.length}`}
                         onValueChange={v => setAssignForm({...assignForm, sectionId: v})} 
                         disabled={!assignForm.classId}
+                        value={assignForm.sectionId}
                       >
                         <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                         <SelectContent>
-                          {sections.filter((s: any) => s.classId === assignForm.classId).map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                          {sections.filter((s: any) => s.classId === assignForm.classId).map((s: any) => <SelectItem key={s.id} value={s.id || "unspecified"}>{s.name}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
                       <Label>Subject</Label>
                       <Select 
-                        key={`subject-select-${subjects.length}`}
                         onValueChange={v => setAssignForm({...assignForm, subjectId: v})}
+                        value={assignForm.subjectId}
                       >
                         <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                         <SelectContent>
-                          {subjects.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                          {subjects.map((s: any) => <SelectItem key={s.id} value={s.id || "unspecified"}>{s.name}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="flex items-end">
-                      <Button className="w-full" onClick={() => handleCreate("teacher_assignments", assignForm, () => setAssignForm({teacherId: "", classId: "", sectionId: "", subjectId: "", termId: ""}))}>Assign</Button>
+                      <Button className="w-full" onClick={() => handleCreate("teacher_assignments", assignForm, () => setAssignForm({teacherId: "", classId: "", sectionId: "", subjectId: "", termId: ""}))} disabled={loading || !assignForm.teacherId || !assignForm.classId}>Assign</Button>
                     </div>
                   </div>
 
@@ -457,7 +430,7 @@ function AcademicFoundationContent() {
                               <td className="p-4 text-muted-foreground">
                                 {classes.find((c: any) => c.id === a.classId)?.name} • {sections.find((s: any) => s.id === a.sectionId)?.name || "All Sections"}
                               </td>
-                              <td className="p-4"><Badge variant="secondary" className="font-bold">{subjects.find((s: any) => s.id === a.subjectId)?.name}</Badge></td>
+                              <td className="p-4"><Badge variant="secondary" className="font-bold">{subjects.find((s: any) => s.id === a.subjectId)?.name || "Academic"}</Badge></td>
                               <td className="p-4 text-right"><Button variant="ghost" size="icon" onClick={() => handleDelete("teacher_assignments", a.id)} className="text-destructive"><Trash2 className="size-4" /></Button></td>
                             </tr>
                           );
