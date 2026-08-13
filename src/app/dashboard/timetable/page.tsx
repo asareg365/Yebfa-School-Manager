@@ -24,10 +24,13 @@ import {
   Lock,
   AlertTriangle,
   Coffee,
-  Utensils
+  Utensils,
+  Settings,
+  PlusCircle,
+  Timer
 } from "lucide-react"
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase"
-import { collection, query, where, doc, setDoc, serverTimestamp, deleteDoc } from "firebase/firestore"
+import { collection, query, where, doc, setDoc, serverTimestamp, deleteDoc, updateDoc } from "firebase/firestore"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { optimizeTimetable, TimetableOutput } from "@/ai/flows/optimize-timetable-flow"
@@ -36,24 +39,22 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
 
-// GMT Greenwich Mean Time - Ghanaian Academic Cycle
-const TIMES = [
-  "08:00 AM", // Period 1
-  "09:00 AM", // Period 2
-  "10:00 AM", // SHORT BREAK (30 mins)
-  "10:30 AM", // Period 3
-  "11:30 AM", // Period 4
-  "12:30 PM", // LUNCH BREAK (60 mins)
-  "01:30 PM", // Period 5
-  "02:30 PM"  // Period 6
+const DEFAULT_SLOTS = [
+  "08:00 AM", "09:00 AM", "10:00 AM", "10:30 AM", "11:30 AM", "12:30 PM", "01:30 PM", "02:30 PM"
 ]
 
-const BREAKS: Record<string, { label: string, icon: any, duration: string }> = {
-  "10:00 AM": { label: "Short Break", icon: Coffee, duration: "30 Mins" },
-  "12:30 PM": { label: "Lunch Break", icon: Utensils, duration: "60 Mins" }
+const DEFAULT_BREAKS: Record<string, { label: string, type: 'coffee' | 'utensils', duration: string }> = {
+  "10:00 AM": { label: "Short Break", type: 'coffee', duration: "30 Mins" },
+  "12:30 PM": { label: "Lunch Break", type: 'utensils', duration: "60 Mins" }
+}
+
+const ICON_MAP = {
+  coffee: Coffee,
+  utensils: Utensils
 }
 
 export default function TimetablePage() {
@@ -64,18 +65,9 @@ export default function TimetablePage() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [isManualOpen, setIsManualOpen] = useState(false)
+  const [isConfigOpen, setIsConfigOpen] = useState(false)
   
   const [aiResult, setAiResult] = useState<TimetableOutput | null>(null)
-
-  const [manualSlot, setManualSlot] = useState({
-    day: "Monday",
-    time: "08:00 AM",
-    subjectId: "",
-    subject: "",
-    teacherId: "",
-    teacher: "",
-    isDoublePeriod: false
-  })
 
   useEffect(() => {
     setInstitutionId(localStorage.getItem('selected_institution_id'))
@@ -89,6 +81,31 @@ export default function TimetablePage() {
   const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
   const { data: institution } = useDoc(instRef)
   const currentTerm = institution?.currentTerm || "Term 1"
+
+  // Dynamic Configuration
+  const timetableConfig = useMemo(() => institution?.timetableConfig || {
+    slots: DEFAULT_SLOTS,
+    breaks: DEFAULT_BREAKS
+  }, [institution]);
+
+  const TIMES = timetableConfig.slots;
+  const BREAKS = timetableConfig.breaks;
+
+  const [manualSlot, setManualSlot] = useState({
+    day: "Monday",
+    time: TIMES[0] || "08:00 AM",
+    subjectId: "",
+    subject: "",
+    teacherId: "",
+    teacher: "",
+    isDoublePeriod: false
+  })
+
+  const [configForm, setConfigForm] = useState(timetableConfig);
+
+  useEffect(() => {
+    if (timetableConfig) setConfigForm(timetableConfig);
+  }, [timetableConfig]);
 
   const assignmentsQuery = useMemoFirebase(() => {
     if (!db || !institutionId || !isTeacher || !staffId) return null
@@ -132,7 +149,7 @@ export default function TimetablePage() {
         classId: selectedClassId,
         gradeName: selectedClass?.name || "Class",
         termId: currentTerm,
-        context: "Prefer core subjects like Math and English in the morning. Adhere to GMT breaks."
+        context: "Adhere to the institution's dynamic GMT grid and breaks."
       })
       setAiResult(res)
       toast({ title: "Optimized Schedule Ready", description: "Strategic periods have been mapped. Review and save to finalize." })
@@ -166,6 +183,23 @@ export default function TimetablePage() {
       setSaving(false)
     }
   }
+
+  const handleSaveConfig = async () => {
+    if (!instRef) return;
+    setSaving(true);
+    try {
+      await updateDoc(instRef, {
+        timetableConfig: configForm,
+        updatedAt: serverTimestamp()
+      });
+      toast({ title: "Configuration Updated", description: "Grid settings synchronized globally." });
+      setIsConfigOpen(false);
+    } catch (e) {
+      toast({ variant: "destructive", title: "Sync Failed" });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const checkSlotOccupied = (day: string, time: string, tId: string, currentClassOnly = false) => {
     if (BREAKS[time]) return { type: 'break', name: BREAKS[time].label };
@@ -241,7 +275,7 @@ export default function TimetablePage() {
 
       toast({ title: "Slot Authorized", description: "Period successfully registered." })
       setIsManualOpen(false)
-      setManualSlot({ day: "Monday", time: "08:00 AM", subjectId: "", subject: "", teacherId: "", teacher: "", isDoublePeriod: false })
+      setManualSlot({ day: "Monday", time: TIMES[0], subjectId: "", subject: "", teacherId: "", teacher: "", isDoublePeriod: false })
     } catch (error: any) {
       toast({ variant: "destructive", title: "Update Failed" })
     } finally {
@@ -289,21 +323,26 @@ export default function TimetablePage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Timetable Optimizer</h1>
-          <p className="text-muted-foreground font-medium">GMT Ghanaian Academic Cycle • <span className="text-accent font-bold uppercase">{currentTerm}</span>.</p>
+          <p className="text-muted-foreground font-medium">Dynamic Grid • <span className="text-accent font-bold uppercase">{currentTerm}</span>.</p>
         </div>
         <div className="flex flex-wrap gap-3">
           <Button variant="outline" className="h-11 rounded-xl gap-2" onClick={() => window.print()}>
             <Printer className="size-4" /> Print PDF
           </Button>
           {!isTeacher && (
-            <Button 
-              className="bg-primary h-11 rounded-xl shadow-lg gap-2" 
-              onClick={handleOptimize}
-              disabled={loading || !selectedClassId}
-            >
-              {loading ? <Loader2 className="size-4 animate-spin" /> : <Bot className="size-4 text-accent" />}
-              AI Optimize
-            </Button>
+            <>
+              <Button variant="outline" className="h-11 rounded-xl gap-2" onClick={() => setIsConfigOpen(true)}>
+                <Settings className="size-4" /> Config Hub
+              </Button>
+              <Button 
+                className="bg-primary h-11 rounded-xl shadow-lg gap-2" 
+                onClick={handleOptimize}
+                disabled={loading || !selectedClassId}
+              >
+                {loading ? <Loader2 className="size-4 animate-spin" /> : <Bot className="size-4 text-accent" />}
+                AI Optimize
+              </Button>
+            </>
           )}
           {aiResult && !isTeacher && (
             <Button className="bg-green-600 hover:bg-green-700 h-11 rounded-xl shadow-lg gap-2" onClick={() => handleSaveTimetable(aiResult.schedule)} disabled={saving}>
@@ -469,7 +508,7 @@ export default function TimetablePage() {
                        {TIMES.map((time) => {
                          const breakData = BREAKS[time]
                          if (breakData) {
-                           const BreakIcon = breakData.icon
+                           const BreakIcon = ICON_MAP[breakData.type as keyof typeof ICON_MAP] || Coffee
                            return (
                              <tr key={time} className="bg-slate-100/50 border-b">
                                <td className="p-4 border-r text-[10px] font-black text-primary/40 uppercase bg-slate-200/50 text-center">
@@ -542,6 +581,146 @@ export default function TimetablePage() {
           )}
         </div>
       </div>
+
+      <Dialog open={isConfigOpen} onOpenChange={setIsConfigOpen}>
+        <DialogContent className="max-w-2xl rounded-3xl p-0 overflow-hidden border-none shadow-2xl h-[80vh] flex flex-col">
+          <DialogHeader className="p-8 bg-primary text-primary-foreground shrink-0">
+             <div className="flex items-center gap-3 mb-2">
+               <div className="size-8 rounded-xl bg-white/10 flex items-center justify-center"><Settings className="size-5" /></div>
+               <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Strategic Configuration</span>
+             </div>
+             <DialogTitle className="text-2xl font-headline font-bold">Grid Infrastructure</DialogTitle>
+             <DialogDescription className="text-primary-foreground/70">Define teaching slots and institutional breaks for the GMT cycle.</DialogDescription>
+          </DialogHeader>
+
+          <ScrollArea className="flex-1">
+             <div className="p-8 space-y-8">
+                <section className="space-y-4">
+                   <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold uppercase tracking-widest text-primary flex items-center gap-2"><Timer className="size-4" /> Time Slots</h4>
+                      <Button variant="outline" size="sm" className="h-8 rounded-lg text-[10px]" onClick={() => setConfigForm({...configForm, slots: [...configForm.slots, "00:00 AM"]})}>
+                        <PlusCircle className="size-3 mr-1" /> Add Slot
+                      </Button>
+                   </div>
+                   <div className="grid gap-3 sm:grid-cols-2">
+                      {configForm.slots.map((s, i) => (
+                        <div key={i} className="flex gap-2 items-center group">
+                           <Input 
+                            value={s} 
+                            onChange={e => {
+                              const newSlots = [...configForm.slots];
+                              newSlots[i] = e.target.value;
+                              setConfigForm({...configForm, slots: newSlots});
+                            }}
+                            className="h-10 rounded-xl font-mono text-sm"
+                           />
+                           <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-9 w-9 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => {
+                              const newSlots = configForm.slots.filter((_, idx) => idx !== i);
+                              setConfigForm({...configForm, slots: newSlots});
+                            }}
+                           >
+                             <Trash2 className="size-4" />
+                           </Button>
+                        </div>
+                      ))}
+                   </div>
+                </section>
+
+                <section className="space-y-4">
+                   <h4 className="text-xs font-bold uppercase tracking-widest text-primary flex items-center gap-2"><Coffee className="size-4" /> Institutional Breaks</h4>
+                   <div className="space-y-4">
+                      {configForm.slots.map((s, i) => {
+                        const isBreak = !!configForm.breaks[s];
+                        return (
+                          <div key={i} className={`p-4 rounded-2xl border transition-all ${isBreak ? 'bg-orange-50 border-orange-200' : 'bg-white border-slate-100'}`}>
+                             <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                   <div className={`size-8 rounded-lg flex items-center justify-center ${isBreak ? 'bg-white text-orange-600' : 'bg-slate-50 text-slate-400'}`}>
+                                      <Clock className="size-4" />
+                                   </div>
+                                   <span className="text-sm font-bold text-slate-700">{s}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                   <Label className="text-[10px] font-bold uppercase opacity-60">Designate as Break</Label>
+                                   <Checkbox 
+                                    checked={isBreak}
+                                    onCheckedChange={checked => {
+                                      const newBreaks = { ...configForm.breaks };
+                                      if (checked) {
+                                        newBreaks[s] = { label: "New Break", type: 'coffee', duration: "30 Mins" };
+                                      } else {
+                                        delete newBreaks[s];
+                                      }
+                                      setConfigForm({...configForm, breaks: newBreaks});
+                                    }}
+                                   />
+                                </div>
+                             </div>
+                             {isBreak && (
+                               <div className="mt-4 grid gap-4 sm:grid-cols-3 animate-in slide-in-from-top-2">
+                                  <div className="space-y-1">
+                                     <Label className="text-[9px] uppercase">Label</Label>
+                                     <Input 
+                                      value={configForm.breaks[s].label}
+                                      onChange={e => {
+                                        const newBreaks = { ...configForm.breaks };
+                                        newBreaks[s].label = e.target.value;
+                                        setConfigForm({...configForm, breaks: newBreaks});
+                                      }}
+                                      className="h-8 text-xs rounded-lg"
+                                     />
+                                  </div>
+                                  <div className="space-y-1">
+                                     <Label className="text-[9px] uppercase">Icon</Label>
+                                     <Select 
+                                      value={configForm.breaks[s].type}
+                                      onValueChange={v => {
+                                        const newBreaks = { ...configForm.breaks };
+                                        newBreaks[s].type = v as 'coffee' | 'utensils';
+                                        setConfigForm({...configForm, breaks: newBreaks});
+                                      }}
+                                     >
+                                        <SelectTrigger className="h-8 text-xs rounded-lg"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="coffee">Coffee</SelectItem>
+                                          <SelectItem value="utensils">Utensils</SelectItem>
+                                        </SelectContent>
+                                     </Select>
+                                  </div>
+                                  <div className="space-y-1">
+                                     <Label className="text-[9px] uppercase">Duration</Label>
+                                     <Input 
+                                      value={configForm.breaks[s].duration}
+                                      onChange={e => {
+                                        const newBreaks = { ...configForm.breaks };
+                                        newBreaks[s].duration = e.target.value;
+                                        setConfigForm({...configForm, breaks: newBreaks});
+                                      }}
+                                      className="h-8 text-xs rounded-lg"
+                                     />
+                                  </div>
+                               </div>
+                             )}
+                          </div>
+                        );
+                      })}
+                   </div>
+                </section>
+             </div>
+          </ScrollArea>
+
+          <DialogFooter className="p-8 bg-slate-50 border-t shrink-0">
+             <Button className="w-full h-14 rounded-2xl bg-primary font-bold shadow-xl gap-2" onClick={handleSaveConfig} disabled={saving}>
+                {saving ? <Loader2 className="size-5 animate-spin" /> : <Save className="size-5" />}
+                Synchronize Configuration
+             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       <div className="flex justify-center pt-8 no-print">
          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter flex items-center gap-2">

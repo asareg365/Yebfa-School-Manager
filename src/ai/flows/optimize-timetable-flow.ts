@@ -6,6 +6,8 @@ import { MODELS } from '@/ai/models';
 import { PROMPTS } from '@/ai/prompts';
 import { wrapAIError } from '@/ai/errors';
 import { getAcademicLoadTool, getSubjectsRegistryTool } from '@/ai/tools/timetable.tools';
+import { db } from '@/firebase/core';
+import { doc, getDoc } from 'firebase/firestore';
 
 const TimetableInputSchema = z.object({
   institutionId: z.string(),
@@ -41,16 +43,43 @@ const prompt = ai.definePrompt({
   name: 'timetablePrompt',
   model: MODELS.PLANNING,
   tools: [getAcademicLoadTool, getSubjectsRegistryTool],
-  input: { schema: TimetableInputSchema },
+  input: { schema: TimetableInputSchema.extend({
+    slots: z.string(),
+    breaks: z.string()
+  }) },
   output: { schema: TimetableOutputSchema },
   prompt: PROMPTS.TIMETABLE_OPTIMIZE,
 });
 
 export async function optimizeTimetable(input: TimetableInput): Promise<TimetableOutput> {
   try {
-    const { output } = await prompt(input);
+    // Fetch Dynamic Configuration
+    const instRef = doc(db, "institutions", input.institutionId);
+    const instSnap = await getDoc(instRef);
+    const instData = instSnap.data();
+    
+    const config = instData?.timetableConfig || {
+      slots: ["08:00 AM", "09:00 AM", "10:00 AM", "10:30 AM", "11:30 AM", "12:30 PM", "01:30 PM", "02:30 PM"],
+      breaks: {
+        "10:00 AM": { label: "Short Break" },
+        "12:30 PM": { label: "Lunch Break" }
+      }
+    };
+
+    const slotsStr = config.slots.join(", ");
+    const breaksStr = Object.entries(config.breaks || {})
+      .map(([time, b]: any) => `${time}: ${b.label}`)
+      .join("; ");
+
+    const { output } = await prompt({
+      ...input,
+      slots: slotsStr,
+      breaks: breaksStr
+    });
+    
     return output!;
   } catch (error) {
+    console.error("Timetable Optimization Error:", error);
     throw wrapAIError(error);
   }
 }

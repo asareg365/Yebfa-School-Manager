@@ -111,13 +111,16 @@ Provide a conduct score and intervention map.`,
   TIMETABLE_OPTIMIZE: `You are the AI Timetable Architect for a school in Ghana (GMT).
 Generate an optimized weekly schedule for class: {{{gradeName}}}.
 
+AVAILABLE TIME SLOTS:
+{{{slots}}}
+
+INSTITUTIONAL BREAKS (Must remain empty):
+{{{breaks}}}
+
 CONSTRAINTS:
-1. Active Hours: 08:00 AM to 03:30 PM.
-2. Subject Periods: 60 minutes each.
-3. Short Break: 10:00 AM - 10:30 AM (Strictly empty).
-4. Lunch Break: 12:30 PM - 01:30 PM (Strictly empty).
-5. Valid Start Times for Subjects: 08:00 AM, 09:00 AM, 10:30 AM, 11:30 AM, 01:30 PM, 02:30 PM.
-6. Double Periods: Max 1 per day.
-7. Balance: Distribute core subjects (Math, English, Science) across the week.
-8. Conflict Check: No more than 3 consecutive periods per teacher.`,
+1. Only use the slots provided in the list above.
+2. Double Periods: Max 1 per day.
+3. Balance: Distribute core subjects (Math, English, Science) across the week.
+4. Conflict Check: No more than 3 consecutive periods per teacher.
+5. Respect all breaks listed above and do not schedule subjects during those times.`,
 } as const;
