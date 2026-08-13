@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -6,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Wallet, Search, Plus, Loader2, User, Receipt, Banknote, Trash2, CheckCircle2, Filter, X } from "lucide-react"
+import { Wallet, Search, Plus, Loader2, User, Receipt, Banknote, Trash2, CheckCircle2, Filter, X, Users } from "lucide-react"
 import { useFirestore, useCollection } from "@/firebase"
 import { collection, query, where, addDoc, serverTimestamp, deleteDoc, doc } from "firebase/firestore"
 import { useState, useMemo, useEffect } from "react"
@@ -190,7 +189,7 @@ export default function PersonalFeeLedgerPage() {
                           <TableCell className="px-6 text-[10px] font-mono font-bold text-accent">{entry.date}</TableCell>
                           <TableCell><span className="font-bold text-primary text-xs">{entry.item}</span></TableCell>
                           <TableCell>
-                            <Badge variant="outline" className={`text-[9px] uppercase font-bold border-none px-3 ${entry.type === 'charge' ? 'bg-destructive/10 text-destructive' : 'bg-green-50 text-green-600'}`}>
+                            <Badge variant="outline" className={`text-[9px] uppercase font-bold border-none px-3 ${entry.type === 'charge' ? 'bg-destructive/10 text-destructive' : 'bg-green-50 text-green-700'}`}>
                               {entry.type === 'charge' ? 'Debit (Charge)' : 'Credit (Payment)'}
                             </Badge>
                           </TableCell>
