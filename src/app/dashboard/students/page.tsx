@@ -169,7 +169,6 @@ function StudentsRegistryContent() {
     }
   }, [searchParams])
 
-  // Teacher Assignments for filtering
   const assignmentsQuery = useMemo(() => 
     institutionId && isTeacher && staffId 
       ? query(collection(db, "teacher_assignments"), where("tenantId", "==", institutionId), where("teacherId", "==", staffId)) 
@@ -212,7 +211,7 @@ function StudentsRegistryContent() {
     return list.filter(s => 
       `${s.firstName || ""} ${s.lastName || ""}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.admissionNumber?.toLowerCase().includes(searchQuery.toLowerCase())
-    ).sort((a: any, b: any) => (a.admissionNumber || "").localeCompare(b.admissionNumber || ""));
+    ).sort((a, b) => (a.admissionNumber || "").localeCompare(b.admissionNumber || ""));
   }, [rawStudents, searchQuery, isTeacher, registeredClasses]);
 
   const groupedStudents = useMemo(() => {
@@ -609,7 +608,7 @@ function StudentsRegistryContent() {
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
+        <div className="space-y-1">
           <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Active Enrollments</h1>
           <p className="text-muted-foreground font-medium">Strategic institutional enrollment and lifecycle management.</p>
         </div>
@@ -765,138 +764,144 @@ function StudentsRegistryContent() {
       </Card>
 
       <Dialog open={isEnrollOpen} onOpenChange={setIsEnrollOpen}>
-        <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded-2xl md:rounded-3xl max-h-[90vh] flex flex-col">
+        <DialogContent className="w-[95vw] sm:max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded-2xl md:rounded-3xl max-h-[90vh] flex flex-col">
           <form onSubmit={handleEnroll} className="flex flex-col h-full overflow-hidden">
-            <DialogHeader className="bg-primary text-primary-foreground p-8 shrink-0">
+            <DialogHeader className="bg-primary text-primary-foreground p-6 md:p-8 shrink-0">
               <Badge className="bg-white/10 text-white border-none text-[10px] font-bold uppercase tracking-widest mb-2 w-fit">Wizard Step {steps.indexOf(activeStep) + 1}</Badge>
               <DialogTitle className="text-2xl font-headline font-bold">{editingStudent ? "Update Registry" : "New Enrollment Wizard"}</DialogTitle>
             </DialogHeader>
 
             <Tabs value={activeStep} className="flex-1 flex flex-col overflow-hidden">
-              <ScrollArea className="flex-1 p-8">
-                <TabsContent value="identity" className="space-y-6 mt-0">
-                  <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-3xl bg-slate-50/50 mb-6">
-                    <div className="relative size-32 rounded-2xl bg-white border flex items-center justify-center overflow-hidden shadow-sm group cursor-pointer" onClick={() => photoInputRef.current?.click()}>
-                      {studentForm.photoUrl ? (
-                        <img src={studentForm.photoUrl} className="w-full h-full object-cover" alt="Student Preview" />
-                      ) : (
-                        <Camera className="size-10 text-muted-foreground/20" />
-                      )}
-                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Upload className="size-6 text-white" />
+              <ScrollArea className="flex-1">
+                <div className="p-6 md:p-8">
+                  <TabsContent value="identity" className="space-y-6 mt-0">
+                    <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-3xl bg-slate-50/50 mb-6">
+                      <div className="relative size-32 rounded-2xl bg-white border flex items-center justify-center overflow-hidden shadow-sm group cursor-pointer" onClick={() => photoInputRef.current?.click()}>
+                        {studentForm.photoUrl ? (
+                          <img src={studentForm.photoUrl} className="w-full h-full object-cover" alt="Student Preview" />
+                        ) : (
+                          <Camera className="size-10 text-muted-foreground/20" />
+                        )}
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Upload className="size-6 text-white" />
+                        </div>
+                      </div>
+                      <input type="file" ref={photoInputRef} onChange={handlePhotoUpload} accept="image/*" className="hidden" />
+                      <p className="mt-3 text-xs font-bold text-muted-foreground uppercase tracking-widest">Digital Portrait (Under 800KB)</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Admission Number</Label>
+                        <div className="h-11 px-4 rounded-xl bg-slate-50 flex items-center border border-dashed border-slate-200">
+                            <Badge variant="secondary" className="font-mono text-xs font-bold uppercase bg-slate-200 text-slate-600 border-none">
+                              {studentForm.admissionNumber}
+                            </Badge>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">First Name</Label>
+                        <Input required value={studentForm.firstName} onChange={e => setStudentForm({...studentForm, firstName: e.target.value})} className="h-11 rounded-xl" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">Last Name</Label>
+                        <Input required value={studentForm.lastName} onChange={e => setStudentForm({...studentForm, lastName: e.target.value})} className="h-11 rounded-xl" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">Gender</Label>
+                        <Select required value={studentForm.gender} onValueChange={v => setStudentForm({...studentForm, gender: v})}>
+                          <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                          <SelectContent><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem></SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2 sm:col-span-2">
+                        <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">Date of Birth</Label>
+                        <Input required type="date" value={studentForm.dateOfBirth} onChange={e => setStudentForm({...studentForm, dateOfBirth: e.target.value})} className="h-11 rounded-xl" />
                       </div>
                     </div>
-                    <input type="file" ref={photoInputRef} onChange={handlePhotoUpload} accept="image/*" className="hidden" />
-                    <p className="mt-3 text-xs font-bold text-muted-foreground uppercase tracking-widest">Digital Portrait (Under 800KB)</p>
-                  </div>
+                  </TabsContent>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <TabsContent value="academic" className="space-y-6 mt-0">
                     <div className="space-y-2">
-                       <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Admission Number</Label>
-                       <div className="h-11 px-4 rounded-xl bg-slate-50 flex items-center border border-dashed border-slate-200">
-                          <Badge variant="secondary" className="font-mono text-xs font-bold uppercase bg-slate-200 text-slate-600 border-none">
-                             {studentForm.admissionNumber}
-                          </Badge>
-                       </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">First Name</Label>
-                      <Input required value={studentForm.firstName} onChange={e => setStudentForm({...studentForm, firstName: e.target.value})} className="h-11 rounded-xl" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">Last Name</Label>
-                      <Input required value={studentForm.lastName} onChange={e => setStudentForm({...studentForm, lastName: e.target.value})} className="h-11 rounded-xl" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">Gender</Label>
-                      <Select required value={studentForm.gender} onValueChange={v => setStudentForm({...studentForm, gender: v})}>
-                        <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
-                        <SelectContent><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem></SelectContent>
+                      <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">Assign Grade Level</Label>
+                      <Select required value={studentForm.gradeLevel} onValueChange={v => setStudentForm({...studentForm, gradeLevel: v})}>
+                        <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select Class" /></SelectTrigger>
+                        <SelectContent>{registeredClasses.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-2">
-                      <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">Date of Birth</Label>
-                      <Input required type="date" value={studentForm.dateOfBirth} onChange={e => setStudentForm({...studentForm, dateOfBirth: e.target.value})} className="h-11 rounded-xl" />
+                  </TabsContent>
+
+                  <TabsContent value="guardian" className="space-y-8 mt-0">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-4 gap-4">
+                        <h3 className="font-bold flex items-center gap-2 text-primary"><HeartHandshake className="size-4" /> Guardian Link</h3>
+                        <Button type="button" variant="outline" size="sm" className="h-9 rounded-lg gap-2" onClick={() => setIsNewParent(!isNewParent)}>
+                          {isNewParent ? <Search className="size-3.5" /> : <UserPlus className="size-3.5" />}
+                          {isNewParent ? "Registry Search" : "Register New Profile"}
+                        </Button>
                     </div>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="academic" className="space-y-6 mt-0">
-                  <div className="space-y-2">
-                    <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">Assign Grade Level</Label>
-                    <Select required value={studentForm.gradeLevel} onValueChange={v => setStudentForm({...studentForm, gradeLevel: v})}>
-                      <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select Class" /></SelectTrigger>
-                      <SelectContent>{registeredClasses.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="guardian" className="space-y-8 mt-0">
-                   <div className="flex items-center justify-between border-b pb-4">
-                      <h3 className="font-bold flex items-center gap-2 text-primary"><HeartHandshake className="size-4" /> Guardian Link</h3>
-                      <Button type="button" variant="outline" size="sm" className="h-9 rounded-lg gap-2" onClick={() => setIsNewParent(!isNewParent)}>
-                        {isNewParent ? <Search className="size-3.5" /> : <UserPlus className="size-3.5" />}
-                        {isNewParent ? "Registry Search" : "Register New Profile"}
-                      </Button>
-                   </div>
-                   
-                   {isNewParent ? (
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6 bg-slate-50 rounded-2xl border-2 border-dashed animate-in fade-in zoom-in-95 duration-200">
-                        <div className="space-y-2">
-                          <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">First Name</Label>
-                          <Input value={newParentForm.firstName} onChange={e => setNewParentForm({...newParentForm, firstName: e.target.value})} className="h-11 bg-white" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">Last Name</Label>
-                          <Input value={newParentForm.lastName} onChange={e => setNewParentForm({...newParentForm, lastName: e.target.value})} className="h-11 bg-white" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">Contact Phone (Portal Password)</Label>
-                          <Input value={newParentForm.phone} onChange={e => setNewParentForm({...newParentForm, phone: e.target.value})} className="h-11 bg-white" />
-                        </div>
-                        <div className="space-y-2 md:col-span-2"><Label>Guardian Email (Portal ID)</Label><Input type="email" value={newParentForm.email} onChange={e => setNewParentForm({...newParentForm, email: e.target.value})} className="h-11 bg-white" /></div>
-                     </div>
-                   ) : (
-                     <div className="space-y-4 animate-in fade-in duration-200">
-                        <Label>Search Existing Parents</Label>
-                        <Select value={linkedParentId} onValueChange={setLinkedParentId}>
-                           <SelectTrigger className="h-14 rounded-xl text-primary font-medium">
-                              <SelectValue placeholder="🔍 Search registry..." />
-                           </SelectTrigger>
-                           <SelectContent>
-                              {parents.map(p => <SelectItem key={p.id} value={p.id}>{p.firstName} {p.lastName} • {p.parentNumber}</SelectItem>)}
-                           </SelectContent>
-                        </Select>
-                     </div>
-                   )}
-
-                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t">
-                      <div className="space-y-2"><Label>Relationship</Label>
-                         <Select value={relationshipData.relationship} onValueChange={v => setRelationshipData({...relationshipData, relationship: v})}>
-                            <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
-                            <SelectContent><SelectItem value="Mother">Mother</SelectItem><SelectItem value="Father">Father</SelectItem><SelectItem value="Guardian">Guardian</SelectItem></SelectContent>
-                         </Select>
+                    
+                    {isNewParent ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-6 bg-slate-50 rounded-2xl border-2 border-dashed animate-in fade-in zoom-in-95 duration-200">
+                          <div className="space-y-2">
+                            <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">First Name</Label>
+                            <Input value={newParentForm.firstName} onChange={e => setNewParentForm({...newParentForm, firstName: e.target.value})} className="h-11 bg-white rounded-xl" />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">Last Name</Label>
+                            <Input value={newParentForm.lastName} onChange={e => setNewParentForm({...newParentForm, lastName: e.target.value})} className="h-11 bg-white rounded-xl" />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">Contact Phone (Portal Password)</Label>
+                            <Input value={newParentForm.phone} onChange={e => setNewParentForm({...newParentForm, phone: e.target.value})} className="h-11 bg-white rounded-xl" />
+                          </div>
+                          <div className="space-y-2 sm:col-span-2">
+                            <Label>Guardian Email (Portal ID)</Label>
+                            <Input type="email" value={newParentForm.email} onChange={e => setNewParentForm({...newParentForm, email: e.target.value})} className="h-11 bg-white rounded-xl" />
+                          </div>
                       </div>
-                      <div className="flex items-center gap-2 pt-8">
-                        <Checkbox id="primary" checked={relationshipData.primaryContact} onCheckedChange={v => setRelationshipData({...relationshipData, primaryContact: !!v})} />
-                        <Label htmlFor="primary" className="cursor-pointer">Primary Contact</Label>
+                    ) : (
+                      <div className="space-y-4 animate-in fade-in duration-200">
+                          <Label>Search Existing Parents</Label>
+                          <Select value={linkedParentId} onValueChange={setLinkedParentId}>
+                            <SelectTrigger className="h-14 rounded-xl text-primary font-medium">
+                                <SelectValue placeholder="🔍 Search registry..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {parents.map(p => <SelectItem key={p.id} value={p.id}>{p.firstName} {p.lastName} • {p.parentNumber}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
                       </div>
-                   </div>
-                </TabsContent>
+                    )}
 
-                <TabsContent value="finalize" className="space-y-8 mt-0 text-center py-10">
-                   <div className="size-20 bg-green-50 rounded-full flex items-center justify-center mx-auto text-green-600 mb-4"><CheckCircle2 className="size-12" /></div>
-                   <h3 className="text-xl font-bold font-headline">Authorization Required</h3>
-                   <p className="text-sm text-muted-foreground">Confirm to authorize unique ID generation and portal access.</p>
-                   <div className="p-4 bg-slate-50 rounded-2xl border flex items-center justify-center gap-3">
-                      <KeyRound className="size-5 text-primary" />
-                      <span className="text-xs font-bold text-primary uppercase">Direct Portal Access Active</span>
-                   </div>
-                </TabsContent>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-6 border-t">
+                        <div className="space-y-2">
+                          <Label>Relationship</Label>
+                          <Select value={relationshipData.relationship} onValueChange={v => setRelationshipData({...relationshipData, relationship: v})}>
+                              <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                              <SelectContent><SelectItem value="Mother">Mother</SelectItem><SelectItem value="Father">Father</SelectItem><SelectItem value="Guardian">Guardian</SelectItem></SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex items-center gap-2 pt-8">
+                          <Checkbox id="primary" checked={relationshipData.primaryContact} onCheckedChange={v => setRelationshipData({...relationshipData, primaryContact: !!v})} />
+                          <Label htmlFor="primary" className="cursor-pointer">Primary Contact</Label>
+                        </div>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="finalize" className="space-y-8 mt-0 text-center py-10">
+                    <div className="size-20 bg-green-50 rounded-full flex items-center justify-center mx-auto text-green-600 mb-4"><CheckCircle2 className="size-12" /></div>
+                    <h3 className="text-xl font-bold font-headline">Authorization Required</h3>
+                    <p className="text-sm text-muted-foreground px-4">Confirm to authorize unique ID generation and portal access for the 2026 Registry cycle.</p>
+                    <div className="p-4 bg-slate-50 rounded-2xl border flex items-center justify-center gap-3 w-fit mx-auto">
+                        <KeyRound className="size-5 text-primary" />
+                        <span className="text-xs font-bold text-primary uppercase">Direct Portal Access Active</span>
+                    </div>
+                  </TabsContent>
+                </div>
               </ScrollArea>
             </Tabs>
 
-            <DialogFooter className="bg-slate-50 p-8 border-t shrink-0 flex items-center justify-between">
+            <DialogFooter className="bg-slate-50 p-6 md:p-8 border-t shrink-0 flex items-center justify-between">
               <Button type="button" variant="ghost" className="h-12 px-6 rounded-xl" onClick={() => navigateStep('back')} disabled={activeStep === 'identity'}>
                 <ChevronLeft className="size-4 mr-2" /> Back
               </Button>
@@ -918,8 +923,8 @@ function StudentsRegistryContent() {
       </Dialog>
 
       <Dialog open={isBulkOpen} onOpenChange={setIsBulkOpen}>
-        <DialogContent className="max-w-2xl rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
-           <DialogHeader className="p-8 bg-primary text-primary-foreground">
+        <DialogContent className="w-[95vw] sm:max-w-2xl rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
+           <DialogHeader className="p-6 md:p-8 bg-primary text-primary-foreground">
               <div className="flex items-center gap-3 mb-2">
                  <div className="size-10 rounded-xl bg-white/10 flex items-center justify-center"><FileSpreadsheet className="size-6 text-accent" /></div>
                  <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Bulk Data Intake</span>
@@ -928,7 +933,7 @@ function StudentsRegistryContent() {
               <DialogDescription className="text-primary-foreground/70">Provision multiple student accounts simultaneously with verified registry mapping.</DialogDescription>
            </DialogHeader>
 
-           <div className="p-8 space-y-8">
+           <div className="p-6 md:p-8 space-y-8">
               <div className="p-6 rounded-2xl border-2 border-dashed bg-slate-50 space-y-4">
                  <h4 className="text-sm font-bold flex items-center gap-2 text-primary"><FileText className="size-4" /> Expected CSV Structure</h4>
                  <p className="text-xs text-muted-foreground leading-relaxed">
@@ -955,7 +960,7 @@ function StudentsRegistryContent() {
               </div>
            </div>
 
-           <DialogFooter className="p-8 bg-slate-50 border-t flex justify-between items-center">
+           <DialogFooter className="p-6 md:p-8 bg-slate-50 border-t flex flex-col sm:flex-row justify-between items-center gap-4">
               <div className="flex items-center gap-2 text-[10px] font-bold uppercase text-muted-foreground">
                  <ShieldCheck className="size-4 text-green-600" /> Multi-Tenant Sync Active
               </div>
@@ -965,7 +970,7 @@ function StudentsRegistryContent() {
            {bulkLoading && (
              <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-[60] flex flex-col items-center justify-center gap-4">
                 <Loader2 className="size-12 animate-spin text-primary" />
-                <div className="text-center">
+                <div className="text-center p-6">
                    <p className="font-headline font-bold text-lg text-primary animate-pulse">Provisioning Registry...</p>
                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Generating unique IDs and Portal Credentials</p>
                 </div>

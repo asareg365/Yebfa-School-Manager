@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
@@ -241,7 +242,7 @@ export default function StaffHRPage() {
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
+        <div className="space-y-1">
           <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">HR Management Hub</h1>
           <p className="text-muted-foreground font-medium">Strategic oversight of faculty registry and direct portal access.</p>
         </div>
@@ -308,16 +309,16 @@ export default function StaffHRPage() {
       </Card>
 
       <Dialog open={isEnrollOpen} onOpenChange={setIsEnrollOpen}>
-        <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded-3xl max-h-[90vh] flex flex-col">
+        <DialogContent className="w-[95vw] sm:max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded-2xl md:rounded-3xl max-h-[90vh] flex flex-col">
           <form onSubmit={handleEnroll} className="flex flex-col h-full overflow-hidden">
-            <DialogHeader className="bg-primary text-primary-foreground p-8 shrink-0 relative">
+            <DialogHeader className="bg-primary text-primary-foreground p-6 md:p-8 shrink-0 relative">
               <DialogTitle className="text-2xl font-headline font-bold">{editingStaff ? "Update Registry" : "Faculty Enrollment"}</DialogTitle>
               <DialogDescription className="text-primary-foreground/70">Portal access is provisioned automatically with secure ID generation.</DialogDescription>
             </DialogHeader>
 
-            <ScrollArea className="flex-1 p-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="md:col-span-2 flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-3xl bg-slate-50/50">
+            <ScrollArea className="flex-1">
+              <div className="p-6 md:p-8 grid grid-cols-1 sm:grid-cols-2 gap-8">
+                <div className="sm:col-span-2 flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-3xl bg-slate-50/50">
                   <div className="relative size-32 rounded-2xl bg-white border flex items-center justify-center overflow-hidden shadow-sm group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
                     {staffForm.photoURL ? (
                       <img src={staffForm.photoURL} className="w-full h-full object-cover" alt="Staff Preview" />
@@ -343,7 +344,7 @@ export default function StaffHRPage() {
                 <div className="space-y-2"><Label>First Name</Label><Input required value={staffForm.firstName} onChange={e => setStaffForm({...staffForm, firstName: e.target.value})} className="h-12 rounded-xl" /></div>
                 <div className="space-y-2"><Label>Last Name</Label><Input required value={staffForm.lastName} onChange={e => setStaffForm({...staffForm, lastName: e.target.value})} className="h-12 rounded-xl" /></div>
                 <div className="space-y-2"><Label>Phone Number (Portal Password)</Label><Input required value={staffForm.phone} onChange={e => setStaffForm({...staffForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
-                <div className="space-y-2 md:col-span-2"><Label>Email Address (Optional)</Label><Input type="email" value={staffForm.email} onChange={e => setStaffForm({...staffForm, email: e.target.value})} className="h-12 rounded-xl" /></div>
+                <div className="space-y-2 sm:col-span-2"><Label>Email Address (Optional)</Label><Input type="email" value={staffForm.email} onChange={e => setStaffForm({...staffForm, email: e.target.value})} className="h-12 rounded-xl" /></div>
                 <div className="space-y-2"><Label>Monthly Salary (GH₵)</Label><Input type="number" required value={staffForm.salary} onChange={e => setStaffForm({...staffForm, salary: e.target.value})} className="h-12 rounded-xl" /></div>
                 <div className="space-y-2"><Label>Designation</Label>
                    <Select value={staffForm.designation} onValueChange={v => setStaffForm({...staffForm, designation: v})}>
@@ -359,7 +360,7 @@ export default function StaffHRPage() {
               </div>
             </ScrollArea>
 
-            <DialogFooter className="bg-slate-50 p-8 border-t shrink-0">
+            <DialogFooter className="bg-slate-50 p-6 md:p-8 border-t shrink-0">
               <Button type="submit" disabled={loading} className="w-full h-14 rounded-2xl bg-primary font-bold shadow-xl text-lg gap-2">
                 {loading ? <Loader2 className="mr-2 animate-spin" /> : <ShieldCheck className="size-5" />} 
                 Authorize Provisioning

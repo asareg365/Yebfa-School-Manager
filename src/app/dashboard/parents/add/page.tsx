@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo, useRef } from "react"
@@ -146,7 +147,7 @@ export default function AddParentPage() {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 pb-20">
+    <div className="container max-w-5xl mx-auto space-y-6 animate-in fade-in duration-500 pb-20">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild className="rounded-xl h-11 w-11"><Link href="/dashboard/parents"><ArrowLeft className="size-5" /></Link></Button>
         <div>
@@ -156,28 +157,28 @@ export default function AddParentPage() {
       </div>
 
       <form onSubmit={handleSubmit}>
-        <Card className="max-w-5xl mx-auto border-none shadow-2xl overflow-hidden rounded-3xl bg-white">
+        <Card className="border-none shadow-2xl overflow-hidden rounded-3xl bg-white">
           <CardHeader className="bg-primary text-primary-foreground p-8">
             <CardTitle className="text-3xl font-headline font-bold">New Parent Entry</CardTitle>
           </CardHeader>
-          <CardContent className="p-8 space-y-8">
-            <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-3xl bg-slate-50/50">
-              <div className="relative size-32 rounded-2xl bg-white border flex items-center justify-center overflow-hidden shadow-sm group cursor-pointer" onClick={() => photoInputRef.current?.click()}>
+          <CardContent className="p-6 md:p-10 space-y-10">
+            <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-3xl bg-slate-50/50">
+              <div className="relative size-32 md:size-40 rounded-2xl bg-white border flex items-center justify-center overflow-hidden shadow-sm group cursor-pointer" onClick={() => photoInputRef.current?.click()}>
                 {parentForm.photoURL ? (
                   <img src={parentForm.photoURL} className="w-full h-full object-cover" alt="Parent Preview" />
                 ) : (
-                  <Camera className="size-10 text-muted-foreground/20" />
+                  <Camera className="size-12 text-muted-foreground/20" />
                 )}
                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Upload className="size-6 text-white" />
+                  <Upload className="size-8 text-white" />
                 </div>
               </div>
               <input type="file" ref={photoInputRef} onChange={handlePhotoUpload} accept="image/*" className="hidden" />
-              <p className="mt-3 text-xs font-bold text-muted-foreground uppercase tracking-widest">Guardian Photo (Optional)</p>
+              <p className="mt-4 text-xs font-bold text-muted-foreground uppercase tracking-widest">Guardian Photo (Under 800KB)</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-               <div className="space-y-1.5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+               <div className="space-y-2">
                  <Label className="text-[10px] uppercase font-bold text-muted-foreground">Parent Number</Label>
                  <div className="h-12 px-4 rounded-xl bg-slate-50 flex items-center border border-dashed border-slate-200">
                     <Badge variant="secondary" className="font-mono text-xs font-bold uppercase bg-slate-200 text-slate-600 border-none">
@@ -185,14 +186,14 @@ export default function AddParentPage() {
                     </Badge>
                  </div>
                </div>
-               <div className="space-y-1.5"><Label>First Name</Label><Input required value={parentForm.firstName} onChange={e => setParentForm({...parentForm, firstName: e.target.value})} className="h-12 rounded-xl" /></div>
-               <div className="space-y-1.5"><Label>Last Name</Label><Input required value={parentForm.lastName} onChange={e => setParentForm({...parentForm, lastName: e.target.value})} className="h-12 rounded-xl" /></div>
-               <div className="space-y-1.5"><Label>Phone Number</Label><Input required value={parentForm.phone} onChange={e => setParentForm({...parentForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
-               <div className="space-y-1.5 md:col-span-2"><Label>Email Address (Optional)</Label><Input type="email" value={parentForm.email} onChange={e => setParentForm({...parentForm, email: e.target.value})} className="h-12 rounded-xl" /></div>
+               <div className="space-y-2"><Label>First Name</Label><Input required value={parentForm.firstName} onChange={e => setParentForm({...parentForm, firstName: e.target.value})} className="h-12 rounded-xl" /></div>
+               <div className="space-y-2"><Label>Last Name</Label><Input required value={parentForm.lastName} onChange={e => setParentForm({...parentForm, lastName: e.target.value})} className="h-12 rounded-xl" /></div>
+               <div className="space-y-2"><Label>Phone Number</Label><Input required value={parentForm.phone} onChange={e => setParentForm({...parentForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
+               <div className="space-y-2 md:col-span-2"><Label>Email Address (Optional)</Label><Input type="email" value={parentForm.email} onChange={e => setParentForm({...parentForm, email: e.target.value})} className="h-12 rounded-xl" /></div>
             </div>
           </CardContent>
           <CardFooter className="bg-slate-50 p-8 border-t">
-            <Button type="submit" disabled={loading} className="w-full h-14 bg-primary font-bold shadow-xl text-lg gap-2">
+            <Button type="submit" disabled={loading} className="w-full h-14 bg-primary font-bold shadow-xl text-lg gap-2 rounded-2xl">
               {loading ? <Loader2 className="mr-2 animate-spin" /> : <Save className="mr-2" />} Authorize Enrollment
             </Button>
           </CardFooter>
