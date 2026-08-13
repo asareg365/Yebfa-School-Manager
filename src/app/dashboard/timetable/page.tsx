@@ -320,7 +320,7 @@ export default function TimetablePage() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-24">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 no-print">
         <div className="space-y-1">
           <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Timetable Optimizer</h1>
           <p className="text-muted-foreground font-medium">Dynamic Grid • <span className="text-accent font-bold uppercase">{currentTerm}</span>.</p>
@@ -462,7 +462,7 @@ export default function TimetablePage() {
 
         <div className="lg:col-span-3">
           {(!aiResult && !activeTimetable && !loading) ? (
-            <Card className="border-none shadow-md h-full min-h-[500px] flex flex-col items-center justify-center text-center p-12 space-y-6 rounded-3xl bg-muted/5 border-2 border-dashed">
+            <Card className="border-none shadow-md h-full min-h-[500px] flex flex-col items-center justify-center text-center p-12 space-y-6 rounded-3xl bg-muted/5 border-2 border-dashed no-print">
               <div className="size-24 rounded-full bg-primary/5 flex items-center justify-center">
                 <Calendar className="size-12 text-primary/20" />
               </div>
@@ -474,7 +474,7 @@ export default function TimetablePage() {
               </div>
             </Card>
           ) : loading ? (
-            <div className="h-full min-h-[500px] flex flex-col items-center justify-center space-y-6 bg-white rounded-3xl shadow-xl">
+            <div className="h-full min-h-[500px] flex flex-col items-center justify-center space-y-6 bg-white rounded-3xl shadow-xl no-print">
                <div className="relative">
                   <Loader2 className="size-16 animate-spin text-primary" />
                   <Sparkles className="absolute -top-2 -right-2 size-6 text-accent animate-bounce" />
@@ -485,13 +485,13 @@ export default function TimetablePage() {
                </div>
             </div>
           ) : (
-            <Card className="border-none shadow-2xl rounded-3xl overflow-hidden bg-white">
+            <Card id="printable-timetable" className="border-none shadow-2xl rounded-3xl overflow-hidden bg-white">
               <CardHeader className="bg-slate-50 border-b flex flex-col sm:flex-row items-center justify-between p-8 gap-4">
                  <div>
                     <CardTitle className="text-xl font-headline font-bold">Weekly Instructional Grid: {selectedClass?.name}</CardTitle>
                     <CardDescription>Academic Session 2026/2027 • Official GMT Registry</CardDescription>
                  </div>
-                 <div className="flex items-center gap-3">
+                 <div className="flex items-center gap-3 no-print">
                     {aiResult && <Badge className="bg-accent text-accent-foreground font-bold uppercase text-[9px] px-3 animate-pulse">AI Preview Active</Badge>}
                     <Badge variant="outline" className="bg-white text-primary border-primary/20 font-bold uppercase text-[9px] px-3 shadow-sm">VERIFIED 2026</Badge>
                  </div>
@@ -552,7 +552,7 @@ export default function TimetablePage() {
                                                 <span className="text-[10px] font-bold truncate max-w-[80px]">{slot.teacher}</span>
                                              </div>
                                              {slot.occupancy === 'primary' && !isTeacher && !aiResult && (
-                                                <button onClick={() => handleDeleteSlot(day, time)} className="text-destructive opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-destructive/10 rounded-md">
+                                                <button onClick={() => handleDeleteSlot(day, time)} className="text-destructive opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-destructive/10 rounded-md no-print">
                                                    <Trash2 className="size-3.5" />
                                                 </button>
                                              )}
@@ -564,7 +564,7 @@ export default function TimetablePage() {
                                           )}
                                        </div>
                                      ) : (
-                                       <div className="h-20 rounded-2xl border-2 border-dashed border-slate-100 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                       <div className="h-20 rounded-2xl border-2 border-dashed border-slate-100 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity no-print">
                                           <Plus className="size-4 text-muted-foreground/30" />
                                        </div>
                                      )}
@@ -727,6 +727,27 @@ export default function TimetablePage() {
             <ShieldCheck className="size-3 text-green-600" /> Authorized Academic Grid • 2026 Registry Hub • GMT Node
          </p>
       </div>
+
+      <style jsx global>{`
+        @media print {
+          body * { visibility: hidden; }
+          #printable-timetable, #printable-timetable * { visibility: visible; }
+          #printable-timetable {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: auto;
+            margin: 0;
+            padding: 20px;
+            border: none !important;
+            box-shadow: none !important;
+            background: white !important;
+            overflow: visible !important;
+          }
+          .no-print { display: none !important; }
+        }
+      `}</style>
     </div>
   )
 }
