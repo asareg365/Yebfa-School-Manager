@@ -764,16 +764,16 @@ function StudentsRegistryContent() {
       </Card>
 
       <Dialog open={isEnrollOpen} onOpenChange={setIsEnrollOpen}>
-        <DialogContent className="w-[95vw] sm:max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded-2xl md:rounded-3xl max-h-[90vh] flex flex-col">
+        <DialogContent className="w-[95vw] sm:max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded-2xl md:rounded-3xl h-[90vh] flex flex-col">
           <form onSubmit={handleEnroll} className="flex flex-col h-full overflow-hidden">
             <DialogHeader className="bg-primary text-primary-foreground p-6 md:p-8 shrink-0">
               <Badge className="bg-white/10 text-white border-none text-[10px] font-bold uppercase tracking-widest mb-2 w-fit">Wizard Step {steps.indexOf(activeStep) + 1}</Badge>
               <DialogTitle className="text-2xl font-headline font-bold">{editingStudent ? "Update Registry" : "New Enrollment Wizard"}</DialogTitle>
             </DialogHeader>
 
-            <Tabs value={activeStep} className="flex-1 flex flex-col overflow-hidden">
-              <ScrollArea className="flex-1">
-                <div className="p-6 md:p-8">
+            <ScrollArea className="flex-1">
+              <div className="p-6 md:p-8">
+                <Tabs value={activeStep} onValueChange={setActiveStep} className="w-full">
                   <TabsContent value="identity" className="space-y-6 mt-0">
                     <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-3xl bg-slate-50/50 mb-6">
                       <div className="relative size-32 rounded-2xl bg-white border flex items-center justify-center overflow-hidden shadow-sm group cursor-pointer" onClick={() => photoInputRef.current?.click()}>
@@ -897,9 +897,9 @@ function StudentsRegistryContent() {
                         <span className="text-xs font-bold text-primary uppercase">Direct Portal Access Active</span>
                     </div>
                   </TabsContent>
-                </div>
-              </ScrollArea>
-            </Tabs>
+                </Tabs>
+              </div>
+            </ScrollArea>
 
             <DialogFooter className="bg-slate-50 p-6 md:p-8 border-t shrink-0 flex items-center justify-between">
               <Button type="button" variant="ghost" className="h-12 px-6 rounded-xl" onClick={() => navigateStep('back')} disabled={activeStep === 'identity'}>

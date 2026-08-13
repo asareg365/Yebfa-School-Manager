@@ -40,6 +40,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { generateId } from "@/lib/id-generator"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError, type SecurityRuleContext } from "@/firebase/errors"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 export default function PaymentsProcessorPage() {
   const db = useFirestore()
@@ -271,38 +272,40 @@ export default function PaymentsProcessorPage() {
       </Card>
 
       <Dialog open={isPayOpen} onOpenChange={setIsPayOpen}>
-        <DialogContent className="max-w-md rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
-          <form onSubmit={handleProcessPayment}>
-            <DialogHeader className="p-8 bg-primary text-primary-foreground">
+        <DialogContent className="max-w-md rounded-3xl p-0 overflow-hidden border-none shadow-2xl h-[90vh] flex flex-col">
+          <form onSubmit={handleProcessPayment} className="flex flex-col h-full overflow-hidden">
+            <DialogHeader className="p-8 bg-primary text-primary-foreground shrink-0">
               <DialogTitle className="text-2xl font-headline font-bold">Receive Payment</DialogTitle>
               <DialogDescription className="text-primary-foreground/70">Authorize fee collection and update registry ledger.</DialogDescription>
             </DialogHeader>
-            <div className="p-8 space-y-6">
-              <div className="space-y-3">
-                <Label>Student Invoice Lookup</Label>
-                <Select value={paymentForm.invoiceId} onValueChange={v => {
-                  const inv = pendingInvoices.find((i: any) => i.id === v)
-                  setPaymentForm({...paymentForm, invoiceId: v, amount: inv?.amountDue.toString() || ""})
-                }}>
-                  <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select Unpaid Invoice" /></SelectTrigger>
-                  <SelectContent>
-                    {filteredInvoices.map((inv: any) => (
-                      <SelectItem key={inv.id} value={inv.id}>{inv.studentName} ({inv.invoiceNumber}) • Due: GH₵{inv.amountDue}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Amount (GH₵)</Label><Input type="number" required value={paymentForm.amount} onChange={e => setPaymentForm({...paymentForm, amount: e.target.value})} className="h-12 rounded-xl" /></div>
-                <div className="space-y-2"><Label>Method</Label>
-                  <Select value={paymentForm.method} onValueChange={v => setPaymentForm({...paymentForm, method: v})}>
-                    <SelectTrigger className="h-12 rounded-xl"><SelectValue /></SelectTrigger>
-                    <SelectContent><SelectItem value="MTN MoMo">MTN MoMo</SelectItem><SelectItem value="Bank Transfer">Bank Transfer</SelectItem><SelectItem value="Cash">Cash</SelectItem></SelectContent>
+            <ScrollArea className="flex-1">
+              <div className="p-8 space-y-6">
+                <div className="space-y-3">
+                  <Label>Student Invoice Lookup</Label>
+                  <Select value={paymentForm.invoiceId} onValueChange={v => {
+                    const inv = pendingInvoices.find((i: any) => i.id === v)
+                    setPaymentForm({...paymentForm, invoiceId: v, amount: inv?.amountDue.toString() || ""})
+                  }}>
+                    <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select Unpaid Invoice" /></SelectTrigger>
+                    <SelectContent>
+                      {filteredInvoices.map((inv: any) => (
+                        <SelectItem key={inv.id} value={inv.id}>{inv.studentName} ({inv.invoiceNumber}) • Due: GH₵{inv.amountDue}</SelectItem>
+                      ))}
+                    </SelectContent>
                   </Select>
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2"><Label>Amount (GH₵)</Label><Input type="number" required value={paymentForm.amount} onChange={e => setPaymentForm({...paymentForm, amount: e.target.value})} className="h-12 rounded-xl" /></div>
+                  <div className="space-y-2"><Label>Method</Label>
+                    <Select value={paymentForm.method} onValueChange={v => setPaymentForm({...paymentForm, method: v})}>
+                      <SelectTrigger className="h-12 rounded-xl"><SelectValue /></SelectTrigger>
+                      <SelectContent><SelectItem value="MTN MoMo">MTN MoMo</SelectItem><SelectItem value="Bank Transfer">Bank Transfer</SelectItem><SelectItem value="Cash">Cash</SelectItem></SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
-            </div>
-            <DialogFooter className="p-8 bg-slate-50 border-t">
+            </ScrollArea>
+            <DialogFooter className="p-8 bg-slate-50 border-t shrink-0">
               <Button type="submit" className="w-full h-14 rounded-2xl text-lg font-bold bg-primary" disabled={loading || !paymentForm.invoiceId}>
                 {loading ? <Loader2 className="animate-spin mr-2" /> : "Authorize Collection"}
               </Button>

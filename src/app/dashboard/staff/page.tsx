@@ -309,7 +309,7 @@ export default function StaffHRPage() {
       </Card>
 
       <Dialog open={isEnrollOpen} onOpenChange={setIsEnrollOpen}>
-        <DialogContent className="w-[95vw] sm:max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded-2xl md:rounded-3xl max-h-[90vh] flex flex-col">
+        <DialogContent className="w-[95vw] sm:max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded-2xl md:rounded-3xl h-[90vh] flex flex-col">
           <form onSubmit={handleEnroll} className="flex flex-col h-full overflow-hidden">
             <DialogHeader className="bg-primary text-primary-foreground p-6 md:p-8 shrink-0 relative">
               <DialogTitle className="text-2xl font-headline font-bold">{editingStaff ? "Update Registry" : "Faculty Enrollment"}</DialogTitle>
@@ -318,7 +318,7 @@ export default function StaffHRPage() {
 
             <ScrollArea className="flex-1">
               <div className="p-6 md:p-8 grid grid-cols-1 sm:grid-cols-2 gap-8">
-                <div className="sm:col-span-2 flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-3xl bg-slate-50/50">
+                <div className="sm:col-span-2 flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-3xl bg-slate-50/50 mb-6">
                   <div className="relative size-32 rounded-2xl bg-white border flex items-center justify-center overflow-hidden shadow-sm group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
                     {staffForm.photoURL ? (
                       <img src={staffForm.photoURL} className="w-full h-full object-cover" alt="Staff Preview" />
