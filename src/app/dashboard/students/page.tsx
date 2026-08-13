@@ -776,7 +776,11 @@ function StudentsRegistryContent() {
                 <Tabs value={activeStep} onValueChange={setActiveStep} className="w-full">
                   <TabsContent value="identity" className="space-y-6 mt-0">
                     <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-3xl bg-slate-50/50 mb-6">
-                      <div className="relative size-32 rounded-2xl bg-white border flex items-center justify-center overflow-hidden shadow-sm group cursor-pointer" onClick={() => photoInputRef.current?.click()}>
+                      <div 
+                        className="relative size-32 rounded-2xl bg-white border flex items-center justify-center overflow-hidden shadow-sm group cursor-pointer" 
+                        onClick={() => photoInputRef.current?.click()}
+                        title="Upload from Gallery or Camera"
+                      >
                         {studentForm.photoUrl ? (
                           <img src={studentForm.photoUrl} className="w-full h-full object-cover" alt="Student Preview" />
                         ) : (
@@ -786,8 +790,16 @@ function StudentsRegistryContent() {
                           <Upload className="size-6 text-white" />
                         </div>
                       </div>
-                      <input type="file" ref={photoInputRef} onChange={handlePhotoUpload} accept="image/*" className="hidden" />
-                      <p className="mt-3 text-xs font-bold text-muted-foreground uppercase tracking-widest">Digital Portrait (Under 800KB)</p>
+                      <input 
+                        type="file" 
+                        ref={photoInputRef} 
+                        onChange={handlePhotoUpload} 
+                        accept="image/*" 
+                        className="hidden" 
+                      />
+                      <p className="mt-3 text-xs font-bold text-muted-foreground uppercase tracking-widest text-center">
+                        Digital Portrait (Gallery/Camera)
+                      </p>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">

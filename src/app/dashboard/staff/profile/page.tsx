@@ -1,3 +1,4 @@
+
 'use client';
 
 /**
@@ -129,6 +130,7 @@ export default function StaffProfilePage() {
                 <div 
                   className="size-32 rounded-full bg-slate-100 flex items-center justify-center border-4 border-white overflow-hidden cursor-pointer group"
                   onClick={() => fileInputRef.current?.click()}
+                  title="Upload from Gallery or Camera"
                 >
                    {staff.photoURL ? (
                      <img src={staff.photoURL} className="w-full h-full object-cover" alt="Avatar" />
@@ -139,7 +141,14 @@ export default function StaffProfilePage() {
                       {uploading ? <Loader2 className="size-6 text-white animate-spin" /> : <Camera className="size-6 text-white" />}
                    </div>
                 </div>
-                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handlePhotoUpload} disabled={uploading} />
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  className="hidden" 
+                  accept="image/*" 
+                  onChange={handlePhotoUpload} 
+                  disabled={uploading} 
+                />
               </div>
             </div>
             <CardContent className="pt-20 pb-8 text-center space-y-4">

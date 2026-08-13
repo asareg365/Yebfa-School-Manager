@@ -319,7 +319,11 @@ export default function StaffHRPage() {
             <ScrollArea className="flex-1">
               <div className="p-6 md:p-8 grid grid-cols-1 sm:grid-cols-2 gap-8">
                 <div className="sm:col-span-2 flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-3xl bg-slate-50/50 mb-6">
-                  <div className="relative size-32 rounded-2xl bg-white border flex items-center justify-center overflow-hidden shadow-sm group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                  <div 
+                    className="relative size-32 rounded-2xl bg-white border flex items-center justify-center overflow-hidden shadow-sm group cursor-pointer" 
+                    onClick={() => fileInputRef.current?.click()}
+                    title="Upload from Gallery or Camera"
+                  >
                     {staffForm.photoURL ? (
                       <img src={staffForm.photoURL} className="w-full h-full object-cover" alt="Staff Preview" />
                     ) : (
@@ -329,8 +333,16 @@ export default function StaffHRPage() {
                       <Upload className="size-6 text-white" />
                     </div>
                   </div>
-                  <input type="file" ref={fileInputRef} onChange={handlePhotoUpload} accept="image/*" className="hidden" />
-                  <p className="mt-3 text-xs font-bold text-muted-foreground uppercase tracking-widest">Faculty Portrait (Under 800KB)</p>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={handlePhotoUpload} 
+                    accept="image/*" 
+                    className="hidden" 
+                  />
+                  <p className="mt-3 text-xs font-bold text-muted-foreground uppercase tracking-widest text-center">
+                    Faculty Portrait (Gallery/Camera)
+                  </p>
                 </div>
 
                 <div className="space-y-2">

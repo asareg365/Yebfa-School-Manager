@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -82,7 +83,6 @@ export default function StudentIDCardsPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      {/* Hidden File Input */}
       <input 
         type="file" 
         ref={fileInputRef} 
@@ -91,7 +91,6 @@ export default function StudentIDCardsPage() {
         className="hidden" 
       />
 
-      {/* Screen view content */}
       <div className="no-print space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -129,6 +128,7 @@ export default function StudentIDCardsPage() {
                     <div 
                       className="size-28 rounded-2xl border-2 border-white bg-slate-50 overflow-hidden shrink-0 flex items-center justify-center shadow-md relative group/photo cursor-pointer"
                       onClick={() => triggerUpload(stu.id)}
+                      title="Update Portrait (Gallery/Camera)"
                     >
                       {stu.photoUrl ? (
                         <img src={stu.photoUrl} className="w-full h-full object-cover" alt="Student" />
@@ -141,7 +141,7 @@ export default function StudentIDCardsPage() {
                         ) : (
                           <>
                             <Camera className="size-5 text-white" />
-                            <span className="text-[7px] text-white font-bold uppercase tracking-widest">Upload</span>
+                            <span className="text-[7px] text-white font-bold uppercase tracking-widest text-center px-2">Gallery/Camera</span>
                           </>
                         )}
                       </div>
@@ -203,12 +203,10 @@ export default function StudentIDCardsPage() {
         </Tabs>
       </div>
 
-      {/* Dedicated Print Container */}
       <div className="print-actual-view">
         <div className="print-grid">
           {filteredStudents.map((stu: any) => (
             <div key={stu.id + '_print'} className="print-pair-wrapper">
-              {/* Card Front */}
               <div className="print-item-wrapper">
                 <div className="print-id-card">
                   <div className="print-card-header">
@@ -235,7 +233,6 @@ export default function StudentIDCardsPage() {
                 </div>
               </div>
               
-              {/* Card Back */}
               <div className="print-item-wrapper">
                 <div className="print-id-card print-id-card-back">
                   <div className="card-back-watermark">
@@ -263,18 +260,15 @@ export default function StudentIDCardsPage() {
       </div>
 
       <style jsx global>{`
-        /* Screen visibility */
         .print-actual-view {
           display: none;
         }
 
         @media print {
-          /* Hide EVERYTHING by default */
           body * {
             visibility: hidden;
           }
           
-          /* Show only our dedicated print view */
           .print-actual-view, .print-actual-view * {
             visibility: visible;
           }

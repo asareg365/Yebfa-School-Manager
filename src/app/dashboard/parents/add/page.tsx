@@ -163,7 +163,11 @@ export default function AddParentPage() {
           </CardHeader>
           <CardContent className="p-6 md:p-10 space-y-10">
             <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-3xl bg-slate-50/50">
-              <div className="relative size-32 md:size-40 rounded-2xl bg-white border flex items-center justify-center overflow-hidden shadow-sm group cursor-pointer" onClick={() => photoInputRef.current?.click()}>
+              <div 
+                className="relative size-32 md:size-40 rounded-2xl bg-white border flex items-center justify-center overflow-hidden shadow-sm group cursor-pointer" 
+                onClick={() => photoInputRef.current?.click()}
+                title="Upload from Gallery or Camera"
+              >
                 {parentForm.photoURL ? (
                   <img src={parentForm.photoURL} className="w-full h-full object-cover" alt="Parent Preview" />
                 ) : (
@@ -173,8 +177,16 @@ export default function AddParentPage() {
                   <Upload className="size-8 text-white" />
                 </div>
               </div>
-              <input type="file" ref={photoInputRef} onChange={handlePhotoUpload} accept="image/*" className="hidden" />
-              <p className="mt-4 text-xs font-bold text-muted-foreground uppercase tracking-widest">Guardian Photo (Under 800KB)</p>
+              <input 
+                type="file" 
+                ref={photoInputRef} 
+                onChange={handlePhotoUpload} 
+                accept="image/*" 
+                className="hidden" 
+              />
+              <p className="mt-4 text-xs font-bold text-muted-foreground uppercase tracking-widest text-center">
+                Guardian Photo (Gallery/Camera)
+              </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

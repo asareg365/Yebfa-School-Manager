@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo, use, useRef } from "react"
@@ -119,7 +120,11 @@ export default function EditParentPage({ params }: { params: Promise<{ id: strin
             <CardContent className="p-8">
               <TabsContent value="personal" className="space-y-6 mt-0">
                 <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-3xl bg-slate-50/50 mb-6">
-                  <div className="relative size-32 rounded-2xl bg-white border flex items-center justify-center overflow-hidden shadow-sm group cursor-pointer" onClick={() => photoInputRef.current?.click()}>
+                  <div 
+                    className="relative size-32 rounded-2xl bg-white border flex items-center justify-center overflow-hidden shadow-sm group cursor-pointer" 
+                    onClick={() => photoInputRef.current?.click()}
+                    title="Upload from Gallery or Camera"
+                  >
                     {parentForm.photoURL ? (
                       <img src={parentForm.photoURL} className="w-full h-full object-cover" alt="Parent Preview" />
                     ) : (
@@ -129,8 +134,16 @@ export default function EditParentPage({ params }: { params: Promise<{ id: strin
                       <Upload className="size-6 text-white" />
                     </div>
                   </div>
-                  <input type="file" ref={photoInputRef} onChange={handlePhotoUpload} accept="image/*" className="hidden" />
-                  <p className="mt-3 text-xs font-bold text-muted-foreground uppercase tracking-widest">Update Photo (Optional)</p>
+                  <input 
+                    type="file" 
+                    ref={photoInputRef} 
+                    onChange={handlePhotoUpload} 
+                    accept="image/*" 
+                    className="hidden" 
+                  />
+                  <p className="mt-3 text-xs font-bold text-muted-foreground uppercase tracking-widest text-center">
+                    Update Photo (Gallery/Camera)
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
