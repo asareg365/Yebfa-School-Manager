@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -122,15 +121,15 @@ export default function AttendancePage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Daily Attendance</h1>
-          <p className="text-muted-foreground font-medium">Tracking presence across grade modules for the 2026 registry.</p>
+          <p className="text-muted-foreground font-medium text-sm">Tracking presence across grade modules for the 2026 registry.</p>
         </div>
-        <Button className="gap-2 bg-primary h-11 rounded-xl shadow-lg font-bold px-6" onClick={handleSaveAttendance} disabled={isSaving || !selectedGrade}>
+        <Button className="gap-2 bg-primary h-11 rounded-xl shadow-lg font-bold px-6 w-full md:w-auto" onClick={handleSaveAttendance} disabled={isSaving || !selectedGrade}>
           {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Save Roll Call
         </Button>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-4">
-        <Card className="border-none shadow-md h-fit">
+      <div className="grid gap-6 lg:grid-cols-4">
+        <Card className="border-none shadow-md h-fit lg:col-span-1">
           <CardHeader><CardTitle className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Capture Context</CardTitle></CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
@@ -154,7 +153,7 @@ export default function AttendancePage() {
           </CardContent>
         </Card>
 
-        <div className="md:col-span-3 space-y-6">
+        <div className="lg:col-span-3 space-y-6">
           <Card className="border-none shadow-xl rounded-2xl overflow-hidden bg-white">
             <CardHeader className="border-b bg-slate-50/50 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
                <div>
@@ -162,11 +161,11 @@ export default function AttendancePage() {
                  <CardDescription className="text-xs">Synchronizing presence for {selectedGrade || "unselected grade"}.</CardDescription>
                </div>
                {selectedGrade && !studentsLoading && students.length > 0 && (
-                 <div className="flex gap-2 p-1 bg-white border rounded-xl shadow-sm">
-                   <Button variant="ghost" size="sm" className="h-8 text-[10px] font-bold uppercase text-primary hover:bg-primary/5 rounded-lg" onClick={() => handleToggleAll(true)}>
+                 <div className="flex flex-wrap gap-2 p-1 bg-white border rounded-xl shadow-sm w-full sm:w-auto">
+                   <Button variant="ghost" size="sm" className="flex-1 h-8 text-[10px] font-bold uppercase text-primary hover:bg-primary/5 rounded-lg" onClick={() => handleToggleAll(true)}>
                      <CheckSquare className="size-3.5 mr-1.5" /> Mark All Present
                    </Button>
-                   <Button variant="ghost" size="sm" className="h-8 text-[10px] font-bold uppercase text-destructive hover:bg-destructive/5 rounded-lg" onClick={() => handleToggleAll(false)}>
+                   <Button variant="ghost" size="sm" className="flex-1 h-8 text-[10px] font-bold uppercase text-destructive hover:bg-destructive/5 rounded-lg" onClick={() => handleToggleAll(false)}>
                      <Square className="size-3.5 mr-1.5" /> Mark All Absent
                    </Button>
                  </div>
@@ -174,17 +173,17 @@ export default function AttendancePage() {
             </CardHeader>
             <CardContent className="p-0">
               {!selectedGrade ? (
-                <div className="p-32 text-center text-muted-foreground space-y-4">
+                <div className="p-20 md:p-32 text-center text-muted-foreground space-y-4">
                   <div className="size-16 rounded-full bg-muted flex items-center justify-center mx-auto opacity-20"><Users className="size-8" /></div>
                   <p className="italic text-sm">Select a grade module to load the active student roster.</p>
                 </div>
               ) : studentsLoading ? (
-                <div className="p-32 text-center">
+                <div className="p-20 md:p-32 text-center">
                   <Loader2 className="size-10 animate-spin mx-auto text-primary opacity-20" />
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
+                <div className="overflow-x-auto w-full">
+                  <Table className="min-w-[600px]">
                     <TableHeader className="bg-muted/10">
                       <TableRow>
                         <TableHead className="py-4 font-bold px-6">STUDENT IDENTITY</TableHead>
@@ -197,12 +196,12 @@ export default function AttendancePage() {
                         <TableRow key={stu.id} className="hover:bg-slate-50/50 transition-colors">
                           <TableCell className="px-6">
                             <div className="flex items-center gap-3">
-                              <div className="size-9 rounded-full bg-primary/5 flex items-center justify-center font-bold text-primary text-[10px] border">
+                              <div className="size-9 rounded-full bg-primary/5 flex items-center justify-center font-bold text-primary text-[10px] border shrink-0">
                                 {stu.firstName?.charAt(0)}{stu.lastName?.charAt(0)}
                               </div>
-                              <div className="flex flex-col">
-                                <span className="font-bold text-primary text-sm">{stu.firstName} {stu.lastName}</span>
-                                <span className="text-[10px] font-mono font-bold text-accent uppercase tracking-tighter">{stu.admissionNumber}</span>
+                              <div className="flex flex-col min-w-0">
+                                <span className="font-bold text-primary text-sm truncate">{stu.firstName} {stu.lastName}</span>
+                                <span className="text-[10px] font-mono font-bold text-accent uppercase tracking-tighter truncate">{stu.admissionNumber}</span>
                               </div>
                             </div>
                           </TableCell>

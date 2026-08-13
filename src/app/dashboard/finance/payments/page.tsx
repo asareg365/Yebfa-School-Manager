@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -126,24 +125,24 @@ export default function PaymentsProcessorPage() {
 
     const receiptNumber = await generateId('receipts', institution.schoolCode, 'RCPT');
 
-    const payload = {
-      tenantId: institutionId,
-      institutionId,
-      invoiceId: selectedInvoice.id,
-      invoiceNumber: selectedInvoice.invoiceNumber,
-      studentId: selectedInvoice.studentId,
-      studentName: selectedInvoice.studentName,
-      amount,
-      paymentMethod: paymentForm.method,
-      reference: receiptNumber,
-      date: new Date().toISOString(),
-      createdAt: serverTimestamp()
-    }
-
     try {
       const batch = writeBatch(db)
       const txnRef = doc(collection(db, "transactions"))
       const txnId = txnRef.id
+
+      const payload = {
+        tenantId: institutionId,
+        institutionId,
+        invoiceId: selectedInvoice.id,
+        invoiceNumber: selectedInvoice.invoiceNumber,
+        studentId: selectedInvoice.studentId,
+        studentName: selectedInvoice.studentName,
+        amount,
+        paymentMethod: paymentForm.method,
+        reference: receiptNumber,
+        date: new Date().toISOString(),
+        createdAt: serverTimestamp()
+      }
 
       batch.set(txnRef, { ...payload, id: txnId })
 
@@ -172,11 +171,11 @@ export default function PaymentsProcessorPage() {
       })
 
       await batch.commit()
-      toast({ title: "Payment Authorized", description: `Receipt ${receiptNumber} generated.` })
+      toast({ title: "Authorized", description: `Receipt ${receiptNumber} generated.` })
       setIsPayOpen(false)
       setPaymentForm({ invoiceId: "", amount: "", method: "MTN MoMo", reference: "PENDING" })
     } catch (serverError: any) {
-      toast({ variant: "destructive", title: "Transaction Failed", description: serverError.message })
+      toast({ variant: "destructive", title: "Transaction Failed" })
     } finally {
       setLoading(false)
     }
@@ -213,9 +212,9 @@ export default function PaymentsProcessorPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Payment Hub</h1>
-          <p className="text-muted-foreground font-medium">Digital collection processing and institutional cash management.</p>
+          <p className="text-muted-foreground font-medium text-sm">Strategic collection processing for the 2026 cycle.</p>
         </div>
-        <Button className="bg-primary h-11 rounded-xl shadow-lg gap-2 px-6 font-bold" onClick={() => setIsPayOpen(true)}>
+        <Button className="bg-primary h-11 rounded-xl shadow-lg gap-2 px-6 font-bold w-full md:w-auto" onClick={() => setIsPayOpen(true)}>
           <ArrowDownLeft className="size-5" /> Receive Payment
         </Button>
       </div>
@@ -226,62 +225,64 @@ export default function PaymentsProcessorPage() {
             <CardTitle className="text-lg font-headline font-bold text-primary">Transaction History</CardTitle>
             <div className="relative w-full md:w-64">
               <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
-              <Input placeholder="Search ref or student..." className="pl-10 h-11 bg-white border-none shadow-sm rounded-xl" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+              <Input placeholder="Search ref or student..." className="pl-10 h-11 bg-white border shadow-sm rounded-xl text-sm" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader className="bg-muted/30">
-              <TableRow>
-                <TableHead className="font-bold py-4 px-6">REFERENCE / DATE</TableHead>
-                <TableHead className="font-bold py-4">STUDENT</TableHead>
-                <TableHead className="font-bold py-4">METHOD</TableHead>
-                <TableHead className="font-bold py-4">AMOUNT</TableHead>
-                <TableHead className="text-right py-4 font-bold px-6">ACTIONS</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {transactions.map((t: any) => (
-                <TableRow key={t.id} className="hover:bg-slate-50 transition-colors">
-                  <TableCell className="px-6">
-                    <div className="flex flex-col">
-                      <span className="font-mono text-[10px] font-bold text-accent">{t.reference}</span>
-                      <span className="text-[10px] text-muted-foreground uppercase font-bold">{new Date(t.date).toLocaleDateString()}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell><span className="text-sm font-bold text-primary">{t.studentName}</span></TableCell>
-                  <TableCell><span className="text-xs font-medium">{t.paymentMethod}</span></TableCell>
-                  <TableCell><span className="text-sm font-bold text-green-600">GH₵ {t.amount?.toLocaleString()}</span></TableCell>
-                  <TableCell className="text-right px-6">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => { setSelectedTxn(t); setIsReceiptOpen(true); }}><Receipt className="size-4" /></Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="size-4" /></Button></DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="rounded-xl border-none shadow-xl w-40">
-                          <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onSelect={() => handleDeleteTransaction(t)}><RotateCcw className="size-4" /> Reverse</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </TableCell>
+          <div className="overflow-x-auto w-full">
+            <Table className="min-w-[700px]">
+              <TableHeader className="bg-muted/30">
+                <TableRow>
+                  <TableHead className="font-bold py-4 px-6">REFERENCE / DATE</TableHead>
+                  <TableHead className="font-bold py-4">STUDENT</TableHead>
+                  <TableHead className="font-bold py-4">METHOD</TableHead>
+                  <TableHead className="font-bold py-4">AMOUNT</TableHead>
+                  <TableHead className="text-right py-4 font-bold px-6">ACTIONS</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {transactions.map((t: any) => (
+                  <TableRow key={t.id} className="hover:bg-slate-50 transition-colors">
+                    <TableCell className="px-6">
+                      <div className="flex flex-col">
+                        <span className="font-mono text-[10px] font-bold text-accent">{t.reference}</span>
+                        <span className="text-[10px] text-muted-foreground uppercase font-bold">{new Date(t.date).toLocaleDateString()}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell><span className="text-sm font-bold text-primary">{t.studentName}</span></TableCell>
+                    <TableCell><span className="text-xs font-medium">{t.paymentMethod}</span></TableCell>
+                    <TableCell><span className="text-sm font-bold text-green-600">GH₵ {t.amount?.toLocaleString()}</span></TableCell>
+                    <TableCell className="text-right px-6">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => { setSelectedTxn(t); setIsReceiptOpen(true); }}><Receipt className="size-4" /></Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="size-4" /></Button></DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="rounded-xl border-none shadow-xl w-40">
+                            <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onSelect={() => handleDeleteTransaction(t)}><RotateCcw className="size-4" /> Reverse</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
       <Dialog open={isPayOpen} onOpenChange={setIsPayOpen}>
-        <DialogContent className="max-w-md rounded-3xl p-0 overflow-hidden border-none shadow-2xl h-[90vh] flex flex-col">
+        <DialogContent className="w-[95vw] sm:max-w-md rounded-3xl p-0 overflow-hidden border-none shadow-2xl h-[90vh] flex flex-col">
           <form onSubmit={handleProcessPayment} className="flex flex-col h-full overflow-hidden">
             <DialogHeader className="p-8 bg-primary text-primary-foreground shrink-0">
               <DialogTitle className="text-2xl font-headline font-bold">Receive Payment</DialogTitle>
-              <DialogDescription className="text-primary-foreground/70">Authorize fee collection and update registry ledger.</DialogDescription>
+              <DialogDescription className="text-primary-foreground/70">Authorize fee collection for registry mapping.</DialogDescription>
             </DialogHeader>
             <ScrollArea className="flex-1">
               <div className="p-8 space-y-6">
                 <div className="space-y-3">
-                  <Label>Student Invoice Lookup</Label>
+                  <Label className="text-[10px] font-bold uppercase">Invoice Lookup</Label>
                   <Select value={paymentForm.invoiceId} onValueChange={v => {
                     const inv = pendingInvoices.find((i: any) => i.id === v)
                     setPaymentForm({...paymentForm, invoiceId: v, amount: inv?.amountDue.toString() || ""})
@@ -289,14 +290,14 @@ export default function PaymentsProcessorPage() {
                     <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select Unpaid Invoice" /></SelectTrigger>
                     <SelectContent>
                       {filteredInvoices.map((inv: any) => (
-                        <SelectItem key={inv.id} value={inv.id}>{inv.studentName} ({inv.invoiceNumber}) • Due: GH₵{inv.amountDue}</SelectItem>
+                        <SelectItem key={inv.id} value={inv.id}>{inv.studentName} ({inv.invoiceNumber}) • GH₵{inv.amountDue}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2"><Label>Amount (GH₵)</Label><Input type="number" required value={paymentForm.amount} onChange={e => setPaymentForm({...paymentForm, amount: e.target.value})} className="h-12 rounded-xl" /></div>
-                  <div className="space-y-2"><Label>Method</Label>
+                <div className="grid gap-6">
+                  <div className="space-y-2"><Label className="text-[10px] font-bold uppercase">Amount (GH₵)</Label><Input type="number" required value={paymentForm.amount} onChange={e => setPaymentForm({...paymentForm, amount: e.target.value})} className="h-12 rounded-xl" /></div>
+                  <div className="space-y-2"><Label className="text-[10px] font-bold uppercase">Method</Label>
                     <Select value={paymentForm.method} onValueChange={v => setPaymentForm({...paymentForm, method: v})}>
                       <SelectTrigger className="h-12 rounded-xl"><SelectValue /></SelectTrigger>
                       <SelectContent><SelectItem value="MTN MoMo">MTN MoMo</SelectItem><SelectItem value="Bank Transfer">Bank Transfer</SelectItem><SelectItem value="Cash">Cash</SelectItem></SelectContent>
@@ -306,7 +307,7 @@ export default function PaymentsProcessorPage() {
               </div>
             </ScrollArea>
             <DialogFooter className="p-8 bg-slate-50 border-t shrink-0">
-              <Button type="submit" className="w-full h-14 rounded-2xl text-lg font-bold bg-primary" disabled={loading || !paymentForm.invoiceId}>
+              <Button type="submit" className="w-full h-14 rounded-2xl text-lg font-bold bg-primary shadow-xl" disabled={loading || !paymentForm.invoiceId}>
                 {loading ? <Loader2 className="animate-spin mr-2" /> : "Authorize Collection"}
               </Button>
             </DialogFooter>

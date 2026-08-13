@@ -111,7 +111,6 @@ export default function DashboardLayout({
 
   // Subscription information is only visible to users who manage
   // the school's subscription/account.
-  // Teachers, parents, students and other staff should not see it.
   const canManageSubscription =
     profile?.role === 'super_admin' ||
     profile?.role === 'school_owner' ||
@@ -186,11 +185,11 @@ export default function DashboardLayout({
     "Registry User";
 
   return (
-    <SidebarProvider className="print-provider h-screen overflow-hidden">
+    <SidebarProvider className="print-provider h-svh overflow-hidden">
       <div className="no-print h-full overflow-y-auto border-r bg-sidebar shrink-0">
         <AppSidebar />
       </div>
-      <SidebarInset className="bg-background print-inset flex flex-col h-screen w-full overflow-hidden">
+      <SidebarInset className="bg-background print-inset flex flex-col h-svh w-full overflow-hidden">
       {canManageSubscription && isTrial && trialDaysLeft !== null && (
           <div className={`no-print py-2 px-4 md:px-6 flex items-center justify-between transition-colors shrink-0 ${trialDaysLeft <= 7 ? 'bg-orange-600 text-white' : 'bg-blue-600 text-white'}`}>
             <div className="flex items-center gap-2 text-[10px] md:text-xs font-bold uppercase tracking-widest truncate">
@@ -288,8 +287,8 @@ export default function DashboardLayout({
             </div>
           </div>
         </header>
-        <main className="flex-1 overflow-y-auto p-4 md:p-10 relative scroll-smooth overflow-x-hidden">
-          <div className="max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-300 min-h-0 pb-24">
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10 relative scroll-smooth">
+          <div className="max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-300 min-h-0 pb-20 md:pb-24">
             {children}
           </div>
         </main>
