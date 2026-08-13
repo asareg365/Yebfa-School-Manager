@@ -178,7 +178,7 @@ export default function StrategicInsightsPage() {
               <div className="size-24 rounded-full bg-primary/5 flex items-center justify-center">
                 <ShieldAlert className="size-12 text-primary/20" />
               </div>
-              <div className="max-w-sm">
+              <div className="max-sm">
                 <h3 className="text-xl font-bold text-primary/60 font-headline">System Ready for Analysis</h3>
                 <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
                   Authorize a deep-dive analysis to predict dropout probability, academic trends, and financial risks for the selected student.

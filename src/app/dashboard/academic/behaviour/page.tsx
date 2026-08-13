@@ -195,7 +195,7 @@ export default function BehaviourAnalysisPage() {
               <div className="size-24 rounded-full bg-primary/5 flex items-center justify-center">
                 <Flag className="size-12 text-primary/20" />
               </div>
-              <div className="max-w-sm">
+              <div className="max-sm">
                 <h3 className="text-xl font-bold text-primary/60 font-headline">Awaiting Behavioral Roster</h3>
                 <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
                   Authorize a deep-dive analysis to correlate discipline records with academic trends and identify intervention needs.
