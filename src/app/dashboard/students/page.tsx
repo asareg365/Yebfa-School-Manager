@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -66,7 +67,7 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/accordion"
+} from "@/components/ui/accordion"
 import Papa from "papaparse"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError, type SecurityRuleContext } from "@/firebase/errors"
@@ -104,12 +105,10 @@ function StudentsRegistryContent() {
   const isTeacher = profile?.role === 'teacher'
   const staffId = profile?.staffId
 
-  const assignmentsQuery = useMemo(() => 
-    institutionId && isTeacher && staffId 
-      ? query(collection(db, "teacher_assignments"), where("tenantId", "==", institutionId), where("teacherId", "==", staffId)) 
-      : null, 
-    [db, institutionId, isTeacher, staffId]
-  )
+  const assignmentsQuery = useMemoFirebase(() => {
+    if (!db || !institutionId || !isTeacher || !staffId) return null
+    return query(collection(db, "teacher_assignments"), where("tenantId", "==", institutionId), where("teacherId", "==", staffId))
+  }, [db, institutionId, isTeacher, staffId])
   const { data: assignments = [] } = useCollection(assignmentsQuery)
   const assignedClassIds = useMemo(() => new Set(assignments.map((a: any) => a.classId)), [assignments])
 
@@ -804,8 +803,8 @@ function StudentsRegistryContent() {
                       <Select required value={studentForm.gradeLevel} onValueChange={v => setStudentForm({...studentForm, gradeLevel: v})}>
                         <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select Class" /></SelectTrigger>
                         <SelectContent>
-                          {registeredClasses.filter(c => c.id).map(c => (
-                            <SelectItem key={c.id} value={c.name || c.id}>
+                          {registeredClasses.filter(c => !!c.id).map(c => (
+                            <SelectItem key={c.id} value={c.id || c.name}>
                               {c.name || "Unnamed Class"}
                             </SelectItem>
                           ))}
@@ -850,7 +849,7 @@ function StudentsRegistryContent() {
                                 <SelectValue placeholder="🔍 Search registry..." />
                             </SelectTrigger>
                             <SelectContent>
-                                {parents.filter(p => p.id).map(p => <SelectItem key={p.id} value={p.id}>{p.firstName} {p.lastName} • {p.parentNumber}</SelectItem>)}
+                                {parents.filter(p => !!p.id).map(p => <SelectItem key={p.id} value={p.id}>{p.firstName} {p.lastName} • {p.parentNumber}</SelectItem>)}
                             </SelectContent>
                           </Select>
                       </div>

@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -244,8 +245,8 @@ export default function ExaminationCenterPage() {
               <Select onValueChange={setSelectedGrade} value={selectedGrade}>
                 <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Select Grade" /></SelectTrigger>
                 <SelectContent>
-                  {classes.filter(c => c.id).map(c => (
-                    <SelectItem key={c.id} value={c.name || c.id}>
+                  {classes.filter(c => !!c.id).map(c => (
+                    <SelectItem key={c.id} value={c.id || c.name}>
                       {c.name || "Unnamed Class"}
                     </SelectItem>
                   ))}
@@ -257,8 +258,8 @@ export default function ExaminationCenterPage() {
               <Select onValueChange={setSelectedSubject} value={selectedSubject} disabled={!selectedGrade}>
                 <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Select Subject" /></SelectTrigger>
                 <SelectContent>
-                  {subjects.filter(s => s.id).map(s => (
-                    <SelectItem key={s.id} value={s.id || "unnamed-subject"}>
+                  {subjects.filter(s => !!s.id).map(s => (
+                    <SelectItem key={s.id} value={s.id || s.name}>
                       {s.name || "Unnamed Subject"}
                     </SelectItem>
                   ))}

@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
@@ -181,8 +182,8 @@ export default function StudentReportsPage() {
                   <Select value={selectedGrade} onValueChange={(v) => { setSelectedGrade(v); setSelectedStudentId(""); setStudentSearch(""); }}>
                      <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Select Grade" /></SelectTrigger>
                      <SelectContent>
-                        {classes.filter(c => c.id).map(c => (
-                          <SelectItem key={c.id} value={c.name || c.id}>
+                        {classes.filter(c => !!c.id).map(c => (
+                          <SelectItem key={c.id} value={c.id || c.name}>
                             {c.name || "Unnamed Class"}
                           </SelectItem>
                         ))}
