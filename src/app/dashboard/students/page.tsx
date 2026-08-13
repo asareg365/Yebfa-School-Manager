@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -104,70 +103,6 @@ function StudentsRegistryContent() {
 
   const isTeacher = profile?.role === 'teacher'
   const staffId = profile?.staffId
-
-  const initialForm = {
-    firstName: "",
-    lastName: "",
-    gender: "Male",
-    dateOfBirth: "",
-    admissionNumber: "PENDING",
-    studentPin: "",
-    gradeLevel: "",
-    status: "active",
-    house: "",
-    photoUrl: "",
-    admissionId: "",
-    address: {
-      digitalAddress: "",
-      town: "",
-      district: "",
-      region: "",
-      country: "Ghana"
-    }
-  }
-
-  const [studentForm, setStudentForm] = useState(initialForm)
-  
-  const [isNewParent, setIsNewParent] = useState(false)
-  const [linkedParentId, setLinkedParentId] = useState("")
-  const [relationshipData, setRelationshipData] = useState({
-    relationship: "Mother",
-    primaryContact: true,
-    emergencyContact: true,
-    pickupAuthorized: true
-  })
-
-  const [newParentForm, setNewParentForm] = useState({
-    parentNumber: "PENDING",
-    firstName: "",
-    lastName: "",
-    gender: "Female",
-    phone: "",
-    email: "",
-    occupation: "",
-    status: "Active"
-  })
-
-  useEffect(() => {
-    const enrollTrigger = searchParams.get('enroll')
-    if (enrollTrigger === 'true') {
-      const pendingData = localStorage.getItem('pending_admission_data')
-      if (pendingData) {
-        const app = JSON.parse(pendingData)
-        setStudentForm(prev => ({
-          ...prev,
-          firstName: app.firstName || "",
-          lastName: app.lastName || "",
-          gender: app.gender || "Male",
-          dateOfBirth: app.dateOfBirth || "",
-          gradeLevel: app.gradeLevel || "",
-          admissionId: app.id || ""
-        }))
-        setIsEnrollOpen(true)
-        localStorage.removeItem('pending_admission_data')
-      }
-    }
-  }, [searchParams])
 
   const assignmentsQuery = useMemo(() => 
     institutionId && isTeacher && staffId 
@@ -838,7 +773,13 @@ function StudentsRegistryContent() {
                       <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">Assign Grade Level</Label>
                       <Select required value={studentForm.gradeLevel} onValueChange={v => setStudentForm({...studentForm, gradeLevel: v})}>
                         <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select Class" /></SelectTrigger>
-                        <SelectContent>{registeredClasses.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
+                        <SelectContent>
+                          {registeredClasses.map(c => (
+                            <SelectItem key={c.id} value={c.name || c.id}>
+                              {c.name || "Unnamed Class"}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
                       </Select>
                     </div>
                   </TabsContent>

@@ -180,7 +180,13 @@ export default function StudentReportsPage() {
                   <Label className="text-[10px] font-bold uppercase text-muted-foreground">Grade Module</Label>
                   <Select value={selectedGrade} onValueChange={(v) => { setSelectedGrade(v); setSelectedStudentId(""); setStudentSearch(""); }}>
                      <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Select Grade" /></SelectTrigger>
-                     <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
+                     <SelectContent>
+                        {classes.map(c => (
+                          <SelectItem key={c.id} value={c.name || c.id}>
+                            {c.name || "Unnamed Class"}
+                          </SelectItem>
+                        ))}
+                     </SelectContent>
                   </Select>
                </div>
                

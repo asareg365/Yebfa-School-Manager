@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -139,7 +138,7 @@ export default function AiTeacherAssistantPage() {
                   <Select value={form.subjectId} onValueChange={v => setForm({...form, subjectId: v})}>
                     <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Choose Subject" /></SelectTrigger>
                     <SelectContent>
-                      {subjects.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                      {subjects.map(s => <SelectItem key={s.id} value={s.id}>{s.name || "Unnamed Subject"}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -148,7 +147,11 @@ export default function AiTeacherAssistantPage() {
                   <Select value={form.gradeLevel} onValueChange={v => setForm({...form, gradeLevel: v})}>
                     <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Choose Class" /></SelectTrigger>
                     <SelectContent>
-                      {classes.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                      {classes.map(c => (
+                        <SelectItem key={c.id} value={c.name || c.id}>
+                          {c.name || "Unnamed Class"}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

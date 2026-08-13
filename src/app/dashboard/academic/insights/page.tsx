@@ -135,7 +135,11 @@ export default function StrategicInsightsPage() {
                   <Select value={selectedGrade} onValueChange={v => { setSelectedGrade(v); setSelectedStudentId(""); }}>
                     <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select Grade" /></SelectTrigger>
                     <SelectContent>
-                      {classes.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                      {classes.map(c => (
+                        <SelectItem key={c.id} value={c.name || c.id}>
+                          {c.name || "Unnamed Class"}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                </div>

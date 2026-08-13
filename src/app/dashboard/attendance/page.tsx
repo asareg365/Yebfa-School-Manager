@@ -144,7 +144,9 @@ export default function AttendancePage() {
                 </SelectTrigger>
                 <SelectContent>
                   {classes.map(c => (
-                    <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                    <SelectItem key={c.id} value={c.name || c.id}>
+                      {c.name || "Unnamed Class"}
+                    </SelectItem>
                   ))}
                   {classes.length === 0 && <div className="p-4 text-center text-xs text-muted-foreground">No classes assigned.</div>}
                 </SelectContent>
