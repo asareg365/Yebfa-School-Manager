@@ -181,7 +181,7 @@ export default function StudentReportsPage() {
                   <Select value={selectedGrade} onValueChange={(v) => { setSelectedGrade(v); setSelectedStudentId(""); setStudentSearch(""); }}>
                      <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Select Grade" /></SelectTrigger>
                      <SelectContent>
-                        {classes.map(c => (
+                        {classes.filter(c => c.id).map(c => (
                           <SelectItem key={c.id} value={c.name || c.id}>
                             {c.name || "Unnamed Class"}
                           </SelectItem>

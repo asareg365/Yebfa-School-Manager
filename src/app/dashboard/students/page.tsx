@@ -66,7 +66,7 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion"
+} from "@/accordion"
 import Papa from "papaparse"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError, type SecurityRuleContext } from "@/firebase/errors"
@@ -731,7 +731,7 @@ function StudentsRegistryContent() {
       <Dialog open={isEnrollOpen} onOpenChange={setIsEnrollOpen}>
         <DialogContent className="w-[95vw] sm:max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded-2xl md:rounded-3xl h-[90vh] flex flex-col">
           <form onSubmit={handleEnroll} className="flex flex-col h-full overflow-hidden">
-            <DialogHeader className="bg-primary text-primary-foreground p-6 md:p-8 shrink-0">
+            <DialogHeader className="bg-primary text-primary-foreground p-6 md:p-8 shrink-0 relative">
               <Badge className="bg-white/10 text-white border-none text-[10px] font-bold uppercase tracking-widest mb-2 w-fit">Wizard Step {steps.indexOf(activeStep) + 1}</Badge>
               <DialogTitle className="text-2xl font-headline font-bold">{editingStudent ? "Update Registry" : "New Enrollment Wizard"}</DialogTitle>
             </DialogHeader>
@@ -804,7 +804,7 @@ function StudentsRegistryContent() {
                       <Select required value={studentForm.gradeLevel} onValueChange={v => setStudentForm({...studentForm, gradeLevel: v})}>
                         <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select Class" /></SelectTrigger>
                         <SelectContent>
-                          {registeredClasses.map(c => (
+                          {registeredClasses.filter(c => c.id).map(c => (
                             <SelectItem key={c.id} value={c.name || c.id}>
                               {c.name || "Unnamed Class"}
                             </SelectItem>
@@ -850,7 +850,7 @@ function StudentsRegistryContent() {
                                 <SelectValue placeholder="🔍 Search registry..." />
                             </SelectTrigger>
                             <SelectContent>
-                                {parents.map(p => <SelectItem key={p.id} value={p.id}>{p.firstName} {p.lastName} • {p.parentNumber}</SelectItem>)}
+                                {parents.filter(p => p.id).map(p => <SelectItem key={p.id} value={p.id}>{p.firstName} {p.lastName} • {p.parentNumber}</SelectItem>)}
                             </SelectContent>
                           </Select>
                       </div>

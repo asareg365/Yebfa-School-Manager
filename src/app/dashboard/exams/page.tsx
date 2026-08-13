@@ -244,7 +244,7 @@ export default function ExaminationCenterPage() {
               <Select onValueChange={setSelectedGrade} value={selectedGrade}>
                 <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Select Grade" /></SelectTrigger>
                 <SelectContent>
-                  {classes.map(c => (
+                  {classes.filter(c => c.id).map(c => (
                     <SelectItem key={c.id} value={c.name || c.id}>
                       {c.name || "Unnamed Class"}
                     </SelectItem>
@@ -257,8 +257,8 @@ export default function ExaminationCenterPage() {
               <Select onValueChange={setSelectedSubject} value={selectedSubject} disabled={!selectedGrade}>
                 <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Select Subject" /></SelectTrigger>
                 <SelectContent>
-                  {subjects.map(s => (
-                    <SelectItem key={s.id} value={s.id}>
+                  {subjects.filter(s => s.id).map(s => (
+                    <SelectItem key={s.id} value={s.id || "unnamed-subject"}>
                       {s.name || "Unnamed Subject"}
                     </SelectItem>
                   ))}
