@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -211,7 +210,7 @@ export default function InvoicingPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Invoicing Hub</h1>
-          <p className="text-muted-foreground font-medium">Strategic term billing for <span className="text-accent font-bold uppercase">{institution?.currentTerm || "Term 1"}</span>.</p>
+          <p className="text-muted-foreground font-medium text-sm">Strategic term billing for <span className="text-accent font-bold uppercase">{institution?.currentTerm || "Term 1"}</span>.</p>
         </div>
         <div className="flex gap-3">
           <Dialog open={isGenOpen} onOpenChange={setIsGenOpen}>
@@ -251,7 +250,9 @@ export default function InvoicingPage() {
                  <SelectTrigger className="w-40 h-12 rounded-xl bg-white"><SelectValue placeholder="Grade" /></SelectTrigger>
                  <SelectContent>
                    <SelectItem value="All">All Grades</SelectItem>
-                   {classes.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                   {classes.filter(c => !!c.id).map(c => (
+                     <SelectItem key={c.id} value={c.name || c.id}>{c.name || "Unnamed Class"}</SelectItem>
+                   ))}
                  </SelectContent>
                </Select>
              </div>

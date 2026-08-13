@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -145,7 +144,7 @@ export default function AttendancePage() {
                 </SelectTrigger>
                 <SelectContent>
                   {classes.filter(c => !!c.id).map(c => (
-                    <SelectItem key={c.id} value={c.id || c.name}>
+                    <SelectItem key={c.id} value={c.name || c.id}>
                       {c.name || "Unnamed Class"}
                     </SelectItem>
                   ))}
