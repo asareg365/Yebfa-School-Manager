@@ -25,7 +25,8 @@ import {
   ArrowRight,
   HandCoins,
   X,
-  GraduationCap
+  GraduationCap,
+  Layers
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase"
@@ -39,10 +40,17 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { generateId } from "@/lib/id-generator"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 
 export default function InvoicingPage() {
   const db = useFirestore()
   const router = useRouter()
+  const { user } = useUser()
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [isGenOpen, setIsGenOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
@@ -58,6 +66,9 @@ export default function InvoicingPage() {
     const storedId = localStorage.getItem('selected_institution_id')
     if (storedId) setInstitutionId(storedId)
   }, [])
+
+  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
+  const { data: profile } = useDoc(userProfileRef)
 
   const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
   const { data: institution } = useDoc(instRef)
@@ -215,6 +226,16 @@ export default function InvoicingPage() {
     ).sort((a:any, b:any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))
   }, [invoices, searchQuery, selectedGrade])
 
+  const groupedInvoices = useMemo(() => {
+    const groups: Record<string, any[]> = {}
+    filteredInvoices.forEach(inv => {
+      const grade = inv.gradeLevel || "Unassigned"
+      if (!groups[grade]) groups[grade] = []
+      groups[grade].push(inv)
+    })
+    return groups
+  }, [filteredInvoices])
+
   const handlePrintLedger = () => {
     window.print();
   }
@@ -276,61 +297,81 @@ export default function InvoicingPage() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader className="bg-muted/30">
-              <TableRow>
-                <TableHead className="py-4 font-bold px-6">INV # / STUDENT</TableHead>
-                <TableHead className="py-4 font-bold">GRADE</TableHead>
-                <TableHead className="py-4 font-bold">TOTAL</TableHead>
-                <TableHead className="py-4 font-bold text-destructive">DUE</TableHead>
-                <TableHead className="py-4 font-bold">STATUS</TableHead>
-                <TableHead className="text-right py-4 font-bold px-6">ACTIONS</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredInvoices.map((inv: any) => (
-                <TableRow key={inv.id} className="hover:bg-slate-50 transition-colors group">
-                  <TableCell className="px-6">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-mono font-bold text-accent">{inv.invoiceNumber}</span>
-                      <span className="font-bold text-sm text-primary">{inv.studentName}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell><span className="text-xs font-bold text-slate-600">{inv.gradeLevel}</span></TableCell>
-                  <TableCell><span className="text-sm font-bold">GH₵ {inv.totalAmount?.toLocaleString() || 0}</span></TableCell>
-                  <TableCell><span className="text-sm font-bold text-destructive">GH₵ {inv.amountDue?.toLocaleString() || 0}</span></TableCell>
-                  <TableCell>
-                    <Badge variant={inv.status === "Paid" ? "default" : "outline"} className={`text-[9px] uppercase font-bold ${inv.status === "Paid" ? 'bg-green-600' : 'text-destructive border-destructive/20'}`}>
-                      {inv.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right px-6">
-                    <div className="flex items-center justify-end gap-1">
-                       <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => handlePrintIndividual(inv)}>
-                         <Printer className="size-4" />
-                       </Button>
-                       <DropdownMenu>
-                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg"><MoreVertical className="size-4" /></Button>
-                         </DropdownMenuTrigger>
-                         <DropdownMenuContent align="end" className="rounded-xl border-none shadow-xl w-48">
-                            <DropdownMenuItem className="gap-2 text-xs font-bold" onClick={() => handlePrintIndividual(inv)}>
-                               <FileText className="size-4" /> Print Student Bill
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2 text-xs font-bold" onClick={() => { setSelectedInvoice(inv); setEditForm({ totalAmount: inv.totalAmount?.toString() || "0" }); setIsEditOpen(true); }}>
-                               <Pencil className="size-4" /> Adjust Total
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onClick={() => handleDeleteInvoice(inv)}>
-                               <Trash2 className="size-4" /> Delete Invoice
-                            </DropdownMenuItem>
-                         </DropdownMenuContent>
-                       </DropdownMenu>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <Accordion type="multiple" className="w-full" defaultValue={Object.keys(groupedInvoices)}>
+             {Object.entries(groupedInvoices)
+               .sort(([a], [b]) => a.localeCompare(b))
+               .map(([grade, invoices]) => (
+                 <AccordionItem key={grade} value={grade} className="border-b last:border-0">
+                    <AccordionTrigger className="hover:no-underline px-6 py-4 bg-slate-50/30">
+                       <div className="flex items-center gap-3 text-left">
+                          <Layers className="size-4 text-primary/60" />
+                          <span className="text-sm font-bold text-primary uppercase tracking-tight">{grade}</span>
+                          <Badge variant="secondary" className="h-4 px-1.5 text-[8px] bg-primary/5 text-primary border-none">{invoices.length}</Badge>
+                       </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="p-0">
+                       <div className="overflow-x-auto w-full">
+                          <Table>
+                             <TableHeader className="bg-muted/10">
+                                <TableRow>
+                                   <TableHead className="py-4 font-bold px-6">INV # / STUDENT</TableHead>
+                                   <TableHead className="py-4 font-bold">TOTAL</TableHead>
+                                   <TableHead className="py-4 font-bold text-destructive">DUE</TableHead>
+                                   <TableHead className="py-4 font-bold">STATUS</TableHead>
+                                   <TableHead className="text-right py-4 font-bold px-6">ACTIONS</TableHead>
+                                </TableRow>
+                             </TableHeader>
+                             <TableBody>
+                                {invoices.map((inv: any) => (
+                                  <TableRow key={inv.id} className="hover:bg-slate-50 transition-colors group">
+                                     <TableCell className="px-6">
+                                        <div className="flex flex-col">
+                                           <span className="text-[10px] font-mono font-bold text-accent">{inv.invoiceNumber}</span>
+                                           <span className="font-bold text-sm text-primary">{inv.studentName}</span>
+                                        </div>
+                                     </TableCell>
+                                     <TableCell><span className="text-sm font-bold">GH₵ {inv.totalAmount?.toLocaleString() || 0}</span></TableCell>
+                                     <TableCell><span className="text-sm font-bold text-destructive">GH₵ {inv.amountDue?.toLocaleString() || 0}</span></TableCell>
+                                     <TableCell>
+                                        <Badge variant={inv.status === "Paid" ? "default" : "outline"} className={`text-[9px] uppercase font-bold ${inv.status === "Paid" ? 'bg-green-600' : 'text-destructive border-destructive/20'}`}>
+                                           {inv.status}
+                                        </Badge>
+                                     </TableCell>
+                                     <TableCell className="text-right px-6">
+                                        <div className="flex items-center justify-end gap-1">
+                                           <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => handlePrintIndividual(inv)}>
+                                              <Printer className="size-4" />
+                                           </Button>
+                                           <DropdownMenu>
+                                              <DropdownMenuTrigger asChild>
+                                                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg"><MoreVertical className="size-4" /></Button>
+                                              </DropdownMenuTrigger>
+                                              <DropdownMenuContent align="end" className="rounded-xl border-none shadow-xl w-48">
+                                                 <DropdownMenuItem className="gap-2 text-xs font-bold" onClick={() => handlePrintIndividual(inv)}>
+                                                    <FileText className="size-4" /> Print Student Bill
+                                                 </DropdownMenuItem>
+                                                 <DropdownMenuItem className="gap-2 text-xs font-bold" onClick={() => { setSelectedInvoice(inv); setEditForm({ totalAmount: inv.totalAmount?.toString() || "0" }); setIsEditOpen(true); }}>
+                                                    <Pencil className="size-4" /> Adjust Total
+                                                 </DropdownMenuItem>
+                                                 <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onClick={() => handleDeleteInvoice(inv)}>
+                                                    <Trash2 className="size-4" /> Delete Invoice
+                                                 </DropdownMenuItem>
+                                              </DropdownMenuContent>
+                                           </DropdownMenu>
+                                        </div>
+                                     </TableCell>
+                                  </TableRow>
+                                ))}
+                             </TableBody>
+                          </Table>
+                       </div>
+                    </AccordionContent>
+                 </AccordionItem>
+               ))}
+          </Accordion>
+          {Object.keys(groupedInvoices).length === 0 && (
+            <div className="p-24 text-center text-muted-foreground italic">No invoice records found matching current context.</div>
+          )}
         </CardContent>
       </Card>
 

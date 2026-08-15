@@ -82,7 +82,6 @@ export default function TimetablePage() {
   const { data: institution } = useDoc(instRef)
   const currentTerm = institution?.currentTerm || "Term 1"
 
-  // Dynamic Configuration
   const timetableConfig = useMemo(() => institution?.timetableConfig || {
     slots: DEFAULT_SLOTS,
     breaks: DEFAULT_BREAKS
@@ -104,8 +103,10 @@ export default function TimetablePage() {
   const [configForm, setConfigForm] = useState(timetableConfig);
 
   useEffect(() => {
-    if (timetableConfig) setConfigForm(timetableConfig);
-  }, [timetableConfig]);
+    if (institution?.timetableConfig) {
+      setConfigForm(institution.timetableConfig);
+    }
+  }, [institution?.timetableConfig]);
 
   const assignmentsQuery = useMemoFirebase(() => {
     if (!db || !institutionId || !isTeacher || !staffId) return null
@@ -368,7 +369,7 @@ export default function TimetablePage() {
                 <Select value={selectedClassId} onValueChange={setSelectedClassId}>
                   <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Choose Class" /></SelectTrigger>
                   <SelectContent>
-                    {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name || "Unnamed Class"}</SelectItem>)}
+                    {classes.map(c => <SelectItem key={c.id} value={c.id || c.name || "unspecified"}>{c.name || "Unnamed Class"}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -430,7 +431,7 @@ export default function TimetablePage() {
                                setManualSlot({...manualSlot, subjectId: v, subject: sub?.name || "Unspecified"});
                              }}>
                                 <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Choose Subject" /></SelectTrigger>
-                                <SelectContent>{subjects.map(s => <SelectItem key={s.id} value={s.id}>{s.name || "Unnamed Subject"}</SelectItem>)}</SelectContent>
+                                <SelectContent>{subjects.map(s => <SelectItem key={s.id} value={s.id || s.name || "unspecified"}>{s.name || "Unnamed Subject"}</SelectItem>)}</SelectContent>
                              </Select>
                           </div>
                           <div className="space-y-1.5"><Label>Teacher</Label>
@@ -439,7 +440,7 @@ export default function TimetablePage() {
                                setManualSlot({...manualSlot, teacherId: v, teacher: st ? `${st.firstName} ${st.lastName}` : "Unspecified"});
                              }}>
                                 <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Choose Faculty" /></SelectTrigger>
-                                <SelectContent>{staff.map(st => <SelectItem key={st.id} value={st.id}>{st.firstName} {st.lastName}</SelectItem>)}</SelectContent>
+                                <SelectContent>{staff.map(st => <SelectItem key={st.id} value={st.id || "unspecified"}>{st.firstName} {st.lastName}</SelectItem>)}</SelectContent>
                              </Select>
                           </div>
                           <div className="flex items-center gap-2 pt-2">
@@ -466,11 +467,9 @@ export default function TimetablePage() {
               <div className="size-24 rounded-full bg-primary/5 flex items-center justify-center">
                 <Calendar className="size-12 text-primary/20" />
               </div>
-              <div className="max-w-sm">
+              <div className="max-sm">
                 <h3 className="text-xl font-bold text-primary/60 font-headline">Registry Context Required</h3>
-                <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-                  Select a grade level to load the current GMT schedule or activate AI optimization for strategic period placement.
-                </p>
+                <p className="text-sm text-muted-foreground mt-2 leading-relaxed italic">Select a grade level to load the current GMT schedule or activate AI optimization for strategic period placement.</p>
               </div>
             </Card>
           ) : loading ? (
