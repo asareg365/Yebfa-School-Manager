@@ -91,14 +91,12 @@ function StudentsRegistryContent() {
   const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
   const { data: profile, loading: profileLoading } = useDoc(userProfileRef)
 
-  // Safe Context Resolution
   useEffect(() => {
-    if (!profileLoading && profile) {
-      if (profile.role === 'super_admin') {
-        setInstitutionId(localStorage.getItem('selected_institution_id'));
-      } else {
-        setInstitutionId(profile.tenantId || null);
-      }
+    if (profileLoading) return;
+    if (profile?.role === 'super_admin') {
+      setInstitutionId(localStorage.getItem('selected_institution_id'));
+    } else {
+      setInstitutionId(profile?.tenantId || null);
     }
   }, [profile, profileLoading]);
 
@@ -112,10 +110,11 @@ function StudentsRegistryContent() {
     if (!db || !institutionId || !isTeacher || !staffId) return null
     return query(collection(db, "teacher_assignments"), where("tenantId", "==", institutionId), where("teacherId", "==", staffId))
   }, [db, institutionId, isTeacher, staffId])
+  
   const { data: assignments = [] } = useCollection(assignmentsQuery)
   const assignedClassIds = useMemo(() => new Set(assignments.map((a: any) => a.classId)), [assignments])
 
-  const studentsQuery = useMemo(() => {
+  const studentsQuery = useMemoFirebase(() => {
     if (!db || !institutionId) return null;
     return query(
       collection(db, "students"), 
@@ -124,9 +123,9 @@ function StudentsRegistryContent() {
     );
   }, [db, institutionId]);
 
-  const parentsQuery = useMemo(() => institutionId ? query(collection(db, "parents"), where("tenantId", "==", institutionId)) : null, [db, institutionId]);
-  const classesQuery = useMemo(() => institutionId ? query(collection(db, "classes"), where("tenantId", "==", institutionId)) : null, [db, institutionId]);
-  const relsQuery = useMemo(() => institutionId ? query(collection(db, "student_parents"), where("tenantId", "==", institutionId)) : null, [db, institutionId]);
+  const parentsQuery = useMemoFirebase(() => institutionId ? query(collection(db, "parents"), where("tenantId", "==", institutionId)) : null, [db, institutionId]);
+  const classesQuery = useMemoFirebase(() => institutionId ? query(collection(db, "classes"), where("tenantId", "==", institutionId)) : null, [db, institutionId]);
+  const relsQuery = useMemoFirebase(() => institutionId ? query(collection(db, "student_parents"), where("tenantId", "==", institutionId)) : null, [db, institutionId]);
 
   const { data: rawStudents = [], loading: studentsLoading } = useCollection(studentsQuery)
   const { data: parents = [] } = useCollection(parentsQuery)
@@ -807,7 +806,7 @@ function StudentsRegistryContent() {
                         <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select Class" /></SelectTrigger>
                         <SelectContent>
                           {registeredClasses.filter(c => !!c.id).map(c => (
-                            <SelectItem key={c.id} value={c.id || c.name}>
+                            <SelectItem key={c.id} value={c.name || c.id}>
                               {c.name || "Unnamed Class"}
                             </SelectItem>
                           ))}
