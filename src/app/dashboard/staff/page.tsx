@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
@@ -45,6 +44,7 @@ export default function StaffHRPage() {
   const [isEnrollOpen, setIsEnrollOpen] = useState(false)
   const [editingStaff, setEditingStaff] = useState<any>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  const [institutionId, setInstitutionId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const initialForm = {
@@ -66,12 +66,15 @@ export default function StaffHRPage() {
   const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
   const { data: profile, loading: profileLoading } = useDoc(userProfileRef)
 
-  const institutionId = useMemo(() => {
-    if (profileLoading || !profile) return null;
-    if (profile.role === 'super_admin') {
-      return typeof window !== 'undefined' ? localStorage.getItem('selected_institution_id') : null;
+  // Safe Context Resolution
+  useEffect(() => {
+    if (!profileLoading && profile) {
+      if (profile.role === 'super_admin') {
+        setInstitutionId(localStorage.getItem('selected_institution_id'));
+      } else {
+        setInstitutionId(profile.tenantId || null);
+      }
     }
-    return profile.tenantId || null;
   }, [profile, profileLoading]);
 
   useEffect(() => {

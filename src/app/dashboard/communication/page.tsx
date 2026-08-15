@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -46,17 +45,21 @@ export default function CommunicationCenterPage() {
   const [loading, setLoading] = useState(false)
   const [msgForm, setMsgForm] = useState({ title: "", content: "", target: "All", targetStudentId: "" })
   const [studentSearch, setStudentSearch] = useState("")
+  const [institutionId, setInstitutionId] = useState<string | null>(null);
 
   // Resolve Profile for Permissions and Tenant Context
   const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
   const { data: profile, loading: profileLoading } = useDoc(userProfileRef)
   
-  const institutionId = useMemo(() => {
-    if (profileLoading || !profile) return null;
-    if (profile.role === 'super_admin') {
-      return typeof window !== 'undefined' ? localStorage.getItem('selected_institution_id') : null;
+  // Safe Context Resolution
+  useEffect(() => {
+    if (!profileLoading && profile) {
+      if (profile.role === 'super_admin') {
+        setInstitutionId(localStorage.getItem('selected_institution_id'));
+      } else {
+        setInstitutionId(profile.tenantId || null);
+      }
     }
-    return profile.tenantId || null;
   }, [profile, profileLoading]);
 
   const isParent = profile?.role === 'parent'

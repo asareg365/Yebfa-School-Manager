@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { differenceInDays, formatDistanceToNow } from "date-fns";
-import Link from 'next/link';
+import Link from 'link';
 import { doc, collection, query, where, orderBy, deleteDoc, writeBatch, getDocs } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
 import { signOut } from 'firebase/auth';
@@ -31,16 +31,21 @@ export default function DashboardLayout({
   const router = useRouter();
   const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const [institutionId, setInstitutionId] = useState<string | null>(null);
+
   const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user]);
   const { data: profile, loading: profileLoading } = useDoc(userProfileRef);
 
-  // Durable Tenant Resolution logic for multi-role dashboard
-  const institutionId = useMemo(() => {
-    if (profileLoading || !profile) return null;
-    if (profile.role === 'super_admin') {
-      return typeof window !== 'undefined' ? localStorage.getItem('selected_institution_id') : null;
+  // Safe Context Resolution: Move localStorage access out of render/useMemo
+  useEffect(() => {
+    if (!profileLoading && profile) {
+      if (profile.role === 'super_admin') {
+        const storedId = localStorage.getItem('selected_institution_id');
+        setInstitutionId(storedId);
+      } else {
+        setInstitutionId(profile.tenantId || null);
+      }
     }
-    return profile.tenantId || null;
   }, [profile, profileLoading]);
 
   const institutionName = useMemo(() => {
@@ -66,7 +71,6 @@ export default function DashboardLayout({
 
   const handleLogout = useCallback(async () => {
     if (auth) {
-      // Strategic Context Perme: Remove stale institution IDs to prevent phantom redirections
       if (typeof window !== 'undefined') {
         localStorage.removeItem('selected_institution_id');
         localStorage.removeItem('selected_institution_name');
@@ -109,8 +113,6 @@ export default function DashboardLayout({
     return Math.max(0, 30 - diff);
   }, [institution]);
 
-  // Subscription information is only visible to users who manage
-  // the school's subscription/account.
   const canManageSubscription =
     profile?.role === 'super_admin' ||
     profile?.role === 'school_owner' ||
@@ -159,7 +161,6 @@ export default function DashboardLayout({
 
   if (!user || !profile) return null;
 
-  // CRITICAL: Prevent dashboard access if institution doc is missing (deleted)
   if (profile.role !== 'super_admin' && !institution && !instLoading) {
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center bg-muted/30 p-12 text-center space-y-6">
@@ -175,7 +176,6 @@ export default function DashboardLayout({
     );
   }
 
-  // Safe property access to prevent 500 error during SSR
   const isTrial = institution?.subscriptionPlan?.toLowerCase()?.includes('trial') ?? false;
   
   const userDisplayName =

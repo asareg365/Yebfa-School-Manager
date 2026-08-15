@@ -64,8 +64,7 @@ export default function AdmissionsHubPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [loading, setLoading] = useState(false)
   const [isAppOpen, setIsAppOpen] = useState(false)
-  const [isInterviewOpen, setIsInterviewOpen] = useState(false)
-  const [selectedApp, setSelectedApp] = useState<any>(null)
+  const [institutionId, setInstitutionId] = useState<string | null>(null);
 
   const [appForm, setAppForm] = useState({
     firstName: "",
@@ -78,20 +77,18 @@ export default function AdmissionsHubPage() {
     applicationNumber: "PENDING"
   })
 
-  const [interviewForm, setInterviewForm] = useState({
-    status: "Interviewed",
-    interviewNotes: ""
-  })
-
   const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
   const { data: profile, loading: profileLoading } = useDoc(userProfileRef)
 
-  const institutionId = useMemo(() => {
-    if (profileLoading || !profile) return null;
-    if (profile.role === 'super_admin') {
-      return typeof window !== 'undefined' ? localStorage.getItem('selected_institution_id') : null;
+  // Safe Context Resolution
+  useEffect(() => {
+    if (!profileLoading && profile) {
+      if (profile.role === 'super_admin') {
+        setInstitutionId(localStorage.getItem('selected_institution_id'));
+      } else {
+        setInstitutionId(profile.tenantId || null);
+      }
     }
-    return profile.tenantId || null;
   }, [profile, profileLoading]);
 
   const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])

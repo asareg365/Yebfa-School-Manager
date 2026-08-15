@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -34,20 +33,23 @@ export default function Dashboard() {
   const db = useFirestore()
   const router = useRouter()
   const [videoLoading, setVideoLoading] = useState(false)
+  const [institutionId, setInstitutionId] = useState<string | null>(null);
 
   const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
   const { data: profile, loading: profileLoading } = useDoc(userProfileRef)
 
-  // Durable Tenant Resolution for System Pulse
-  const institutionId = useMemo(() => {
-    if (profileLoading || !profile) return null;
-    if (profile.role === 'super_admin') {
-      return typeof window !== 'undefined' ? localStorage.getItem('selected_institution_id') : null;
+  // Safe Context Resolution
+  useEffect(() => {
+    if (!profileLoading && profile) {
+      if (profile.role === 'super_admin') {
+        setInstitutionId(localStorage.getItem('selected_institution_id'));
+      } else {
+        setInstitutionId(profile.tenantId || null);
+      }
     }
-    return profile.tenantId || null;
   }, [profile, profileLoading]);
 
-  // Explicit Role Guard: Redirect teachers and parents away from the staff-oriented administrative "System Pulse"
+  // Explicit Role Guard
   useEffect(() => {
     if (!profileLoading && profile) {
       if (profile.role === 'parent') {
@@ -58,7 +60,7 @@ export default function Dashboard() {
     }
   }, [profile, profileLoading, router])
 
-  // Core Data Queries - Optimized with useMemo
+  // Core Data Queries
   const studentsQuery = useMemo(() => institutionId ? query(collection(db, "students"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   const staffQuery = useMemo(() => institutionId ? query(collection(db, "staff"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   const booksQuery = useMemo(() => institutionId ? query(collection(db, "library_books"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
@@ -146,7 +148,7 @@ export default function Dashboard() {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl md:text-3xl xl:text-4xl font-headline font-bold tracking-tight text-primary">System Pulse</h1>
-          <p className="text-muted-foreground font-medium text-sm md:text-base">Monitoring real-time academic records for {localStorage.getItem('selected_institution_name') || "Active Registry"}.</p>
+          <p className="text-muted-foreground font-medium text-sm md:text-base">Monitoring real-time academic records for {typeof window !== 'undefined' ? localStorage.getItem('selected_institution_name') : 'Active Registry'}.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button 

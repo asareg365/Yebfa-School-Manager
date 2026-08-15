@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -40,7 +39,7 @@ import {
   Camera
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useUser, useFirestore, useCollection, useDoc } from "@/firebase"
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase"
 import { collection, addDoc, query, deleteDoc, doc, where, serverTimestamp, updateDoc, writeBatch, setDoc, getDocs } from "firebase/firestore"
 import { useState, useMemo, useEffect, useRef, Suspense } from "react"
 import { Badge } from "@/components/ui/badge"
@@ -82,6 +81,7 @@ function StudentsRegistryContent() {
   const [bulkLoading, setBulkLoading] = useState(false)
   const [editingStudent, setEditingStudent] = useState<any>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  const [institutionId, setInstitutionId] = useState<string | null>(null);
   const bulkFileRef = useRef<HTMLInputElement>(null)
   const photoInputRef = useRef<HTMLInputElement>(null)
   
@@ -91,12 +91,15 @@ function StudentsRegistryContent() {
   const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
   const { data: profile, loading: profileLoading } = useDoc(userProfileRef)
 
-  const institutionId = useMemo(() => {
-    if (profileLoading || !profile) return null;
-    if (profile.role === 'super_admin') {
-      return typeof window !== 'undefined' ? localStorage.getItem('selected_institution_id') : null;
+  // Safe Context Resolution
+  useEffect(() => {
+    if (!profileLoading && profile) {
+      if (profile.role === 'super_admin') {
+        setInstitutionId(localStorage.getItem('selected_institution_id'));
+      } else {
+        setInstitutionId(profile.tenantId || null);
+      }
     }
-    return profile.tenantId || null;
   }, [profile, profileLoading]);
 
   const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
