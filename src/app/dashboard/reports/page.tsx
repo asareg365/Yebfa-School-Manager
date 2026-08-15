@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -64,12 +64,43 @@ export default function StudentReportsPage() {
   const { data: institution } = useDoc(instRef)
   const currentTerm = institution?.currentTerm || "Term 1"
 
-  const classesQuery = useMemoFirebase(() => institutionId ? query(collection(db, "classes"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
-  const studentsQuery = useMemoFirebase(() => institutionId && selectedGrade ? query(collection(db, "students"), where("tenantId", "==", institutionId), where("gradeLevel", "==", selectedGrade), where("status", "==", "active")) : null, [db, institutionId, selectedGrade])
-  const subjectsQuery = useMemoFirebase(() => institutionId ? query(collection(db, "subjects"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
+  const classesQuery = useMemoFirebase(() => 
+    institutionId ? query(collection(db, "classes"), where("tenantId", "==", institutionId)) : null, 
+    [db, institutionId]
+  )
   
-  const classExamsQuery = useMemoFirebase(() => institutionId && selectedGrade ? query(collection(db, "exam_records"), where("tenantId", "==", institutionId), where("gradeLevel", "==", selectedGrade), where("termId", "==", currentTerm)) : null, [db, institutionId, selectedGrade, currentTerm])
-  const attendanceQuery = useMemoFirebase(() => institutionId && selectedStudentId ? query(collection(db, "attendance"), where("studentId", "==", selectedStudentId)) : null, [db, institutionId, selectedStudentId])
+  const studentsQuery = useMemoFirebase(() => 
+    institutionId && selectedGrade ? query(
+      collection(db, "students"), 
+      where("tenantId", "==", institutionId), 
+      where("gradeLevel", "==", selectedGrade), 
+      where("status", "==", "active")
+    ) : null, 
+    [db, institutionId, selectedGrade]
+  )
+  
+  const subjectsQuery = useMemoFirebase(() => 
+    institutionId ? query(collection(db, "subjects"), where("tenantId", "==", institutionId)) : null, 
+    [db, institutionId]
+  )
+  
+  const classExamsQuery = useMemoFirebase(() => 
+    institutionId && selectedGrade ? query(
+      collection(db, "exam_records"), 
+      where("tenantId", "==", institutionId), 
+      where("gradeLevel", "==", selectedGrade), 
+      where("termId", "==", currentTerm)
+    ) : null, 
+    [db, institutionId, selectedGrade, currentTerm]
+  )
+  
+  const attendanceQuery = useMemoFirebase(() => 
+    institutionId && selectedStudentId ? query(
+      collection(db, "attendance"), 
+      where("studentId", "==", selectedStudentId)
+    ) : null, 
+    [db, institutionId, selectedStudentId]
+  )
 
   const { data: classes = [] } = useCollection(classesQuery)
   const { data: students = [], loading: sLoading } = useCollection(studentsQuery)
@@ -78,6 +109,7 @@ export default function StudentReportsPage() {
   const { data: studentAttendance = [] } = useCollection(attendanceQuery)
 
   const filteredStudents = useMemo(() => {
+    if (!studentSearch.trim()) return students;
     return students.filter(s => 
       `${s.firstName || ""} ${s.lastName || ""}`.toLowerCase().includes(studentSearch.toLowerCase()) ||
       s.admissionNumber?.toLowerCase().includes(studentSearch.toLowerCase())
@@ -90,14 +122,16 @@ export default function StudentReportsPage() {
     if (!selectedStudentId || allClassExams.length === 0) return null;
 
     const studentExams = allClassExams.filter((e: any) => e.studentId === selectedStudentId);
+    if (studentExams.length === 0) return null;
+
     const results = studentExams.map((e: any) => {
       const subject = subjects.find(s => s.id === e.subjectId);
-      const gradeInfo = calculateGrade(e.totalScore);
+      const gradeInfo = calculateGrade(e.totalScore || 0);
       return {
-        subject: subject?.name || "Subject",
-        ca: e.classScore,
-        exam: e.examScore,
-        total: e.totalScore,
+        subject: subject?.name || e.subjectId || "Subject",
+        ca: e.classScore || 0,
+        exam: e.examScore || 0,
+        total: e.totalScore || 0,
         grade: gradeInfo.grade,
         remark: gradeInfo.remark
       };
@@ -110,7 +144,7 @@ export default function StudentReportsPage() {
 
     const studentAverages = Array.from(new Set(allClassExams.map((e: any) => e.studentId))).map(sid => {
       const sExams = allClassExams.filter((e: any) => e.studentId === sid);
-      const total = sExams.reduce((acc, curr: any) => acc + curr.totalScore, 0);
+      const total = sExams.reduce((acc, curr: any) => acc + (curr.totalScore || 0), 0);
       return { studentId: sid, average: sExams.length > 0 ? total / sExams.length : 0 };
     });
     const positions = calculatePositions(studentAverages);
@@ -128,12 +162,13 @@ export default function StudentReportsPage() {
   }, [selectedStudentId, allClassExams, subjects, studentAttendance]);
 
   const handleSaveReport = async () => {
-    if (!selectedStudentId || !reportData) return;
+    if (!selectedStudentId || !reportData || !institutionId) return;
     setIsComputing(true);
     try {
       const reportId = `${selectedStudentId}_${currentTerm.replace(/\s+/g, '')}_2026`;
       await setDoc(doc(db, "final_reports", reportId), {
         tenantId: institutionId,
+        institutionId,
         studentId: selectedStudentId,
         studentName: `${selectedStudent.firstName} ${selectedStudent.lastName}`,
         termId: currentTerm,
@@ -143,7 +178,7 @@ export default function StudentReportsPage() {
         headRemark,
         status: "Published",
         updatedAt: serverTimestamp()
-      });
+      }, { merge: true });
       toast({ title: "Report Published", description: "Identity Hub synchronized." });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Error", description: e.message });
@@ -154,6 +189,12 @@ export default function StudentReportsPage() {
 
   const handlePrint = () => {
     window.print();
+  }
+
+  const handleSelectStudent = (s: any) => {
+    setSelectedStudentId(s.id);
+    setStudentSearch(`${s.firstName} ${s.lastName}`);
+    setShowSuggestions(false);
   }
 
   return (
@@ -219,12 +260,9 @@ export default function StudentReportsPage() {
                                 filteredStudents.map(s => (
                                   <button
                                     key={s.id}
+                                    type="button"
                                     className={`w-full text-left p-3 rounded-xl transition-all flex items-center gap-3 border border-transparent ${selectedStudentId === s.id ? 'bg-primary/5 border-primary/10' : 'hover:bg-slate-50'}`}
-                                    onClick={() => {
-                                      setSelectedStudentId(s.id);
-                                      setStudentSearch(`${s.firstName} ${s.lastName}`);
-                                      setShowSuggestions(false);
-                                    }}
+                                    onClick={() => handleSelectStudent(s)}
                                   >
                                     <div className="size-8 rounded-lg bg-primary/5 flex items-center justify-center font-bold text-primary text-[10px]">{s.firstName?.charAt(0)}{s.lastName?.charAt(0)}</div>
                                     <div className="flex flex-col min-w-0">

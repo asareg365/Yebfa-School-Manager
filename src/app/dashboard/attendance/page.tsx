@@ -144,7 +144,7 @@ export default function AttendancePage() {
                 </SelectTrigger>
                 <SelectContent>
                   {classes.filter(c => !!c.id).map(c => (
-                    <SelectItem key={c.id} value={c.name || c.id}>
+                    <SelectItem key={c.id} value={c.name || c.id || "unspecified"}>
                       {c.name || "Unnamed Class"}
                     </SelectItem>
                   ))}

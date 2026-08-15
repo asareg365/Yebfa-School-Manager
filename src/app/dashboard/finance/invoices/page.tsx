@@ -44,7 +44,6 @@ export default function InvoicingPage() {
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [isGenOpen, setIsGenOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
-  const [isPrintOpen, setIsPrintOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedGrade, setSelectedGrade] = useState("All")
@@ -205,6 +204,10 @@ export default function InvoicingPage() {
     ).sort((a:any, b:any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))
   }, [invoices, searchQuery, selectedGrade])
 
+  const handlePrint = () => {
+    window.print();
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 no-print">
@@ -213,6 +216,9 @@ export default function InvoicingPage() {
           <p className="text-muted-foreground font-medium text-sm">Strategic term billing for <span className="text-accent font-bold uppercase">{institution?.currentTerm || "Term 1"}</span>.</p>
         </div>
         <div className="flex gap-3">
+          <Button variant="outline" className="h-11 rounded-xl gap-2 font-bold" onClick={handlePrint} disabled={filteredInvoices.length === 0}>
+             <Printer className="size-5" /> Print Ledger
+          </Button>
           <Dialog open={isGenOpen} onOpenChange={setIsGenOpen}>
             <DialogTrigger asChild>
               <Button className="bg-primary h-11 rounded-xl shadow-lg gap-2 px-6 font-bold"><Plus className="size-5" /> Run Term Billing</Button>
@@ -238,7 +244,7 @@ export default function InvoicingPage() {
         </div>
       </div>
 
-      <Card className="border-none shadow-xl rounded-2xl overflow-hidden bg-white">
+      <Card id="printable-invoice-ledger" className="border-none shadow-xl rounded-2xl overflow-hidden bg-white">
         <CardHeader className="border-b py-6 px-6 bg-slate-50/50 no-print">
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
              <div className="relative w-full max-w-sm">
@@ -289,7 +295,7 @@ export default function InvoicingPage() {
                   </TableCell>
                   <TableCell className="text-right px-6 no-print">
                     <div className="flex items-center justify-end gap-1">
-                       <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => window.print()}>
+                       <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={handlePrint}>
                          <Printer className="size-4" />
                        </Button>
                        <DropdownMenu>
@@ -313,6 +319,26 @@ export default function InvoicingPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <style jsx global>{`
+        @media print {
+          body * { visibility: hidden; }
+          #printable-invoice-ledger, #printable-invoice-ledger * { visibility: visible; }
+          #printable-invoice-ledger {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: auto;
+            margin: 0;
+            padding: 20px;
+            border: none !important;
+            box-shadow: none !important;
+            background: white !important;
+          }
+          .no-print { display: none !important; }
+        }
+      `}</style>
     </div>
   )
 }
