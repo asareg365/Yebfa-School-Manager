@@ -228,7 +228,7 @@ export default function InvoicingPage() {
         </div>
         <div className="flex gap-3">
           <Button variant="outline" className="h-11 rounded-xl gap-2 font-bold" onClick={handlePrintLedger} disabled={filteredInvoices.length === 0}>
-             <Printer className="size-5" /> Print Ledger
+             <Printer className="size-5" /> Print Full Ledger
           </Button>
           <Dialog open={isGenOpen} onOpenChange={setIsGenOpen}>
             <DialogTrigger asChild>
@@ -255,7 +255,7 @@ export default function InvoicingPage() {
         </div>
       </div>
 
-      <Card id="printable-invoice-ledger" className="border-none shadow-xl rounded-2xl overflow-hidden bg-white no-print">
+      <Card className="border-none shadow-xl rounded-2xl overflow-hidden bg-white no-print">
         <CardHeader className="border-b py-6 px-6 bg-slate-50/50">
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
              <div className="relative w-full max-w-sm">
@@ -334,9 +334,62 @@ export default function InvoicingPage() {
         </CardContent>
       </Card>
 
+      {/* FULL LEDGER PRINT VIEW */}
+      <div id="printable-ledger-report" className="hidden print:block bg-white p-8">
+         <div className="flex justify-between items-start border-b pb-8 mb-8">
+            <div className="flex items-center gap-4">
+               {institution?.logoUrl ? <img src={institution.logoUrl} className="size-16 object-contain" /> : <div className="size-16 bg-primary rounded-xl flex items-center justify-center text-white font-black text-2xl">Y</div>}
+               <div>
+                  <h1 className="text-2xl font-headline font-black text-primary uppercase tracking-tight">{institution?.name || "System Hub"}</h1>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase">{institution?.location}</p>
+               </div>
+            </div>
+            <div className="text-right">
+               <h2 className="text-xl font-headline font-bold text-primary">TERM FEE LEDGER</h2>
+               <p className="text-[10px] font-bold text-muted-foreground uppercase">{institution?.currentTerm} • 2026/2027</p>
+               <p className="text-[9px] font-medium text-slate-400 mt-1">Generated: {new Date().toLocaleString()}</p>
+            </div>
+         </div>
+
+         <Table className="border rounded-xl overflow-hidden">
+            <TableHeader className="bg-slate-50">
+               <TableRow>
+                  <TableHead className="font-black text-primary uppercase text-[9px] py-4">Invoice #</TableHead>
+                  <TableHead className="font-black text-primary uppercase text-[9px] py-4">Student Name</TableHead>
+                  <TableHead className="font-black text-primary uppercase text-[9px] py-4">Grade</TableHead>
+                  <TableHead className="font-black text-primary uppercase text-[9px] py-4 text-right">Billed</TableHead>
+                  <TableHead className="font-black text-primary uppercase text-[9px] py-4 text-right">Paid</TableHead>
+                  <TableHead className="font-black text-primary uppercase text-[9px] py-4 text-right">Balance</TableHead>
+               </TableRow>
+            </TableHeader>
+            <TableBody>
+               {filteredInvoices.map((inv: any) => (
+                 <TableRow key={inv.id} className="border-b last:border-none">
+                    <TableCell className="font-mono text-[9px] font-bold text-slate-600">{inv.invoiceNumber}</TableCell>
+                    <TableCell className="font-bold text-[10px] text-primary">{inv.studentName}</TableCell>
+                    <TableCell className="text-[9px] font-medium text-slate-600 uppercase">{inv.gradeLevel}</TableCell>
+                    <TableCell className="text-right text-[10px] font-medium">GH₵ {inv.totalAmount?.toLocaleString()}</TableCell>
+                    <TableCell className="text-right text-[10px] font-bold text-green-600">GH₵ {inv.amountPaid?.toLocaleString()}</TableCell>
+                    <TableCell className="text-right text-[10px] font-black text-primary">GH₵ {inv.amountDue?.toLocaleString()}</TableCell>
+                 </TableRow>
+               ))}
+            </TableBody>
+         </Table>
+
+         <div className="mt-12 flex justify-between items-end border-t border-dashed pt-8 opacity-60">
+            <div className="space-y-4">
+               <div className="w-48 h-px bg-slate-300" />
+               <p className="text-[8px] font-black uppercase tracking-widest">Registrar / Bursar Signature</p>
+            </div>
+            <p className="text-[8px] font-black uppercase text-muted-foreground tracking-tighter">
+               Authorized Digital Registry Audit • Node 2026
+            </p>
+         </div>
+      </div>
+
       {/* INDIVIDUAL BILL PRINT TEMPLATE */}
       {individualPrintData && (
-        <div id="printable-individual-bill" className="bg-white p-12 space-y-12">
+        <div id="printable-individual-bill" className="hidden print:block bg-white p-12 space-y-12">
            <div className="flex justify-between items-start border-b pb-8">
               <div className="flex items-center gap-4">
                  {institution?.logoUrl ? <img src={institution.logoUrl} className="size-20 object-contain" /> : <div className="size-20 bg-primary rounded-2xl flex items-center justify-center text-white font-black text-3xl">Y</div>}
@@ -422,28 +475,24 @@ export default function InvoicingPage() {
       )}
 
       <style jsx global>{`
-        #printable-individual-bill { display: none; }
         @media print {
           body * { visibility: hidden; }
-          #printable-invoice-ledger, #printable-invoice-ledger * { 
+          #printable-ledger-report, #printable-ledger-report * { 
             visibility: ${individualPrintData ? 'hidden' : 'visible'}; 
-            display: ${individualPrintData ? 'none' : 'block'};
+            display: ${individualPrintData ? 'none' : 'block'} !important; 
           }
           #printable-individual-bill, #printable-individual-bill * { 
-            visibility: ${individualPrintData ? 'visible' : 'hidden'};
-            display: ${individualPrintData ? 'block' : 'none'};
+            visibility: ${individualPrintData ? 'visible' : 'hidden'}; 
+            display: ${individualPrintData ? 'block' : 'none'} !important; 
           }
-          
-          #printable-invoice-ledger, #printable-individual-bill {
-            position: fixed;
+          #printable-ledger-report, #printable-individual-bill {
+            position: absolute;
             left: 0;
             top: 0;
             width: 100%;
             height: auto;
             margin: 0;
             padding: 30px;
-            border: none !important;
-            box-shadow: none !important;
             background: white !important;
           }
           .no-print { display: none !important; }

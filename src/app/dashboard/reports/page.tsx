@@ -69,7 +69,6 @@ export default function StudentReportsPage() {
     [db, institutionId]
   )
   
-  // Refactored to fetch ALL institutional students for global search
   const studentsQuery = useMemoFirebase(() => 
     institutionId ? query(
       collection(db, "students"), 
@@ -84,7 +83,6 @@ export default function StudentReportsPage() {
     [db, institutionId]
   )
   
-  // We filter exams for the class the student belongs to
   const classExamsQuery = useMemoFirebase(() => 
     institutionId && selectedGrade ? query(
       collection(db, "exam_records"), 
@@ -400,7 +398,7 @@ export default function StudentReportsPage() {
           body * { visibility: hidden; }
           #printable-report, #printable-report * { visibility: visible; }
           #printable-report {
-            position: fixed;
+            position: absolute;
             left: 0;
             top: 0;
             width: 100%;
