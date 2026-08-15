@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -26,7 +26,8 @@ import {
   User,
   ExternalLink,
   AlertTriangle,
-  RotateCcw
+  RotateCcw,
+  Lock
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase"
@@ -48,7 +49,6 @@ export default function PaymentsProcessorPage() {
   
   // UI Dialog States
   const [isPayOpen, setIsPayOpen] = useState(false)
-  const [isEditOpen, setIsEditOpen] = useState(false)
   const [isReceiptOpen, setIsReceiptOpen] = useState(false)
   
   const [loading, setLoading] = useState(false)
@@ -66,6 +66,11 @@ export default function PaymentsProcessorPage() {
 
   const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
   const { data: profile } = useDoc(userProfileRef)
+
+  const isAuthorizer = useMemo(() => {
+    const role = profile?.role || "";
+    return ['super_admin', 'school_owner', 'administrator'].includes(role);
+  }, [profile]);
 
   useEffect(() => {
     if (profile) {
@@ -182,24 +187,43 @@ export default function PaymentsProcessorPage() {
   }
 
   const handleDeleteTransaction = async (txn: any) => {
-    if (!db || !confirm("Reverse this payment?")) return
+    if (!isAuthorizer) {
+      toast({ 
+        variant: "destructive", 
+        title: "Security Authorization Required", 
+        description: "Only a Headmaster or Administrator can authorize payment reversals." 
+      });
+      return;
+    }
+
+    if (!db || !confirm("Reverse this payment? This will update the student's invoice and ledger balance.")) return
+    
     setLoading(true)
     try {
       const batch = writeBatch(db)
       const invoiceRef = doc(db, "invoices", txn.invoiceId)
       const invSnap = await getDoc(invoiceRef)
+      
       if (invSnap.exists()) {
         const inv = invSnap.data()
         const newPaid = Math.max(0, (inv.amountPaid || 0) - txn.amount)
         const newDue = (inv.totalAmount || 0) - newPaid
-        batch.update(invoiceRef, { amountPaid: newPaid, amountDue: newDue, status: newDue <= 0 ? "Paid" : newPaid > 0 ? "Partial" : "Unpaid" })
+        batch.update(invoiceRef, { 
+          amountPaid: newPaid, 
+          amountDue: newDue, 
+          status: newDue <= 0 ? "Paid" : newPaid > 0 ? "Partial" : "Unpaid",
+          updatedAt: serverTimestamp()
+        })
       }
+      
       const ledgerQ = query(collection(db, "student_ledger"), where("transactionId", "==", txn.id))
       const ledgerSnap = await getDocs(ledgerQ)
       ledgerSnap.forEach(d => batch.delete(d.ref))
+      
       batch.delete(doc(db, "transactions", txn.id))
+      
       await batch.commit()
-      toast({ title: "Transaction Reversed" })
+      toast({ title: "Transaction Reversed", description: "Ledger and invoice have been adjusted." })
     } catch (err: any) {
       toast({ variant: "destructive", title: "Reversal Failed" })
     } finally {
@@ -207,9 +231,13 @@ export default function PaymentsProcessorPage() {
     }
   }
 
+  const handlePrintReceipt = () => {
+    window.print();
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-24">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 no-print">
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Payment Hub</h1>
           <p className="text-muted-foreground font-medium text-sm">Strategic collection processing for the 2026 cycle.</p>
@@ -219,7 +247,7 @@ export default function PaymentsProcessorPage() {
         </Button>
       </div>
 
-      <Card className="border-none shadow-xl rounded-2xl overflow-hidden bg-white">
+      <Card className="border-none shadow-xl rounded-2xl overflow-hidden bg-white no-print">
         <CardHeader className="border-b py-6 px-6 bg-slate-50/50">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <CardTitle className="text-lg font-headline font-bold text-primary">Transaction History</CardTitle>
@@ -234,11 +262,11 @@ export default function PaymentsProcessorPage() {
             <Table className="min-w-[700px]">
               <TableHeader className="bg-muted/30">
                 <TableRow>
-                  <TableHead className="font-bold py-4 px-6">REFERENCE / DATE</TableHead>
-                  <TableHead className="font-bold py-4">STUDENT</TableHead>
-                  <TableHead className="font-bold py-4">METHOD</TableHead>
-                  <TableHead className="font-bold py-4">AMOUNT</TableHead>
-                  <TableHead className="text-right py-4 font-bold px-6">ACTIONS</TableHead>
+                  <TableHead className="font-bold py-4 px-6 uppercase text-[10px] tracking-widest">Reference / Date</TableHead>
+                  <TableHead className="font-bold py-4 uppercase text-[10px] tracking-widest">Student</TableHead>
+                  <TableHead className="font-bold py-4 uppercase text-[10px] tracking-widest">Method</TableHead>
+                  <TableHead className="font-bold py-4 uppercase text-[10px] tracking-widest">Amount</TableHead>
+                  <TableHead className="text-right py-4 font-bold px-6 uppercase text-[10px] tracking-widest">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -258,14 +286,24 @@ export default function PaymentsProcessorPage() {
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => { setSelectedTxn(t); setIsReceiptOpen(true); }}><Receipt className="size-4" /></Button>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="size-4" /></Button></DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="rounded-xl border-none shadow-xl w-40">
-                            <DropdownMenuItem className="gap-2 text-xs font-bold text-destructive" onSelect={() => handleDeleteTransaction(t)}><RotateCcw className="size-4" /> Reverse</DropdownMenuItem>
+                          <DropdownMenuContent align="end" className="rounded-xl border-none shadow-xl w-48">
+                            <DropdownMenuItem 
+                              className="gap-2 text-xs font-bold text-destructive" 
+                              onSelect={() => handleDeleteTransaction(t)}
+                            >
+                              <RotateCcw className="size-4" /> 
+                              {isAuthorizer ? 'Reverse Transaction' : 'Authorize Reversal'}
+                              {!isAuthorizer && <Lock className="size-3 ml-auto opacity-50" />}
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
                     </TableCell>
                   </TableRow>
                 ))}
+                {transactions.length === 0 && (
+                  <TableRow><TableCell colSpan={5} className="text-center py-24 text-muted-foreground italic">No transactional records detected for current cycle.</TableCell></TableRow>
+                )}
               </TableBody>
             </Table>
           </div>
@@ -290,7 +328,7 @@ export default function PaymentsProcessorPage() {
                     <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select Unpaid Invoice" /></SelectTrigger>
                     <SelectContent>
                       {filteredInvoices.map((inv: any) => (
-                        <SelectItem key={inv.id} value={inv.id}>{inv.studentName} ({inv.invoiceNumber}) • GH₵{inv.amountDue}</SelectItem>
+                        <SelectItem key={inv.id} value={inv.id || "unspecified"}>{inv.studentName} ({inv.invoiceNumber}) • GH₵{inv.amountDue}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -300,7 +338,11 @@ export default function PaymentsProcessorPage() {
                   <div className="space-y-2"><Label className="text-[10px] font-bold uppercase">Method</Label>
                     <Select value={paymentForm.method} onValueChange={v => setPaymentForm({...paymentForm, method: v})}>
                       <SelectTrigger className="h-12 rounded-xl"><SelectValue /></SelectTrigger>
-                      <SelectContent><SelectItem value="MTN MoMo">MTN MoMo</SelectItem><SelectItem value="Bank Transfer">Bank Transfer</SelectItem><SelectItem value="Cash">Cash</SelectItem></SelectContent>
+                      <SelectContent>
+                        <SelectItem value="MTN MoMo">MTN MoMo</SelectItem>
+                        <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                        <SelectItem value="Cash">Cash</SelectItem>
+                      </SelectContent>
                     </Select>
                   </div>
                 </div>
@@ -314,6 +356,79 @@ export default function PaymentsProcessorPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={isReceiptOpen} onOpenChange={setIsReceiptOpen}>
+        <DialogContent className="max-w-md rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
+           <ScrollArea className="max-h-[90vh]">
+             <div className="p-10 bg-white space-y-8" id="printable-receipt">
+                <div className="text-center space-y-2">
+                   <div className="size-16 bg-primary rounded-2xl flex items-center justify-center text-white mx-auto shadow-lg mb-4">
+                      <Receipt className="size-8" />
+                   </div>
+                   <h2 className="text-2xl font-headline font-bold text-primary uppercase">{institution?.name || "Registry Hub"}</h2>
+                   <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Official Electronic Receipt</p>
+                </div>
+
+                <div className="space-y-4 pt-6 border-t border-dashed">
+                   <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground font-bold uppercase">Reference</span>
+                      <span className="font-mono font-bold text-primary">{selectedTxn?.reference}</span>
+                   </div>
+                   <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground font-bold uppercase">Date</span>
+                      <span className="font-bold">{selectedTxn?.date ? new Date(selectedTxn.date).toLocaleDateString() : 'N/A'}</span>
+                   </div>
+                </div>
+
+                <div className="bg-slate-50 p-6 rounded-2xl space-y-4">
+                   <div className="space-y-1">
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase">Billed Student</p>
+                      <p className="text-sm font-bold text-primary">{selectedTxn?.studentName}</p>
+                   </div>
+                   <div className="space-y-1">
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase">Payment Method</p>
+                      <p className="text-sm font-bold text-primary">{selectedTxn?.paymentMethod}</p>
+                   </div>
+                </div>
+
+                <div className="text-center space-y-2 pt-4">
+                   <p className="text-[10px] font-bold text-muted-foreground uppercase">Amount Paid</p>
+                   <p className="text-4xl font-headline font-bold text-primary">GH₵ {selectedTxn?.amount?.toLocaleString()}</p>
+                </div>
+
+                <div className="pt-8 border-t border-dashed text-center">
+                   <p className="text-[9px] text-muted-foreground italic font-medium leading-relaxed">
+                     "This is an automated transaction record from the 2026 Registry Hub. Please retain for your academic records."
+                   </p>
+                </div>
+
+                <Button className="w-full h-12 rounded-xl bg-primary font-bold shadow-lg gap-2 no-print" onClick={handlePrintReceipt}>
+                  <Printer className="size-4" /> Print Document
+                </Button>
+             </div>
+           </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      <style jsx global>{`
+        @media print {
+          body * { visibility: hidden; }
+          #printable-receipt, #printable-receipt * { visibility: visible; }
+          #printable-receipt {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: auto;
+            margin: 0;
+            padding: 40px;
+            background: white !important;
+            box-shadow: none !important;
+            border: none !important;
+          }
+          .no-print { display: none !important; }
+        }
+      `}</style>
     </div>
   )
 }

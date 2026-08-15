@@ -69,14 +69,14 @@ export default function StudentReportsPage() {
     [db, institutionId]
   )
   
+  // Refactored to fetch ALL institutional students for global search
   const studentsQuery = useMemoFirebase(() => 
-    institutionId && selectedGrade ? query(
+    institutionId ? query(
       collection(db, "students"), 
       where("tenantId", "==", institutionId), 
-      where("gradeLevel", "==", selectedGrade), 
       where("status", "==", "active")
     ) : null, 
-    [db, institutionId, selectedGrade]
+    [db, institutionId]
   )
   
   const subjectsQuery = useMemoFirebase(() => 
@@ -84,6 +84,7 @@ export default function StudentReportsPage() {
     [db, institutionId]
   )
   
+  // We filter exams for the class the student belongs to
   const classExamsQuery = useMemoFirebase(() => 
     institutionId && selectedGrade ? query(
       collection(db, "exam_records"), 
@@ -108,12 +109,12 @@ export default function StudentReportsPage() {
   const { data: allClassExams = [] } = useCollection(classExamsQuery)
   const { data: studentAttendance = [] } = useCollection(attendanceQuery)
 
-  const filteredStudents = useMemo(() => {
-    if (!studentSearch.trim()) return students;
+  const filteredStudentsSuggestions = useMemo(() => {
+    if (!studentSearch.trim()) return [];
     return students.filter(s => 
       `${s.firstName || ""} ${s.lastName || ""}`.toLowerCase().includes(studentSearch.toLowerCase()) ||
       s.admissionNumber?.toLowerCase().includes(studentSearch.toLowerCase())
-    )
+    ).slice(0, 10);
   }, [students, studentSearch])
 
   const selectedStudent = useMemo(() => students.find(s => s.id === selectedStudentId), [students, selectedStudentId])
@@ -193,6 +194,7 @@ export default function StudentReportsPage() {
 
   const handleSelectStudent = (s: any) => {
     setSelectedStudentId(s.id);
+    setSelectedGrade(s.gradeLevel || "");
     setStudentSearch(`${s.firstName} ${s.lastName}`);
     setShowSuggestions(false);
   }
@@ -223,22 +225,8 @@ export default function StudentReportsPage() {
                </CardTitle>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
-               <div className="space-y-2">
-                  <Label className="text-[10px] font-bold uppercase text-muted-foreground">Grade Module</Label>
-                  <Select value={selectedGrade} onValueChange={(v) => { setSelectedGrade(v); setSelectedStudentId(""); setStudentSearch(""); }}>
-                     <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Select Grade" /></SelectTrigger>
-                     <SelectContent>
-                        {classes.filter(c => !!c.id).map(c => (
-                          <SelectItem key={c.id} value={c.name || c.id}>
-                            {c.name || "Unnamed Class"}
-                          </SelectItem>
-                        ))}
-                     </SelectContent>
-                  </Select>
-               </div>
-               
                <div className="space-y-2 relative">
-                  <Label className="text-[10px] font-bold uppercase text-muted-foreground">Find Student</Label>
+                  <Label className="text-[10px] font-bold uppercase text-muted-foreground">Find Student (Global)</Label>
                   <div className="relative">
                      <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
                      <Input 
@@ -250,14 +238,13 @@ export default function StudentReportsPage() {
                         setShowSuggestions(true);
                       }}
                       onFocus={() => setShowSuggestions(true)}
-                      disabled={!selectedGrade}
                      />
                      {showSuggestions && studentSearch.length >= 1 && (
                        <div className="absolute z-50 w-full mt-1 bg-white border rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                           <ScrollArea className="max-h-[250px]">
                             <div className="p-2 space-y-1">
-                              {filteredStudents.length > 0 ? (
-                                filteredStudents.map(s => (
+                              {filteredStudentsSuggestions.length > 0 ? (
+                                filteredStudentsSuggestions.map(s => (
                                   <button
                                     key={s.id}
                                     type="button"
@@ -267,18 +254,32 @@ export default function StudentReportsPage() {
                                     <div className="size-8 rounded-lg bg-primary/5 flex items-center justify-center font-bold text-primary text-[10px]">{s.firstName?.charAt(0)}{s.lastName?.charAt(0)}</div>
                                     <div className="flex flex-col min-w-0">
                                       <span className="font-bold text-sm text-primary truncate">{s.firstName} {s.lastName}</span>
-                                      <span className="text-[9px] text-muted-foreground font-mono font-bold">{s.admissionNumber}</span>
+                                      <span className="text-[9px] text-muted-foreground font-mono font-bold">{s.admissionNumber} • {s.gradeLevel}</span>
                                     </div>
                                   </button>
                                 ))
                               ) : (
-                                <div className="p-8 text-center text-xs text-muted-foreground italic">No students found in this grade.</div>
+                                <div className="p-8 text-center text-xs text-muted-foreground italic">No students match search in registry.</div>
                               )}
                             </div>
                           </ScrollArea>
                        </div>
                      )}
                   </div>
+               </div>
+
+               <div className="space-y-2">
+                  <Label className="text-[10px] font-bold uppercase text-muted-foreground">Grade Module</Label>
+                  <Select value={selectedGrade} onValueChange={(v) => { setSelectedGrade(v); setSelectedStudentId(""); setStudentSearch(""); }}>
+                     <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Select Grade" /></SelectTrigger>
+                     <SelectContent>
+                        {classes.filter(c => !!c.id).map(c => (
+                          <SelectItem key={c.id} value={c.name || c.id || "unspecified"}>
+                            {c.name || "Unnamed Class"}
+                          </SelectItem>
+                        ))}
+                     </SelectContent>
+                  </Select>
                </div>
 
                {reportData && (
