@@ -24,7 +24,8 @@ import {
   Building2,
   ArrowRight,
   HandCoins,
-  X
+  X,
+  GraduationCap
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase"
@@ -37,6 +38,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { generateId } from "@/lib/id-generator"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 export default function InvoicingPage() {
   const db = useFirestore()
@@ -49,6 +51,7 @@ export default function InvoicingPage() {
   const [selectedGrade, setSelectedGrade] = useState("All")
 
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
+  const [individualPrintData, setIndividualPrintData] = useState<any>(null)
   const [editForm, setEditForm] = useState({ totalAmount: "" })
 
   useEffect(() => {
@@ -64,7 +67,7 @@ export default function InvoicingPage() {
     [db, institutionId]
   )
   const studentsQuery = useMemoFirebase(() => 
-    institutionId ? query(collection(db, "students"), where("tenantId", "==", institutionId)) : null, 
+    institutionId ? query(collection(db, "students"), where("tenantId", "==", institutionId), where("status", "==", "active")) : null, 
     [db, institutionId]
   )
   const feesQuery = useMemoFirebase(() => 
@@ -197,6 +200,14 @@ export default function InvoicingPage() {
     }
   }
 
+  const handlePrintIndividual = (inv: any) => {
+    setIndividualPrintData(inv)
+    setTimeout(() => {
+      window.print()
+      setIndividualPrintData(null)
+    }, 100)
+  }
+
   const filteredInvoices = useMemo(() => {
     return invoices.filter(inv => 
       inv.studentName?.toLowerCase().includes(searchQuery.toLowerCase()) &&
@@ -204,7 +215,7 @@ export default function InvoicingPage() {
     ).sort((a:any, b:any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))
   }, [invoices, searchQuery, selectedGrade])
 
-  const handlePrint = () => {
+  const handlePrintLedger = () => {
     window.print();
   }
 
@@ -216,7 +227,7 @@ export default function InvoicingPage() {
           <p className="text-muted-foreground font-medium text-sm">Strategic term billing for <span className="text-accent font-bold uppercase">{institution?.currentTerm || "Term 1"}</span>.</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" className="h-11 rounded-xl gap-2 font-bold" onClick={handlePrint} disabled={filteredInvoices.length === 0}>
+          <Button variant="outline" className="h-11 rounded-xl gap-2 font-bold" onClick={handlePrintLedger} disabled={filteredInvoices.length === 0}>
              <Printer className="size-5" /> Print Ledger
           </Button>
           <Dialog open={isGenOpen} onOpenChange={setIsGenOpen}>
@@ -244,12 +255,12 @@ export default function InvoicingPage() {
         </div>
       </div>
 
-      <Card id="printable-invoice-ledger" className="border-none shadow-xl rounded-2xl overflow-hidden bg-white">
-        <CardHeader className="border-b py-6 px-6 bg-slate-50/50 no-print">
+      <Card id="printable-invoice-ledger" className="border-none shadow-xl rounded-2xl overflow-hidden bg-white no-print">
+        <CardHeader className="border-b py-6 px-6 bg-slate-50/50">
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
              <div className="relative w-full max-w-sm">
                 <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
-                <Input placeholder="Search invoice or student..." className="pl-10 h-12 bg-white border-none shadow-sm rounded-xl" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                <Input placeholder="Search invoice or student..." className="pl-10 h-12 bg-white border-none shadow-sm rounded-xl text-sm" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
              </div>
              <div className="flex items-center gap-3">
                <Select value={selectedGrade} onValueChange={setSelectedGrade}>
@@ -273,7 +284,7 @@ export default function InvoicingPage() {
                 <TableHead className="py-4 font-bold">TOTAL</TableHead>
                 <TableHead className="py-4 font-bold text-destructive">DUE</TableHead>
                 <TableHead className="py-4 font-bold">STATUS</TableHead>
-                <TableHead className="text-right py-4 font-bold px-6 no-print">ACTIONS</TableHead>
+                <TableHead className="text-right py-4 font-bold px-6">ACTIONS</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -293,9 +304,9 @@ export default function InvoicingPage() {
                       {inv.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right px-6 no-print">
+                  <TableCell className="text-right px-6">
                     <div className="flex items-center justify-end gap-1">
-                       <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={handlePrint}>
+                       <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => handlePrintIndividual(inv)}>
                          <Printer className="size-4" />
                        </Button>
                        <DropdownMenu>
@@ -303,6 +314,9 @@ export default function InvoicingPage() {
                             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg"><MoreVertical className="size-4" /></Button>
                          </DropdownMenuTrigger>
                          <DropdownMenuContent align="end" className="rounded-xl border-none shadow-xl w-48">
+                            <DropdownMenuItem className="gap-2 text-xs font-bold" onClick={() => handlePrintIndividual(inv)}>
+                               <FileText className="size-4" /> Print Student Bill
+                            </DropdownMenuItem>
                             <DropdownMenuItem className="gap-2 text-xs font-bold" onClick={() => { setSelectedInvoice(inv); setEditForm({ totalAmount: inv.totalAmount?.toString() || "0" }); setIsEditOpen(true); }}>
                                <Pencil className="size-4" /> Adjust Total
                             </DropdownMenuItem>
@@ -320,18 +334,114 @@ export default function InvoicingPage() {
         </CardContent>
       </Card>
 
+      {/* INDIVIDUAL BILL PRINT TEMPLATE */}
+      {individualPrintData && (
+        <div id="printable-individual-bill" className="bg-white p-12 space-y-12">
+           <div className="flex justify-between items-start border-b pb-8">
+              <div className="flex items-center gap-4">
+                 {institution?.logoUrl ? <img src={institution.logoUrl} className="size-20 object-contain" /> : <div className="size-20 bg-primary rounded-2xl flex items-center justify-center text-white font-black text-3xl">Y</div>}
+                 <div>
+                    <h1 className="text-3xl font-headline font-black text-primary uppercase tracking-tighter">{institution?.name || "System Hub"}</h1>
+                    <p className="text-xs font-bold text-muted-foreground uppercase">{institution?.location || "Ahafo Region, Ghana"}</p>
+                    <p className="text-xs font-bold text-muted-foreground">{institution?.phone || "Registry Hotline"}</p>
+                 </div>
+              </div>
+              <div className="text-right space-y-1">
+                 <Badge className="bg-primary text-white border-none font-black text-[10px] uppercase tracking-widest px-4 h-6">Official Bill</Badge>
+                 <p className="text-[10px] font-bold text-muted-foreground uppercase mt-2">Invoice Date: {new Date().toLocaleDateString()}</p>
+                 <p className="text-lg font-mono font-black text-accent">{individualPrintData.invoiceNumber}</p>
+              </div>
+           </div>
+
+           <div className="grid grid-cols-2 gap-12 bg-slate-50 p-8 rounded-[2rem] border">
+              <div className="space-y-4">
+                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Billed To</p>
+                 <div className="space-y-1">
+                    <p className="text-2xl font-headline font-bold text-primary">{individualPrintData.studentName}</p>
+                    <p className="text-xs font-bold text-accent uppercase">{individualPrintData.gradeLevel}</p>
+                 </div>
+              </div>
+              <div className="text-right space-y-4">
+                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Academic Cycle</p>
+                 <div className="space-y-1">
+                    <p className="text-sm font-bold text-primary">{individualPrintData.term}</p>
+                    <p className="text-[10px] font-bold text-muted-foreground">{individualPrintData.academicYear}</p>
+                 </div>
+              </div>
+           </div>
+
+           <div className="space-y-6">
+              <h3 className="text-xs font-black uppercase tracking-widest text-primary border-b pb-2 flex items-center gap-2">
+                 <DollarSign className="size-4" /> Statement of Charges
+              </h3>
+              <div className="border rounded-2xl overflow-hidden">
+                 <Table>
+                    <TableHeader className="bg-muted/30">
+                       <TableRow>
+                          <TableHead className="py-4 font-black">DESCRIPTION</TableHead>
+                          <TableHead className="py-4 text-right font-black">AMOUNT</TableHead>
+                       </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                       <TableRow>
+                          <TableCell className="py-6 font-bold text-primary">Terminal Mandatory Fees & Tuition</TableCell>
+                          <TableCell className="py-6 text-right font-black text-lg">GH₵ {individualPrintData.totalAmount?.toLocaleString()}</TableCell>
+                       </TableRow>
+                    </TableBody>
+                 </Table>
+              </div>
+           </div>
+
+           <div className="grid grid-cols-3 gap-6 pt-12">
+              <div className="col-span-1 p-6 rounded-3xl bg-slate-50 border flex flex-col justify-center gap-1">
+                 <p className="text-[10px] font-black uppercase text-muted-foreground">Total Billed</p>
+                 <p className="text-xl font-headline font-bold text-primary">GH₵ {individualPrintData.totalAmount?.toLocaleString()}</p>
+              </div>
+              <div className="col-span-1 p-6 rounded-3xl bg-green-50 border border-green-100 flex flex-col justify-center gap-1">
+                 <p className="text-[10px] font-black uppercase text-green-700">Total Paid</p>
+                 <p className="text-xl font-headline font-bold text-green-800">GH₵ {individualPrintData.amountPaid?.toLocaleString()}</p>
+              </div>
+              <div className="col-span-1 p-6 rounded-3xl bg-primary text-primary-foreground shadow-xl flex flex-col justify-center gap-1">
+                 <p className="text-[10px] font-black uppercase text-white/60">Outstanding Balance</p>
+                 <p className="text-2xl font-headline font-bold text-white">GH₵ {individualPrintData.amountDue?.toLocaleString()}</p>
+              </div>
+           </div>
+
+           <div className="pt-24 border-t border-dashed flex justify-between items-end opacity-60">
+              <div className="space-y-4">
+                 <div className="w-48 h-px bg-primary mb-2" />
+                 <p className="text-[9px] font-black uppercase tracking-widest">Registrar / Accountant Signature</p>
+              </div>
+              <div className="text-right">
+                 <p className="text-[9px] font-black text-muted-foreground uppercase tracking-tighter flex items-center gap-2">
+                    <ShieldCheck className="size-3 text-green-600" /> Authorized Registry Token • Node 2026
+                 </p>
+              </div>
+           </div>
+        </div>
+      )}
+
       <style jsx global>{`
+        #printable-individual-bill { display: none; }
         @media print {
           body * { visibility: hidden; }
-          #printable-invoice-ledger, #printable-invoice-ledger * { visibility: visible; }
-          #printable-invoice-ledger {
+          #printable-invoice-ledger, #printable-invoice-ledger * { 
+            visibility: ${individualPrintData ? 'hidden' : 'visible'}; 
+            display: ${individualPrintData ? 'none' : 'block'};
+          }
+          #printable-individual-bill, #printable-individual-bill * { 
+            visibility: ${individualPrintData ? 'visible' : 'hidden'};
+            display: ${individualPrintData ? 'block' : 'none'};
+          }
+          
+          #printable-invoice-ledger, #printable-individual-bill {
             position: fixed;
             left: 0;
             top: 0;
             width: 100%;
             height: auto;
             margin: 0;
-            padding: 20px;
+            padding: 30px;
             border: none !important;
             box-shadow: none !important;
             background: white !important;
@@ -339,6 +449,28 @@ export default function InvoicingPage() {
           .no-print { display: none !important; }
         }
       `}</style>
+
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="max-w-md rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
+          <form onSubmit={handleUpdateInvoice}>
+            <DialogHeader className="p-8 bg-slate-50 border-b">
+              <DialogTitle className="text-2xl font-headline font-bold">Adjust Billing</DialogTitle>
+              <DialogDescription>Modify the total billed amount for this record.</DialogDescription>
+            </DialogHeader>
+            <div className="p-8 space-y-6">
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase">Total Charge (GH₵)</Label>
+                <Input type="number" required value={editForm.totalAmount} onChange={e => setEditForm({...editForm, totalAmount: e.target.value})} className="h-12 rounded-xl font-bold text-lg" />
+              </div>
+            </div>
+            <DialogFooter className="p-8 bg-slate-50 border-t">
+              <Button type="submit" disabled={loading} className="w-full h-14 rounded-2xl bg-primary font-bold shadow-xl">
+                 {loading ? <Loader2 className="animate-spin mr-2" /> : "Authorize Adjustment"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
