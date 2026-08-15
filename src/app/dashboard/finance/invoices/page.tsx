@@ -98,7 +98,7 @@ export default function InvoicingPage() {
 
       for (const student of students) {
         const mandatoryFees = fees.filter((f: any) => f.category === "Mandatory")
-        const total = mandatoryFees.reduce((acc, curr: any) => acc + curr.defaultAmount, 0)
+        const total = mandatoryFees.reduce((acc, curr: any) => acc + (curr.defaultAmount || 0), 0)
         
         const invoiceNumber = await generateId('invoices', institution.schoolCode, 'INV');
         

@@ -105,7 +105,7 @@ export default function AiTeacherAssistantPage() {
       setTimeout(() => setCopied(false), 2000)
       toast({ title: "Copied to Clipboard" })
     } catch (err) {
-      toast({ variant: "destructive", title: "Copy Failed", description: "Permission denied or browser not supported." })
+      toast({ variant: "destructive", title: "Copy Failed", description: "Operation restricted in this environment." })
     }
   }
 
@@ -142,7 +142,7 @@ export default function AiTeacherAssistantPage() {
                   <Select value={form.subjectId} onValueChange={v => setForm({...form, subjectId: v})}>
                     <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Choose Subject" /></SelectTrigger>
                     <SelectContent>
-                      {subjects.filter(s => !!s.id).map(s => <SelectItem key={s.id} value={s.id || s.name}>{s.name || "Unnamed Subject"}</SelectItem>)}
+                      {subjects.filter(s => !!s.id).map(s => <SelectItem key={s.id} value={s.id || s.name || "unspecified"}>{s.name || "Unnamed Subject"}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -152,7 +152,7 @@ export default function AiTeacherAssistantPage() {
                     <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Choose Class" /></SelectTrigger>
                     <SelectContent>
                       {classes.filter(c => !!c.id).map(c => (
-                        <SelectItem key={c.id} value={c.name || c.id}>
+                        <SelectItem key={c.id} value={c.name || c.id || "unspecified"}>
                           {c.name || "Unnamed Class"}
                         </SelectItem>
                       ))}

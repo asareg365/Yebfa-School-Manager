@@ -115,7 +115,7 @@ export default function StrategicInsightsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Strategic Student Insights</h1>
-          <p className="text-muted-foreground font-medium">Predicting institutional risk factors using data-synced Vertex AI.</p>
+          <p className="text-muted-foreground font-medium text-sm">Predicting institutional risk factors using data-synced Vertex AI.</p>
         </div>
       </div>
 
@@ -135,8 +135,8 @@ export default function StrategicInsightsPage() {
                   <Select value={selectedGrade} onValueChange={v => { setSelectedGrade(v); setSelectedStudentId(""); }}>
                     <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select Grade" /></SelectTrigger>
                     <SelectContent>
-                      {classes.map(c => (
-                        <SelectItem key={c.id} value={c.name || c.id}>
+                      {classes.filter(c => !!c.id).map(c => (
+                        <SelectItem key={c.id} value={c.name || c.id || "unspecified"}>
                           {c.name || "Unnamed Class"}
                         </SelectItem>
                       ))}
@@ -148,7 +148,7 @@ export default function StrategicInsightsPage() {
                   <Select value={selectedStudentId} onValueChange={setSelectedStudentId} disabled={!selectedGrade}>
                     <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Choose Student" /></SelectTrigger>
                     <SelectContent>
-                      {students.map(s => <SelectItem key={s.id} value={s.id}>{s.firstName} {s.lastName}</SelectItem>)}
+                      {students.filter(s => !!s.id).map(s => <SelectItem key={s.id} value={s.id || "unspecified"}>{s.firstName} {s.lastName}</SelectItem>)}
                     </SelectContent>
                   </Select>
                </div>

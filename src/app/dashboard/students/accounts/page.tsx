@@ -5,18 +5,25 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Wallet, Search, Plus, Loader2, User, Receipt, Banknote, Trash2, CheckCircle2, Filter, X, Users } from "lucide-react"
-import { useFirestore, useCollection } from "@/firebase"
-import { collection, query, where, addDoc, serverTimestamp, deleteDoc, doc } from "firebase/firestore"
+import { Wallet, Search, Plus, Loader2, User, Receipt, Banknote, Trash2, CheckCircle2, Filter, X, Users, Layers } from "lucide-react"
+import { useFirestore, useCollection, useUser, useDoc } from "@/firebase"
+import { collection, query, where, addDoc, serverTimestamp, doc } from "firebase/firestore"
 import { useState, useMemo, useEffect } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/hooks/use-toast"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 
 export default function PersonalFeeLedgerPage() {
   const db = useFirestore()
+  const { user } = useUser()
   const [institutionId, setInstitutionId] = useState<string | null>(null)
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
   const [isEntryOpen, setIsFeeEntryOpen] = useState(false)
@@ -24,10 +31,18 @@ export default function PersonalFeeLedgerPage() {
   const [studentSearch, setStudentSearch] = useState("")
   const [entryForm, setEntryForm] = useState({ type: "charge", item: "", amount: "" })
 
+  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
+  const { data: profile } = useDoc(userProfileRef)
+
   useEffect(() => {
-    const storedId = localStorage.getItem('selected_institution_id')
-    if (storedId) setInstitutionId(storedId)
-  }, [])
+    if (profile) {
+      if (profile.role === 'super_admin') {
+        setInstitutionId(localStorage.getItem('selected_institution_id'))
+      } else {
+        setInstitutionId(profile.tenantId || null)
+      }
+    }
+  }, [profile])
 
   const studentsQuery = useMemo(() => {
     if (!db || !institutionId) return null
@@ -38,17 +53,27 @@ export default function PersonalFeeLedgerPage() {
 
   const filteredStudents = useMemo(() => {
     return students.filter(s => 
-      `${s.firstName} ${s.lastName}`.toLowerCase().includes(studentSearch.toLowerCase()) ||
+      `${s.firstName || ""} ${s.lastName || ""}`.toLowerCase().includes(studentSearch.toLowerCase()) ||
       s.admissionNumber?.toLowerCase().includes(studentSearch.toLowerCase())
-    ).sort((a, b) => a.firstName.localeCompare(b.firstName))
+    ).sort((a, b) => (a.firstName || "").localeCompare(b.firstName || ""))
   }, [students, studentSearch])
 
+  const groupedStudents = useMemo(() => {
+    const groups: Record<string, any[]> = {}
+    filteredStudents.forEach(s => {
+      const grade = s.gradeLevel || "Unassigned"
+      if (!groups[grade]) groups[grade] = []
+      groups[grade].push(s)
+    })
+    return groups
+  }, [filteredStudents])
+
   const ledgerQuery = useMemo(() => {
-    if (!db || !selectedStudent) return null
+    if (!db || !selectedStudent || !institutionId) return null
     return query(collection(db, "student_ledger"), where("studentId", "==", selectedStudent.id), where("tenantId", "==", institutionId))
   }, [db, selectedStudent, institutionId])
 
-  const { data: ledger, loading: ledgerLoading } = useCollection(ledgerQuery)
+  const { data: ledger = [], loading: ledgerLoading } = useCollection(ledgerQuery)
 
   const balance = useMemo(() => {
     return ledger.reduce((acc, curr: any) => curr.type === 'charge' ? acc - curr.amount : acc + curr.amount, 0)
@@ -59,7 +84,7 @@ export default function PersonalFeeLedgerPage() {
     if (!db || !selectedStudent || !institutionId) return
     setLoading(true)
     try {
-      await addDoc(collection(db, "student_ledger"), {
+      const data = {
         ...entryForm,
         tenantId: institutionId,
         amount: parseFloat(entryForm.amount),
@@ -67,11 +92,16 @@ export default function PersonalFeeLedgerPage() {
         institutionId,
         date: new Date().toISOString().split('T')[0],
         createdAt: serverTimestamp()
-      })
+      }
+      await addDoc(collection(db, "student_ledger"), data)
       toast({ title: "Ledger Synchronized", description: "Transaction recorded." })
       setIsFeeEntryOpen(false)
       setEntryForm({ type: "charge", item: "", amount: "" })
-    } catch (e: any) { toast({ variant: "destructive", title: "Error", description: e.message }) } finally { setLoading(false) }
+    } catch (e: any) { 
+      toast({ variant: "destructive", title: "Error", description: e.message }) 
+    } finally { 
+      setLoading(false) 
+    }
   }
 
   return (
@@ -79,7 +109,7 @@ export default function PersonalFeeLedgerPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">Personal Fee Ledger</h1>
-          <p className="text-muted-foreground font-medium">Strategic financial oversight for individual student accounts.</p>
+          <p className="text-muted-foreground font-medium text-sm">Strategic financial oversight for individual student accounts.</p>
         </div>
       </div>
 
@@ -105,27 +135,46 @@ export default function PersonalFeeLedgerPage() {
              </div>
           </CardHeader>
           <CardContent className="p-0">
-             <ScrollArea className="h-[500px]">
-                <div className="divide-y">
-                  {filteredStudents.map((s: any) => (
-                    <button 
-                      key={s.id} 
-                      onClick={() => setSelectedStudent(s)} 
-                      className={`w-full text-left p-5 hover:bg-slate-50 flex items-center gap-4 transition-all ${selectedStudent?.id === s.id ? 'bg-primary/5 border-l-4 border-primary' : ''}`}
-                    >
-                        <div className="size-10 rounded-xl bg-muted flex items-center justify-center shrink-0 border overflow-hidden">
-                          {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover" /> : <User className="size-5 opacity-20" />}
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-sm font-bold text-primary truncate leading-tight">{s.firstName} {s.lastName}</span>
-                          <span className="text-[10px] text-muted-foreground font-mono font-bold mt-0.5">{s.admissionNumber}</span>
-                        </div>
-                    </button>
-                  ))}
-                  {filteredStudents.length === 0 && (
-                    <div className="p-12 text-center text-xs text-muted-foreground italic">No students match your search.</div>
-                  )}
-                </div>
+             <ScrollArea className="h-[600px]">
+                <Accordion type="multiple" className="w-full" defaultValue={Object.keys(groupedStudents)}>
+                  {Object.entries(groupedStudents)
+                    .sort(([a], [b]) => a.localeCompare(b))
+                    .map(([grade, classStudents]) => (
+                      <AccordionItem key={grade} value={grade} className="border-b last:border-0">
+                        <AccordionTrigger className="hover:no-underline px-6 py-4 bg-slate-50/30">
+                          <div className="flex items-center gap-2 text-left">
+                            <Layers className="size-3.5 text-primary/60" />
+                            <span className="text-xs font-bold text-primary uppercase tracking-tight">{grade}</span>
+                            <Badge variant="secondary" className="h-4 px-1.5 text-[8px] bg-primary/5 text-primary border-none">
+                              {classStudents.length}
+                            </Badge>
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="p-0">
+                          <div className="divide-y border-t">
+                            {classStudents.map((s: any) => (
+                              <button 
+                                key={s.id} 
+                                onClick={() => setSelectedStudent(s)} 
+                                className={`w-full text-left p-4 hover:bg-slate-50 flex items-center gap-3 transition-all ${selectedStudent?.id === s.id ? 'bg-primary/5 border-l-4 border-primary' : ''}`}
+                              >
+                                  <div className="size-8 rounded-lg bg-muted flex items-center justify-center shrink-0 border overflow-hidden">
+                                    {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover" /> : <User className="size-4 opacity-20" />}
+                                  </div>
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="text-xs font-bold text-primary truncate leading-tight">{s.firstName} {s.lastName}</span>
+                                    <span className="text-[9px] text-muted-foreground font-mono font-bold mt-0.5">{s.admissionNumber}</span>
+                                  </div>
+                              </button>
+                            ))}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    ))}
+                </Accordion>
+                {Object.keys(groupedStudents).length === 0 && !studentsLoading && (
+                  <div className="p-12 text-center text-xs text-muted-foreground italic">No student records matching search.</div>
+                )}
              </ScrollArea>
           </CardContent>
         </Card>
@@ -134,7 +183,14 @@ export default function PersonalFeeLedgerPage() {
           <CardHeader className="border-b bg-slate-50/50 p-8 flex flex-col sm:flex-row items-center justify-between gap-6">
             <div>
               <CardTitle className="text-xl font-headline font-bold text-primary">Financial Statement</CardTitle>
-              <CardDescription className="font-medium">{selectedStudent ? `Personal ledger audit for ${selectedStudent.firstName} ${selectedStudent.lastName}` : "Awaiting student selection from registry."}</CardDescription>
+              <CardDescription className="font-medium">
+                {selectedStudent ? (
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-primary">{selectedStudent.firstName} {selectedStudent.lastName}</span>
+                    <Badge variant="outline" className="text-[10px] uppercase font-bold text-accent">{selectedStudent.gradeLevel}</Badge>
+                  </div>
+                ) : "Awaiting student selection from registry."}
+              </CardDescription>
             </div>
             {selectedStudent && (
               <Button className="gap-2 bg-primary h-11 rounded-xl shadow-lg px-6 font-bold" onClick={() => setIsFeeEntryOpen(true)}>
@@ -184,7 +240,7 @@ export default function PersonalFeeLedgerPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {ledger.sort((a:any, b:any) => b.date.localeCompare(a.date)).map((entry: any) => (
+                      {ledger.sort((a:any, b:any) => (b.date || "").localeCompare(a.date || "")).map((entry: any) => (
                         <TableRow key={entry.id} className="hover:bg-slate-50/50 transition-colors">
                           <TableCell className="px-6 text-[10px] font-mono font-bold text-accent">{entry.date}</TableCell>
                           <TableCell><span className="font-bold text-primary text-xs">{entry.item}</span></TableCell>
@@ -194,7 +250,7 @@ export default function PersonalFeeLedgerPage() {
                             </Badge>
                           </TableCell>
                           <TableCell className={`text-right px-6 font-bold text-sm ${entry.type === 'charge' ? 'text-destructive' : 'text-green-600'}`}>
-                            {entry.type === 'charge' ? '-' : '+'} GH₵ {entry.amount.toLocaleString()}
+                            {entry.type === 'charge' ? '-' : '+'} GH₵ {entry.amount?.toLocaleString() || "0.00"}
                           </TableCell>
                         </TableRow>
                       ))}

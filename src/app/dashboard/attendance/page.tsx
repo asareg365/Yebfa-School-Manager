@@ -65,7 +65,7 @@ export default function AttendancePage() {
 
   const { data: allClasses = [] } = useCollection(classesQuery)
   const { data: students = [], loading: studentsLoading } = useCollection(studentsQuery)
-  const { data: existingAttendance } = useCollection(attendanceQuery)
+  const { data: existingAttendance = [] } = useCollection(attendanceQuery)
 
   const classes = useMemo(() => isTeacher ? allClasses.filter(c => assignedClassIds.has(c.id)) : allClasses, [allClasses, isTeacher, assignedClassIds])
 
@@ -144,7 +144,7 @@ export default function AttendancePage() {
                 </SelectTrigger>
                 <SelectContent>
                   {classes.filter(c => !!c.id).map(c => (
-                    <SelectItem key={c.id} value={c.name || c.id || "unspecified"}>
+                    <SelectItem key={c.id} value={c.name || c.id}>
                       {c.name || "Unnamed Class"}
                     </SelectItem>
                   ))}

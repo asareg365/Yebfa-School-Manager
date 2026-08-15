@@ -142,8 +142,8 @@ export default function BehaviourAnalysisPage() {
                   <Select value={selectedGrade} onValueChange={v => { setSelectedGrade(v); setSelectedStudentId(""); }}>
                     <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select Grade" /></SelectTrigger>
                     <SelectContent>
-                      {classes.map(c => (
-                        <SelectItem key={c.id} value={c.name || c.id}>
+                      {classes.filter(c => !!c.id).map(c => (
+                        <SelectItem key={c.id} value={c.name || c.id || "unspecified"}>
                           {c.name || "Unnamed Class"}
                         </SelectItem>
                       ))}
@@ -155,7 +155,7 @@ export default function BehaviourAnalysisPage() {
                   <Select value={selectedStudentId} onValueChange={setSelectedStudentId} disabled={!selectedGrade}>
                     <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Choose Student" /></SelectTrigger>
                     <SelectContent>
-                      {students.map(s => <SelectItem key={s.id} value={s.id}>{s.firstName} {s.lastName}</SelectItem>)}
+                      {students.filter(s => !!s.id).map(s => <SelectItem key={s.id} value={s.id || "unspecified"}>{s.firstName} {s.lastName}</SelectItem>)}
                     </SelectContent>
                   </Select>
                </div>
