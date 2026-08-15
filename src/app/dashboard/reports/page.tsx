@@ -195,6 +195,7 @@ export default function StudentReportsPage() {
     setSelectedGrade(s.gradeLevel || "");
     setStudentSearch(`${s.firstName} ${s.lastName}`);
     setShowSuggestions(false);
+    toast({ title: "Identity Verified", description: "Mapping performance metrics..." });
   }
 
   return (
@@ -272,7 +273,7 @@ export default function StudentReportsPage() {
                      <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Select Grade" /></SelectTrigger>
                      <SelectContent>
                         {classes.filter(c => !!c.id).map(c => (
-                          <SelectItem key={c.id} value={c.name || c.id}>
+                          <SelectItem key={c.id} value={c.name || c.id || "unspecified"}>
                             {c.name || "Unnamed Class"}
                           </SelectItem>
                         ))}
@@ -395,22 +396,41 @@ export default function StudentReportsPage() {
 
       <style jsx global>{`
         @media print {
-          body * { visibility: hidden; }
-          #printable-report, #printable-report * { visibility: visible; }
+          /* Force standard layout reset for print engines */
+          body {
+            visibility: hidden !important;
+            background: white !important;
+          }
+          
+          /* Hide everything except the printable container */
+          .no-print, header, aside, nav, button, footer, .sidebar-inset, .tabs-list {
+            display: none !important;
+          }
+
+          /* Elevate the printable document */
           #printable-report {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: auto;
-            margin: 0;
-            padding: 30px;
+            visibility: visible !important;
+            display: block !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
             border: none !important;
             box-shadow: none !important;
-            background: white !important;
-            overflow: visible !important;
+            z-index: 9999 !important;
           }
-          .no-print { display: none !important; }
+
+          /* Ensure all parent containers don't clip content or add background */
+          main, html, body, #printable-report {
+            overflow: visible !important;
+            height: auto !important;
+          }
+
+          #printable-report * {
+            visibility: visible !important;
+          }
         }
       `}</style>
     </div>

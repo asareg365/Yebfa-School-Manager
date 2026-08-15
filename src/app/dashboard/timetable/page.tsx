@@ -319,6 +319,13 @@ export default function TimetablePage() {
     return null
   }
 
+  const handleSlotPlaceholderClick = (day: string, time: string) => {
+    if (isTeacher) return;
+    if (BREAKS[time]) return;
+    setManualSlot(prev => ({ ...prev, day, time }));
+    setIsManualOpen(true);
+  }
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-24">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 no-print">
@@ -369,7 +376,7 @@ export default function TimetablePage() {
                 <Select value={selectedClassId} onValueChange={setSelectedClassId}>
                   <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Choose Class" /></SelectTrigger>
                   <SelectContent>
-                    {classes.map(c => <SelectItem key={c.id} value={c.id || c.name || "unspecified"}>{c.name || "Unnamed Class"}</SelectItem>)}
+                    {classes.filter(c => !!c.id).map(c => <SelectItem key={c.id} value={c.id || c.name || "unspecified"}>{c.name || "Unnamed Class"}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -431,7 +438,7 @@ export default function TimetablePage() {
                                setManualSlot({...manualSlot, subjectId: v, subject: sub?.name || "Unspecified"});
                              }}>
                                 <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Choose Subject" /></SelectTrigger>
-                                <SelectContent>{subjects.map(s => <SelectItem key={s.id} value={s.id || s.name || "unspecified"}>{s.name || "Unnamed Subject"}</SelectItem>)}</SelectContent>
+                                <SelectContent>{subjects.filter(s => !!s.id).map(s => <SelectItem key={s.id} value={s.id || s.name || "unspecified"}>{s.name || "Unnamed Subject"}</SelectItem>)}</SelectContent>
                              </Select>
                           </div>
                           <div className="space-y-1.5"><Label>Teacher</Label>
@@ -440,7 +447,7 @@ export default function TimetablePage() {
                                setManualSlot({...manualSlot, teacherId: v, teacher: st ? `${st.firstName} ${st.lastName}` : "Unspecified"});
                              }}>
                                 <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Choose Faculty" /></SelectTrigger>
-                                <SelectContent>{staff.map(st => <SelectItem key={st.id} value={st.id || "unspecified"}>{st.firstName} {st.lastName}</SelectItem>)}</SelectContent>
+                                <SelectContent>{staff.filter(st => !!st.id).map(st => <SelectItem key={st.id} value={st.id || "unspecified"}>{st.firstName} {st.lastName}</SelectItem>)}</SelectContent>
                              </Select>
                           </div>
                           <div className="flex items-center gap-2 pt-2">
@@ -535,7 +542,11 @@ export default function TimetablePage() {
                               {DAYS.map(day => {
                                 const slot = getSlotData(day, time)
                                 return (
-                                  <td key={`${day}-${time}`} className="p-4 border-b group-hover:bg-slate-50/50 transition-colors relative">
+                                  <td 
+                                    key={`${day}-${time}`} 
+                                    className="p-4 border-b group-hover:bg-slate-50/50 transition-colors relative cursor-pointer"
+                                    onClick={() => !slot && handleSlotPlaceholderClick(day, time)}
+                                  >
                                      {slot ? (
                                        <div className={`p-4 rounded-2xl border-2 transition-all hover:scale-[1.02] cursor-default shadow-sm ${slot.isDoublePeriod ? 'bg-primary/5 border-primary/20' : 'bg-white border-slate-100'} ${slot.occupancy === 'extended' ? 'opacity-60 grayscale-[0.5]' : ''}`}>
                                           <div className="flex justify-between items-start mb-2">
@@ -551,7 +562,7 @@ export default function TimetablePage() {
                                                 <span className="text-[10px] font-bold truncate max-w-[80px]">{slot.teacher}</span>
                                              </div>
                                              {slot.occupancy === 'primary' && !isTeacher && !aiResult && (
-                                                <button onClick={() => handleDeleteSlot(day, time)} className="text-destructive opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-destructive/10 rounded-md no-print">
+                                                <button onClick={(e) => { e.stopPropagation(); handleDeleteSlot(day, time); }} className="text-destructive opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-destructive/10 rounded-md no-print">
                                                    <Trash2 className="size-3.5" />
                                                 </button>
                                              )}
@@ -580,6 +591,46 @@ export default function TimetablePage() {
           )}
         </div>
       </div>
+
+      <style jsx global>{`
+        @media print {
+          /* Force page background and visibility */
+          body {
+            visibility: hidden !important;
+            background: white !important;
+          }
+          
+          /* Hide non-document elements */
+          .no-print, header, aside, nav, button, footer, .sidebar-inset, .tabs-list {
+            display: none !important;
+          }
+
+          /* Elevate the printable document */
+          #printable-timetable {
+            visibility: visible !important;
+            display: block !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            z-index: 9999 !important;
+          }
+
+          /* Reset all container scroll and clip logic */
+          main, html, body, #printable-timetable {
+            overflow: visible !important;
+            height: auto !important;
+          }
+
+          #printable-timetable * {
+            visibility: visible !important;
+          }
+        }
+      `}</style>
 
       <Dialog open={isConfigOpen} onOpenChange={setIsConfigOpen}>
         <DialogContent className="max-w-2xl rounded-3xl p-0 overflow-hidden border-none shadow-2xl h-[80vh] flex flex-col">
@@ -726,27 +777,6 @@ export default function TimetablePage() {
             <ShieldCheck className="size-3 text-green-600" /> Authorized Academic Grid • 2026 Registry Hub • GMT Node
          </p>
       </div>
-
-      <style jsx global>{`
-        @media print {
-          body * { visibility: hidden; }
-          #printable-timetable, #printable-timetable * { visibility: visible; }
-          #printable-timetable {
-            position: fixed;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: auto;
-            margin: 0;
-            padding: 20px;
-            border: none !important;
-            box-shadow: none !important;
-            background: white !important;
-            overflow: visible !important;
-          }
-          .no-print { display: none !important; }
-        }
-      `}</style>
     </div>
   )
 }

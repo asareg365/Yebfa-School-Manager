@@ -289,7 +289,7 @@ export default function InvoicingPage() {
                  <SelectContent>
                    <SelectItem value="All">All Grades</SelectItem>
                    {classes.filter(c => !!c.id).map(c => (
-                     <SelectItem key={c.id} value={c.name || c.id}>{c.name || "Unnamed Class"}</SelectItem>
+                     <SelectItem key={c.id} value={c.name || c.id || "unspecified"}>{c.name || "Unnamed Class"}</SelectItem>
                    ))}
                  </SelectContent>
                </Select>
@@ -517,26 +517,46 @@ export default function InvoicingPage() {
 
       <style jsx global>{`
         @media print {
-          body * { visibility: hidden; }
-          #printable-ledger-report, #printable-ledger-report * { 
-            visibility: ${individualPrintData ? 'hidden' : 'visible'}; 
-            display: ${individualPrintData ? 'none' : 'block'} !important; 
-          }
-          #printable-individual-bill, #printable-individual-bill * { 
-            visibility: ${individualPrintData ? 'visible' : 'hidden'}; 
-            display: ${individualPrintData ? 'block' : 'none'} !important; 
-          }
-          #printable-ledger-report, #printable-individual-bill {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: auto;
-            margin: 0;
-            padding: 30px;
+          /* Force standard layout reset for print engines */
+          body {
+            visibility: hidden !important;
             background: white !important;
           }
-          .no-print { display: none !important; }
+          
+          /* Hide non-document elements */
+          .no-print, header, aside, nav, button, footer, .sidebar-inset, .tabs-list {
+            display: none !important;
+          }
+
+          /* Handle visibility based on what is being printed */
+          #printable-ledger-report {
+            visibility: ${individualPrintData ? 'hidden' : 'visible'} !important;
+            display: ${individualPrintData ? 'none' : 'block'} !important;
+          }
+          
+          #printable-individual-bill {
+            visibility: ${individualPrintData ? 'visible' : 'hidden'} !important;
+            display: ${individualPrintData ? 'block' : 'none'} !important;
+          }
+
+          /* Elevate the printable document */
+          #printable-ledger-report, #printable-individual-bill {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            z-index: 9999 !important;
+          }
+
+          /* Reset all container scroll and clip logic */
+          main, html, body {
+            overflow: visible !important;
+            height: auto !important;
+          }
         }
       `}</style>
 
