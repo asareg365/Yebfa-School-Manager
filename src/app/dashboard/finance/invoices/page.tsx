@@ -268,7 +268,7 @@ export default function InvoicingPage() {
                  <SelectContent>
                    <SelectItem value="All">All Grades</SelectItem>
                    {classes.filter(c => !!c.id).map(c => (
-                     <SelectItem key={c.id} value={c.name || c.id || "unspecified"}>{c.name || "Unnamed Class"}</SelectItem>
+                     <SelectItem key={c.id} value={c.name || c.id}>{c.name || "Unnamed Class"}</SelectItem>
                    ))}
                  </SelectContent>
                </Select>

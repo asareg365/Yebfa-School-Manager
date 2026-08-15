@@ -272,7 +272,7 @@ export default function StudentReportsPage() {
                      <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Select Grade" /></SelectTrigger>
                      <SelectContent>
                         {classes.filter(c => !!c.id).map(c => (
-                          <SelectItem key={c.id} value={c.name || c.id || "unspecified"}>
+                          <SelectItem key={c.id} value={c.name || c.id}>
                             {c.name || "Unnamed Class"}
                           </SelectItem>
                         ))}

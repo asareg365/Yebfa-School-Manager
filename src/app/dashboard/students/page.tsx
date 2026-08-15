@@ -892,7 +892,7 @@ function StudentsRegistryContent() {
               <div className="flex gap-3">
                  {activeStep === "finalize" ? (
                    <Button type="submit" disabled={loading} className="h-12 px-8 rounded-xl bg-primary font-bold shadow-xl">
-                      {loading ? <Loader2 className="animate-spin mr-2" /> : <Save className="size-4 mr-2" />}
+                      {loading ? <Loader2 className="mr-2 animate-spin" /> : <Save className="size-4 mr-2" />}
                       Finalize Enrollment
                    </Button>
                  ) : (

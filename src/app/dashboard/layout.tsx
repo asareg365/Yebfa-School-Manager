@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { differenceInDays, formatDistanceToNow } from "date-fns";
-import Link from 'link';
+import Link from 'next/link';
 import { doc, collection, query, where, orderBy, deleteDoc, writeBatch, getDocs } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
 import { signOut } from 'firebase/auth';

@@ -22,7 +22,7 @@ import {
   GraduationCap
 } from "lucide-react"
 import { generateLessonPlan, GenerateLessonPackOutput } from "@/ai/flows/generate-lesson-plan"
-import { useFirestore, useCollection, useUser, useDoc } from "@/firebase"
+import { useFirestore, useCollection, useUser, useDoc, useMemoFirebase } from "@/firebase"
 import { collection, query, where, doc } from "firebase/firestore"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "@/hooks/use-toast"
@@ -56,7 +56,7 @@ export default function AiTeacherAssistantPage() {
   const staffId = profile?.staffId
 
   // Teacher Assignments Filter
-  const assignmentsQuery = useMemo(() => 
+  const assignmentsQuery = useMemoFirebase(() => 
     institutionId && isTeacher && staffId 
       ? query(collection(db, "teacher_assignments"), where("tenantId", "==", institutionId), where("teacherId", "==", staffId)) 
       : null, 
@@ -66,8 +66,8 @@ export default function AiTeacherAssistantPage() {
   const assignedClassIds = useMemo(() => new Set(assignments.map((a: any) => a.classId)), [assignments])
   const assignedSubjectIds = useMemo(() => new Set(assignments.map((a: any) => a.subjectId)), [assignments])
 
-  const classesQuery = useMemo(() => institutionId ? query(collection(db, "classes"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
-  const subjectsQuery = useMemo(() => institutionId ? query(collection(db, "subjects"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
+  const classesQuery = useMemoFirebase(() => institutionId ? query(collection(db, "classes"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
+  const subjectsQuery = useMemoFirebase(() => institutionId ? query(collection(db, "subjects"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
 
   const { data: allClasses = [] } = useCollection(classesQuery)
   const { data: allSubjects = [] } = useCollection(subjectsQuery)
@@ -99,10 +99,14 @@ export default function AiTeacherAssistantPage() {
   }
 
   const handleCopy = async (text: string) => {
-    await navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-    toast({ title: "Copied to Clipboard" })
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+      toast({ title: "Copied to Clipboard" })
+    } catch (err) {
+      toast({ variant: "destructive", title: "Copy Failed", description: "Permission denied or browser not supported." })
+    }
   }
 
   return (
@@ -138,7 +142,7 @@ export default function AiTeacherAssistantPage() {
                   <Select value={form.subjectId} onValueChange={v => setForm({...form, subjectId: v})}>
                     <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Choose Subject" /></SelectTrigger>
                     <SelectContent>
-                      {subjects.map(s => <SelectItem key={s.id} value={s.id}>{s.name || "Unnamed Subject"}</SelectItem>)}
+                      {subjects.filter(s => !!s.id).map(s => <SelectItem key={s.id} value={s.id || s.name}>{s.name || "Unnamed Subject"}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -147,7 +151,7 @@ export default function AiTeacherAssistantPage() {
                   <Select value={form.gradeLevel} onValueChange={v => setForm({...form, gradeLevel: v})}>
                     <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Choose Class" /></SelectTrigger>
                     <SelectContent>
-                      {classes.map(c => (
+                      {classes.filter(c => !!c.id).map(c => (
                         <SelectItem key={c.id} value={c.name || c.id}>
                           {c.name || "Unnamed Class"}
                         </SelectItem>
