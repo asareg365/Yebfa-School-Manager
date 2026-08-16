@@ -23,7 +23,8 @@ import {
   AlertCircle,
   X,
   GraduationCap,
-  ChevronDown
+  ChevronDown,
+  ShieldCheck
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase"
