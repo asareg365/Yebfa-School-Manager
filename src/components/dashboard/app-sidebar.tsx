@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -59,7 +58,6 @@ import { useRouter } from "next/navigation"
 import { doc, query, collection, where } from "firebase/firestore"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/hooks/use-toast"
-import { Logo } from "@/components/logo"
 
 export function AppSidebar() {
   const pathname = usePathname()
@@ -236,7 +234,9 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-border/40">
       <SidebarHeader className="h-16 flex items-center px-6">
         <div className="flex items-center gap-3">
-          <Logo className="size-8 rounded-lg shadow-sm" />
+          <div className="size-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground shadow-sm">
+            <School className="size-5" />
+          </div>
           {state === "expanded" && (
             <div className="flex flex-col gap-0.5 leading-none">
               <span className="font-headline font-bold text-lg tracking-tight text-white">Yebfa <span className="text-accent">|</span> Manager</span>

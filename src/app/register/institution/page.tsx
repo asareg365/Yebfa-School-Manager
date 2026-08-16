@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -20,7 +19,6 @@ import {
 } from "firebase/firestore"
 import { createUserWithEmailAndPassword } from "firebase/auth"
 import { generateId } from "@/lib/id-generator"
-import { Logo } from "@/components/logo"
 
 const GRADE_LEVEL_CATEGORIES = [
   { id: "basic", label: "Basic Education (KG - Primary)", grades: ["KG 1-2", "Primary 1-6", "KG - Primary 6", "Primary - JHS 3"] },
@@ -211,7 +209,9 @@ export default function InstitutionRegistrationPage() {
   return (
     <div className="min-h-screen bg-muted/30 flex flex-col items-center py-12 px-6">
       <Link href="/" className="flex items-center gap-2 mb-8">
-        <Logo className="size-10 rounded-xl shadow-lg" />
+        <div className="size-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-lg">
+          <School className="size-6" />
+        </div>
         <span className="text-2xl font-headline font-bold tracking-tight text-primary">Yebfa School Manager</span>
       </Link>
 

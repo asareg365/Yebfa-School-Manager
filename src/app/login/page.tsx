@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, ShieldCheck, Briefcase, Users, GraduationCap, Key } from "lucide-react"
+import { Loader2, ShieldCheck, Briefcase, Users, GraduationCap, Key, School } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { 
@@ -20,7 +20,6 @@ import { firebaseConfig } from "@/firebase/config"
 import { toast } from "@/hooks/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { normalizeSecurityPhone, getInstitutionEmailDomain } from "@/lib/identity-service"
-import { Logo } from "@/components/logo"
 
 export default function LoginPage() {
   const [adminEmail, setAdminEmail] = useState("")
@@ -275,7 +274,9 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-muted/30">
       <Link href="/" className="flex items-center gap-2 mb-8 group">
-        <Logo className="size-10 rounded-xl shadow-lg group-hover:scale-105 transition-transform" />
+        <div className="size-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-lg group-hover:scale-105 transition-transform">
+          <School className="size-6" />
+        </div>
         <span className="text-2xl font-headline font-bold text-primary">Yebfa School Manager</span>
       </Link>
       

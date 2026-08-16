@@ -2,9 +2,8 @@
 
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Check, ArrowLeft } from "lucide-react"
+import { Check, ArrowLeft, School } from "lucide-react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Logo } from "@/components/logo"
 
 const plans = [
   {
@@ -58,7 +57,9 @@ export default function PricingPage() {
     <div className="min-h-screen bg-background">
       <header className="px-6 lg:px-12 h-20 flex items-center justify-between border-b border-border/40">
         <Link href="/" className="flex items-center gap-2">
-          <Logo className="size-10 rounded-xl shadow-lg" />
+          <div className="size-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-lg">
+            <School className="size-6" />
+          </div>
           <span className="text-2xl font-headline font-bold tracking-tight text-primary">Yebfa School Manager</span>
         </Link>
         <Button variant="ghost" asChild>
