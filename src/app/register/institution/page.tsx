@@ -219,7 +219,7 @@ export default function InstitutionRegistrationPage() {
         <CardHeader className="bg-primary text-primary-foreground p-8">
           <div className="flex items-center gap-3 mb-2">
             <div className="size-8 rounded-lg bg-white/10 flex items-center justify-center">
-              <ShieldCheck className="size-5" />
+              <School className="size-5" />
             </div>
             <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Institutional Provisioning</span>
           </div>
@@ -248,37 +248,33 @@ export default function InstitutionRegistrationPage() {
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Category</Label>
-                  <Select 
+                  <select 
+                    className="flex h-12 w-full items-center justify-between rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     value={formData.gradeLevel}
-                    onValueChange={(val) => setFormData(prev => ({ ...prev, gradeLevel: val, specificGrades: "" }))}
+                    onChange={(e) => setFormData(prev => ({ ...prev, gradeLevel: e.target.value, specificGrades: "" }))}
+                    required
                   >
-                    <SelectTrigger className="h-12 rounded-xl">
-                      <SelectValue placeholder="Select level..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {GRADE_LEVEL_CATEGORIES.map(cat => (
-                        <SelectItem key={cat.id} value={cat.label}>{cat.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    <option value="">Select level...</option>
+                    {GRADE_LEVEL_CATEGORIES.map(cat => (
+                      <option key={cat.id} value={cat.label}>{cat.label}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="space-y-2">
                   <Label>Range</Label>
-                  <Select 
+                  <select 
+                    className="flex h-12 w-full items-center justify-between rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     value={formData.specificGrades}
                     disabled={!formData.gradeLevel}
-                    onValueChange={(val) => setFormData(prev => ({ ...prev, specificGrades: val }))}
+                    onChange={(e) => setFormData(prev => ({ ...prev, specificGrades: e.target.value }))}
+                    required
                   >
-                    <SelectTrigger className="h-12 rounded-xl">
-                      <SelectValue placeholder="Select range..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {selectedCategory?.grades.map(grade => (
-                        <SelectItem key={grade} value={grade}>{grade}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    <option value="">Select range...</option>
+                    {selectedCategory?.grades.map(grade => (
+                      <option key={grade} value={grade}>{grade}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
