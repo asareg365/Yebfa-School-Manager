@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
@@ -6,15 +7,14 @@ import { useUser, useFirestore, useDoc, useCollection, useAuth } from "@/firebas
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/dashboard/app-sidebar";
 import { Separator } from "@/components/ui/separator";
-import { Bell, Search, Loader2, Info, AlertTriangle, Clock, Trash2, X, CheckCircle2, AlertCircle, Activity, LogOut } from "lucide-react";
+import { Bell, Loader2, Info, AlertTriangle, Clock, X, CheckCircle2, AlertCircle, Activity, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { differenceInDays, formatDistanceToNow } from "date-fns";
 import Link from 'next/link';
-import { doc, collection, query, where, orderBy, deleteDoc, writeBatch, getDocs } from 'firebase/firestore';
+import { doc, collection, query, where, orderBy, getDocs, writeBatch, deleteDoc } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
 import { signOut } from 'firebase/auth';
 

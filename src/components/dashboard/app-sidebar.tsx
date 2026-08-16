@@ -59,6 +59,7 @@ import { useRouter } from "next/navigation"
 import { doc, query, collection, where } from "firebase/firestore"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/hooks/use-toast"
+import { Logo } from "@/components/logo"
 
 export function AppSidebar() {
   const pathname = usePathname()
@@ -235,9 +236,7 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-border/40">
       <SidebarHeader className="h-16 flex items-center px-6">
         <div className="flex items-center gap-3">
-          <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-            <School className="size-5" />
-          </div>
+          <Logo className="size-8 rounded-lg shadow-sm" />
           {state === "expanded" && (
             <div className="flex flex-col gap-0.5 leading-none">
               <span className="font-headline font-bold text-lg tracking-tight text-white">Yebfa <span className="text-accent">|</span> Manager</span>

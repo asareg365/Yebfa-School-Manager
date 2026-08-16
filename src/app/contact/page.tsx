@@ -4,12 +4,13 @@
 import { useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { School, ArrowLeft, Mail, Phone, MapPin, Send, Loader2 } from "lucide-react"
+import { ArrowLeft, Mail, Phone, MapPin, Send, Loader2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/hooks/use-toast"
+import { Logo } from "@/components/logo"
 
 export default function ContactPage() {
   const [loading, setLoading] = useState(false)
@@ -32,9 +33,7 @@ export default function ContactPage() {
     <div className="min-h-screen bg-background">
       <header className="px-6 lg:px-12 h-20 flex items-center justify-between border-b border-border/40">
         <Link href="/" className="flex items-center gap-2">
-          <div className="size-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-lg">
-            <School className="size-6" />
-          </div>
+          <Logo className="size-10 rounded-xl shadow-lg" />
           <span className="text-2xl font-headline font-bold tracking-tight text-primary">Yebfa School Manager</span>
         </Link>
         <Button variant="ghost" asChild>

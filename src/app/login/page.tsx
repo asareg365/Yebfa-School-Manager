@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -5,15 +6,14 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { School, Loader2, KeyRound, Smartphone, ShieldCheck, Briefcase, Users, GraduationCap, ArrowRight, AlertCircle, Key, Mail, RefreshCw } from "lucide-react"
+import { Loader2, ShieldCheck, Briefcase, Users, GraduationCap, Key } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { 
   signInWithEmailAndPassword, 
   signInWithCustomToken,
   signOut, 
-  User, 
-  sendPasswordResetEmail 
+  User 
 } from "firebase/auth"
 import { doc, getDoc, collection, query, where, getDocs, setDoc, serverTimestamp, limit } from "firebase/firestore"
 import { auth, db, useUser } from "@/firebase"
@@ -21,7 +21,7 @@ import { firebaseConfig } from "@/firebase/config"
 import { toast } from "@/hooks/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { normalizeSecurityPhone, getInstitutionEmailDomain } from "@/lib/identity-service"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Logo } from "@/components/logo"
 
 export default function LoginPage() {
   const [adminEmail, setAdminEmail] = useState("")
@@ -39,10 +39,6 @@ export default function LoginPage() {
   const [studentIdInput, setStudentIdInput] = useState("")
   const [studentPinInput, setStudentPinInput] = useState("")
   const [studentLoading, setStudentLoading] = useState(false)
-
-  const [isResetOpen, setIsResetOpen] = useState(false)
-  const [resetEmail, setResetEmail] = useState("")
-  const [resetLoading, setResetLoading] = useState(false)
 
   const [configError, setConfigError] = useState(false)
   const router = useRouter()
@@ -280,7 +276,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-muted/30">
       <Link href="/" className="flex items-center gap-2 mb-8 group">
-        <div className="size-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-lg group-hover:scale-105 transition-transform"><School className="size-6" /></div>
+        <Logo className="size-10 rounded-xl shadow-lg group-hover:scale-105 transition-transform" />
         <span className="text-2xl font-headline font-bold text-primary">Yebfa School Manager</span>
       </Link>
       

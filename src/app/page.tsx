@@ -1,11 +1,13 @@
+
 "use client"
 
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { School, ArrowRight, Zap, Loader2 } from "lucide-react"
+import { ArrowRight, Zap, Loader2 } from "lucide-react"
 import { useUser, useFirestore, useDoc } from "@/firebase"
 import { useMemo } from "react"
 import { doc } from "firebase/firestore"
+import { Logo } from "@/components/logo"
 
 export default function LandingPage() {
   const { user, loading: authLoading } = useUser()
@@ -20,9 +22,7 @@ export default function LandingPage() {
     <div className="flex flex-col min-h-screen bg-background">
       <header className="px-6 lg:px-12 h-20 flex items-center justify-between border-b border-border/40 sticky top-0 bg-background/80 backdrop-blur-md z-50">
         <Link href="/" className="flex items-center gap-2">
-          <div className="size-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-lg">
-            <School className="size-6" />
-          </div>
+          <Logo className="size-10 rounded-xl shadow-lg" />
           <span className="text-2xl font-headline font-bold tracking-tight text-primary">Yebfa School Manager</span>
         </Link>
         <nav className="hidden md:flex items-center gap-8">
@@ -87,9 +87,7 @@ export default function LandingPage() {
       <footer className="py-12 border-t border-border/40 bg-muted/30">
         <div className="container px-6 mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="flex items-center gap-2">
-            <div className="size-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground shadow-sm">
-              <School className="size-5" />
-            </div>
+            <Logo className="size-8 rounded-lg shadow-sm" />
             <span className="text-xl font-headline font-bold text-primary">Yebfa School Manager</span>
           </div>
           <p className="text-sm text-muted-foreground">© 2026 Yebfa School Manager. All rights reserved.</p>
