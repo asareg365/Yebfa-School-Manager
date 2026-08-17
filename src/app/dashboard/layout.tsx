@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
@@ -250,7 +249,7 @@ export default function DashboardLayout({
                               {notif.createdAt ? formatDistanceToNow(notif.createdAt.toMillis(), { addSuffix: true }) : 'Just now'}
                             </p>
                           </div>
-                          <button onClick={(e) => handleDeleteNotification(notif.id, e)} className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-destructive/10 rounded-md text-destructive">
+                          <button onClick={(e) => handleDeleteNotification(notif.id, e)} className="absolute top-4 right-4 opacity-40 hover:opacity-100 transition-opacity p-1 hover:bg-destructive/10 rounded-md text-destructive">
                             <X className="size-3" />
                           </button>
                         </div>
