@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -138,22 +139,17 @@ export default function TimetablePage() {
   const selectedClass = useMemo(() => classes.find(c => c.id === selectedClassId), [classes, selectedClassId])
 
   const handleOptimize = async () => {
-    if (!selectedClassId || !institutionId) {
-      toast({ variant: "destructive", title: "Grade Selection Required", description: "Select a class to authorize AI optimization." })
-      return
-    }
-
+    if (!selectedClassId || !institutionId) return
     setLoading(true)
     try {
       const res = await optimizeTimetable({
         institutionId,
         classId: selectedClassId,
         gradeName: selectedClass?.name || "Class",
-        termId: currentTerm,
-        context: "Adhere to the institution's dynamic GMT grid and breaks."
+        termId: currentTerm
       })
       setAiResult(res)
-      toast({ title: "Optimized Schedule Ready", description: "Strategic periods have been mapped. Review and save to finalize." })
+      toast({ title: "Optimized Schedule Ready" })
     } catch (error: any) {
       toast({ variant: "destructive", title: "AI Error", description: error.message })
     } finally {
@@ -175,11 +171,10 @@ export default function TimetablePage() {
         slots: schedule,
         updatedAt: serverTimestamp()
       }, { merge: true })
-      
-      toast({ title: "Timetable Finalized", description: "Records synchronized with institutional hub." })
+      toast({ title: "Timetable Synchronized" })
       setAiResult(null)
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Save Failed", description: error.message })
+      toast({ variant: "destructive", title: "Save Failed" })
     } finally {
       setSaving(false)
     }
@@ -193,7 +188,7 @@ export default function TimetablePage() {
         timetableConfig: configForm,
         updatedAt: serverTimestamp()
       });
-      toast({ title: "Configuration Updated", description: "Grid settings synchronized globally." });
+      toast({ title: "Configuration Updated" });
       setIsConfigOpen(false);
     } catch (e) {
       toast({ variant: "destructive", title: "Sync Failed" });
@@ -201,88 +196,6 @@ export default function TimetablePage() {
       setSaving(false);
     }
   };
-
-  const checkSlotOccupied = (day: string, time: string, tId: string, currentClassOnly = false) => {
-    if (BREAKS[time]) return { type: 'break', name: BREAKS[time].label };
-
-    for (const tt of allTimetables) {
-      if (currentClassOnly && tt.classId !== selectedClassId) continue;
-      
-      const slots = tt.slots || [];
-      for (const s of slots) {
-        const isTimeMatch = s.time === time;
-        const isDoubleCover = s.isDoublePeriod && TIMES[TIMES.indexOf(s.time) + 1] === time;
-        
-        if (s.day === day && (isTimeMatch || isDoubleCover)) {
-          if (tt.classId === selectedClassId) return { type: 'class', name: tt.className };
-          if (s.teacherId === tId) return { type: 'teacher', name: s.teacher, className: tt.className };
-        }
-      }
-    }
-    return null;
-  }
-
-  const handleAddManualSlot = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!institutionId || !selectedClassId || !manualSlot.subjectId || !manualSlot.teacherId) return
-    
-    if (BREAKS[manualSlot.time]) {
-      toast({ variant: "destructive", title: "Institutional Break", description: "Teaching periods cannot be scheduled during breaks." });
-      return;
-    }
-
-    const timeIdx = TIMES.indexOf(manualSlot.time);
-    const slotsToCheck = [manualSlot.time];
-    if (manualSlot.isDoublePeriod) {
-      if (timeIdx === TIMES.length - 1) {
-        toast({ variant: "destructive", title: "Invalid Duration", description: "Double periods cannot start at the final time slot." });
-        return;
-      }
-      const nextTime = TIMES[timeIdx + 1];
-      if (BREAKS[nextTime]) {
-        toast({ variant: "destructive", title: "Break Conflict", description: "Double periods cannot overlap with scheduled breaks." });
-        return;
-      }
-      slotsToCheck.push(nextTime);
-    }
-
-    for (const checkTime of slotsToCheck) {
-      const conflict = checkSlotOccupied(manualSlot.day, checkTime, manualSlot.teacherId);
-      if (conflict) {
-        if (conflict.type === 'class') {
-          toast({ variant: "destructive", title: "Slot Occupied", description: `This class already has a period at ${checkTime} on ${manualSlot.day}.` });
-        } else if (conflict.type === 'teacher') {
-          toast({ variant: "destructive", title: "Teacher Conflict", description: `${conflict.name} is already teaching ${conflict.className} at ${checkTime}.` });
-        }
-        return;
-      }
-    }
-
-    setSaving(true)
-    try {
-      const currentSlots = activeTimetable?.slots || []
-      const newSlots = [...currentSlots, manualSlot]
-      
-      const timetableId = `${selectedClassId}_${currentTerm.replace(/\s+/g, '')}`
-      await setDoc(doc(db, "timetables", timetableId), {
-        tenantId: institutionId,
-        institutionId,
-        classId: selectedClassId,
-        className: selectedClass?.name,
-        termId: currentTerm,
-        slots: newSlots,
-        updatedAt: serverTimestamp()
-      }, { merge: true })
-
-      toast({ title: "Slot Authorized", description: "Period successfully registered." })
-      setIsManualOpen(false)
-      setManualSlot({ day: "Monday", time: TIMES[0], subjectId: "", subject: "", teacherId: "", teacher: "", isDoublePeriod: false })
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Update Failed" })
-    } finally {
-      setSaving(false)
-    }
-  }
 
   const handleDeleteSlot = async (day: string, time: string) => {
     if (!institutionId || !selectedClassId || !activeTimetable) return
@@ -320,8 +233,7 @@ export default function TimetablePage() {
   }
 
   const handleSlotPlaceholderClick = (day: string, time: string) => {
-    if (isTeacher) return;
-    if (BREAKS[time]) return;
+    if (isTeacher || BREAKS[time]) return;
     setManualSlot(prev => ({ ...prev, day, time }));
     setIsManualOpen(true);
   }
@@ -354,20 +266,16 @@ export default function TimetablePage() {
           )}
           {aiResult && !isTeacher && (
             <Button className="bg-green-600 hover:bg-green-700 h-11 rounded-xl shadow-lg gap-2" onClick={() => handleSaveTimetable(aiResult.schedule)} disabled={saving}>
-              {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Save Preview
+              <Save className="size-4" /> Save Preview
             </Button>
           )}
         </div>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-4">
-        <div className="lg:col-span-1 space-y-6 no-print">
+      <div className="grid gap-8 lg:grid-cols-4 no-print">
+        <div className="lg:col-span-1 space-y-6">
           <Card className="border-none shadow-xl rounded-3xl overflow-hidden bg-white">
             <CardHeader className="bg-primary text-primary-foreground p-8 shrink-0">
-               <div className="flex items-center gap-3 mb-2">
-                 <div className="size-8 rounded-xl bg-white/10 flex items-center justify-center"><Grid3X3 className="size-5" /></div>
-                 <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Grid Control</span>
-               </div>
                <CardTitle className="text-2xl font-headline font-bold">Parameters</CardTitle>
             </CardHeader>
             <CardContent className="p-8 space-y-6">
@@ -380,133 +288,22 @@ export default function TimetablePage() {
                   </SelectContent>
                 </Select>
               </div>
-
-              {(aiResult || activeTimetable) && (
-                <div className="p-6 rounded-2xl bg-slate-50 border border-slate-100 space-y-4 animate-in slide-in-from-top-2">
-                   <div className="space-y-2">
-                      <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest flex items-center gap-2">
-                        <CheckCircle2 className="size-3 text-green-600" /> Registry Status
-                      </p>
-                      <p className="text-xs font-medium text-slate-700 leading-relaxed italic">
-                        {aiResult ? "AI Optimization Active" : "Institutional Record Verified"}
-                      </p>
-                   </div>
-                   <div className="pt-4 border-t flex justify-between items-center">
-                      <span className="text-[10px] font-bold uppercase text-muted-foreground">GMT Node</span>
-                      <Badge className="bg-primary text-white border-none text-[8px] font-bold uppercase">SYNCED</Badge>
-                   </div>
-                </div>
-              )}
-
-              {!isTeacher && (
-                <Dialog open={isManualOpen} onOpenChange={setIsManualOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="w-full h-11 rounded-xl border-dashed" disabled={loading || !selectedClassId}>
-                       <Plus className="size-4 mr-2" /> Manual Period Allocation
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-md rounded-2xl">
-                     <form onSubmit={handleAddManualSlot}>
-                        <DialogHeader>
-                          <DialogTitle className="text-xl font-bold font-headline">Manual Assignment</DialogTitle>
-                          <DialogDescription>Assign instructional time within the GMT cycle. Breaks are strictly reserved.</DialogDescription>
-                        </DialogHeader>
-                        <div className="grid gap-6 py-6">
-                          <div className="grid grid-cols-2 gap-4">
-                             <div className="space-y-1.5"><Label>Day</Label>
-                                <Select value={manualSlot.day} onValueChange={v => setManualSlot({...manualSlot, day: v})}>
-                                   <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
-                                   <SelectContent>{DAYS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
-                                </Select>
-                             </div>
-                             <div className="space-y-1.5"><Label>Time Slot</Label>
-                                <Select value={manualSlot.time} onValueChange={v => setManualSlot({...manualSlot, time: v})}>
-                                   <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
-                                   <SelectContent>
-                                     {TIMES.map(t => (
-                                       <SelectItem key={t} value={t} disabled={!!BREAKS[t]}>
-                                         {t} {BREAKS[t] ? `(${BREAKS[t].label})` : ""}
-                                       </SelectItem>
-                                     ))}
-                                   </SelectContent>
-                                </Select>
-                             </div>
-                          </div>
-                          <div className="space-y-1.5"><Label>Subject</Label>
-                             <Select onValueChange={v => {
-                               const sub = subjects.find(s => s.id === v);
-                               setManualSlot({...manualSlot, subjectId: v, subject: sub?.name || "Unspecified"});
-                             }}>
-                                <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Choose Subject" /></SelectTrigger>
-                                <SelectContent>{subjects.filter(s => !!s.id).map(s => <SelectItem key={s.id} value={s.id || s.name || "unspecified"}>{s.name || "Unnamed Subject"}</SelectItem>)}</SelectContent>
-                             </Select>
-                          </div>
-                          <div className="space-y-1.5"><Label>Teacher</Label>
-                             <Select onValueChange={v => {
-                               const st = staff.find(s => s.id === v);
-                               setManualSlot({...manualSlot, teacherId: v, teacher: st ? `${st.firstName} ${st.lastName}` : "Unspecified"});
-                             }}>
-                                <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Choose Faculty" /></SelectTrigger>
-                                <SelectContent>{staff.filter(st => !!st.id).map(st => <SelectItem key={st.id} value={st.id || "unspecified"}>{st.firstName} {st.lastName}</SelectItem>)}</SelectContent>
-                             </Select>
-                          </div>
-                          <div className="flex items-center gap-2 pt-2">
-                             <Checkbox id="double" checked={manualSlot.isDoublePeriod} onCheckedChange={v => setManualSlot({...manualSlot, isDoublePeriod: !!v})} />
-                             <Label htmlFor="double" className="cursor-pointer">Double Period (60 + 60 mins)</Label>
-                          </div>
-                        </div>
-                        <DialogFooter>
-                           <Button type="submit" className="w-full h-12 rounded-xl bg-primary font-bold shadow-lg" disabled={saving}>
-                              {saving ? <Loader2 className="size-4 mr-2" /> : "Authorize Assignment"}
-                           </Button>
-                        </DialogFooter>
-                     </form>
-                  </DialogContent>
-                </Dialog>
-              )}
             </CardContent>
           </Card>
         </div>
 
         <div className="lg:col-span-3">
-          {(!aiResult && !activeTimetable && !loading) ? (
-            <Card className="border-none shadow-md h-full min-h-[500px] flex flex-col items-center justify-center text-center p-12 space-y-6 rounded-3xl bg-muted/5 border-2 border-dashed no-print">
-              <div className="size-24 rounded-full bg-primary/5 flex items-center justify-center">
-                <Calendar className="size-12 text-primary/20" />
-              </div>
-              <div className="max-sm">
-                <h3 className="text-xl font-bold text-primary/60 font-headline">Registry Context Required</h3>
-                <p className="text-sm text-muted-foreground mt-2 leading-relaxed italic">Select a grade level to load the current GMT schedule or activate AI optimization for strategic period placement.</p>
-              </div>
-            </Card>
-          ) : loading ? (
-            <div className="h-full min-h-[500px] flex flex-col items-center justify-center space-y-6 bg-white rounded-3xl shadow-xl no-print">
-               <div className="relative">
-                  <Loader2 className="size-16 animate-spin text-primary" />
-                  <Sparkles className="absolute -top-2 -right-2 size-6 text-accent animate-bounce" />
-               </div>
-               <div className="text-center space-y-2">
-                  <p className="font-headline font-bold text-xl text-primary animate-pulse">Processing GMT Optimization...</p>
-                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Integrating Breaks & Balancing Teacher Loads</p>
-               </div>
-            </div>
-          ) : (
-            <Card id="printable-timetable" className="border-none shadow-2xl rounded-3xl overflow-hidden bg-white">
-              <CardHeader className="bg-slate-50 border-b flex flex-col sm:flex-row items-center justify-between p-8 gap-4">
-                 <div>
-                    <CardTitle className="text-xl font-headline font-bold">Weekly Instructional Grid: {selectedClass?.name}</CardTitle>
-                    <CardDescription>Academic Session 2026/2027 • Official GMT Registry</CardDescription>
-                 </div>
-                 <div className="flex items-center gap-3 no-print">
-                    {aiResult && <Badge className="bg-accent text-accent-foreground font-bold uppercase text-[9px] px-3 animate-pulse">AI Preview Active</Badge>}
-                    <Badge variant="outline" className="bg-white text-primary border-primary/20 font-bold uppercase text-[9px] px-3 shadow-sm">VERIFIED 2026</Badge>
-                 </div>
+          {(aiResult || activeTimetable) && (
+            <Card id="printable-timetable-grid" className="border-none shadow-2xl rounded-3xl overflow-hidden bg-white print:shadow-none print:border print:rounded-none">
+              <CardHeader className="bg-slate-50 border-b p-8 print:bg-white">
+                 <CardTitle className="text-xl font-headline font-bold">Instructional Grid: {selectedClass?.name}</CardTitle>
+                 <CardDescription>Academic Session 2026/2027 • Official Registry</CardDescription>
               </CardHeader>
               <CardContent className="p-0 overflow-x-auto">
                  <table className="w-full border-collapse">
                     <thead>
                        <tr className="bg-muted/30">
-                          <th className="p-6 border-r border-b text-[10px] font-bold uppercase tracking-widest text-muted-foreground w-40">Period Time</th>
+                          <th className="p-6 border-r border-b text-[10px] font-bold uppercase tracking-widest text-muted-foreground w-40">Period</th>
                           {DAYS.map(day => <th key={day} className="p-6 border-b text-[10px] font-bold uppercase tracking-widest text-primary text-center">{day}</th>)}
                        </tr>
                     </thead>
@@ -514,21 +311,11 @@ export default function TimetablePage() {
                        {TIMES.map((time) => {
                          const breakData = BREAKS[time]
                          if (breakData) {
-                           const BreakIcon = ICON_MAP[breakData.type as keyof typeof ICON_MAP] || Coffee
                            return (
                              <tr key={time} className="bg-slate-100/50 border-b">
-                               <td className="p-4 border-r text-[10px] font-black text-primary/40 uppercase bg-slate-200/50 text-center">
-                                 <div className="flex flex-col items-center">
-                                   <Clock className="size-3 mb-1" />
-                                   {time}
-                                 </div>
-                               </td>
+                               <td className="p-4 border-r text-[10px] font-black text-primary/40 text-center">{time}</td>
                                <td colSpan={5} className="p-4 text-center">
-                                 <div className="inline-flex items-center gap-3 px-6 py-2 rounded-full bg-white/80 border shadow-sm">
-                                   <BreakIcon className="size-4 text-accent" />
-                                   <span className="text-xs font-black uppercase tracking-widest text-primary">{breakData.label}</span>
-                                   <Badge variant="outline" className="text-[8px] font-bold border-accent/20 text-accent">{breakData.duration}</Badge>
-                                 </div>
+                                 <span className="text-xs font-black uppercase tracking-widest text-primary">{breakData.label} ({breakData.duration})</span>
                                </td>
                              </tr>
                            )
@@ -536,9 +323,7 @@ export default function TimetablePage() {
 
                          return (
                            <tr key={time} className="group">
-                              <td className="p-6 border-r border-b text-xs font-bold text-muted-foreground bg-slate-50/30">
-                                 <div className="flex items-center gap-2"><Clock className="size-3" /> {time}</div>
-                              </td>
+                              <td className="p-6 border-r border-b text-xs font-bold text-muted-foreground bg-slate-50/30">{time}</td>
                               {DAYS.map(day => {
                                 const slot = getSlotData(day, time)
                                 return (
@@ -548,33 +333,19 @@ export default function TimetablePage() {
                                     onClick={() => !slot && handleSlotPlaceholderClick(day, time)}
                                   >
                                      {slot ? (
-                                       <div className={`p-4 rounded-2xl border-2 transition-all hover:scale-[1.02] cursor-default shadow-sm ${slot.isDoublePeriod ? 'bg-primary/5 border-primary/20' : 'bg-white border-slate-100'} ${slot.occupancy === 'extended' ? 'opacity-60 grayscale-[0.5]' : ''}`}>
-                                          <div className="flex justify-between items-start mb-2">
-                                             <span className="text-[10px] font-bold text-accent uppercase tracking-tighter">
-                                               {slot.occupancy === 'extended' ? 'CONT.' : slot.time}
-                                             </span>
-                                             {slot.isDoublePeriod && <Badge className="bg-primary text-white text-[7px] h-3 px-1 border-none">DOUBLE</Badge>}
-                                          </div>
+                                       <div className={`p-4 rounded-2xl border-2 transition-all shadow-sm ${slot.isDoublePeriod ? 'bg-primary/5 border-primary/20' : 'bg-white border-slate-100'} ${slot.occupancy === 'extended' ? 'opacity-60' : ''}`}>
                                           <p className="font-bold text-primary text-xs mb-1 line-clamp-1">{slot.subject}</p>
-                                          <div className="flex items-center justify-between gap-1.5">
-                                             <div className="flex items-center gap-1 opacity-60">
-                                                <User className="size-2.5" />
-                                                <span className="text-[10px] font-bold truncate max-w-[80px]">{slot.teacher}</span>
-                                             </div>
+                                          <div className="flex items-center justify-between">
+                                             <span className="text-[10px] font-bold text-muted-foreground truncate">{slot.teacher}</span>
                                              {slot.occupancy === 'primary' && !isTeacher && !aiResult && (
-                                                <button onClick={(e) => { e.stopPropagation(); handleDeleteSlot(day, time); }} className="text-destructive opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-destructive/10 rounded-md no-print">
-                                                   <Trash2 className="size-3.5" />
+                                                <button onClick={(e) => { e.stopPropagation(); handleDeleteSlot(day, time); }} className="text-destructive opacity-0 group-hover:opacity-100 p-1 no-print">
+                                                   <Trash2 className="size-3" />
                                                 </button>
                                              )}
                                           </div>
-                                          {slot.occupancy === 'extended' && (
-                                            <div className="absolute top-2 right-2">
-                                               <Lock className="size-2.5 text-muted-foreground opacity-40" />
-                                            </div>
-                                          )}
                                        </div>
                                      ) : (
-                                       <div className="h-20 rounded-2xl border-2 border-dashed border-slate-100 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity no-print">
+                                       <div className="h-20 rounded-2xl border-2 border-dashed border-slate-100 flex items-center justify-center opacity-0 group-hover:opacity-100 no-print">
                                           <Plus className="size-4 text-muted-foreground/30" />
                                        </div>
                                      )}
@@ -594,39 +365,21 @@ export default function TimetablePage() {
 
       <style jsx global>{`
         @media print {
-          /* Force page background and visibility */
-          body {
-            visibility: hidden !important;
-            background: white !important;
-          }
-          
-          /* Hide non-document elements */
-          .no-print, header, aside, nav, button, footer, .sidebar-inset, .tabs-list {
-            display: none !important;
-          }
-
-          /* Elevate the printable document */
-          #printable-timetable {
+          #printable-timetable-grid {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
             visibility: visible !important;
             display: block !important;
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            border: none !important;
-            box-shadow: none !important;
-            z-index: 9999 !important;
+            z-index: 10000 !important;
           }
 
-          /* Reset all container scroll and clip logic */
-          main, html, body, #printable-timetable {
-            overflow: visible !important;
-            height: auto !important;
+          body * {
+            visibility: hidden;
           }
 
-          #printable-timetable * {
+          #printable-timetable-grid, #printable-timetable-grid * {
             visibility: visible !important;
           }
         }
@@ -635,148 +388,38 @@ export default function TimetablePage() {
       <Dialog open={isConfigOpen} onOpenChange={setIsConfigOpen}>
         <DialogContent className="max-w-2xl rounded-3xl p-0 overflow-hidden border-none shadow-2xl h-[80vh] flex flex-col">
           <DialogHeader className="p-8 bg-primary text-primary-foreground shrink-0">
-             <div className="flex items-center gap-3 mb-2">
-               <div className="size-8 rounded-xl bg-white/10 flex items-center justify-center"><Settings className="size-5" /></div>
-               <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Strategic Configuration</span>
-             </div>
              <DialogTitle className="text-2xl font-headline font-bold">Grid Infrastructure</DialogTitle>
-             <DialogDescription className="text-primary-foreground/70">Define teaching slots and institutional breaks for the GMT cycle.</DialogDescription>
           </DialogHeader>
-
           <ScrollArea className="flex-1">
              <div className="p-8 space-y-8">
                 <section className="space-y-4">
                    <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-bold uppercase tracking-widest text-primary flex items-center gap-2"><Timer className="size-4" /> Time Slots</h4>
-                      <Button variant="outline" size="sm" className="h-8 rounded-lg text-[10px]" onClick={() => setConfigForm({...configForm, slots: [...configForm.slots, "00:00 AM"]})}>
-                        <PlusCircle className="size-3 mr-1" /> Add Slot
-                      </Button>
+                      <h4 className="text-xs font-bold uppercase tracking-widest text-primary flex items-center gap-2">Time Slots</h4>
+                      <Button variant="outline" size="sm" className="h-8" onClick={() => setConfigForm({...configForm, slots: [...configForm.slots, "00:00 AM"]})}>Add Slot</Button>
                    </div>
                    <div className="grid gap-3 sm:grid-cols-2">
                       {configForm.slots.map((s, i) => (
                         <div key={i} className="flex gap-2 items-center group">
-                           <Input 
-                            value={s} 
-                            onChange={e => {
+                           <Input value={s} onChange={e => {
                               const newSlots = [...configForm.slots];
                               newSlots[i] = e.target.value;
                               setConfigForm({...configForm, slots: newSlots});
-                            }}
-                            className="h-10 rounded-xl font-mono text-sm"
-                           />
-                           <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-9 w-9 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() => {
-                              const newSlots = configForm.slots.filter((_, idx) => idx !== i);
-                              setConfigForm({...configForm, slots: newSlots});
-                            }}
-                           >
-                             <Trash2 className="size-4" />
-                           </Button>
+                            }} className="h-10 rounded-xl" />
+                           <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setConfigForm({...configForm, slots: configForm.slots.filter((_, idx) => idx !== i)})}><Trash2 className="size-4" /></Button>
                         </div>
                       ))}
                    </div>
                 </section>
-
-                <section className="space-y-4">
-                   <h4 className="text-xs font-bold uppercase tracking-widest text-primary flex items-center gap-2"><Coffee className="size-4" /> Institutional Breaks</h4>
-                   <div className="space-y-4">
-                      {configForm.slots.map((s, i) => {
-                        const isBreak = !!configForm.breaks[s];
-                        return (
-                          <div key={i} className={`p-4 rounded-2xl border transition-all ${isBreak ? 'bg-orange-50 border-orange-200' : 'bg-white border-slate-100'}`}>
-                             <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                   <div className={`size-8 rounded-lg flex items-center justify-center ${isBreak ? 'bg-white text-orange-600' : 'bg-slate-50 text-slate-400'}`}>
-                                      <Clock className="size-4" />
-                                   </div>
-                                   <span className="text-sm font-bold text-slate-700">{s}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                   <Label className="text-[10px] font-bold uppercase opacity-60">Designate as Break</Label>
-                                   <Checkbox 
-                                    checked={isBreak}
-                                    onCheckedChange={checked => {
-                                      const newBreaks = { ...configForm.breaks };
-                                      if (checked) {
-                                        newBreaks[s] = { label: "New Break", type: 'coffee', duration: "30 Mins" };
-                                      } else {
-                                        delete newBreaks[s];
-                                      }
-                                      setConfigForm({...configForm, breaks: newBreaks});
-                                    }}
-                                   />
-                                </div>
-                             </div>
-                             {isBreak && (
-                               <div className="mt-4 grid gap-4 sm:grid-cols-3 animate-in slide-in-from-top-2">
-                                  <div className="space-y-1">
-                                     <Label className="text-[9px] uppercase">Label</Label>
-                                     <Input 
-                                      value={configForm.breaks[s].label}
-                                      onChange={e => {
-                                        const newBreaks = { ...configForm.breaks };
-                                        newBreaks[s].label = e.target.value;
-                                        setConfigForm({...configForm, breaks: newBreaks});
-                                      }}
-                                      className="h-8 text-xs rounded-lg"
-                                     />
-                                  </div>
-                                  <div className="space-y-1">
-                                     <Label className="text-[9px] uppercase">Icon</Label>
-                                     <Select 
-                                      value={configForm.breaks[s].type}
-                                      onValueChange={v => {
-                                        const newBreaks = { ...configForm.breaks };
-                                        newBreaks[s].type = v as 'coffee' | 'utensils';
-                                        setConfigForm({...configForm, breaks: newBreaks});
-                                      }}
-                                     >
-                                        <SelectTrigger className="h-8 text-xs rounded-lg"><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="coffee">Coffee</SelectItem>
-                                          <SelectItem value="utensils">Utensils</SelectItem>
-                                        </SelectContent>
-                                     </Select>
-                                  </div>
-                                  <div className="space-y-1">
-                                     <Label className="text-[9px] uppercase">Duration</Label>
-                                     <Input 
-                                      value={configForm.breaks[s].duration}
-                                      onChange={e => {
-                                        const newBreaks = { ...configForm.breaks };
-                                        newBreaks[s].duration = e.target.value;
-                                        setConfigForm({...configForm, breaks: newBreaks});
-                                      }}
-                                      className="h-8 text-xs rounded-lg"
-                                     />
-                                  </div>
-                               </div>
-                             )}
-                          </div>
-                        );
-                      })}
-                   </div>
-                </section>
              </div>
           </ScrollArea>
-
-          <DialogFooter className="p-8 bg-slate-50 border-t shrink-0">
-             <Button className="w-full h-14 rounded-2xl bg-primary font-bold shadow-xl gap-2" onClick={handleSaveConfig} disabled={saving}>
-                {saving ? <Loader2 className="size-5 animate-spin" /> : <Save className="size-5" />}
-                Synchronize Configuration
+          <DialogFooter className="p-8 bg-slate-50 border-t">
+             <Button className="w-full h-14 rounded-2xl bg-primary font-bold shadow-xl" onClick={handleSaveConfig} disabled={saving}>
+                {saving ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" />}
+                Synchronize Grid
              </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
-      <div className="flex justify-center pt-8 no-print">
-         <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter flex items-center gap-2">
-            <ShieldCheck className="size-3 text-green-600" /> Authorized Academic Grid • 2026 Registry Hub • GMT Node
-         </p>
-      </div>
     </div>
   )
 }

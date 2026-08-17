@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -78,7 +79,7 @@ export default function InvoicingPage() {
     [db, institutionId]
   )
   const studentsQuery = useMemoFirebase(() => 
-    institutionId ? query(collection(db, "students"), where("tenantId", "==", institutionId), where("status", "==", "active")) : null, 
+    institutionId ? query(collection(db, "students"), where("tenantId", "==", institutionId)) : null, 
     [db, institutionId]
   )
   const feesQuery = useMemoFirebase(() => 
@@ -216,7 +217,7 @@ export default function InvoicingPage() {
     setTimeout(() => {
       window.print()
       setIndividualPrintData(null)
-    }, 100)
+    }, 200)
   }
 
   const filteredInvoices = useMemo(() => {
@@ -237,7 +238,8 @@ export default function InvoicingPage() {
   }, [filteredInvoices])
 
   const handlePrintLedger = () => {
-    window.print();
+    setIndividualPrintData(null);
+    setTimeout(() => window.print(), 200);
   }
 
   return (
@@ -369,14 +371,11 @@ export default function InvoicingPage() {
                  </AccordionItem>
                ))}
           </Accordion>
-          {Object.keys(groupedInvoices).length === 0 && (
-            <div className="p-24 text-center text-muted-foreground italic">No invoice records found matching current context.</div>
-          )}
         </CardContent>
       </Card>
 
       {/* FULL LEDGER PRINT VIEW */}
-      <div id="printable-ledger-report" className="hidden print:block bg-white p-8">
+      <div id="printable-ledger-report" className={`hidden ${!individualPrintData ? 'print:block' : ''} bg-white p-8`}>
          <div className="flex justify-between items-start border-b pb-8 mb-8">
             <div className="flex items-center gap-4">
                {institution?.logoUrl ? <img src={institution.logoUrl} className="size-16 object-contain" /> : <div className="size-16 bg-primary rounded-xl flex items-center justify-center text-white font-black text-2xl">Y</div>}
@@ -416,16 +415,6 @@ export default function InvoicingPage() {
                ))}
             </TableBody>
          </Table>
-
-         <div className="mt-12 flex justify-between items-end border-t border-dashed pt-8 opacity-60">
-            <div className="space-y-4">
-               <div className="w-48 h-px bg-slate-300" />
-               <p className="text-[8px] font-black uppercase tracking-widest">Registrar / Bursar Signature</p>
-            </div>
-            <p className="text-[8px] font-black uppercase text-muted-foreground tracking-tighter">
-               Authorized Digital Registry Audit • Node 2026
-            </p>
-         </div>
       </div>
 
       {/* INDIVIDUAL BILL PRINT TEMPLATE */}
@@ -437,30 +426,24 @@ export default function InvoicingPage() {
                  <div>
                     <h1 className="text-3xl font-headline font-black text-primary uppercase tracking-tighter">{institution?.name || "System Hub"}</h1>
                     <p className="text-xs font-bold text-muted-foreground uppercase">{institution?.location || "Ahafo Region, Ghana"}</p>
-                    <p className="text-xs font-bold text-muted-foreground">{institution?.phone || "Registry Hotline"}</p>
                  </div>
               </div>
-              <div className="text-right space-y-1">
+              <div className="text-right">
                  <Badge className="bg-primary text-white border-none font-black text-[10px] uppercase tracking-widest px-4 h-6">Official Bill</Badge>
-                 <p className="text-[10px] font-bold text-muted-foreground uppercase mt-2">Invoice Date: {new Date().toLocaleDateString()}</p>
-                 <p className="text-lg font-mono font-black text-accent">{individualPrintData.invoiceNumber}</p>
+                 <p className="text-lg font-mono font-black text-accent mt-2">{individualPrintData.invoiceNumber}</p>
               </div>
            </div>
 
            <div className="grid grid-cols-2 gap-12 bg-slate-50 p-8 rounded-[2rem] border">
               <div className="space-y-4">
                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Billed To</p>
-                 <div className="space-y-1">
-                    <p className="text-2xl font-headline font-bold text-primary">{individualPrintData.studentName}</p>
-                    <p className="text-xs font-bold text-accent uppercase">{individualPrintData.gradeLevel}</p>
-                 </div>
+                 <p className="text-2xl font-headline font-bold text-primary">{individualPrintData.studentName}</p>
+                 <p className="text-xs font-bold text-accent uppercase">{individualPrintData.gradeLevel}</p>
               </div>
               <div className="text-right space-y-4">
                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Academic Cycle</p>
-                 <div className="space-y-1">
-                    <p className="text-sm font-bold text-primary">{individualPrintData.term}</p>
-                    <p className="text-[10px] font-bold text-muted-foreground">{individualPrintData.academicYear}</p>
-                 </div>
+                 <p className="text-sm font-bold text-primary">{individualPrintData.term}</p>
+                 <p className="text-[10px] font-bold text-muted-foreground">{individualPrintData.academicYear}</p>
               </div>
            </div>
 
@@ -485,77 +468,30 @@ export default function InvoicingPage() {
                  </Table>
               </div>
            </div>
-
-           <div className="grid grid-cols-3 gap-6 pt-12">
-              <div className="col-span-1 p-6 rounded-3xl bg-slate-50 border flex flex-col justify-center gap-1">
-                 <p className="text-[10px] font-black uppercase text-muted-foreground">Total Billed</p>
-                 <p className="text-xl font-headline font-bold text-primary">GH₵ {individualPrintData.totalAmount?.toLocaleString()}</p>
-              </div>
-              <div className="col-span-1 p-6 rounded-3xl bg-green-50 border border-green-100 flex flex-col justify-center gap-1">
-                 <p className="text-[10px] font-black uppercase text-green-700">Total Paid</p>
-                 <p className="text-xl font-headline font-bold text-green-800">GH₵ {individualPrintData.amountPaid?.toLocaleString()}</p>
-              </div>
-              <div className="col-span-1 p-6 rounded-3xl bg-primary text-primary-foreground shadow-xl flex flex-col justify-center gap-1">
-                 <p className="text-[10px] font-black uppercase text-white/60">Outstanding Balance</p>
-                 <p className="text-2xl font-headline font-bold text-white">GH₵ {individualPrintData.amountDue?.toLocaleString()}</p>
-              </div>
-           </div>
-
-           <div className="pt-24 border-t border-dashed flex justify-between items-end opacity-60">
-              <div className="space-y-4">
-                 <div className="w-48 h-px bg-primary mb-2" />
-                 <p className="text-[9px] font-black uppercase tracking-widest">Registrar / Accountant Signature</p>
-              </div>
-              <div className="text-right">
-                 <p className="text-[9px] font-black text-muted-foreground uppercase tracking-tighter flex items-center gap-2">
-                    <ShieldCheck className="size-3 text-green-600" /> Authorized Registry Token • Node 2026
-                 </p>
-              </div>
-           </div>
         </div>
       )}
 
       <style jsx global>{`
         @media print {
-          /* Force standard layout reset for print engines */
-          body {
-            visibility: hidden !important;
-            background: white !important;
-          }
-          
-          /* Hide non-document elements */
-          .no-print, header, aside, nav, button, footer, .sidebar-inset, .tabs-list {
-            display: none !important;
-          }
-
-          /* Handle visibility based on what is being printed */
-          #printable-ledger-report {
-            visibility: ${individualPrintData ? 'hidden' : 'visible'} !important;
-            display: ${individualPrintData ? 'none' : 'block'} !important;
-          }
-          
-          #printable-individual-bill {
-            visibility: ${individualPrintData ? 'visible' : 'hidden'} !important;
-            display: ${individualPrintData ? 'block' : 'none'} !important;
-          }
-
-          /* Elevate the printable document */
           #printable-ledger-report, #printable-individual-bill {
             position: absolute !important;
-            left: 0 !important;
             top: 0 !important;
+            left: 0 !important;
             width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
-            border: none !important;
-            box-shadow: none !important;
-            z-index: 9999 !important;
+            visibility: visible !important;
+            display: block !important;
+            z-index: 10000 !important;
           }
 
-          /* Reset all container scroll and clip logic */
-          main, html, body {
-            overflow: visible !important;
-            height: auto !important;
+          body * {
+            visibility: hidden;
+          }
+
+          #printable-ledger-report, #printable-ledger-report *, 
+          #printable-individual-bill, #printable-individual-bill * {
+            visibility: visible !important;
           }
         }
       `}</style>

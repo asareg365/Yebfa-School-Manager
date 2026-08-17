@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo, useEffect, useRef } from "react"
@@ -73,8 +74,7 @@ export default function StudentReportsPage() {
   const studentsQuery = useMemoFirebase(() => 
     institutionId ? query(
       collection(db, "students"), 
-      where("tenantId", "==", institutionId), 
-      where("status", "==", "active")
+      where("tenantId", "==", institutionId)
     ) : null, 
     [db, institutionId]
   )
@@ -259,7 +259,7 @@ export default function StudentReportsPage() {
                                   </button>
                                 ))
                               ) : (
-                                <div className="p-8 text-center text-xs text-muted-foreground italic">No students match search in registry.</div>
+                                <div className="p-8 text-center text-xs text-muted-foreground italic">No students match search.</div>
                               )}
                             </div>
                           </ScrollArea>
@@ -315,10 +315,10 @@ export default function StudentReportsPage() {
              </Card>
            ) : (
              <div className="space-y-6 animate-in slide-in-from-right-2 duration-300">
-               <Card id="printable-report" className="border-none shadow-2xl rounded-3xl overflow-hidden bg-white">
-                  <CardHeader className="bg-slate-50 border-b p-8 flex flex-col sm:flex-row items-center justify-between gap-6">
+               <Card id="printable-report-card" className="border-none shadow-2xl rounded-3xl overflow-hidden bg-white print:shadow-none print:border print:rounded-none">
+                  <CardHeader className="bg-slate-50 border-b p-8 flex flex-col sm:flex-row items-center justify-between gap-6 print:bg-white print:border-b-2">
                     <div className="flex items-center gap-4">
-                       <div className="size-16 rounded-2xl bg-primary flex items-center justify-center text-white shadow-xl shadow-primary/10">
+                       <div className="size-16 rounded-2xl bg-primary flex items-center justify-center text-white shadow-xl shadow-primary/10 print:shadow-none">
                           <GraduationCap className="size-8" />
                        </div>
                        <div>
@@ -327,13 +327,13 @@ export default function StudentReportsPage() {
                        </div>
                     </div>
                     <div className="text-right">
-                       <Badge variant="outline" className="text-[10px] font-bold uppercase px-4 py-1.5 rounded-full border-primary/20 text-primary bg-white shadow-sm">{currentTerm} • 2026/2027</Badge>
+                       <Badge variant="outline" className="text-[10px] font-bold uppercase px-4 py-1.5 rounded-full border-primary/20 text-primary bg-white shadow-sm print:shadow-none">{currentTerm} • 2026/2027</Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="p-0">
                     <div className="overflow-x-auto w-full">
                       <Table className="min-w-[700px]">
-                        <TableHeader className="bg-muted/10">
+                        <TableHeader className="bg-muted/10 print:bg-slate-50">
                           <TableRow>
                             <TableHead className="font-bold px-8 py-5 text-primary uppercase text-[10px] tracking-widest">Instructional Area</TableHead>
                             <TableHead className="text-center font-bold text-primary uppercase text-[10px] tracking-widest">CA (30)</TableHead>
@@ -384,6 +384,21 @@ export default function StudentReportsPage() {
                     />
                   </Card>
                </div>
+
+               <div className="hidden print:grid grid-cols-2 gap-8 pt-8">
+                  <div className="space-y-4">
+                     <p className="text-[10px] font-bold uppercase text-primary">Class Teacher's Remark</p>
+                     <div className="p-4 border rounded-xl min-h-[80px] text-xs italic text-slate-600">
+                        {teacherRemark || "Awaiting teacher narrative..."}
+                     </div>
+                  </div>
+                  <div className="space-y-4">
+                     <p className="text-[10px] font-bold uppercase text-accent">Head Teacher's Authorization</p>
+                     <div className="p-4 border rounded-xl min-h-[80px] text-xs italic text-slate-600">
+                        {headRemark || "Authorized by registry node."}
+                     </div>
+                  </div>
+               </div>
                
                <div className="flex justify-center pt-6 no-print">
                   <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter flex items-center gap-2">
@@ -397,39 +412,23 @@ export default function StudentReportsPage() {
 
       <style jsx global>{`
         @media print {
-          /* Force standard layout reset for print engines */
-          body {
-            visibility: hidden !important;
-            background: white !important;
-          }
-          
-          /* Hide everything except the printable container */
-          .no-print, header, aside, nav, button, footer, .sidebar-inset, .tabs-list {
-            display: none !important;
-          }
-
-          /* Elevate the printable document */
-          #printable-report {
-            visibility: visible !important;
-            display: block !important;
+          #printable-report-card {
             position: absolute !important;
-            left: 0 !important;
             top: 0 !important;
+            left: 0 !important;
             width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
-            border: none !important;
-            box-shadow: none !important;
-            z-index: 9999 !important;
+            visibility: visible !important;
+            display: block !important;
+            z-index: 10000 !important;
           }
 
-          /* Ensure all parent containers don't clip content or add background */
-          main, html, body, #printable-report {
-            overflow: visible !important;
-            height: auto !important;
+          body * {
+            visibility: hidden;
           }
 
-          #printable-report * {
+          #printable-report-card, #printable-report-card *, .print-only-block, .print-only-block * {
             visibility: visible !important;
           }
         }

@@ -36,7 +36,7 @@ export default function DashboardLayout({
   const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user]);
   const { data: profile, loading: profileLoading } = useDoc(userProfileRef);
 
-  // Safe Context Resolution: Move localStorage access out of render/useMemo
+  // Safe Context Resolution
   useEffect(() => {
     if (!profileLoading && profile) {
       if (profile.role === 'super_admin') {
@@ -79,7 +79,7 @@ export default function DashboardLayout({
       router.push('/login');
       toast({
         title: "Session Terminated",
-        description: "You have been signed out due to inactivity.",
+        description: "You have been signed out.",
       });
     }
   }, [auth, router]);
@@ -116,8 +116,7 @@ export default function DashboardLayout({
   const canManageSubscription =
     profile?.role === 'super_admin' ||
     profile?.role === 'school_owner' ||
-    profile?.role === 'administrator' ||
-    profile?.role === 'head_teacher';
+    profile?.role === 'administrator';
 
   const handleDeleteNotification = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -169,7 +168,7 @@ export default function DashboardLayout({
         </div>
         <div className="max-w-md mx-auto space-y-2">
           <h2 className="text-2xl font-bold font-headline text-primary">System Hub Offline</h2>
-          <p className="text-muted-foreground leading-relaxed">Your institution's registry node has been deactivated or archived. Access to academic and financial data is restricted.</p>
+          <p className="text-muted-foreground leading-relaxed">Your institution's registry node has been deactivated. Access to data is restricted.</p>
         </div>
         <Button onClick={handleLogout} className="h-12 px-8 rounded-xl font-bold shadow-lg">Return to Gateway</Button>
       </div>
@@ -185,13 +184,13 @@ export default function DashboardLayout({
     "Registry User";
 
   return (
-    <SidebarProvider className="print-provider h-svh overflow-hidden">
+    <SidebarProvider className="h-svh overflow-hidden">
       <div className="no-print h-full overflow-y-auto border-r bg-sidebar shrink-0">
         <AppSidebar />
       </div>
-      <SidebarInset className="bg-background print-inset flex flex-col h-svh w-full overflow-hidden">
+      <SidebarInset className="bg-background flex flex-col h-svh w-full overflow-hidden">
       {canManageSubscription && isTrial && trialDaysLeft !== null && (
-          <div className={`no-print py-2 px-4 md:px-6 flex items-center justify-between transition-colors shrink-0 ${trialDaysLeft <= 7 ? 'bg-orange-600 text-white' : 'bg-blue-600 text-white'}`}>
+          <div className="no-print py-2 px-4 md:px-6 flex items-center justify-between transition-colors shrink-0 bg-blue-600 text-white">
             <div className="flex items-center gap-2 text-[10px] md:text-xs font-bold uppercase tracking-widest truncate">
               {trialDaysLeft <= 7 ? <AlertTriangle className="size-3 md:size-4" /> : <Clock className="size-3 md:size-4" />}
               <span className="hidden xs:inline">Institutional Trial:</span> {trialDaysLeft} days left
@@ -274,25 +273,41 @@ export default function DashboardLayout({
             <div className="flex flex-col text-right border-l pl-4 border-border/40">
               <span className="text-xs md:text-sm font-black truncate max-w-[120px] md:max-w-[180px] text-primary uppercase tracking-tighter">{institutionName}</span>
               <div className="flex items-center justify-end gap-1">
-              {canManageSubscription && (
-                <Badge
-                  variant="outline"
-                  className="text-[7px] md:text-[8px] h-3.5 md:h-4 px-1 md:px-1.5 font-bold uppercase tracking-tighter bg-primary/5"
-                >
-                  {institution?.subscriptionPlan || 'Trial'}
-                </Badge>
-              )}
-                 <span className="hidden xs:inline text-[9px] text-muted-foreground uppercase font-black tracking-tighter">NODE 2026</span>
+                 <span className="xs:inline text-[9px] text-muted-foreground uppercase font-black tracking-tighter">NODE 2026</span>
               </div>
             </div>
           </div>
         </header>
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10 relative scroll-smooth">
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10 relative scroll-smooth dashboard-main-content">
           <div className="max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-300 min-h-0 pb-20 md:pb-24">
             {children}
           </div>
         </main>
       </SidebarInset>
+
+      <style jsx global>{`
+        @media print {
+          .no-print, header, aside, button, footer, .sidebar-inset > div:first-child, .tabs-list {
+            display: none !important;
+          }
+          
+          .sidebar-inset, .dashboard-main-content, .dashboard-main-content > div {
+            padding: 0 !important;
+            margin: 0 !important;
+            overflow: visible !important;
+            height: auto !important;
+            width: 100% !important;
+            display: block !important;
+            background: white !important;
+          }
+
+          html, body {
+            height: auto !important;
+            overflow: visible !important;
+            background: white !important;
+          }
+        }
+      `}</style>
     </SidebarProvider>
   );
 }
