@@ -116,10 +116,10 @@ function StudentsRegistryContent() {
 
   const studentsQuery = useMemoFirebase(() => {
     if (!db || !institutionId) return null;
+    // Show all students in the registry to ensure counts match dashboard
     return query(
       collection(db, "students"), 
-      where("tenantId", "==", institutionId),
-      where("status", "==", "active")
+      where("tenantId", "==", institutionId)
     );
   }, [db, institutionId]);
 
@@ -277,7 +277,7 @@ function StudentsRegistryContent() {
       authUid,
       tenantId: inst.id,
       institutionId: inst.id,
-      status: "active",
+      status: data.status || "active",
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     });
@@ -292,7 +292,7 @@ function StudentsRegistryContent() {
       studentId: studentId,
       tenantId: inst.id,
       institutionId: inst.id,
-      status: "active",
+      status: data.status || "active",
       createdAt: serverTimestamp()
     }, { merge: true });
 
@@ -532,7 +532,7 @@ function StudentsRegistryContent() {
         studentId: stu.id,
         tenantId: institutionId,
         institutionId: institutionId,
-        status: "active",
+        status: stu.status || "active",
         createdAt: serverTimestamp()
       }, { merge: true });
 
@@ -680,7 +680,7 @@ function StudentsRegistryContent() {
                                   </div>
                                 </TableCell>
                                 <TableCell><Badge variant="outline" className={`text-[9px] uppercase font-bold ${stu.status === 'active' ? 'text-green-600 bg-green-50' : 'text-slate-500 bg-slate-50'}`}>
-                                  {stu.status}
+                                  {stu.status || 'active'}
                                 </Badge></TableCell>
                                 <TableCell className="text-right px-6">
                                    <div className="flex items-center justify-end gap-1">
@@ -806,7 +806,7 @@ function StudentsRegistryContent() {
                         <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select Class" /></SelectTrigger>
                         <SelectContent>
                           {registeredClasses.filter(c => !!c.id).map(c => (
-                            <SelectItem key={c.id} value={c.name || c.id}>
+                            <SelectItem key={c.id} value={c.name || c.id || "unspecified"}>
                               {c.name || "Unnamed Class"}
                             </SelectItem>
                           ))}

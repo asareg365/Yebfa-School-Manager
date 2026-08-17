@@ -50,7 +50,8 @@ export default function AttendancePage() {
 
   const studentsQuery = useMemo(() => {
     if (!db || !institutionId || !selectedGrade) return null;
-    return query(collection(db, "students"), where("tenantId", "==", institutionId), where("gradeLevel", "==", selectedGrade), where("status", "==", "active"));
+    // Removed status="active" filter to ensure counts tally across modules
+    return query(collection(db, "students"), where("tenantId", "==", institutionId), where("gradeLevel", "==", selectedGrade));
   }, [db, institutionId, selectedGrade]);
 
   const attendanceQuery = useMemo(() => {
@@ -144,7 +145,7 @@ export default function AttendancePage() {
                 </SelectTrigger>
                 <SelectContent>
                   {classes.filter(c => !!c.id).map(c => (
-                    <SelectItem key={c.id} value={c.name || c.id}>
+                    <SelectItem key={c.id} value={c.name || c.id || "unspecified"}>
                       {c.name || "Unnamed Class"}
                     </SelectItem>
                   ))}
@@ -218,16 +219,21 @@ export default function AttendancePage() {
                             </div>
                           </TableCell>
                           <TableCell className="text-right px-6">
-                            <Badge variant={presentStudents[stu.id] ? "default" : "outline"} className={`text-[9px] uppercase font-bold px-3 h-6 border-none ${presentStudents[stu.id] ? 'bg-green-600' : 'bg-destructive/10 text-destructive'}`}>
-                              {presentStudents[stu.id] ? "Present" : "Absent"}
-                            </Badge>
+                            <div className="flex flex-col items-end gap-1">
+                              <Badge variant={presentStudents[stu.id] ? "default" : "outline"} className={`text-[9px] uppercase font-bold px-3 h-6 border-none ${presentStudents[stu.id] ? 'bg-green-600' : 'bg-destructive/10 text-destructive'}`}>
+                                {presentStudents[stu.id] ? "Present" : "Absent"}
+                              </Badge>
+                              {stu.status !== 'active' && (
+                                <span className="text-[8px] font-bold text-muted-foreground uppercase opacity-60">Status: {stu.status || 'pending'}</span>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
                       {students.length === 0 && (
                         <TableRow>
                           <TableCell colSpan={3} className="text-center py-24 text-muted-foreground italic">
-                            No active student records detected for this grade in the registry.
+                            No student records detected for this grade in the registry.
                           </TableCell>
                         </TableRow>
                       )}
