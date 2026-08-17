@@ -4,7 +4,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Printer, ArrowLeft, User, Search, School as SchoolIcon, Phone, MapPin, ShieldCheck, Camera, Upload, Loader2, Calendar } from "lucide-react"
-import { useFirestore, useCollection, useDoc } from "@/firebase"
+import { useUser, useFirestore, useCollection, useDoc } from "@/firebase"
 import { collection, query, where, doc, updateDoc, serverTimestamp } from "firebase/firestore"
 import { useState, useMemo, useEffect, useRef } from "react"
 import Link from "next/link"
@@ -46,12 +46,24 @@ export default function StudentIDCardsPage() {
     window.print()
   }
 
-  const getValidityDates = (createdAt: any) => {
-    const issued = createdAt ? new Date(createdAt.toMillis()) : new Date();
+  const getValidityDates = (stuCreatedAt: any) => {
+    const options: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short', year: 'numeric' };
+
+    // Priority 1: Institutional Global Settings (Managed in Security Settings)
+    if (institution?.idCardIssuedDate && institution?.idCardExpiryDate) {
+      const issued = new Date(institution.idCardIssuedDate);
+      const expires = new Date(institution.idCardExpiryDate);
+      return {
+        issued: issued.toLocaleDateString('en-GB', options),
+        expires: expires.toLocaleDateString('en-GB', options)
+      }
+    }
+
+    // Priority 2: Automatic Cycle Fallback
+    const issued = stuCreatedAt ? new Date(stuCreatedAt.toMillis()) : new Date();
     const expires = new Date(issued);
     expires.setFullYear(issued.getFullYear() + 3); // Standard 3-year academic cycle
     
-    const options: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short', year: 'numeric' };
     return {
       issued: issued.toLocaleDateString('en-GB', options),
       expires: expires.toLocaleDateString('en-GB', options)

@@ -8,9 +8,9 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { School, Shield, Building, Plus, Layers, Trash2, Save, Loader2, Upload, X, Wallet, CheckCircle2, Clock, AlertTriangle, KeyRound, Phone, Sparkles } from "lucide-react"
+import { School, Shield, Building, Plus, Layers, Trash2, Save, Loader2, Upload, X, Wallet, CheckCircle2, Clock, AlertTriangle, KeyRound, Phone, Sparkles, IdCard } from "lucide-react"
 import { useState, useEffect, useRef, useMemo, Suspense } from "react"
-import { useFirestore, useDoc, useUser } from "@/firebase"
+import { useUser, useFirestore, useDoc } from "@/firebase"
 import { doc, updateDoc } from "firebase/firestore"
 import { toast } from "@/hooks/use-toast"
 import { errorEmitter } from "@/firebase/error-emitter"
@@ -37,7 +37,7 @@ function SettingsContent() {
     if (tabParam && tabParam !== activeTab) {
       setActiveTab(tabParam)
     }
-  }, [tabParam])
+  }, [tabParam, activeTab])
 
   const handleTabChange = (val: string) => {
     setActiveTab(val)
@@ -52,7 +52,9 @@ function SettingsContent() {
     address: "",
     phone: "",
     academicYear: "",
-    currentTerm: "Term 1"
+    currentTerm: "Term 1",
+    idCardIssuedDate: "",
+    idCardExpiryDate: ""
   })
 
   useEffect(() => {
@@ -76,7 +78,9 @@ function SettingsContent() {
         address: institution.address || "",
         phone: institution.phone || "",
         academicYear: institution.academicYear || "",
-        currentTerm: institution.currentTerm || "Term 1"
+        currentTerm: institution.currentTerm || "Term 1",
+        idCardIssuedDate: institution.idCardIssuedDate || "",
+        idCardExpiryDate: institution.idCardExpiryDate || ""
       })
       if (institution.logoUrl) setLogoUrl(institution.logoUrl)
     }
@@ -255,9 +259,8 @@ function SettingsContent() {
               </CardFooter>
             </Card>
           </TabsContent>
-        </form>
 
-        <TabsContent value="subscription" className="space-y-6">
+          <TabsContent value="subscription" className="space-y-6">
            <div className="grid gap-6 md:grid-cols-3">
               <Card className={`border-none shadow-lg ${institution?.subscriptionPlan === 'Trial' ? 'bg-blue-600 text-white' : 'bg-primary text-white'}`}>
                 <CardHeader>
@@ -306,18 +309,58 @@ function SettingsContent() {
 
         <TabsContent value="security" className="space-y-6">
           <Card className="border-none shadow-md bg-white rounded-2xl overflow-hidden">
-            <CardHeader><CardTitle className="font-headline font-bold">System Access Protocols</CardTitle></CardHeader>
-            <CardContent className="p-6 border-t">
-              <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50/50 border border-slate-100">
-                <div className="space-y-1">
-                  <Label className="font-bold text-primary">Global Identity Verification</Label>
-                  <p className="text-xs text-muted-foreground">Identity checks active across the institutional system hub.</p>
+            <CardHeader><CardTitle className="font-headline font-bold">System Access & Identity Protocols</CardTitle></CardHeader>
+            <CardContent className="p-6 space-y-10 border-t">
+              <section className="space-y-6">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 border-b pb-2">
+                  <IdCard className="size-4 text-primary" /> Identity Hub & ID Cards
+                </h3>
+                <div className="grid gap-6 md:grid-cols-2">
+                   <div className="space-y-2">
+                      <Label className="font-bold text-xs uppercase tracking-widest text-primary">Global Issuance Date</Label>
+                      <Input 
+                        type="date" 
+                        value={form.idCardIssuedDate} 
+                        onChange={e => setForm({...form, idCardIssuedDate: e.target.value})} 
+                        className="h-11 rounded-xl" 
+                      />
+                      <p className="text-[10px] text-muted-foreground">Overrides individual enrollment dates for batch card printing.</p>
+                   </div>
+                   <div className="space-y-2">
+                      <Label className="font-bold text-xs uppercase tracking-widest text-primary">Global Expiry Date</Label>
+                      <Input 
+                        type="date" 
+                        value={form.idCardExpiryDate} 
+                        onChange={e => setForm({...form, idCardExpiryDate: e.target.value})} 
+                        className="h-11 rounded-xl" 
+                      />
+                      <p className="text-[10px] text-muted-foreground">Sets a fixed expiration window for the current institutional cycle.</p>
+                   </div>
                 </div>
-                <Switch defaultChecked />
-              </div>
+              </section>
+
+              <section className="space-y-4">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 border-b pb-2">
+                  <Shield className="size-4 text-primary" /> Multi-Tenant Boundaries
+                </h3>
+                <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50/50 border border-slate-100">
+                  <div className="space-y-1">
+                    <Label className="font-bold text-primary">Global Identity Verification</Label>
+                    <p className="text-xs text-muted-foreground">Identity checks active across the institutional system hub.</p>
+                  </div>
+                  <Switch defaultChecked />
+                </div>
+              </section>
             </CardContent>
+            <CardFooter className="border-t pt-6 bg-slate-50/50">
+              <Button type="submit" disabled={isSaving} className="ml-auto gap-2 h-11 px-8 rounded-xl bg-primary font-bold shadow-lg">
+                {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+                Authorize Security Updates
+              </Button>
+            </CardFooter>
           </Card>
         </TabsContent>
+        </form>
       </Tabs>
     </div>
   )
