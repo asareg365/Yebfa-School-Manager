@@ -1,0 +1,65 @@
+
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Information about users and their roles within the system.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["super_admin", "school_owner", "administrator", "teacher", "accountant", "librarian", "student", "parent"] },
+        "tenantId": { "type": "string" },
+        "institutionId": { "type": "string" },
+        "name": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["uid", "email", "role", "tenantId"]
+    },
+    "Institution": {
+      "title": "Institution",
+      "description": "Educational institution details.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tenantId": { "type": "string" },
+        "name": { "type": "string" },
+        "schoolCode": { "type": "string" },
+        "emailDomain": { "type": "string" },
+        "ownerEmail": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "location": { "type": "string" },
+        "address": { "type": "string" },
+        "phone": { "type": "string" },
+        "subscriptionPlan": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "tenantId", "schoolCode", "emailDomain"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "System alerts and broadcast summaries for the notification hub.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tenantId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "type": { "type": "string", "enum": ["info", "alert", "success", "error"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "target": { "type": "string" }
+      },
+      "required": ["tenantId", "title", "type"]
+    }
+  },
+  "auth": {
+    "providers": ["google.com", "password"]
+  },
+  "firestore": {
+    "/users/{userId}": { "schema": "User" },
+    "/institutions/{institutionId}": { "schema": "Institution" },
+    "/notifications/{notifId}": { "schema": "Notification" }
+  }
+}

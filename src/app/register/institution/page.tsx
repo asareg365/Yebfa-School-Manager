@@ -1,0 +1,425 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { School, ArrowLeft, Loader2, MapPin, Mail, User, ShieldCheck, Lock, Eye, EyeOff, Phone, Globe } from "lucide-react"
+import { toast } from "@/hooks/use-toast"
+import { useFirestore, useUser, useAuth } from "@/firebase"
+import { 
+  doc,
+  collection,
+  serverTimestamp,
+  writeBatch
+} from "firebase/firestore"
+import { createUserWithEmailAndPassword } from "firebase/auth"
+import { generateId } from "@/lib/id-generator"
+
+const GRADE_LEVEL_CATEGORIES = [
+  { id: "basic", label: "Basic Education (KG - Primary)", grades: ["KG 1-2", "Primary 1-6", "KG - Primary 6", "Primary - JHS 3"] },
+  { id: "jhs", label: "Junior High School", grades: ["JHS 1-3"] },
+  { id: "shs", label: "Senior High School", grades: ["SHS 1-3", "TVET"] },
+  { id: "tertiary", label: "Higher Education", grades: ["University", "Polytechnic", "College of Ed"] },
+  { id: "combined", label: "Combined Cycles", grades: ["KG - SHS 3", "Primary - JHS 3", "KG - JHS 3", "Primary - SHS 3"] }
+]
+
+export default function InstitutionRegistrationPage() {
+  const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [formData, setFormData] = useState({
+    name: "",
+    gradeLevel: "",
+    specificGrades: "",
+    location: "",
+    phone: "",
+    ownerName: "",
+    ownerEmail: "",
+    password: "",
+    confirmPassword: "",
+    emailDomain: ""
+  })
+  
+  const router = useRouter()
+  const db = useFirestore()
+  const auth = useAuth()
+  const { user, loading: authLoading } = useUser()
+
+  useEffect(() => {
+    if (user && !formData.ownerEmail) {
+      setFormData(prev => ({ ...prev, ownerEmail: user.email || "" }))
+    }
+  }, [user])
+
+  const generateSchoolCode = (name: string) => {
+    const cleanName = name.replace(/[^a-zA-Z]/g, '');
+    if (cleanName.length >= 3) {
+      return cleanName.substring(0, 3).toUpperCase();
+    }
+    return cleanName.toUpperCase() || "SCH";
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!formData.gradeLevel || !formData.specificGrades) {
+      toast({
+        variant: "destructive",
+        title: "Missing Selections",
+        description: "Please select both a Grade Category and a Grade Range."
+      })
+      return
+    }
+
+    if (!user) {
+      if (formData.password.length < 6) {
+        toast({ variant: "destructive", title: "Weak Password", description: "Password must be at least 6 characters." })
+        return
+      }
+      if (formData.password !== formData.confirmPassword) {
+        toast({ variant: "destructive", title: "Mismatch", description: "Passwords do not match." })
+        return
+      }
+    }
+
+    setLoading(true)
+
+    try {
+      let activeUser = user;
+
+      if (!activeUser) {
+        const credential = await createUserWithEmailAndPassword(auth, formData.ownerEmail, formData.password)
+        activeUser = credential.user
+      }
+
+      const institutionRef = doc(collection(db, "institutions"))
+      const tenantId = institutionRef.id
+      const schoolCode = generateSchoolCode(formData.name)
+      const emailDomain = formData.emailDomain || `${schoolCode.toLowerCase()}.ysm.local`
+
+      // --- AUTOMATIC STAFF ENROLLMENT FOR OWNER ---
+      const staffRef = doc(collection(db, "staff"))
+      const staffId = staffRef.id
+      const staffNumber = await generateId('staff', schoolCode, 'SF')
+      
+      const nameParts = formData.ownerName.trim().split(/\s+/);
+      const firstName = nameParts[0] || "Owner";
+      const lastName = nameParts.slice(1).join(" ") || "Admin";
+
+      const batch = writeBatch(db)
+
+      batch.set(
+        institutionRef,
+        {
+          id: tenantId,
+          tenantId,
+          name: formData.name,
+          schoolCode: schoolCode,
+          emailDomain: emailDomain,
+          type: formData.gradeLevel,
+          gradeLevel: formData.gradeLevel,
+          specificGrades: formData.specificGrades,
+          location: formData.location,
+          phone: formData.phone,
+          ownerUid: activeUser.uid,
+          ownerName: formData.ownerName,
+          ownerEmail: formData.ownerEmail,
+          subscriptionPlan: "Trial",
+          status: "active",
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        }
+      )
+
+      // Provision Staff Record for Owner
+      batch.set(staffRef, {
+        id: staffId,
+        staffNumber,
+        firstName,
+        lastName,
+        gender: "Other",
+        phone: formData.phone,
+        email: formData.ownerEmail,
+        designation: "School Owner",
+        employmentDate: new Date().toISOString().split('T')[0],
+        salary: 0,
+        status: "active",
+        authUid: activeUser.uid,
+        tenantId,
+        institutionId: tenantId,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      })
+
+      batch.set(
+        doc(db, "users", activeUser.uid),
+        {
+          uid: activeUser.uid,
+          name: formData.ownerName,
+          email: formData.ownerEmail,
+          role: "school_owner",
+          tenantId,
+          institutionId: tenantId,
+          institutionName: formData.name,
+          schoolCode: schoolCode,
+          staffId: staffId, // Link user to staff record
+          status: "active",
+          createdAt: serverTimestamp()
+        }
+      )
+
+      await batch.commit()
+
+      localStorage.setItem('selected_institution_id', tenantId)
+      localStorage.setItem('selected_institution_name', formData.name)
+      localStorage.setItem('selected_school_code', schoolCode)
+
+      toast({
+        title: "Workspace Provisioned",
+        description: `Welcome. Your School Code is ${schoolCode}. Owner enrolled as faculty.`
+      })
+
+      router.replace("/dashboard")
+
+    } catch (error: any) {
+      console.error("Provisioning Error:", error)
+      toast({
+        variant: "destructive",
+        title: "Registration Failed",
+        description: error.message || "An error occurred during account creation."
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const selectedCategory = GRADE_LEVEL_CATEGORIES.find(c => c.label === formData.gradeLevel)
+
+  if (authLoading) return (
+    <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-muted/30">
+      <Loader2 className="size-8 animate-spin text-primary" />
+      <p className="font-headline font-bold text-primary animate-pulse text-lg">Synchronizing Hub...</p>
+    </div>
+  )
+
+  return (
+    <div className="min-h-screen bg-muted/30 flex flex-col items-center py-12 px-6">
+      <Link href="/" className="flex items-center gap-2 mb-8">
+        <div className="size-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-lg">
+          <School className="size-6" />
+        </div>
+        <span className="text-2xl font-headline font-bold tracking-tight text-primary">Yebfa School Manager</span>
+      </Link>
+
+      <Card className="w-full max-w-2xl border-none shadow-2xl overflow-hidden rounded-3xl">
+        <CardHeader className="bg-primary text-primary-foreground p-8">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="size-8 rounded-lg bg-white/10 flex items-center justify-center">
+              <School className="size-5" />
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Institutional Provisioning</span>
+          </div>
+          <CardTitle className="text-3xl font-headline font-bold">Register Your Institution</CardTitle>
+          <CardDescription className="text-primary-foreground/70">Create your administrative account and school workspace.</CardDescription>
+        </CardHeader>
+        <CardContent className="p-8">
+          <form onSubmit={handleSubmit} className="space-y-8">
+            <div className="space-y-6">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b pb-2">School Profile</h3>
+              <div className="space-y-2">
+                <Label htmlFor="schoolName">Official School Name</Label>
+                <div className="relative">
+                  <School className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                  <Input 
+                    id="schoolName" 
+                    placeholder="e.g. Goaso International School" 
+                    className="pl-10 h-12 rounded-xl" 
+                    required 
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Category</Label>
+                  <select 
+                    className="flex h-12 w-full items-center justify-between rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={formData.gradeLevel}
+                    onChange={(e) => setFormData(prev => ({ ...prev, gradeLevel: e.target.value, specificGrades: "" }))}
+                    required
+                  >
+                    <option value="">Select level...</option>
+                    {GRADE_LEVEL_CATEGORIES.map(cat => (
+                      <option key={cat.id} value={cat.label}>{cat.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Range</Label>
+                  <select 
+                    className="flex h-12 w-full items-center justify-between rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={formData.specificGrades}
+                    disabled={!formData.gradeLevel}
+                    onChange={(e) => setFormData(prev => ({ ...prev, specificGrades: e.target.value }))}
+                    required
+                  >
+                    <option value="">Select range...</option>
+                    {selectedCategory?.grades.map(grade => (
+                      <option key={grade} value={grade}>{grade}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Location / City</Label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                    <Input 
+                      placeholder="e.g. Goaso, Ahafo" 
+                      className="pl-10 h-12 rounded-xl" 
+                      required 
+                      value={formData.location}
+                      onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Hub Email Domain (Portal IDs)</Label>
+                  <div className="relative">
+                    <Globe className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                    <Input 
+                      placeholder="e.g. gis.local" 
+                      className="pl-10 h-12 rounded-xl" 
+                      value={formData.emailDomain}
+                      onChange={(e) => setFormData(prev => ({ ...prev, emailDomain: e.target.value.toLowerCase().replace(/\s+/g, '') }))}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                  <Label>Institutional Phone</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                    <Input 
+                      placeholder="024XXXXXXX" 
+                      className="pl-10 h-12 rounded-xl" 
+                      required 
+                      value={formData.phone}
+                      onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                    />
+                  </div>
+                </div>
+            </div>
+
+            <div className="space-y-6">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b pb-2">Administrative Identity</h3>
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Full Name</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                    <Input 
+                      placeholder="Principal / Owner Name" 
+                      className="pl-10 h-12 rounded-xl" 
+                      required 
+                      value={formData.ownerName}
+                      onChange={(e) => setFormData(prev => ({ ...prev, ownerName: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Email Address</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                    <Input 
+                      type="email" 
+                      className={`pl-10 h-12 rounded-xl ${user ? 'bg-slate-50' : ''}`} 
+                      required 
+                      readOnly={!!user}
+                      value={formData.ownerEmail}
+                      onChange={(e) => setFormData(prev => ({ ...prev, ownerEmail: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {!user && (
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Security Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                      <Input 
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Min 6 characters" 
+                        className="pl-10 h-12 rounded-xl" 
+                        required 
+                        value={formData.password}
+                        onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                      />
+                      <button 
+                        type="button" 
+                        className="absolute right-3 top-3 text-muted-foreground hover:text-primary"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Confirm Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                      <Input 
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Repeat password" 
+                        className="pl-10 h-12 rounded-xl" 
+                        required 
+                        value={formData.confirmPassword}
+                        onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <Button 
+              className="w-full h-14 text-lg font-bold shadow-xl bg-primary hover:bg-primary/90 rounded-2xl transition-all active:scale-[0.98]" 
+              type="submit" 
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 size-5 animate-spin" />
+                  Finalizing Provisioning...
+                </>
+              ) : (
+                "Authorize Provisioning"
+              )}
+            </Button>
+          </form>
+        </CardContent>
+        <CardFooter className="bg-muted/50 p-6 flex flex-col gap-4 border-t">
+          <p className="text-[10px] text-center text-muted-foreground uppercase font-bold tracking-widest">
+            Institutional Data Isolation Active • System 2026
+          </p>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/login" className="gap-2 text-xs">
+              Already have an account? <span className="font-bold text-primary underline">Sign In</span>
+            </Link>
+          </Button>
+        </CardFooter>
+      </Card>
+    </div>
+  )
+}

@@ -1,0 +1,375 @@
+
+"use client"
+
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { School, Shield, Building, Plus, Layers, Trash2, Save, Loader2, Upload, X, Wallet, CheckCircle2, Clock, AlertTriangle, KeyRound, Phone, Sparkles, IdCard } from "lucide-react"
+import { useState, useEffect, useRef, useMemo, Suspense } from "react"
+import { useUser, useFirestore, useDoc } from "@/firebase"
+import { doc, updateDoc } from "firebase/firestore"
+import { toast } from "@/hooks/use-toast"
+import { errorEmitter } from "@/firebase/error-emitter"
+import { FirestorePermissionError } from "@/firebase/errors"
+import { differenceInDays } from "date-fns"
+import { Badge } from "@/components/ui/badge"
+import { useSearchParams, useRouter } from "next/navigation"
+
+function SettingsContent() {
+  const db = useFirestore()
+  const { user } = useUser()
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const [institutionId, setInstitutionId] = useState<string | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
+  const [logoPreview, setLogoUrl] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // URL Tab Sync
+  const tabParam = searchParams.get('tab') || 'profile'
+  const [activeTab, setActiveTab] = useState(tabParam)
+
+  useEffect(() => {
+    if (tabParam && tabParam !== activeTab) {
+      setActiveTab(tabParam)
+    }
+  }, [tabParam, activeTab])
+
+  const handleTabChange = (val: string) => {
+    setActiveTab(val)
+    router.push(`/dashboard/settings?tab=${val}`, { scroll: false })
+  }
+
+  // Form State
+  const [form, setForm] = useState({
+    name: "",
+    schoolCode: "",
+    location: "",
+    address: "",
+    phone: "",
+    academicYear: "",
+    currentTerm: "Term 1",
+    idCardIssuedDate: "",
+    idCardExpiryDate: ""
+  })
+
+  useEffect(() => {
+    const storedId = localStorage.getItem('selected_institution_id')
+    setInstitutionId(storedId)
+  }, [])
+
+  const instRef = useMemo(() => {
+    if (!db || !institutionId) return null;
+    return doc(db, "institutions", institutionId);
+  }, [db, institutionId])
+  
+  const { data: institution, loading } = useDoc(instRef)
+
+  useEffect(() => {
+    if (institution) {
+      setForm({
+        name: institution.name || "",
+        schoolCode: institution.schoolCode || "SCH",
+        location: institution.location || "",
+        address: institution.address || "",
+        phone: institution.phone || "",
+        academicYear: institution.academicYear || "",
+        currentTerm: institution.currentTerm || "Term 1",
+        idCardIssuedDate: institution.idCardIssuedDate || "",
+        idCardExpiryDate: institution.idCardExpiryDate || ""
+      })
+      if (institution.logoUrl) setLogoUrl(institution.logoUrl)
+    }
+  }, [institution])
+
+  const trialDaysLeft = useMemo(() => {
+    if (!institution?.createdAt) return null;
+    const start = new Date(institution.createdAt.toMillis());
+    const diff = differenceInDays(new Date(), start);
+    return Math.max(0, 30 - diff);
+  }, [institution]);
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (file.size > 800000) {
+        toast({
+          variant: "destructive",
+          title: "File Too Large",
+          description: "Please upload a logo smaller than 800KB for system stability.",
+        })
+        return
+      }
+      const reader = new FileReader()
+      reader.onloadend = () => setLogoUrl(reader.result as string)
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!instRef || isSaving || !institution) return
+    
+    setIsSaving(true)
+    const data: any = {
+      ...form,
+      schoolCode: form.schoolCode.toUpperCase().replace(/\s+/g, '').substring(0, 4),
+      updatedAt: new Date()
+    }
+
+    if (logoPreview !== (institution.logoUrl || null)) {
+      data.logoUrl = logoPreview;
+    }
+
+    try {
+      await updateDoc(instRef, data)
+      toast({
+        title: "Registry Synchronized",
+        description: "Institutional profile updated successfully.",
+      })
+    } catch (serverError: any) {
+      const permissionError = new FirestorePermissionError({
+        path: instRef.path,
+        operation: 'update',
+        requestResourceData: data,
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  if (loading) return <div className="p-10 text-center animate-pulse font-headline font-bold text-primary">Synchronizing system...</div>
+  if (!institutionId) return <div className="p-10 text-center font-bold text-destructive">No active institution context found</div>
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500 pb-20">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-3xl font-headline font-bold text-primary tracking-tight">System Configuration Hub</h1>
+        <p className="text-muted-foreground">Managing {institution?.name} • Global Ecosystem</p>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+        <TabsList className="bg-muted/50 p-1 rounded-xl mb-6 flex-wrap h-auto">
+          <TabsTrigger value="profile" className="rounded-lg gap-2"><Building className="size-4" /> Identity</TabsTrigger>
+          <TabsTrigger value="academic" className="rounded-lg gap-2"><School className="size-4" /> Academic</TabsTrigger>
+          <TabsTrigger value="subscription" className="rounded-lg gap-2 text-accent"><Wallet className="size-4" /> Subscription</TabsTrigger>
+          <TabsTrigger value="security" className="rounded-lg gap-2"><Shield className="size-4" /> Security</TabsTrigger>
+        </TabsList>
+
+        <form onSubmit={handleSaveSettings}>
+          <TabsContent value="profile" className="space-y-6">
+            <Card className="border-none shadow-md bg-white rounded-2xl overflow-hidden">
+              <CardHeader>
+                <CardTitle className="font-headline font-bold">Identity & Presence</CardTitle>
+                <CardDescription>Logo and system branding used for official reports.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-8">
+                <div className="flex items-center gap-8 p-6 border-2 border-dashed rounded-3xl bg-slate-50/50">
+                  <div className="relative size-32 rounded-2xl bg-white border flex items-center justify-center overflow-hidden shadow-sm group">
+                    {logoPreview ? (
+                      <img src={logoPreview} className="w-full h-full object-contain p-2" alt="Logo" />
+                    ) : (
+                      <School className="size-10 text-muted-foreground/20" />
+                    )}
+                    {logoPreview && (
+                      <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 size-6 opacity-0 group-hover:opacity-100 rounded-full" onClick={() => setLogoUrl(null)}>
+                        <X className="size-3" />
+                      </Button>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-sm font-bold text-primary">System Branding</p>
+                    <p className="text-xs text-muted-foreground">High resolution logo. Max 800KB.</p>
+                    <input type="file" ref={fileInputRef} onChange={handleLogoUpload} accept="image/*" className="hidden" />
+                    <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="gap-2 rounded-xl h-10 px-4">
+                      <Upload className="size-4" /> Upload Hub Image
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Official Institution Name</Label>
+                    <Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} required className="h-11 rounded-xl" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Institution Prefix (ID Generation)</Label>
+                    <div className="relative">
+                       <KeyRound className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                       <Input value={form.schoolCode} onChange={e => setForm({...form, schoolCode: e.target.value.toUpperCase()})} maxLength={4} placeholder="e.g. TTS" className="h-11 pl-10 rounded-xl font-mono font-bold" />
+                    </div>
+                  </div>
+                </div>
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">System Hub Location</Label>
+                    <Input value={form.location} onChange={e => setForm({...form, location: e.target.value})} required className="h-11 rounded-xl" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Institutional Phone Number</Label>
+                    <div className="relative">
+                       <Phone className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                       <Input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="024XXXXXXX" className="h-11 pl-10 rounded-xl" />
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Physical Address</Label>
+                  <Input value={form.address} onChange={e => setForm({...form, address: e.target.value})} placeholder="e.g. Plot 15, System Hub" className="h-11 rounded-xl" />
+                </div>
+              </CardContent>
+              <CardFooter className="border-t pt-6 bg-slate-50/50">
+                <Button type="submit" disabled={isSaving} className="ml-auto gap-2 h-11 px-8 rounded-xl bg-primary font-bold shadow-lg">
+                  {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+                  Authorize Registry Update
+                </Button>
+              </CardFooter>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="academic" className="space-y-6">
+            <Card className="border-none shadow-md bg-white rounded-2xl overflow-hidden">
+              <CardHeader><CardTitle className="font-headline font-bold">Academic Cycle Registry</CardTitle></CardHeader>
+              <CardContent className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Academic Session</Label>
+                  <Input value={form.academicYear} onChange={e => setForm({...form, academicYear: e.target.value})} className="h-11 rounded-xl" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">System Active Term</Label>
+                  <Select value={form.currentTerm} onValueChange={v => setForm({...form, currentTerm: v})}>
+                    <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Term 1">Term 1</SelectItem>
+                      <SelectItem value="Term 2">Term 2</SelectItem>
+                      <SelectItem value="Term 3">Term 3</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+              <CardFooter className="border-t pt-6 bg-slate-50/50">
+                <Button type="submit" disabled={isSaving} className="ml-auto h-11 px-8 rounded-xl bg-primary font-bold">
+                  Authorize Updates
+                </Button>
+              </CardFooter>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="subscription" className="space-y-6">
+           <div className="grid gap-6 md:grid-cols-3">
+              <Card className={`border-none shadow-lg ${institution?.subscriptionPlan === 'Trial' ? 'bg-blue-600 text-white' : 'bg-primary text-white'}`}>
+                <CardHeader>
+                   <CardDescription className="text-white/70 text-[10px] font-bold uppercase tracking-widest">Active Plan</CardDescription>
+                   <CardTitle className="text-3xl font-headline font-bold">{institution?.subscriptionPlan}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                   {institution?.subscriptionPlan === 'Trial' ? (
+                     <div className="space-y-2">
+                        <div className="flex justify-between text-xs"><span>Trial Duration</span><span>30 Days</span></div>
+                        <div className="flex justify-between text-xs"><span>Days Remaining</span><span className="font-bold">{trialDaysLeft} Days</span></div>
+                     </div>
+                   ) : (
+                     <div className="flex items-center gap-2 text-xs">
+                        <CheckCircle2 className="size-4" /> Full Enterprise Access
+                     </div>
+                   )}
+                </CardContent>
+              </Card>
+
+              {institution?.subscriptionPlan === 'Trial' && (
+                <Card className="border-none shadow-md bg-white md:col-span-2">
+                   <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2"><Sparkles className="size-5 text-accent" /> Unlock Premium Features</CardTitle>
+                      <CardDescription>Upgrade to Basic or Premium to remove trial limitations and activate AI forecasting.</CardDescription>
+                   </CardHeader>
+                   <CardContent className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                         <div className="p-4 rounded-xl bg-slate-50 border flex flex-col gap-1">
+                            <span className="text-xs font-bold">Basic</span>
+                            <span className="text-[10px] text-muted-foreground uppercase font-bold">GH₵ 499 / Term</span>
+                         </div>
+                         <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 flex flex-col gap-1">
+                            <span className="text-xs font-bold text-primary">Premium AI</span>
+                            <span className="text-[10px] text-primary/60 uppercase font-bold">GH₵ 1,299 / Term</span>
+                         </div>
+                      </div>
+                      <Button className="w-full bg-accent text-accent-foreground font-bold h-12 shadow-lg" asChild>
+                         <a href="mailto:asareg365@gmail.com?subject=Institution Upgrade Request">Request Plan Upgrade</a>
+                      </Button>
+                   </CardContent>
+                </Card>
+              )}
+           </div>
+        </TabsContent>
+
+        <TabsContent value="security" className="space-y-6">
+          <Card className="border-none shadow-md bg-white rounded-2xl overflow-hidden">
+            <CardHeader><CardTitle className="font-headline font-bold">System Access & Identity Protocols</CardTitle></CardHeader>
+            <CardContent className="p-6 space-y-10 border-t">
+              <section className="space-y-6">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 border-b pb-2">
+                  <IdCard className="size-4 text-primary" /> Identity Hub & ID Cards
+                </h3>
+                <div className="grid gap-6 md:grid-cols-2">
+                   <div className="space-y-2">
+                      <Label className="font-bold text-xs uppercase tracking-widest text-primary">Global Issuance Date</Label>
+                      <Input 
+                        type="date" 
+                        value={form.idCardIssuedDate} 
+                        onChange={e => setForm({...form, idCardIssuedDate: e.target.value})} 
+                        className="h-11 rounded-xl" 
+                      />
+                      <p className="text-[10px] text-muted-foreground">Overrides individual enrollment dates for batch card printing.</p>
+                   </div>
+                   <div className="space-y-2">
+                      <Label className="font-bold text-xs uppercase tracking-widest text-primary">Global Expiry Date</Label>
+                      <Input 
+                        type="date" 
+                        value={form.idCardExpiryDate} 
+                        onChange={e => setForm({...form, idCardExpiryDate: e.target.value})} 
+                        className="h-11 rounded-xl" 
+                      />
+                      <p className="text-[10px] text-muted-foreground">Sets a fixed expiration window for the current institutional cycle.</p>
+                   </div>
+                </div>
+              </section>
+
+              <section className="space-y-4">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 border-b pb-2">
+                  <Shield className="size-4 text-primary" /> Multi-Tenant Boundaries
+                </h3>
+                <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50/50 border border-slate-100">
+                  <div className="space-y-1">
+                    <Label className="font-bold text-primary">Global Identity Verification</Label>
+                    <p className="text-xs text-muted-foreground">Identity checks active across the institutional system hub.</p>
+                  </div>
+                  <Switch defaultChecked />
+                </div>
+              </section>
+            </CardContent>
+            <CardFooter className="border-t pt-6 bg-slate-50/50">
+              <Button type="submit" disabled={isSaving} className="ml-auto gap-2 h-11 px-8 rounded-xl bg-primary font-bold shadow-lg">
+                {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+                Authorize Security Updates
+              </Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+        </form>
+      </Tabs>
+    </div>
+  )
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={<div className="p-10 text-center animate-pulse font-headline font-bold text-primary">Synchronizing Settings...</div>}>
+      <SettingsContent />
+    </Suspense>
+  )
+}
