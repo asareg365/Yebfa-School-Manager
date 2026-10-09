@@ -29,7 +29,7 @@ import {
   LayoutGrid
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase"
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, useTenant } from "@/firebase"
 import { collection, query, where, addDoc, serverTimestamp, updateDoc, doc, deleteDoc, orderBy } from "firebase/firestore"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -61,10 +61,10 @@ export default function AdmissionsHubPage() {
   const db = useFirestore()
   const router = useRouter()
   const { user } = useUser()
+  const { institutionId, institution, profile, loading: tenantLoading } = useTenant()
   const [searchQuery, setSearchQuery] = useState("")
   const [loading, setLoading] = useState(false)
   const [isAppOpen, setIsAppOpen] = useState(false)
-  const [institutionId, setInstitutionId] = useState<string | null>(null);
 
   const [appForm, setAppForm] = useState({
     firstName: "",
@@ -76,23 +76,6 @@ export default function AdmissionsHubPage() {
     phone: "",
     applicationNumber: "PENDING"
   })
-
-  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
-  const { data: profile, loading: profileLoading } = useDoc(userProfileRef)
-
-  // Safe Context Resolution
-  useEffect(() => {
-    if (!profileLoading && profile) {
-      if (profile.role === 'super_admin') {
-        setInstitutionId(localStorage.getItem('selected_institution_id'));
-      } else {
-        setInstitutionId(profile.tenantId || null);
-      }
-    }
-  }, [profile, profileLoading]);
-
-  const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
-  const { data: institution } = useDoc(instRef)
 
   const admissionsQuery = useMemoFirebase(() => {
     if (!db || !institutionId) return null
@@ -153,7 +136,7 @@ export default function AdmissionsHubPage() {
     router.push('/dashboard/students?enroll=true')
   }
 
-  if (profileLoading || dataLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="size-8 animate-spin text-primary" /></div>
+  if (tenantLoading || dataLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="size-8 animate-spin text-primary" /></div>
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-20">

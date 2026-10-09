@@ -49,8 +49,12 @@ export default function StudentReportsPortal() {
 
   const studentsQuery = useMemo(() => {
     if (!db || !profile) return null;
-    if (isStudent && user?.uid) return query(collection(db, "students"), where("authUid", "==", user.uid));
-    if (isParent && relations.length > 0) return query(collection(db, "students"), where("id", "in", relations.map(r => r.studentId)));
+    if (isStudent && user?.uid && profile.tenantId) {
+      return query(collection(db, "students"), where("authUid", "==", user.uid), where("tenantId", "==", profile.tenantId));
+    }
+    if (isParent && relations.length > 0 && profile.tenantId) {
+      return query(collection(db, "students"), where("id", "in", relations.map(r => r.studentId)), where("tenantId", "==", profile.tenantId));
+    }
     return null;
   }, [db, relations, isStudent, isParent, profile, user?.uid])
 

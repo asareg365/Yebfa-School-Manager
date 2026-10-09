@@ -18,7 +18,7 @@ import {
   AlertCircle
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useFirestore, useCollection } from "@/firebase"
+import { useFirestore, useCollection, useTenant } from "@/firebase"
 import { collection, addDoc, query, where, doc, serverTimestamp, updateDoc, writeBatch, getDoc } from "firebase/firestore"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -27,7 +27,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 export default function LibraryTransactionsPage() {
   const db = useFirestore()
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
+  const { institutionId } = useTenant()
   const [loading, setLoading] = useState(false)
   const [isBorrowOpen, setIsBorrowOpen] = useState(false)
 
@@ -39,7 +39,6 @@ export default function LibraryTransactionsPage() {
   })
 
   useEffect(() => {
-    setInstitutionId(localStorage.getItem('selected_institution_id'))
     // Initialize date on client to avoid hydration mismatch
     setBorrowForm(prev => ({
       ...prev,

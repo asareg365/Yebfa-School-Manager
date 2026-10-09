@@ -23,7 +23,7 @@ import {
   Upload
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useUser, useFirestore, useDoc } from "@/firebase"
+import { useUser, useFirestore, useDoc, useTenant } from "@/firebase"
 import { collection, serverTimestamp, doc, setDoc } from "firebase/firestore"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -38,16 +38,9 @@ import { Badge } from "@/components/ui/badge"
 export default function AddParentPage() {
   const db = useFirestore()
   const router = useRouter()
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
+  const { institutionId, institution } = useTenant()
   const [loading, setLoading] = useState(false)
   const photoInputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    setInstitutionId(localStorage.getItem('selected_institution_id'))
-  }, [])
-
-  const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
-  const { data: institution } = useDoc(instRef)
 
   const [parentForm, setParentForm] = useState({
     parentNumber: "PENDING",

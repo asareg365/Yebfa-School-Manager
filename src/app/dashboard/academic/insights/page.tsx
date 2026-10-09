@@ -24,7 +24,7 @@ import {
   CheckCircle2
 } from "lucide-react"
 import { analyzeAcademicRisk, AnalyzeRiskOutput } from "@/ai/flows/analyze-academic-risk"
-import { useFirestore, useCollection } from "@/firebase"
+import { useFirestore, useCollection, useTenant } from "@/firebase"
 import { collection, query, where } from "firebase/firestore"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "@/hooks/use-toast"
@@ -33,22 +33,18 @@ import { Progress } from "@/components/ui/progress"
 
 export default function StrategicInsightsPage() {
   const db = useFirestore()
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
+  const { institutionId } = useTenant()
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<AnalyzeRiskOutput | null>(null)
 
   const [selectedGrade, setSelectedGrade] = useState("")
   const [selectedStudentId, setSelectedStudentId] = useState("")
 
-  useEffect(() => {
-    setInstitutionId(localStorage.getItem('selected_institution_id'))
-  }, [])
-
   const classesQuery = useMemo(() => institutionId ? query(collection(db, "classes"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   const studentsQuery = useMemo(() => institutionId && selectedGrade ? query(collection(db, "students"), where("tenantId", "==", institutionId), where("gradeLevel", "==", selectedGrade)) : null, [db, institutionId, selectedGrade])
-  const examsQuery = useMemo(() => institutionId && selectedStudentId ? query(collection(db, "exam_records"), where("studentId", "==", selectedStudentId)) : null, [db, institutionId, selectedStudentId])
-  const attendanceQuery = useMemo(() => institutionId && selectedStudentId ? query(collection(db, "attendance"), where("studentId", "==", selectedStudentId)) : null, [db, institutionId, selectedStudentId])
-  const ledgerQuery = useMemo(() => institutionId && selectedStudentId ? query(collection(db, "student_ledger"), where("studentId", "==", selectedStudentId)) : null, [db, institutionId, selectedStudentId])
+  const examsQuery = useMemo(() => institutionId && selectedStudentId ? query(collection(db, "exam_records"), where("tenantId", "==", institutionId), where("studentId", "==", selectedStudentId)) : null, [db, institutionId, selectedStudentId])
+  const attendanceQuery = useMemo(() => institutionId && selectedStudentId ? query(collection(db, "attendance"), where("tenantId", "==", institutionId), where("studentId", "==", selectedStudentId)) : null, [db, institutionId, selectedStudentId])
+  const ledgerQuery = useMemo(() => institutionId && selectedStudentId ? query(collection(db, "student_ledger"), where("tenantId", "==", institutionId), where("studentId", "==", selectedStudentId)) : null, [db, institutionId, selectedStudentId])
 
   const { data: classes = [] } = useCollection(classesQuery)
   const { data: students = [] } = useCollection(studentsQuery)

@@ -19,7 +19,7 @@ import {
   Library
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useFirestore, useCollection } from "@/firebase"
+import { useFirestore, useCollection, useTenant } from "@/firebase"
 import { collection, addDoc, query, where, deleteDoc, doc, serverTimestamp, updateDoc } from "firebase/firestore"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -27,7 +27,7 @@ import { Label } from "@/components/ui/label"
 
 export default function LibraryCatalogPage() {
   const db = useFirestore()
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
+  const { institutionId } = useTenant()
   const [loading, setLoading] = useState(false)
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
@@ -42,10 +42,6 @@ export default function LibraryCatalogPage() {
     availableCopies: 1,
     shelfLocation: ""
   })
-
-  useEffect(() => {
-    setInstitutionId(localStorage.getItem('selected_institution_id'))
-  }, [])
 
   const booksQuery = useMemo(() => {
     if (!db || !institutionId) return null

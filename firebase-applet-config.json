@@ -1,9 +1,12 @@
 {
+  "projectId": "studio-7948451861-17b46",
+  "appId": "1:228794187571:web:14d4e227afb7f60a7e4846",
   "apiKey": "AIzaSyAvgUEA_ejb2n3ISKiCxzrtbRmqCsiDoHc",
   "authDomain": "studio-7948451861-17b46.firebaseapp.com",
-  "projectId": "studio-7948451861-17b46",
+  "firestoreDatabaseId": "ai-studio-yebfaschoolmanag-2b5dfd46-36d9-4c82-a8e8-b71881cda0ea",
   "storageBucket": "studio-7948451861-17b46.firebasestorage.app",
   "messagingSenderId": "228794187571",
-  "appId": "1:228794187571:web:deec76645ef499b57e4846",
-  "firestoreDatabaseId": "(default)"
+  "measurementId": "",
+  "oAuthClientId": "228794187571-5e2908ccdhd4fj114oapeui73ld609ke.apps.googleusercontent.com",
+  "recaptchaSiteKey": ""
 }

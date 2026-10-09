@@ -24,22 +24,19 @@ import {
   CheckCircle2,
   AlertTriangle,
   Zap,
-  Target
+  Target,
+  ShieldCheck
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useFirestore, useCollection } from "@/firebase"
+import { useFirestore, useCollection, useTenant } from "@/firebase"
 import { collection, query, where } from "firebase/firestore"
 
 export default function ForecastPage() {
   const db = useFirestore()
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
+  const { institutionId, institutionName } = useTenant()
   const [loading, setLoading] = useState(false)
   const [forecast, setForecast] = useState<GenerateFinancialForecastOutput | null>(null)
-
-  useEffect(() => {
-    setInstitutionId(localStorage.getItem('selected_institution_id'))
-  }, [])
 
   // Live Data Aggregation
   const txnsQuery = useMemo(() => institutionId ? query(collection(db, "transactions"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
@@ -184,7 +181,7 @@ export default function ForecastPage() {
                     <Card className="border-none shadow-xl rounded-2xl overflow-hidden bg-white">
                       <CardHeader className="bg-slate-50 border-b p-6">
                         <CardTitle className="text-lg">Projected Monthly Liquidity</CardTitle>
-                        <CardDescription>Anticipated revenue vs. expense cycles for {localStorage.getItem('selected_institution_name')}.</CardDescription>
+                        <CardDescription>Anticipated revenue vs. expense cycles for {institutionName}.</CardDescription>
                       </CardHeader>
                       <CardContent className="p-0">
                          <div className="divide-y">

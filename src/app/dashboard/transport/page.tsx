@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Bus, Plus, Search, Trash2, Pencil, Loader2, MapPin, Navigation, User, ShieldCheck, Map, Truck } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useFirestore, useCollection } from "@/firebase"
+import { useFirestore, useCollection, useTenant } from "@/firebase"
 import { collection, addDoc, query, where, deleteDoc, doc, serverTimestamp, updateDoc } from "firebase/firestore"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -18,17 +18,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function TransportHubPage() {
   const db = useFirestore()
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
+  const { institutionId } = useTenant()
   const [loading, setLoading] = useState(false)
   const [isVehicleOpen, setIsVehicleOpen] = useState(false)
   const [isRouteOpen, setIsRouteOpen] = useState(false)
 
   const [vehicleForm, setVehicleForm] = useState({ plateNumber: "", model: "", capacity: "30", driverName: "" })
   const [routeForm, setRouteForm] = useState({ name: "", vehicleId: "", monthlyFee: "150" })
-
-  useEffect(() => {
-    setInstitutionId(localStorage.getItem('selected_institution_id'))
-  }, [])
 
   const vehiclesQuery = useMemo(() => institutionId ? query(collection(db!, "vehicles"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   const routesQuery = useMemo(() => institutionId ? query(collection(db!, "routes"), where("tenantId", "==", institutionId)) : null, [db, institutionId])

@@ -30,7 +30,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select"
-import { useFirestore, useCollection, useUser, useDoc, useMemoFirebase } from "@/firebase"
+import { useFirestore, useCollection, useUser, useDoc, useMemoFirebase, useTenant } from "@/firebase"
 import { 
   collection, 
   query, 
@@ -50,15 +50,13 @@ function AcademicFoundationContent() {
   const { user } = useUser()
   const searchParams = useSearchParams()
   const router = useRouter()
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
+  const { institutionId, profile } = useTenant()
   const [loading, setLoading] = useState(false)
 
   // URL Tab Sync
   const tabParam = searchParams.get('tab') || 'cycle'
   const [activeTab, setActiveTab] = useState(tabParam)
 
-  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
-  const { data: profile } = useDoc(userProfileRef)
   const isTeacher = profile?.role === 'teacher'
   const staffId = profile?.staffId
 
@@ -80,16 +78,6 @@ function AcademicFoundationContent() {
   const [sectionForm, setSectionForm] = useState({ classId: "", name: "", capacity: "30" })
   const [subjectForm, setSubjectForm] = useState({ name: "", code: "" })
   const [assignForm, setAssignForm] = useState({ teacherId: "", classId: "", sectionId: "", subjectId: "", termId: "" })
-
-  useEffect(() => {
-    if (profile) {
-      if (profile.role === 'super_admin') {
-        setInstitutionId(localStorage.getItem('selected_institution_id'))
-      } else {
-        setInstitutionId(profile.tenantId || null)
-      }
-    }
-  }, [profile])
 
   // Foundation Queries
   const yearsQuery = useMemoFirebase(() => institutionId ? query(collection(db, "academic_years"), where("tenantId", "==", institutionId)) : null, [db, institutionId])

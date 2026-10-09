@@ -22,7 +22,7 @@ import {
   RotateCcw,
   Filter
 } from "lucide-react";
-import { useUser, useFirestore, useCollection, useDoc } from "@/firebase";
+import { useUser, useFirestore, useCollection, useDoc, useTenant } from "@/firebase";
 import { collection, query, where, doc } from "firebase/firestore";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -34,7 +34,7 @@ import { generateProfitLossCsvContent, downloadCsv, sanitizeFilename } from "@/l
 export default function ProfitAndLossPage() {
   const db = useFirestore();
   const { user } = useUser();
-  const [institutionId, setInstitutionId] = useState<string | null>(null);
+  const { institutionId, institution, profile, loading: tenantLoading } = useTenant();
 
   // Date Filtering State
   const [dateFrom, setDateFrom] = useState("");
@@ -43,29 +43,10 @@ export default function ProfitAndLossPage() {
   const [isExporting, setIsExporting] = useState(false);
 
   // RBAC Resolution
-  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user]);
-  const { data: profile, loading: profileLoading } = useDoc(userProfileRef);
-
   const isAuthorized = useMemo(() => {
     const role = profile?.role || "";
     return ["super_admin", "school_owner", "administrator", "admin", "accountant", "principal"].includes(role);
   }, [profile]);
-
-  useEffect(() => {
-    if (profile) {
-      if (profile.role === "super_admin") {
-        setInstitutionId(localStorage.getItem("selected_institution_id"));
-      } else {
-        setInstitutionId(profile.tenantId || null);
-      }
-    } else {
-      const storedId = localStorage.getItem("selected_institution_id");
-      if (storedId) setInstitutionId(storedId);
-    }
-  }, [profile]);
-
-  const instRef = useMemo(() => (institutionId ? doc(db, "institutions", institutionId) : null), [db, institutionId]);
-  const { data: institution, loading: instLoading } = useDoc(instRef);
 
   // Data Queries (Tenant Isolation)
   const txnsQuery = useMemo(
@@ -85,7 +66,7 @@ export default function ProfitAndLossPage() {
   const { data: rawExpenses = [], loading: expensesLoading } = useCollection(expensesQuery);
   const { data: rawPayroll = [], loading: payrollLoading } = useCollection(payrollQuery);
 
-  const isDataLoading = txnsLoading || expensesLoading || payrollLoading || instLoading || profileLoading;
+  const isDataLoading = txnsLoading || expensesLoading || payrollLoading || tenantLoading;
 
   // Helper to extract ISO date from records
   const getItemDate = (item: any): string => {
@@ -330,7 +311,7 @@ export default function ProfitAndLossPage() {
   };
 
   // RBAC Access Restriction Gate
-  if (!profileLoading && profile && !isAuthorized) {
+  if (!tenantLoading && profile && !isAuthorized) {
     return (
       <div className="p-12 text-center max-w-lg mx-auto space-y-4">
         <div className="size-16 rounded-full bg-red-100 flex items-center justify-center mx-auto text-red-600">

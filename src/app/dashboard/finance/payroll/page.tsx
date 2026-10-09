@@ -24,7 +24,7 @@ import {
   BadgeCheck
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useUser, useFirestore, useCollection, useDoc } from "@/firebase"
+import { useUser, useFirestore, useCollection, useDoc, useTenant } from "@/firebase"
 import { collection, query, where, addDoc, serverTimestamp, writeBatch, doc } from "firebase/firestore"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
@@ -35,20 +35,12 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 
 export default function PayrollProcessorPage() {
   const db = useFirestore()
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
+  const { institutionId, institution } = useTenant()
   const [isCycleOpen, setIsCycleOpen] = useState(false)
   const [isSlipOpen, setIsSlipOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [selectedMonth, setSelectedMonth] = useState("July")
   const [selectedRecord, setSelectedRecord] = useState<any>(null)
-
-  useEffect(() => {
-    const storedId = localStorage.getItem('selected_institution_id')
-    if (storedId) setInstitutionId(storedId)
-  }, [])
-
-  const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
-  const { data: institution } = useDoc(instRef)
 
   const staffQuery = useMemo(() => institutionId ? query(collection(db, "staff"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   const payrollQuery = useMemo(() => institutionId ? query(collection(db, "payroll_records"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
@@ -223,7 +215,7 @@ export default function PayrollProcessorPage() {
                 <div className="flex flex-col sm:flex-row justify-between items-start gap-8">
                    <div className="space-y-4">
                       <div className="flex items-center gap-3">
-                         {institution?.logoUrl ? <img src={institution.logoUrl} className="size-14 object-contain" /> : <Building2 className="size-12 text-primary" />}
+                         <img src={institution?.logoUrl || "/logo-icon.png"} className="size-14 object-contain rounded-xl border border-slate-200 p-1" alt="Logo" />
                          <div className="flex flex-col">
                             <h2 className="text-xl font-headline font-bold text-primary uppercase tracking-tight">{institution?.name || "Registry Hub"}</h2>
                             <p className="text-[10px] text-muted-foreground font-bold uppercase">{institution?.location || "Ahafo Region"}</p>

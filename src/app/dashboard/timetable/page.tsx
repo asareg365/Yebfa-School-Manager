@@ -30,7 +30,7 @@ import {
   PlusCircle,
   Timer
 } from "lucide-react"
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase"
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, useTenant } from "@/firebase"
 import { collection, query, where, doc, setDoc, serverTimestamp, deleteDoc, updateDoc } from "firebase/firestore"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -61,7 +61,8 @@ const ICON_MAP = {
 export default function TimetablePage() {
   const db = useFirestore()
   const { user } = useUser()
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
+  const { institutionId, institution, profile } = useTenant()
+  const instRef = useMemo(() => (db && institutionId ? doc(db, "institutions", institutionId) : null), [db, institutionId])
   const [selectedClassId, setSelectedClassId] = useState("")
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -70,17 +71,8 @@ export default function TimetablePage() {
   
   const [aiResult, setAiResult] = useState<TimetableOutput | null>(null)
 
-  useEffect(() => {
-    setInstitutionId(localStorage.getItem('selected_institution_id'))
-  }, [])
-
-  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
-  const { data: profile } = useDoc(userProfileRef)
   const isTeacher = profile?.role === 'teacher'
   const staffId = profile?.staffId
-
-  const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
-  const { data: institution } = useDoc(instRef)
   const currentTerm = institution?.currentTerm || "Term 1"
 
   const timetableConfig = useMemo(() => institution?.timetableConfig || {

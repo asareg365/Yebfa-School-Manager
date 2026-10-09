@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Building2, Plus, Search, Trash2, Pencil, Loader2, UserPlus, LogOut, CheckCircle2, Bed, Users } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useFirestore, useCollection } from "@/firebase"
+import { useFirestore, useCollection, useTenant } from "@/firebase"
 import { collection, addDoc, query, where, deleteDoc, doc, serverTimestamp, updateDoc, writeBatch } from "firebase/firestore"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -17,17 +17,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 export default function HostelManagementPage() {
   const db = useFirestore()
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
+  const { institutionId } = useTenant()
   const [loading, setLoading] = useState(false)
   const [isRoomOpen, setIsRoomOpen] = useState(false)
   const [isCheckInOpen, setIsCheckInOpen] = useState(false)
 
   const [roomForm, setRoomForm] = useState({ name: "", gender: "Male", capacity: "4" })
   const [checkInForm, setCheckInForm] = useState({ studentId: "", roomId: "", bedNumber: "" })
-
-  useEffect(() => {
-    setInstitutionId(localStorage.getItem('selected_institution_id'))
-  }, [])
 
   const roomsQuery = useMemo(() => institutionId ? query(collection(db!, "hostels"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   const studentsQuery = useMemo(() => institutionId ? query(collection(db!, "students"), where("tenantId", "==", institutionId)) : null, [db, institutionId])

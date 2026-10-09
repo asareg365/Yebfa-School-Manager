@@ -6,11 +6,16 @@ export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-background">
       <header className="px-6 lg:px-12 h-20 flex items-center justify-between border-b border-border/40">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="size-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-lg">
-            <School className="size-6" />
+        <Link href="/" className="flex items-center gap-3 group">
+          <img
+            src="/logo-icon.png"
+            alt="Yebfa School Manager"
+            className="size-11 object-contain rounded-xl shadow-md group-hover:scale-105 transition-transform"
+          />
+          <div className="flex flex-col">
+            <span className="text-xl md:text-2xl font-headline font-bold tracking-tight text-primary leading-tight">Yebfa School Manager</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Strategic SaaS 2026</span>
           </div>
-          <span className="text-2xl font-headline font-bold tracking-tight text-primary">Yebfa School Manager</span>
         </Link>
         <Button variant="ghost" asChild>
           <Link href="/"><ArrowLeft className="mr-2 size-4" /> Back to Home</Link>
@@ -48,7 +53,7 @@ export default function PrivacyPage() {
           <section className="space-y-4">
             <h2 className="text-2xl font-bold font-headline text-primary">4. Contact</h2>
             <p className="text-muted-foreground leading-relaxed">
-              For any privacy-related inquiries or data requests, please contact our administrative team directly at <strong>asareg365@gmail.com</strong> or <strong>frankyeb@gmail.com</strong>.
+              For any privacy-related inquiries or data requests, please contact our administrative team directly at <strong>info@yebfaconsult.org</strong>, <strong>asareg365@gmail.com</strong>, or <strong>frankyeb@gmail.com</strong>.
             </p>
           </section>
         </div>

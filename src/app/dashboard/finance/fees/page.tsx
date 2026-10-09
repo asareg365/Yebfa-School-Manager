@@ -6,7 +6,7 @@ import { Wallet, Receipt, TrendingUp, Plus, Loader2, DollarSign, Send, Settings,
 import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
-import { useFirestore, useCollection } from "@/firebase"
+import { useFirestore, useCollection, useTenant } from "@/firebase"
 import { collection, query, where, addDoc, serverTimestamp, deleteDoc, doc } from "firebase/firestore"
 import { useEffect, useState, useMemo } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog"
@@ -16,15 +16,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 export default function FeeConfigurationPage() {
   const db = useFirestore()
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
+  const { institutionId } = useTenant()
   const [loading, setLoading] = useState(false)
   const [isFeeOpen, setIsFeeOpen] = useState(false)
   const [feeForm, setFeeForm] = useState({ name: "", defaultAmount: "", category: "Mandatory" })
-
-  useEffect(() => {
-    const storedId = localStorage.getItem('selected_institution_id')
-    if (storedId) setInstitutionId(storedId)
-  }, [])
 
   const approvedFeesQuery = useMemo(() => {
     if (!db || !institutionId) return null

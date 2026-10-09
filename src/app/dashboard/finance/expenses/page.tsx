@@ -5,7 +5,7 @@ import { Receipt, Plus, Search, Filter, PieChart, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "@/hooks/use-toast"
-import { useFirestore, useCollection } from "@/firebase"
+import { useFirestore, useCollection, useTenant } from "@/firebase"
 import { collection, addDoc, serverTimestamp, query, where } from "firebase/firestore"
 import { useEffect, useState, useMemo } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog"
@@ -18,15 +18,10 @@ import { FirestorePermissionError } from "@/firebase/errors"
 
 export default function ExpensesPage() {
   const db = useFirestore()
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
+  const { institutionId } = useTenant()
   const [loading, setLoading] = useState(false)
   const [isVoucherOpen, setIsVoucherOpen] = useState(false)
   const [voucherForm, setVoucherForm] = useState({ category: "Utilities", amount: "", description: "" })
-
-  useEffect(() => {
-    const storedId = localStorage.getItem('selected_institution_id')
-    setInstitutionId(storedId)
-  }, [])
 
   const expensesQuery = useMemo(() => {
     if (!db || !institutionId) return null

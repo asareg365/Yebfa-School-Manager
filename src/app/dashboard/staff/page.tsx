@@ -23,7 +23,7 @@ import {
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { toast } from "@/hooks/use-toast"
-import { useUser, useFirestore, useCollection, useDoc } from "@/firebase"
+import { useUser, useFirestore, useCollection, useDoc, useTenant } from "@/firebase"
 import { collection, query, deleteDoc, doc, where, serverTimestamp, updateDoc, setDoc, writeBatch, getDocs } from "firebase/firestore"
 import { useState, useMemo, useEffect, useRef } from "react"
 import { Badge } from "@/components/ui/badge"
@@ -40,11 +40,11 @@ import { generateId } from "@/lib/id-generator"
 export default function StaffHRPage() {
   const db = useFirestore()
   const { user } = useUser()
+  const { institutionId, institution, profile, loading: tenantLoading } = useTenant()
   const [loading, setLoading] = useState(false)
   const [isEnrollOpen, setIsEnrollOpen] = useState(false)
   const [editingStaff, setEditingStaff] = useState<any>(null)
   const [searchQuery, setSearchQuery] = useState("")
-  const [institutionId, setInstitutionId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const initialForm = {
@@ -63,41 +63,18 @@ export default function StaffHRPage() {
 
   const [staffForm, setStaffForm] = useState(initialForm)
 
-  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
-  const { data: profile, loading: profileLoading } = useDoc(userProfileRef)
-
-  // Safe Context Resolution
-  useEffect(() => {
-    if (!profileLoading && profile) {
-      if (profile.role === 'super_admin') {
-        setInstitutionId(localStorage.getItem('selected_institution_id'));
-      } else {
-        setInstitutionId(profile.tenantId || null);
-      }
-    }
-  }, [profile, profileLoading]);
-
   useEffect(() => {
     setStaffForm(prev => ({ ...prev, employmentDate: new Date().toISOString().split('T')[0] }))
   }, [])
 
-  const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
-  const { data: institution } = useDoc(instRef)
-
   const staffQuery = useMemo(() => {
-    if (!db || !profile) return null;
-
-    if (profile.role === "super_admin") {
-      return query(collection(db, "staff"));
-    }
-
-    if (!institutionId) return null;
+    if (!db || !institutionId) return null;
 
     return query(
       collection(db, "staff"),
       where("tenantId", "==", institutionId)
     );
-  }, [db, profile, institutionId]);
+  }, [db, institutionId]);
 
   const { data: rawStaff = [], loading: dataLoading } = useCollection(staffQuery)
 
@@ -235,7 +212,7 @@ export default function StaffHRPage() {
     }
   }
 
-  if (profileLoading || dataLoading) return (
+  if (tenantLoading || dataLoading) return (
     <div className="p-24 text-center">
       <Loader2 className="size-10 animate-spin mx-auto text-primary" />
       <p className="mt-4 font-bold text-muted-foreground animate-pulse uppercase tracking-widest text-xs">Syncing HR Registry...</p>

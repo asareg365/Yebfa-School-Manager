@@ -5,14 +5,14 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { 
-  ArrowLeft, 
-  Loader2, 
-  User, 
-  Phone, 
-  Mail, 
-  Briefcase, 
-  ShieldCheck, 
+import {
+  ArrowLeft,
+  Loader2,
+  User,
+  Phone,
+  Mail,
+  Briefcase,
+  ShieldCheck,
   Baby,
   Building2,
   IdCard,
@@ -27,7 +27,7 @@ import {
   Save,
   CheckCircle2
 } from "lucide-react"
-import { useFirestore, useDoc, useCollection } from "@/firebase"
+import { useFirestore, useDoc, useCollection, useTenant } from "@/firebase"
 import { doc, collection, query, where, writeBatch, serverTimestamp } from "firebase/firestore"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -42,7 +42,7 @@ export default function ParentProfilePage({ params }: { params: Promise<{ id: st
   const { id: parentId } = use(params)
   const db = useFirestore()
   const router = useRouter()
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
+  const { institutionId } = useTenant()
   const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false)
   const [linkLoading, setLinkLoading] = useState(false)
 
@@ -53,23 +53,19 @@ export default function ParentProfilePage({ params }: { params: Promise<{ id: st
     emergencyContact: true
   })
 
-  useEffect(() => {
-    setInstitutionId(localStorage.getItem('selected_institution_id'))
-  }, [])
-
   const parentRef = useMemo(() => doc(db, "parents", parentId), [db, parentId])
   const { data: parent, loading: pLoading } = useDoc(parentRef)
 
   // Fetch all students for the dropdown
-  const allStudentsQuery = useMemo(() => 
-    institutionId ? query(collection(db, "students"), where("tenantId", "==", institutionId)) : null, 
+  const allStudentsQuery = useMemo(() =>
+    institutionId ? query(collection(db, "students"), where("tenantId", "==", institutionId)) : null,
     [db, institutionId]
   )
   const { data: allStudents = [] } = useCollection(allStudentsQuery)
 
   // Fetch relationships from junction table
-  const relsQuery = useMemo(() => 
-    institutionId ? query(collection(db, "student_parents"), where("parentId", "==", parentId)) : null, 
+  const relsQuery = useMemo(() =>
+    institutionId ? query(collection(db, "student_parents"), where("tenantId", "==", institutionId), where("parentId", "==", parentId)) : null,
     [db, parentId, institutionId]
   )
   const { data: rels = [], loading: relsLoading } = useCollection(relsQuery)
@@ -78,19 +74,19 @@ export default function ParentProfilePage({ params }: { params: Promise<{ id: st
   const studentIds = useMemo(() => rels.map(r => r.studentId), [rels]);
   const studentsQuery = useMemo(() => {
     if (!institutionId || studentIds.length === 0) return null
-    return query(collection(db, "students"), where("id", "in", studentIds))
+    return query(collection(db, "students"), where("tenantId", "==", institutionId), where("id", "in", studentIds))
   }, [db, studentIds, institutionId])
   const { data: children = [], loading: childrenLoading } = useCollection(studentsQuery)
 
   const handleLinkStudent = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!db || !institutionId || !linkForm.studentId || linkLoading) return
-    
+
     setLinkLoading(true)
     try {
       const batch = writeBatch(db)
       const relId = `${linkForm.studentId}_${parentId}`
-      
+
       batch.set(doc(db, "student_parents", relId), {
         ...linkForm,
         parentId,
@@ -225,7 +221,7 @@ export default function ParentProfilePage({ params }: { params: Promise<{ id: st
                   {rels.length === 0 ? "No linked student data available yet." : "Awaiting AI Data Processing"}
                 </p>
                 <p className="text-[10px] text-muted-foreground leading-relaxed">
-                  {rels.length === 0 
+                  {rels.length === 0
                     ? "Link a student to receive AI-generated academic summaries and recommendations."
                     : "The AI agent is currently analyzing family performance vectors for the 2026 cycle."}
                 </p>
@@ -247,7 +243,7 @@ export default function ParentProfilePage({ params }: { params: Promise<{ id: st
                   <h3 className="text-sm font-bold uppercase tracking-widest text-primary flex items-center gap-2">
                     <Baby className="size-4" /> Linked Wards
                   </h3>
-                  
+
                   <Dialog open={isLinkDialogOpen} onOpenChange={setIsLinkDialogOpen}>
                     <DialogTrigger asChild>
                       <Button variant="outline" size="sm" className="h-8 rounded-lg text-[10px] font-bold uppercase">
@@ -426,7 +422,7 @@ export default function ParentProfilePage({ params }: { params: Promise<{ id: st
           </Tabs>
         </div>
       </div>
-      
+
       <div className="flex justify-center pt-8">
         <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter flex items-center gap-2">
            <ShieldCheck className="size-3 text-green-600" /> Authorized Institutional Audit • 2026 Registry Hub • Global Ecosystem

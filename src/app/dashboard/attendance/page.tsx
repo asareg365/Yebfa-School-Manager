@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Users, Activity, Clock, CheckCircle, Save, Loader2, Calendar as CalendarIcon, Filter, Search, CheckSquare, Square } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
-import { useFirestore, useCollection, useDoc, useUser } from "@/firebase"
+import { useFirestore, useCollection, useDoc, useUser, useTenant } from "@/firebase"
 import { collection, query, where, addDoc, serverTimestamp, setDoc, doc, getDocs } from "firebase/firestore"
 import { useEffect, useState, useMemo } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -17,20 +17,16 @@ import { Label } from "@/components/ui/label"
 export default function AttendancePage() {
   const db = useFirestore()
   const { user } = useUser()
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
+  const { institutionId, profile } = useTenant()
   const [selectedGrade, setSelectedGrade] = useState("")
   const [selectedDate, setSelectedDate] = useState("")
   const [presentStudents, setPresentStudents] = useState<Record<string, boolean>>({})
   const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
-    const storedId = localStorage.getItem('selected_institution_id')
-    if (storedId) setInstitutionId(storedId)
     setSelectedDate(new Date().toISOString().split('T')[0])
   }, [])
 
-  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
-  const { data: profile } = useDoc(userProfileRef)
   const isTeacher = profile?.role === 'teacher'
   const staffId = profile?.staffId
 

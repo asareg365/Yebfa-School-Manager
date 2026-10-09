@@ -20,7 +20,7 @@ export default function ContactPage() {
       setLoading(false)
       toast({
         title: "Message Sent",
-        description: "Our admins (asareg365@gmail.com & frankyeb@gmail.com) will assist you soon.",
+        description: "Our admins (info@yebfaconsult.org, asareg365@gmail.com & frankyeb@gmail.com) will assist you soon.",
       })
       const form = e.target as HTMLFormElement
       form.reset()
@@ -30,11 +30,16 @@ export default function ContactPage() {
   return (
     <div className="min-h-screen bg-background">
       <header className="px-6 lg:px-12 h-20 flex items-center justify-between border-b border-border/40">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="size-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-lg">
-            <School className="size-6" />
+        <Link href="/" className="flex items-center gap-3 group">
+          <img
+            src="/logo-icon.png"
+            alt="Yebfa School Manager"
+            className="size-11 object-contain rounded-xl shadow-md group-hover:scale-105 transition-transform"
+          />
+          <div className="flex flex-col">
+            <span className="text-xl md:text-2xl font-headline font-bold tracking-tight text-primary leading-tight">Yebfa School Manager</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Strategic SaaS 2026</span>
           </div>
-          <span className="text-2xl font-headline font-bold tracking-tight text-primary">Yebfa School Manager</span>
         </Link>
         <Button variant="ghost" asChild>
           <Link href="/"><ArrowLeft className="mr-2 size-4" /> Back to Home</Link>
@@ -59,6 +64,7 @@ export default function ContactPage() {
                 <div>
                   <p className="text-sm font-bold">Email Us</p>
                   <div className="flex flex-col gap-1">
+                    <p className="text-muted-foreground text-sm font-semibold text-primary">info@yebfaconsult.org</p>
                     <p className="text-muted-foreground text-sm">asareg365@gmail.com</p>
                     <p className="text-muted-foreground text-sm">frankyeb@gmail.com</p>
                   </div>

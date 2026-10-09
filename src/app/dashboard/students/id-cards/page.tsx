@@ -4,7 +4,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Printer, ArrowLeft, User, Search, School as SchoolIcon, Phone, MapPin, ShieldCheck, Camera, Upload, Loader2, Calendar } from "lucide-react"
-import { useUser, useFirestore, useCollection, useDoc } from "@/firebase"
+import { useUser, useFirestore, useCollection, useDoc, useTenant } from "@/firebase"
 import { collection, query, where, doc, updateDoc, serverTimestamp } from "firebase/firestore"
 import { useState, useMemo, useEffect, useRef } from "react"
 import Link from "next/link"
@@ -14,19 +14,11 @@ import { toast } from "@/hooks/use-toast"
 
 export default function StudentIDCardsPage() {
   const db = useFirestore()
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
+  const { institutionId, institution } = useTenant()
   const [searchQuery, setSearchQuery] = useState("")
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [targetStudentId, setTargetStudentId] = useState<string | null>(null)
-
-  useEffect(() => {
-    const storedId = localStorage.getItem('selected_institution_id')
-    setInstitutionId(storedId)
-  }, [])
-
-  const instRef = useMemo(() => institutionId ? doc(db!, "institutions", institutionId) : null, [db, institutionId])
-  const { data: institution } = useDoc(instRef)
 
   const studentsQuery = useMemo(() => {
     if (!db || !institutionId) return null;
@@ -242,7 +234,7 @@ export default function StudentIDCardsPage() {
                 <div className="print-item-wrapper">
                   <div className="print-id-card">
                     <div className="print-card-header">
-                      {institution?.logoUrl ? <img src={institution.logoUrl} className="card-logo" /> : <div className="card-logo-placeholder">Y</div>}
+                      <img src={institution?.logoUrl || "/logo-icon.png"} className="card-logo object-contain" alt="Logo" />
                       <span className="card-school-name">{institution?.name}</span>
                     </div>
                     <div className="print-card-body">
@@ -271,7 +263,7 @@ export default function StudentIDCardsPage() {
                 <div className="print-item-wrapper">
                   <div className="print-id-card print-id-card-back">
                     <div className="card-back-watermark">
-                       {institution?.logoUrl ? <img src={institution.logoUrl} /> : <SchoolIcon />}
+                       <img src={institution?.logoUrl || "/logo-icon.png"} alt="Watermark" />
                     </div>
                     <div className="card-back-content">
                       <div className="back-security-badge">SECURITY AUTHORIZATION</div>

@@ -4,14 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { 
-  Search, 
-  UserPlus, 
-  Trash2, 
-  Pencil, 
-  Loader2, 
-  User, 
-  ShieldCheck, 
+import {
+  Search,
+  UserPlus,
+  Trash2,
+  Pencil,
+  Loader2,
+  User,
+  ShieldCheck,
   IdCard,
   RefreshCw,
   Save,
@@ -39,7 +39,8 @@ import {
   Camera
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase"
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, useTenant } from "@/firebase"
+import { auth } from "@/firebase/core"
 import { collection, addDoc, query, deleteDoc, doc, where, serverTimestamp, updateDoc, writeBatch, setDoc, getDocs } from "firebase/firestore"
 import { useState, useMemo, useEffect, useRef, Suspense } from "react"
 import { Badge } from "@/components/ui/badge"
@@ -54,10 +55,10 @@ import { useSearchParams } from "next/navigation"
 import { initializeApp, deleteApp, FirebaseApp } from "firebase/app"
 import { getAuth, createUserWithEmailAndPassword, signOut, Auth as FirebaseAuth } from "firebase/auth"
 import { firebaseConfig } from "@/firebase/config"
-import { 
-  normalizeSecurityPhone, 
-  generateStudentPin, 
-  getInstitutionEmailDomain 
+import {
+  normalizeSecurityPhone,
+  generateStudentPin,
+  getInstitutionEmailDomain
 } from "@/lib/identity-service"
 import { generateId } from "@/lib/id-generator"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -75,33 +76,18 @@ function StudentsRegistryContent() {
   const db = useFirestore()
   const searchParams = useSearchParams()
   const { user } = useUser()
+  const { institutionId, institution, profile, loading: tenantLoading } = useTenant()
   const [loading, setLoading] = useState(false)
   const [isEnrollOpen, setIsEnrollOpen] = useState(false)
   const [isBulkOpen, setIsBulkOpen] = useState(false)
   const [bulkLoading, setBulkLoading] = useState(false)
   const [editingStudent, setEditingStudent] = useState<any>(null)
   const [searchQuery, setSearchQuery] = useState("")
-  const [institutionId, setInstitutionId] = useState<string | null>(null);
   const bulkFileRef = useRef<HTMLInputElement>(null)
   const photoInputRef = useRef<HTMLInputElement>(null)
-  
+
   const [activeStep, setActiveStep] = useState("identity")
   const steps = ["identity", "academic", "guardian", "finalize"]
-
-  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
-  const { data: profile, loading: profileLoading } = useDoc(userProfileRef)
-
-  useEffect(() => {
-    if (profileLoading) return;
-    if (profile?.role === 'super_admin') {
-      setInstitutionId(localStorage.getItem('selected_institution_id'));
-    } else {
-      setInstitutionId(profile?.tenantId || null);
-    }
-  }, [profile, profileLoading]);
-
-  const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
-  const { data: institution } = useDoc(instRef)
 
   const isTeacher = profile?.role === 'teacher'
   const staffId = profile?.staffId
@@ -110,7 +96,7 @@ function StudentsRegistryContent() {
     if (!db || !institutionId || !isTeacher || !staffId) return null
     return query(collection(db, "teacher_assignments"), where("tenantId", "==", institutionId), where("teacherId", "==", staffId))
   }, [db, institutionId, isTeacher, staffId])
-  
+
   const { data: assignments = [] } = useCollection(assignmentsQuery)
   const assignedClassIds = useMemo(() => new Set(assignments.map((a: any) => a.classId)), [assignments])
 
@@ -118,7 +104,7 @@ function StudentsRegistryContent() {
     if (!db || !institutionId) return null;
     // Show all students in the registry to ensure counts match dashboard
     return query(
-      collection(db, "students"), 
+      collection(db, "students"),
       where("tenantId", "==", institutionId)
     );
   }, [db, institutionId]);
@@ -132,7 +118,7 @@ function StudentsRegistryContent() {
   const { data: allRegisteredClasses = [] } = useCollection(classesQuery)
   const { data: allRels = [] } = useCollection(relsQuery)
 
-  const registeredClasses = useMemo(() => 
+  const registeredClasses = useMemo(() =>
     isTeacher ? allRegisteredClasses.filter(c => assignedClassIds.has(c.id)) : allRegisteredClasses,
     [allRegisteredClasses, isTeacher, assignedClassIds]
   )
@@ -151,7 +137,7 @@ function StudentsRegistryContent() {
   const [studentForm, setStudentForm] = useState(initialForm)
   const [isNewParent, setIsNewParent] = useState(false)
   const [linkedParentId, setLinkedParentId] = useState("")
-  
+
   const [newParentForm, setNewParentForm] = useState({
     firstName: "",
     lastName: "",
@@ -174,7 +160,7 @@ function StudentsRegistryContent() {
       list = list.filter(s => assignedClassNames.has(s.gradeLevel));
     }
 
-    return list.filter(s => 
+    return list.filter(s =>
       `${s.firstName || ""} ${s.lastName || ""}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.admissionNumber?.toLowerCase().includes(searchQuery.toLowerCase())
     ).sort((a, b) => (a.admissionNumber || "").localeCompare(b.admissionNumber || ""));
@@ -239,20 +225,20 @@ function StudentsRegistryContent() {
   }
 
   const createStudentAccount = async (
-    data: any, 
-    provisionAuth: FirebaseAuth, 
+    data: any,
+    provisionAuth: FirebaseAuth,
     batch: any,
     inst: any
   ) => {
     if (!inst) throw new Error("Institutional context is missing during provisioning.");
-    
+
     const finalAdmissionNumber = await generateId('students', inst.schoolCode, 'ST');
-    const finalPin = generateStudentPin(); 
+    const finalPin = generateStudentPin();
     const domain = getInstitutionEmailDomain(inst);
 
     const authEmail = `${finalAdmissionNumber.trim()}@${domain}`.toLowerCase();
     const contactEmail = authEmail;
-    
+
     let authUser;
     let authUid = null;
     try {
@@ -297,7 +283,7 @@ function StudentsRegistryContent() {
     }, { merge: true });
 
     if (authUser) await signOut(provisionAuth);
-    
+
     return { studentId, admissionNumber: finalAdmissionNumber, pin: finalPin, authUid };
   };
 
@@ -310,12 +296,12 @@ function StudentsRegistryContent() {
     const provisionAppName = `enroll-provision-${Date.now()}`;
     const provisionApp = initializeApp(firebaseConfig, provisionAppName);
     const provisionAuth = getAuth(provisionApp);
-    
+
     try {
       const batch = writeBatch(db)
       let finalParentId = linkedParentId
       let studentId = editingStudent?.id
-      
+
       if (!editingStudent) {
         const { studentId: newId } = await createStudentAccount(studentForm, provisionAuth, batch, institution);
         studentId = newId;
@@ -324,12 +310,12 @@ function StudentsRegistryContent() {
           const finalParentNumber = await generateId('parents', institution.schoolCode, 'PR');
           let cleanPass = normalizeSecurityPhone(newParentForm.phone);
           if (cleanPass.length < 6) cleanPass = cleanPass.padEnd(6, '0');
-          
+
           const domain = getInstitutionEmailDomain(institution);
-          
+
           const authEmail = `${finalParentNumber.trim()}@${domain}`.toLowerCase();
           const contactEmail = newParentForm.email?.trim().toLowerCase() || authEmail;
-          
+
           let parentAuthUser;
           let parentAuthUid = null;
           try {
@@ -395,7 +381,7 @@ function StudentsRegistryContent() {
       setIsEnrollOpen(false); setEditingStudent(null); setStudentForm(initialForm); setActiveStep("identity")
     } catch (error: any) {
       toast({ variant: "destructive", title: "Enrollment Failed", description: error.message });
-    } finally { 
+    } finally {
       setLoading(false);
       try { await deleteApp(provisionApp); } catch (e) {}
     }
@@ -404,15 +390,10 @@ function StudentsRegistryContent() {
   const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !institutionId || !institution) return;
-  
+
     setBulkLoading(true);
-    let provisionApp: FirebaseApp | null = null;
-  
+
     try {
-      const provisionAppName = `bulk-provision-${Date.now()}`;
-      provisionApp = initializeApp(firebaseConfig, provisionAppName);
-      const provisionAuth = getAuth(provisionApp);
-  
       Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
@@ -422,61 +403,45 @@ function StudentsRegistryContent() {
             const rawRows = results.data as any[];
             if (!rawRows.length) {
               toast({ variant: "destructive", title: "Empty CSV", description: "No student records were found." });
+              setBulkLoading(false);
               return;
             }
-  
-            let successCount = 0;
-            let failCount = 0;
-            let skippedCount = 0;
-  
-            for (let index = 0; index < rawRows.length; index++) {
-              const row = rawRows[index];
-              const getValue = (...keys: string[]) => {
-                for (const key of keys) {
-                  const value = row[key];
-                  if (value !== undefined && value !== null) {
-                    const cleaned = String(value).trim();
-                    if (cleaned) return cleaned;
-                  }
-                }
-                return "";
-              };
 
-              let first = getValue("firstname", "first", "givenname", "studentfirstname", "studentfirst", "forename");
-              let last = getValue("lastname", "last", "surname", "familyname", "studentlastname", "studentlast");
-
-              if (!first || !last) {
-                const fullName = getValue("name", "fullname", "studentname", "studentfullname", "student");
-                if (fullName) {
-                  const nameParts = fullName.trim().split(/\s+/).filter(Boolean);
-                  if (nameParts.length >= 2) { first = nameParts[0]; last = nameParts.slice(1).join(" "); }
-                }
-              }
-
-              if (!first || !last) { skippedCount++; continue; }
-  
-              const gender = String(row.gender || "Male").trim() || "Male";
-              const gradeLevel = String(row.grade || row.class || row.gradelevel || row.classlevel || "Unassigned").trim() || "Unassigned";
-              const dateOfBirth = String(row.dob || row.dateofbirth || row.birthdate || "").trim();
-  
-              try {
-                const batch = writeBatch(db);
-                await createStudentAccount({ firstName: first, lastName: last, gender, gradeLevel, dateOfBirth, status: "active" }, provisionAuth, batch, institution);
-                await batch.commit();
-                successCount++;
-              } catch (rowError: any) {
-                failCount++;
-              }
+            const idToken = await auth.currentUser?.getIdToken();
+            if (!idToken) {
+              toast({ variant: "destructive", title: "Authentication Error", description: "Please log in again." });
+              setBulkLoading(false);
+              return;
             }
-  
-            toast({ title: "Registry Sync Complete", description: `${successCount} students enrolled. ${failCount} failed. ${skippedCount} skipped.` });
+
+            const res = await fetch("/api/bulk-intake", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${idToken}`
+              },
+              body: JSON.stringify({
+                type: "students",
+                records: rawRows,
+                activeInstitutionId: institutionId
+              })
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+              throw new Error(data.error || "Bulk enrollment server request failed.");
+            }
+
+            toast({
+              title: "Registry Sync Complete",
+              description: `${data.successCount || 0} students enrolled. ${data.failCount || 0} failed. ${data.skippedCount || 0} skipped.`
+            });
             setIsBulkOpen(false);
           } catch (error: any) {
             toast({ variant: "destructive", title: "Intake Halted", description: error?.message || "The bulk enrollment process failed." });
           } finally {
             setBulkLoading(false);
             if (bulkFileRef.current) bulkFileRef.current.value = "";
-            if (provisionApp) try { await deleteApp(provisionApp); } catch (e) {}
           }
         },
         error: (parseError) => {
@@ -516,7 +481,7 @@ function StudentsRegistryContent() {
       const authEmail = `${stu.admissionNumber.trim()}@${domain}`.toLowerCase();
       const contactEmail = stu.email || authEmail;
       const uid = stu.authUid || stu.id;
-      
+
       try {
         await createUserWithEmailAndPassword(provisionAuth, authEmail, newPin);
       } catch (authErr: any) {
@@ -564,7 +529,7 @@ function StudentsRegistryContent() {
     setActiveStep("identity")
   }
 
-  if (profileLoading || studentsLoading) return (
+  if (tenantLoading || studentsLoading) return (
     <div className="p-24 text-center">
       <Loader2 className="size-10 animate-spin mx-auto text-primary" />
       <p className="mt-4 font-bold text-muted-foreground animate-pulse uppercase tracking-widest text-xs">Synchronizing Student Registry...</p>
@@ -612,9 +577,9 @@ function StudentsRegistryContent() {
             {Object.entries(groupedStudents)
               .sort(([gradeA], [gradeB]) => gradeA.localeCompare(gradeB))
               .map(([grade, students]) => (
-                <AccordionItem 
-                  key={grade} 
-                  value={grade} 
+                <AccordionItem
+                  key={grade}
+                  value={grade}
                   className="border border-slate-100 bg-slate-50/30 rounded-2xl overflow-hidden"
                 >
                   <AccordionTrigger className="hover:no-underline px-6 py-4">
@@ -742,8 +707,8 @@ function StudentsRegistryContent() {
                 <Tabs value={activeStep} onValueChange={setActiveStep} className="w-full">
                   <TabsContent value="identity" className="space-y-6 mt-0">
                     <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-3xl bg-slate-50/50 mb-6">
-                      <div 
-                        className="relative size-32 rounded-2xl bg-white border flex items-center justify-center overflow-hidden shadow-sm group cursor-pointer" 
+                      <div
+                        className="relative size-32 rounded-2xl bg-white border flex items-center justify-center overflow-hidden shadow-sm group cursor-pointer"
                         onClick={() => photoInputRef.current?.click()}
                         title="Upload from Gallery or Camera"
                       >
@@ -756,12 +721,12 @@ function StudentsRegistryContent() {
                           <Upload className="size-6 text-white" />
                         </div>
                       </div>
-                      <input 
-                        type="file" 
-                        ref={photoInputRef} 
-                        onChange={handlePhotoUpload} 
-                        accept="image/*" 
-                        className="hidden" 
+                      <input
+                        type="file"
+                        ref={photoInputRef}
+                        onChange={handlePhotoUpload}
+                        accept="image/*"
+                        className="hidden"
                       />
                       <p className="mt-3 text-xs font-bold text-muted-foreground uppercase tracking-widest text-center">
                         Digital Portrait (Gallery/Camera)
@@ -823,7 +788,7 @@ function StudentsRegistryContent() {
                           {isNewParent ? "Registry Search" : "Register New Profile"}
                         </Button>
                     </div>
-                    
+
                     {isNewParent ? (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-6 bg-slate-50 rounded-2xl border-2 border-dashed animate-in fade-in zoom-in-95 duration-200">
                           <div className="space-y-2">
@@ -903,6 +868,85 @@ function StudentsRegistryContent() {
               </div>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isBulkOpen} onOpenChange={setIsBulkOpen}>
+        <DialogContent className="w-[95vw] sm:max-w-xl p-0 overflow-hidden border-none shadow-2xl rounded-3xl h-[80vh] flex flex-col">
+          <div className="flex flex-col h-full overflow-hidden">
+             <DialogHeader className="bg-primary text-primary-foreground p-8 shrink-0 relative">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="size-8 rounded-xl bg-white/10 flex items-center justify-center"><FileSpreadsheet className="size-5" /></div>
+                  <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Bulk Data Entry</span>
+                </div>
+                <DialogTitle className="text-2xl font-headline font-bold">Student Bulk Intake</DialogTitle>
+                <DialogDescription className="text-primary-foreground/70">Mass enrollment of students with automated portal provisioning.</DialogDescription>
+             </DialogHeader>
+
+             <ScrollArea className="flex-1">
+                <div className="p-8 space-y-10">
+                   <section className="space-y-4">
+                      <div className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                         <div className="size-10 rounded-xl bg-white border flex items-center justify-center shadow-sm">
+                            <Download className="size-5 text-primary" />
+                         </div>
+                         <div className="flex-1">
+                            <p className="text-sm font-bold text-primary">Intake Schema</p>
+                            <p className="text-[10px] text-muted-foreground uppercase font-bold">Standard CSV Format Required</p>
+                         </div>
+                         <Button variant="outline" size="sm" className="h-9 rounded-xl text-[10px] font-bold uppercase" onClick={() => {
+                           const csv = "First Name,Last Name,Gender,Grade,DOB\nKwame,Appiah,Male,Basic 7,2012-05-14\nAkosua,Mensa,Female,Basic 8,2011-09-20";
+                           const blob = new Blob([csv], { type: 'text/csv' });
+                           const url = window.URL.createObjectURL(blob);
+                           const a = document.createElement('a');
+                           a.href = url;
+                           a.download = 'student_intake_template.csv';
+                           a.click();
+                         }}>
+                            Template
+                         </Button>
+                      </div>
+                   </section>
+
+                   <section className="space-y-6">
+                      <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2 border-b pb-2">
+                        <Upload className="size-4" /> Finalize Intake
+                      </h3>
+                      <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed rounded-3xl bg-slate-50/50 group hover:bg-white hover:border-primary/20 transition-all cursor-pointer" onClick={() => bulkFileRef.current?.click()}>
+                         {bulkLoading ? (
+                           <div className="flex flex-col items-center gap-4">
+                              <Loader2 className="size-10 animate-spin text-primary" />
+                              <p className="text-xs font-bold text-primary uppercase animate-pulse">Synchronizing Multi-Tenant Node...</p>
+                           </div>
+                         ) : (
+                           <>
+                              <div className="size-16 rounded-2xl bg-white border flex items-center justify-center shadow-sm mb-4 group-hover:scale-110 transition-transform">
+                                 <FileSpreadsheet className="size-8 text-primary/40" />
+                              </div>
+                              <p className="text-sm font-bold text-primary">Select Student Data File</p>
+                              <p className="text-[10px] text-muted-foreground uppercase font-bold mt-1">Accepts .CSV format only</p>
+                           </>
+                         )}
+                         <input type="file" ref={bulkFileRef} onChange={handleBulkUpload} accept=".csv" className="hidden" />
+                      </div>
+
+                      <div className="p-6 rounded-2xl bg-blue-50 border border-blue-100 flex gap-4">
+                         <KeyRound className="size-6 text-blue-600 shrink-0" />
+                         <div className="space-y-1">
+                            <p className="text-[10px] font-bold text-blue-800 uppercase tracking-widest">Airtight Provisioning</p>
+                            <p className="text-[11px] text-blue-700 leading-relaxed font-medium">The server will automatically generate unique admission numbers and 6-digit portal pins for every record.</p>
+                         </div>
+                      </div>
+                   </section>
+                </div>
+             </ScrollArea>
+
+             <DialogFooter className="bg-slate-50 p-6 md:p-8 border-t shrink-0">
+                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter flex items-center gap-2 mx-auto">
+                   <ShieldCheck className="size-4 text-green-600" /> Multi-Tenant Secure Server Endpoint Active
+                </p>
+             </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -21,7 +21,7 @@ import {
   Truck
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useFirestore, useCollection } from "@/firebase"
+import { useFirestore, useCollection, useTenant } from "@/firebase"
 import { collection, addDoc, query, where, deleteDoc, doc, serverTimestamp, updateDoc } from "firebase/firestore"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -33,7 +33,7 @@ const CONDITIONS = ["New", "Good", "Fair", "Poor", "Broken"]
 
 export default function InventoryManagementPage() {
   const db = useFirestore()
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
+  const { institutionId } = useTenant()
   const [loading, setLoading] = useState(false)
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
@@ -51,7 +51,6 @@ export default function InventoryManagementPage() {
   })
 
   useEffect(() => {
-    setInstitutionId(localStorage.getItem('selected_institution_id'))
     // Initialize date on client to avoid hydration mismatch
     setItemForm(prev => ({
       ...prev,

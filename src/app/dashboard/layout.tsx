@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser, useFirestore, useDoc, useCollection, useAuth } from "@/firebase";
+import { useUser, useFirestore, useDoc, useCollection, useAuth, useTenant } from "@/firebase";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/dashboard/app-sidebar";
 import { Separator } from "@/components/ui/separator";
@@ -31,50 +31,30 @@ export default function DashboardLayout({
   const router = useRouter();
   const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const [institutionId, setInstitutionId] = useState<string | null>(null);
-
-  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user]);
-  const { data: profile, loading: profileLoading } = useDoc(userProfileRef);
-
-  // Safe Context Resolution
-  useEffect(() => {
-    if (!profileLoading && profile) {
-      if (profile.role === 'super_admin') {
-        const storedId = localStorage.getItem('selected_institution_id');
-        setInstitutionId(storedId);
-      } else {
-        setInstitutionId(profile.tenantId || null);
-      }
-    }
-  }, [profile, profileLoading]);
-
-  const institutionName = useMemo(() => {
-    if (profile?.role === 'super_admin') {
-      return typeof window !== 'undefined' ? localStorage.getItem('selected_institution_name') || "Super Admin Node" : "Super Admin Node";
-    }
-    return profile?.institutionName || "Registry Hub";
-  }, [profile]);
-
-  const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId]);
-  const { data: institution, loading: instLoading } = useDoc(instRef);
+  const {
+    institutionId,
+    institution,
+    institutionName,
+    profile,
+    isSuperAdmin,
+    loading: tenantLoading,
+    clearTenantState
+  } = useTenant();
 
   const notificationsQuery = useMemo(() => {
-    if (!db || !institutionId || profileLoading || !profile) return null;
+    if (!db || !institutionId || !profile) return null;
     return query(
       collection(db, "notifications"),
       where("tenantId", "==", institutionId),
       orderBy("createdAt", "desc")
     );
-  }, [db, institutionId, profileLoading, profile]);
+  }, [db, institutionId, profile]);
 
   const { data: notifications = [] } = useCollection(notificationsQuery);
 
   const handleLogout = useCallback(async () => {
     if (auth) {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('selected_institution_id');
-        localStorage.removeItem('selected_institution_name');
-      }
+      clearTenantState();
       await signOut(auth);
       router.push('/login');
       toast({
@@ -82,7 +62,7 @@ export default function DashboardLayout({
         description: "You have been signed out.",
       });
     }
-  }, [auth, router]);
+  }, [auth, router, clearTenantState]);
 
   const resetTimer = useCallback(() => {
     if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
@@ -149,7 +129,7 @@ export default function DashboardLayout({
     }
   };
 
-  if (authLoading || profileLoading || (institutionId && instLoading)) {
+  if (authLoading || tenantLoading) {
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center bg-background gap-4">
         <Activity className="h-10 w-10 animate-spin text-primary" />
@@ -160,7 +140,7 @@ export default function DashboardLayout({
 
   if (!user || !profile) return null;
 
-  if (profile.role !== 'super_admin' && !institution && !instLoading) {
+  if (profile.role !== 'super_admin' && !institution && !tenantLoading) {
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center bg-muted/30 p-12 text-center space-y-6">
         <div className="size-20 bg-muted rounded-full flex items-center justify-center mx-auto">
@@ -270,10 +250,17 @@ export default function DashboardLayout({
               <LogOut className="size-3.5" /> Sign Out
             </Button>
 
-            <div className="flex flex-col text-right border-l pl-4 border-border/40">
-              <span className="text-xs md:text-sm font-black truncate max-w-[120px] md:max-w-[180px] text-primary uppercase tracking-tighter">{institutionName}</span>
-              <div className="flex items-center justify-end gap-1">
-                 <span className="xs:inline text-[9px] text-muted-foreground uppercase font-black tracking-tighter">NODE 2026</span>
+            <div className="flex items-center gap-3 border-l pl-4 border-border/40">
+              <img
+                src={institution?.logoUrl || "/logo-icon.png"}
+                alt="Logo"
+                className="size-8 object-contain rounded-lg shadow-sm shrink-0 border border-border/40"
+              />
+              <div className="flex flex-col text-right">
+                <span className="text-xs md:text-sm font-black truncate max-w-[120px] md:max-w-[180px] text-primary uppercase tracking-tighter">{institutionName}</span>
+                <div className="flex items-center justify-end gap-1">
+                   <span className="xs:inline text-[9px] text-muted-foreground uppercase font-black tracking-tighter">NODE 2026</span>
+                </div>
               </div>
             </div>
           </div>

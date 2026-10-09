@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useUser, useFirestore, useCollection, useAuth, useDoc } from "@/firebase"
+import { useUser, useFirestore, useCollection, useAuth, useDoc, useTenant } from "@/firebase"
 import { useRouter } from "next/navigation"
 import { useEffect, useState, useMemo } from "react"
 import { toast } from "@/hooks/use-toast"
@@ -24,6 +24,7 @@ export default function AdminPortal() {
   const auth = useAuth()
   const db = useFirestore()
   const router = useRouter()
+  const { setSuperAdminActiveInstitution, clearTenantState, institutionId } = useTenant()
   
   const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
   const { data: profile, loading: profileLoading } = useDoc(userProfileRef)
@@ -55,8 +56,8 @@ export default function AdminPortal() {
   })
 
   useEffect(() => {
-    setActiveNodeId(localStorage.getItem('selected_institution_id'))
-  }, [])
+    setActiveNodeId(institutionId)
+  }, [institutionId])
 
   const institutionsQuery = useMemo(() => {
     if (!db || authLoading || profileLoading || !isSuperAdmin) return null;
@@ -93,8 +94,7 @@ export default function AdminPortal() {
   const handleLogout = async () => {
     if (auth) {
       // Strategic Context Purge: Resets institutional mapping for super admins
-      localStorage.removeItem('selected_institution_id');
-      localStorage.removeItem('selected_institution_name');
+      clearTenantState()
       await signOut(auth)
       router.push("/login")
       toast({ title: "Session Terminated", description: "Super Admin signed out successfully." })
@@ -102,9 +102,7 @@ export default function AdminPortal() {
   }
 
   const handleEnterInstitution = (inst: any) => {
-    localStorage.setItem('selected_institution_id', inst.id)
-    localStorage.setItem('selected_institution_name', inst.name)
-    setActiveNodeId(inst.id)
+    setSuperAdminActiveInstitution(inst.id, inst.name, inst.schoolCode)
     router.push("/dashboard")
     toast({ title: "Hub Context Switched", description: `Active Node: ${inst.name}.` })
   }
@@ -132,9 +130,7 @@ export default function AdminPortal() {
       await setDoc(doc(db, "institutions", instId), data)
       
       // Auto-switch context to the new institution
-      localStorage.setItem('selected_institution_id', instId)
-      localStorage.setItem('selected_institution_name', newSchool.name)
-      setActiveNodeId(instId)
+      setSuperAdminActiveInstitution(instId, newSchool.name, schoolCode)
 
       toast({ title: "School Provisioned", description: `${newSchool.name} is now live.` })
       setIsProvisionDialogOpen(false)

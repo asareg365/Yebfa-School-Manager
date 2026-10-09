@@ -25,16 +25,13 @@ import { administratorChat, AdminQueryOutput } from "@/ai/flows/administrator-ch
 import { toast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { useTenant } from "@/firebase"
 
 export default function AiAdministratorPage() {
   const [loading, setLoading] = useState(false)
   const [query, setQuery] = useState("")
   const [result, setResult] = useState<AdminQueryOutput | null>(null)
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
-
-  useEffect(() => {
-    setInstitutionId(localStorage.getItem('selected_institution_id'))
-  }, [])
+  const { institutionId } = useTenant()
 
   const handleQuery = async (e: React.FormEvent) => {
     e.preventDefault()

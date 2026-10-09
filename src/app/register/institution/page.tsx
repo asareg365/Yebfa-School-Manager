@@ -208,18 +208,23 @@ export default function InstitutionRegistrationPage() {
 
   return (
     <div className="min-h-screen bg-muted/30 flex flex-col items-center py-12 px-6">
-      <Link href="/" className="flex items-center gap-2 mb-8">
-        <div className="size-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-lg">
-          <School className="size-6" />
+      <Link href="/" className="flex flex-col items-center gap-3 mb-8 group text-center">
+        <img
+          src="/logo-icon.png"
+          alt="Yebfa School Manager"
+          className="size-16 object-contain rounded-2xl shadow-xl group-hover:scale-105 transition-transform"
+        />
+        <div className="flex flex-col items-center">
+          <span className="text-2xl font-headline font-bold text-primary">Yebfa School Manager</span>
+          <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Strategic SaaS 2026</span>
         </div>
-        <span className="text-2xl font-headline font-bold tracking-tight text-primary">Yebfa School Manager</span>
       </Link>
 
       <Card className="w-full max-w-2xl border-none shadow-2xl overflow-hidden rounded-3xl">
         <CardHeader className="bg-primary text-primary-foreground p-8">
           <div className="flex items-center gap-3 mb-2">
-            <div className="size-8 rounded-lg bg-white/10 flex items-center justify-center">
-              <School className="size-5" />
+            <div className="size-9 rounded-xl bg-white/10 flex items-center justify-center p-1 overflow-hidden shadow-inner">
+              <img src="/logo-icon.png" alt="Logo" className="w-full h-full object-contain filter brightness-200" />
             </div>
             <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Institutional Provisioning</span>
           </div>

@@ -6,14 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { 
-  Plus, 
-  Search, 
-  FileText, 
-  Printer, 
-  CheckCircle2, 
-  Clock, 
-  AlertCircle, 
+import {
+  Plus,
+  Search,
+  FileText,
+  Printer,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
   Loader2,
   Filter,
   DollarSign,
@@ -30,7 +30,7 @@ import {
   Layers
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase"
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, useTenant } from "@/firebase"
 import { collection, query, where, addDoc, serverTimestamp, writeBatch, doc, deleteDoc, updateDoc, getDocs, getDoc } from "firebase/firestore"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog"
@@ -52,7 +52,7 @@ export default function InvoicingPage() {
   const db = useFirestore()
   const router = useRouter()
   const { user } = useUser()
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
+  const { institutionId, institution, profile } = useTenant()
   const [isGenOpen, setIsGenOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -63,31 +63,20 @@ export default function InvoicingPage() {
   const [individualPrintData, setIndividualPrintData] = useState<any>(null)
   const [editForm, setEditForm] = useState({ totalAmount: "" })
 
-  useEffect(() => {
-    const storedId = localStorage.getItem('selected_institution_id')
-    if (storedId) setInstitutionId(storedId)
-  }, [])
-
-  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
-  const { data: profile } = useDoc(userProfileRef)
-
-  const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
-  const { data: institution } = useDoc(instRef)
-
-  const classesQuery = useMemoFirebase(() => 
-    institutionId ? query(collection(db, "classes"), where("tenantId", "==", institutionId)) : null, 
+  const classesQuery = useMemoFirebase(() =>
+    institutionId ? query(collection(db, "classes"), where("tenantId", "==", institutionId)) : null,
     [db, institutionId]
   )
-  const studentsQuery = useMemoFirebase(() => 
-    institutionId ? query(collection(db, "students"), where("tenantId", "==", institutionId)) : null, 
+  const studentsQuery = useMemoFirebase(() =>
+    institutionId ? query(collection(db, "students"), where("tenantId", "==", institutionId)) : null,
     [db, institutionId]
   )
-  const feesQuery = useMemoFirebase(() => 
-    institutionId ? query(collection(db, "approved_fees"), where("tenantId", "==", institutionId)) : null, 
+  const feesQuery = useMemoFirebase(() =>
+    institutionId ? query(collection(db, "approved_fees"), where("tenantId", "==", institutionId)) : null,
     [db, institutionId]
   )
-  const invoicesQuery = useMemoFirebase(() => 
-    institutionId ? query(collection(db, "invoices"), where("tenantId", "==", institutionId)) : null, 
+  const invoicesQuery = useMemoFirebase(() =>
+    institutionId ? query(collection(db, "invoices"), where("tenantId", "==", institutionId)) : null,
     [db, institutionId]
   )
 
@@ -104,20 +93,23 @@ export default function InvoicingPage() {
 
     setLoading(true)
     try {
-      const batch = writeBatch(db)
       const term = institution?.currentTerm || "Term 1"
       const year = institution?.academicYear || "2026/2027"
+
+      const BATCH_STUDENT_LIMIT = 100
+      let currentBatch = writeBatch(db)
+      let pendingOps = 0
 
       for (const student of students) {
         const mandatoryFees = fees.filter((f: any) => f.category === "Mandatory")
         const total = mandatoryFees.reduce((acc, curr: any) => acc + (curr.defaultAmount || 0), 0)
-        
+
         const invoiceNumber = await generateId('invoices', institution.schoolCode, 'INV');
-        
+
         const invoiceRef = doc(collection(db, "invoices"))
         const invId = invoiceRef.id
 
-        batch.set(invoiceRef, {
+        currentBatch.set(invoiceRef, {
           tenantId: institutionId,
           institutionId,
           id: invId,
@@ -135,7 +127,7 @@ export default function InvoicingPage() {
         })
 
         const ledgerRef = doc(collection(db, "student_ledger"))
-        batch.set(ledgerRef, {
+        currentBatch.set(ledgerRef, {
           tenantId: institutionId,
           institutionId,
           studentId: student.id,
@@ -146,9 +138,19 @@ export default function InvoicingPage() {
           invoiceId: invId,
           createdAt: serverTimestamp()
         })
+
+        pendingOps += 2
+        if (pendingOps >= BATCH_STUDENT_LIMIT * 2) {
+          await currentBatch.commit()
+          currentBatch = writeBatch(db)
+          pendingOps = 0
+        }
       }
 
-      await batch.commit()
+      if (pendingOps > 0) {
+        await currentBatch.commit()
+      }
+
       toast({ title: "Invoices Generated", description: `Billed ${students.length} students.` })
       setIsGenOpen(false)
     } catch (e: any) {
@@ -169,7 +171,11 @@ export default function InvoicingPage() {
     try {
       const batch = writeBatch(db!)
       batch.delete(doc(db!, "invoices", inv.id))
-      const ledgerQ = query(collection(db!, "student_ledger"), where("invoiceId", "==", inv.id))
+      const ledgerQ = query(
+        collection(db!, "student_ledger"),
+        where("tenantId", "==", institutionId),
+        where("invoiceId", "==", inv.id)
+      )
       const ledgerSnap = await getDocs(ledgerQ)
       ledgerSnap.forEach(d => batch.delete(d.ref))
       await batch.commit()
@@ -184,13 +190,13 @@ export default function InvoicingPage() {
   const handleUpdateInvoice = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedInvoice || !institutionId || loading) return
-    
+
     setLoading(true)
     try {
       const batch = writeBatch(db!)
       const newTotal = parseFloat(editForm.totalAmount)
       const newDue = Math.max(0, newTotal - (selectedInvoice.amountPaid || 0))
-      
+
       batch.update(doc(db!, "invoices", selectedInvoice.id), {
         totalAmount: newTotal,
         amountDue: newDue,
@@ -198,7 +204,11 @@ export default function InvoicingPage() {
         updatedAt: serverTimestamp()
       })
 
-      const ledgerQ = query(collection(db!, "student_ledger"), where("invoiceId", "==", selectedInvoice.id))
+      const ledgerQ = query(
+        collection(db!, "student_ledger"),
+        where("tenantId", "==", institutionId),
+        where("invoiceId", "==", selectedInvoice.id)
+      )
       const ledgerSnap = await getDocs(ledgerQ)
       ledgerSnap.forEach(d => batch.update(d.ref, { amount: newTotal }))
 
@@ -221,7 +231,7 @@ export default function InvoicingPage() {
   }
 
   const filteredInvoices = useMemo(() => {
-    return invoices.filter(inv => 
+    return invoices.filter(inv =>
       inv.studentName?.toLowerCase().includes(searchQuery.toLowerCase()) &&
       (selectedGrade === "All" || inv.gradeLevel === selectedGrade)
     ).sort((a:any, b:any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))
@@ -378,7 +388,11 @@ export default function InvoicingPage() {
       <div id="printable-ledger-report" className={`hidden ${!individualPrintData ? 'print:block' : ''} bg-white p-8`}>
          <div className="flex justify-between items-start border-b pb-8 mb-8">
             <div className="flex items-center gap-4">
-               {institution?.logoUrl ? <img src={institution.logoUrl} className="size-16 object-contain" /> : <div className="size-16 bg-primary rounded-xl flex items-center justify-center text-white font-black text-2xl">Y</div>}
+               <img
+                  src={institution?.logoUrl || "/logo-icon.png"}
+                  className="size-16 object-contain rounded-xl border border-slate-200 p-1 shadow-sm"
+                  alt="Institution Logo"
+               />
                <div>
                   <h1 className="text-2xl font-headline font-black text-primary uppercase tracking-tight">{institution?.name || "System Hub"}</h1>
                   <p className="text-[10px] font-bold text-muted-foreground uppercase">{institution?.location}</p>
@@ -422,7 +436,11 @@ export default function InvoicingPage() {
         <div id="printable-individual-bill" className="hidden print:block bg-white p-12 space-y-12">
            <div className="flex justify-between items-start border-b pb-8">
               <div className="flex items-center gap-4">
-                 {institution?.logoUrl ? <img src={institution.logoUrl} className="size-20 object-contain" /> : <div className="size-20 bg-primary rounded-2xl flex items-center justify-center text-white font-black text-3xl">Y</div>}
+                 <img
+                    src={institution?.logoUrl || "/logo-icon.png"}
+                    className="size-20 object-contain rounded-2xl border border-slate-200 p-1.5 shadow-sm"
+                    alt="Institution Logo"
+                 />
                  <div>
                     <h1 className="text-3xl font-headline font-black text-primary uppercase tracking-tighter">{institution?.name || "System Hub"}</h1>
                     <p className="text-xs font-bold text-muted-foreground uppercase">{institution?.location || "Ahafo Region, Ghana"}</p>
@@ -489,7 +507,7 @@ export default function InvoicingPage() {
             visibility: hidden;
           }
 
-          #printable-ledger-report, #printable-ledger-report *, 
+          #printable-ledger-report, #printable-ledger-report *,
           #printable-individual-bill, #printable-individual-bill * {
             visibility: visible !important;
           }

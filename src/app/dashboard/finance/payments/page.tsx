@@ -5,14 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { 
-  CreditCard, 
-  Smartphone, 
-  Banknote, 
-  Search, 
-  CheckCircle2, 
-  Receipt, 
-  Loader2, 
+import {
+  CreditCard,
+  Smartphone,
+  Banknote,
+  Search,
+  CheckCircle2,
+  Receipt,
+  Loader2,
   Wallet,
   ArrowDownLeft,
   Calendar,
@@ -30,7 +30,7 @@ import {
   Lock
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase"
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, useTenant } from "@/firebase"
 import { collection, query, where, addDoc, serverTimestamp, getDocs, updateDoc, doc, writeBatch, deleteDoc, getDoc } from "firebase/firestore"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
@@ -45,18 +45,18 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 export default function PaymentsProcessorPage() {
   const db = useFirestore()
   const { user } = useUser()
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
-  
+  const { institutionId, institution, profile } = useTenant()
+
   // UI Dialog States
   const [isPayOpen, setIsPayOpen] = useState(false)
   const [isReceiptOpen, setIsReceiptOpen] = useState(false)
-  
+
   const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [invoiceFilter, setInvoiceFilter] = useState("")
-  
+
   const [selectedTxn, setSelectedTxn] = useState<any>(null)
-  
+
   const [paymentForm, setPaymentForm] = useState({
     invoiceId: "",
     amount: "",
@@ -64,34 +64,18 @@ export default function PaymentsProcessorPage() {
     reference: "PENDING"
   })
 
-  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
-  const { data: profile } = useDoc(userProfileRef)
-
   const isAuthorizer = useMemo(() => {
     const role = profile?.role || "";
     return ['super_admin', 'school_owner', 'administrator'].includes(role);
   }, [profile]);
 
-  useEffect(() => {
-    if (profile) {
-      if (profile.role === 'super_admin') {
-        setInstitutionId(localStorage.getItem('selected_institution_id'))
-      } else {
-        setInstitutionId(profile.tenantId || null)
-      }
-    }
-  }, [profile])
-
-  const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
-  const { data: institution } = useDoc(instRef)
-
   // Queries
-  const allInvoicesQuery = useMemoFirebase(() => 
-    institutionId ? query(collection(db, "invoices"), where("tenantId", "==", institutionId)) : null, 
+  const allInvoicesQuery = useMemoFirebase(() =>
+    institutionId ? query(collection(db, "invoices"), where("tenantId", "==", institutionId)) : null,
     [db, institutionId]
   )
-  const txnsQuery = useMemoFirebase(() => 
-    institutionId ? query(collection(db, "transactions"), where("tenantId", "==", institutionId)) : null, 
+  const txnsQuery = useMemoFirebase(() =>
+    institutionId ? query(collection(db, "transactions"), where("tenantId", "==", institutionId)) : null,
     [db, institutionId]
   )
 
@@ -101,14 +85,14 @@ export default function PaymentsProcessorPage() {
   const pendingInvoices = useMemo(() => allInvoices.filter(i => i.status !== "Paid"), [allInvoices])
 
   const filteredInvoices = useMemo(() => {
-    return pendingInvoices.filter(inv => 
+    return pendingInvoices.filter(inv =>
       inv.studentName?.toLowerCase().includes(invoiceFilter.toLowerCase()) ||
       inv.invoiceNumber?.toLowerCase().includes(invoiceFilter.toLowerCase())
     )
   }, [pendingInvoices, invoiceFilter])
 
   const transactions = useMemo(() => {
-    return [...rawTransactions].filter(t => 
+    return [...rawTransactions].filter(t =>
       t.studentName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.reference?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.paymentMethod?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -122,7 +106,7 @@ export default function PaymentsProcessorPage() {
     setLoading(true)
     const amount = parseFloat(paymentForm.amount)
     const selectedInvoice = pendingInvoices.find((i: any) => i.id === paymentForm.invoiceId)
-    
+
     if (!selectedInvoice) {
       setLoading(false)
       return
@@ -188,40 +172,44 @@ export default function PaymentsProcessorPage() {
 
   const handleDeleteTransaction = async (txn: any) => {
     if (!isAuthorizer) {
-      toast({ 
-        variant: "destructive", 
-        title: "Security Authorization Required", 
-        description: "Only a Headmaster or Administrator can authorize payment reversals." 
+      toast({
+        variant: "destructive",
+        title: "Security Authorization Required",
+        description: "Only a Headmaster or Administrator can authorize payment reversals."
       });
       return;
     }
 
     if (!db || !confirm("Reverse this payment? This will update the student's invoice and ledger balance.")) return
-    
+
     setLoading(true)
     try {
       const batch = writeBatch(db)
       const invoiceRef = doc(db, "invoices", txn.invoiceId)
       const invSnap = await getDoc(invoiceRef)
-      
+
       if (invSnap.exists()) {
         const inv = invSnap.data()
         const newPaid = Math.max(0, (inv.amountPaid || 0) - txn.amount)
         const newDue = (inv.totalAmount || 0) - newPaid
-        batch.update(invoiceRef, { 
-          amountPaid: newPaid, 
-          amountDue: newDue, 
+        batch.update(invoiceRef, {
+          amountPaid: newPaid,
+          amountDue: newDue,
           status: newDue <= 0 ? "Paid" : newPaid > 0 ? "Partial" : "Unpaid",
           updatedAt: serverTimestamp()
         })
       }
-      
-      const ledgerQ = query(collection(db, "student_ledger"), where("transactionId", "==", txn.id))
+
+      const ledgerQ = query(
+        collection(db, "student_ledger"),
+        where("tenantId", "==", institutionId),
+        where("transactionId", "==", txn.id)
+      )
       const ledgerSnap = await getDocs(ledgerQ)
       ledgerSnap.forEach(d => batch.delete(d.ref))
-      
+
       batch.delete(doc(db, "transactions", txn.id))
-      
+
       await batch.commit()
       toast({ title: "Transaction Reversed", description: "Ledger and invoice have been adjusted." })
     } catch (err: any) {
@@ -287,11 +275,11 @@ export default function PaymentsProcessorPage() {
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="size-4" /></Button></DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="rounded-xl border-none shadow-xl w-48">
-                            <DropdownMenuItem 
-                              className="gap-2 text-xs font-bold text-destructive" 
+                            <DropdownMenuItem
+                              className="gap-2 text-xs font-bold text-destructive"
                               onSelect={() => handleDeleteTransaction(t)}
                             >
-                              <RotateCcw className="size-4" /> 
+                              <RotateCcw className="size-4" />
                               {isAuthorizer ? 'Reverse Transaction' : 'Authorize Reversal'}
                               {!isAuthorizer && <Lock className="size-3 ml-auto opacity-50" />}
                             </DropdownMenuItem>

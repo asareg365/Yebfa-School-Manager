@@ -27,7 +27,8 @@ import {
   CheckCircle2,
   AlertCircle
 } from "lucide-react"
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase"
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, useTenant } from "@/firebase"
+import { auth } from "@/firebase/core"
 import { collection, query, where, doc, deleteDoc, writeBatch, serverTimestamp, setDoc } from "firebase/firestore"
 import { useState, useMemo, useEffect, useRef } from "react"
 import { Badge } from "@/components/ui/badge"
@@ -45,26 +46,11 @@ import { generateId } from "@/lib/id-generator"
 export default function ParentsRegistryPage() {
   const db = useFirestore()
   const { user } = useUser()
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
+  const { institutionId, institution, profile, loading: tenantLoading } = useTenant()
   const [searchQuery, setSearchQuery] = useState("")
   const [isBulkOpen, setIsBulkOpen] = useState(false)
   const [bulkLoading, setBulkLoading] = useState(false)
   const bulkFileRef = useRef<HTMLInputElement>(null)
-  
-  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
-  const { data: profile, loading: profileLoading } = useDoc(userProfileRef)
-
-  useEffect(() => {
-    if (profileLoading) return;
-    if (profile?.role === 'super_admin') {
-      setInstitutionId(localStorage.getItem('selected_institution_id'))
-    } else {
-      setInstitutionId(profile?.tenantId || null)
-    }
-  }, [profile, profileLoading])
-
-  const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
-  const { data: institution } = useDoc(instRef)
 
   const parentsQuery = useMemoFirebase(() => 
     institutionId ? query(collection(db, "parents"), where("tenantId", "==", institutionId)) : null, 
@@ -92,13 +78,8 @@ export default function ParentsRegistryPage() {
     if (!file || !institutionId || !institution) return;
   
     setBulkLoading(true);
-    let provisionApp: FirebaseApp | null = null;
   
     try {
-      const provisionAppName = `bulk-parent-intake-${Date.now()}`;
-      provisionApp = initializeApp(firebaseConfig, provisionAppName);
-      const provisionAuth = getAuth(provisionApp);
-  
       Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
@@ -108,103 +89,45 @@ export default function ParentsRegistryPage() {
             const rawRows = results.data as any[];
             if (!rawRows.length) {
               toast({ variant: "destructive", title: "Empty CSV", description: "No guardian records were found." });
+              setBulkLoading(false);
               return;
             }
   
-            let successCount = 0;
-            let failCount = 0;
-            let skippedCount = 0;
-  
-            for (const row of rawRows) {
-              const getValue = (...keys: string[]) => {
-                for (const key of keys) {
-                  const val = row[key];
-                  if (val !== undefined && val !== null) {
-                    const cleaned = String(val).trim();
-                    if (cleaned) return cleaned;
-                  }
-                }
-                return "";
-              };
-
-              let first = getValue("firstname", "first", "givenname", "guardianfirstname");
-              let last = getValue("lastname", "last", "surname", "familyname", "guardianlastname");
-              const phone = getValue("phone", "phonenumber", "contact", "mobile");
-              const email = getValue("email", "emailaddress");
-
-              if (!first || !last || !phone) {
-                skippedCount++;
-                continue;
-              }
-
-              try {
-                const finalParentNumber = await generateId('parents', institution.schoolCode, 'PR');
-                let cleanPass = normalizeSecurityPhone(phone);
-                if (cleanPass.length < 6) cleanPass = cleanPass.padEnd(6, '0');
-                
-                const domain = getInstitutionEmailDomain(institution);
-                const authEmail = `${finalParentNumber.trim()}@${domain}`.toLowerCase();
-                const contactEmail = email.toLowerCase() || authEmail;
-                
-                let authUid = null;
-                try {
-                  const credential = await createUserWithEmailAndPassword(provisionAuth, authEmail, cleanPass);
-                  authUid = credential.user.uid;
-                  await signOut(provisionAuth);
-                } catch (authErr) {
-                  console.log("Bulk Auth Catch");
-                }
-
-                const batch = writeBatch(db);
-                const parentRef = doc(collection(db, "parents"));
-                const parentId = parentRef.id;
-
-                batch.set(parentRef, {
-                  id: parentId,
-                  parentNumber: finalParentNumber,
-                  firstName: first,
-                  lastName: last,
-                  phone: normalizeSecurityPhone(phone),
-                  email: contactEmail,
-                  authEmail: authEmail,
-                  authUid,
-                  occupation: getValue("occupation", "job", "profession"),
-                  address: getValue("address", "residence", "residentialaddress"),
-                  status: "Active",
-                  tenantId: institutionId,
-                  institutionId: institutionId,
-                  createdAt: serverTimestamp(),
-                  updatedAt: serverTimestamp()
-                });
-
-                const userUid = authUid || parentId;
-                batch.set(doc(db, "users", userUid), {
-                  uid: userUid,
-                  name: `${first} ${last}`,
-                  email: contactEmail,
-                  authEmail: authEmail,
-                  role: "parent",
-                  tenantId: institutionId,
-                  institutionId: institutionId,
-                  status: "active",
-                  createdAt: serverTimestamp()
-                }, { merge: true });
-
-                await batch.commit();
-                successCount++;
-              } catch (rowError) {
-                failCount++;
-              }
+            const idToken = await auth.currentUser?.getIdToken();
+            if (!idToken) {
+              toast({ variant: "destructive", title: "Authentication Error", description: "Please log in again." });
+              setBulkLoading(false);
+              return;
             }
-  
-            toast({ title: "Intake Complete", description: `${successCount} guardians enrolled. ${failCount} failed. ${skippedCount} skipped.` });
+
+            const res = await fetch("/api/bulk-intake", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${idToken}`
+              },
+              body: JSON.stringify({
+                type: "parents",
+                records: rawRows,
+                activeInstitutionId: institutionId
+              })
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+              throw new Error(data.error || "Bulk intake server request failed.");
+            }
+
+            toast({
+              title: "Intake Complete",
+              description: `${data.successCount || 0} guardians enrolled. ${data.failCount || 0} failed. ${data.skippedCount || 0} skipped.`
+            });
             setIsBulkOpen(false);
           } catch (error: any) {
             toast({ variant: "destructive", title: "Intake Halted", description: error?.message });
           } finally {
             setBulkLoading(false);
             if (bulkFileRef.current) bulkFileRef.current.value = "";
-            if (provisionApp) try { await deleteApp(provisionApp); } catch (e) {}
           }
         }
       });
@@ -224,7 +147,7 @@ export default function ParentsRegistryPage() {
     }
   }
 
-  if (profileLoading || pLoading) return (
+  if (tenantLoading || pLoading) return (
     <div className="p-20 text-center space-y-4">
       <Loader2 className="size-12 text-primary animate-spin mx-auto" />
       <p className="font-bold text-muted-foreground uppercase tracking-widest text-xs">Syncing Registry...</p>

@@ -18,7 +18,7 @@ import {
   ShieldCheck
 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
-import { useUser, useFirestore, useCollection, useDoc } from "@/firebase"
+import { useUser, useFirestore, useCollection, useDoc, useTenant } from "@/firebase"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { collection, query, where, doc } from "firebase/firestore"
@@ -33,32 +33,18 @@ export default function Dashboard() {
   const db = useFirestore()
   const router = useRouter()
   const [videoLoading, setVideoLoading] = useState(false)
-  const [institutionId, setInstitutionId] = useState<string | null>(null);
-
-  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
-  const { data: profile, loading: profileLoading } = useDoc(userProfileRef)
-
-  // Safe Context Resolution
-  useEffect(() => {
-    if (!profileLoading && profile) {
-      if (profile.role === 'super_admin') {
-        setInstitutionId(localStorage.getItem('selected_institution_id'));
-      } else {
-        setInstitutionId(profile.tenantId || null);
-      }
-    }
-  }, [profile, profileLoading]);
+  const { institutionId, institutionName, profile, loading: tenantLoading } = useTenant()
 
   // Explicit Role Guard
   useEffect(() => {
-    if (!profileLoading && profile) {
+    if (!tenantLoading && profile) {
       if (profile.role === 'parent') {
         router.replace("/dashboard/parent")
       } else if (profile.role === 'teacher') {
         router.replace("/dashboard/attendance")
       }
     }
-  }, [profile, profileLoading, router])
+  }, [profile, tenantLoading, router])
 
   // Core Data Queries
   const studentsQuery = useMemo(() => institutionId ? query(collection(db, "students"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
@@ -121,7 +107,7 @@ export default function Dashboard() {
     }
   }
 
-  if (authLoading || profileLoading || (profile && (profile.role === 'parent' || profile.role === 'teacher'))) return (
+  if (authLoading || tenantLoading || (profile && (profile.role === 'parent' || profile.role === 'teacher'))) return (
     <div className="p-10 text-center space-y-4">
       <Activity className="size-10 text-primary animate-spin mx-auto" />
       <p className="font-headline font-bold text-muted-foreground animate-pulse">Synchronizing Dashboard...</p>
@@ -148,7 +134,7 @@ export default function Dashboard() {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl md:text-3xl xl:text-4xl font-headline font-bold tracking-tight text-primary">System Pulse</h1>
-          <p className="text-muted-foreground font-medium text-sm md:text-base">Monitoring real-time academic records for {typeof window !== 'undefined' ? localStorage.getItem('selected_institution_name') : 'Active Registry'}.</p>
+          <p className="text-muted-foreground font-medium text-sm md:text-base">Monitoring real-time academic records for {institutionName || 'Active Registry'}.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button 

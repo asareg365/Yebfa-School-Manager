@@ -48,6 +48,12 @@ export default function LoginPage() {
     }
   }, [])
 
+  const SUPER_ADMIN_EMAILS = [
+    "asareg365@gmail.com",
+    "info@yebfaconsult.org",
+    "frankyeb@gmail.com"
+  ]
+
   const redirectUser = async (firebaseUser: User, roleHint?: string, identifier?: string) => {
     try {
       if (typeof window !== 'undefined') {
@@ -68,56 +74,144 @@ export default function LoginPage() {
 
       if (!userData) {
         console.log(`[Gateway] Identity context resolution triggered...`);
-        
-        let registryDoc: any = null;
-        let tenantId = null;
-        let name = "";
-        let role = roleHint || "guest";
-        let studentId = null;
-        let staffId = null;
+        const userEmail = (firebaseUser.email || "").toLowerCase().trim();
 
-        const findInCollection = async (coll: string, uidField: string) => {
-          const q = query(collection(db, coll), where(uidField, "==", firebaseUser.uid), limit(1));
-          const snap = await getDocs(q);
-          return snap.empty ? null : snap.docs[0].data();
-        };
+        // 1. Check Super Admin authority
+        if (userEmail && SUPER_ADMIN_EMAILS.includes(userEmail)) {
+          userData = {
+            uid: firebaseUser.uid,
+            name: "Super Administrator",
+            email: firebaseUser.email,
+            role: "super_admin",
+            status: "active",
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          };
+          await setDoc(userRef, userData, { merge: true });
+        }
 
-        registryDoc = await findInCollection("students", "authUid");
-        if (registryDoc) {
-          role = "student";
-          studentId = registryDoc.id;
-        } else {
-          registryDoc = await findInCollection("staff", "authUid");
-          if (registryDoc) {
-            role = resolveSystemRole(registryDoc.designation);
-            staffId = registryDoc.id;
-          } else {
-            registryDoc = await findInCollection("parents", "authUid");
-            if (registryDoc) role = "parent";
+        // 2. Check School Owner authority via institution ownerEmail
+        if (!userData && userEmail) {
+          try {
+            const instQ = query(
+              collection(db, "institutions"),
+              where("ownerEmail", "==", userEmail),
+              limit(1)
+            );
+            const instSnap = await getDocs(instQ);
+            if (!instSnap.empty) {
+              const instDoc = instSnap.docs[0];
+              const instData = instDoc.data();
+              userData = {
+                uid: firebaseUser.uid,
+                name: instData.ownerName || firebaseUser.displayName || "School Owner",
+                email: firebaseUser.email,
+                role: "school_owner",
+                tenantId: instDoc.id,
+                institutionId: instDoc.id,
+                institutionName: instData.name || "Academic Hub",
+                schoolCode: instData.schoolCode || "",
+                status: "active",
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
+              };
+              await setDoc(userRef, userData, { merge: true });
+            }
+          } catch (ownerErr: any) {
+            console.warn("[Gateway] School owner resolution warning:", ownerErr.message);
           }
         }
 
-        if (registryDoc) {
-          tenantId = registryDoc.tenantId;
-          name = `${registryDoc.firstName} ${registryDoc.lastName}`;
-          const instSnap = await getDoc(doc(db, "institutions", tenantId));
-          const instName = instSnap.data()?.name || "Registry Hub";
+        // 3. Check direct registry linking by authUid
+        if (!userData) {
+          let registryDoc: any = null;
+          let tenantId = null;
+          let name = "";
+          let role = roleHint || "guest";
+          let studentId = null;
+          let staffId = null;
 
-          userData = {
-            uid: firebaseUser.uid,
-            name,
-            email: firebaseUser.email,
-            role,
-            studentId,
-            staffId,
-            tenantId,
-            institutionId: tenantId,
-            institutionName: instName,
-            status: "active",
-            createdAt: serverTimestamp()
+          const findInCollection = async (coll: string, uidField: string) => {
+            try {
+              const q = query(collection(db, coll), where(uidField, "==", firebaseUser.uid), limit(1));
+              const snap = await getDocs(q);
+              return snap.empty ? null : snap.docs[0].data();
+            } catch (err: any) {
+              console.warn(`[Gateway] Query ${coll} by ${uidField} error:`, err.message);
+              return null;
+            }
           };
 
-          await setDoc(userRef, userData);
+          registryDoc = await findInCollection("students", "authUid");
+          if (registryDoc) {
+            role = "student";
+            studentId = registryDoc.id;
+          } else {
+            registryDoc = await findInCollection("staff", "authUid");
+            if (registryDoc) {
+              role = resolveSystemRole(registryDoc.designation);
+              staffId = registryDoc.id;
+            } else {
+              registryDoc = await findInCollection("parents", "authUid");
+              if (registryDoc) role = "parent";
+            }
+          }
+
+          if (registryDoc) {
+            tenantId = registryDoc.tenantId;
+            name = `${registryDoc.firstName} ${registryDoc.lastName}`;
+            let instName = "Registry Hub";
+            try {
+              const instSnap = await getDoc(doc(db, "institutions", tenantId));
+              instName = instSnap.data()?.name || "Registry Hub";
+            } catch (instErr: any) {
+              console.warn("[Gateway] Institution fetch warning:", instErr.message);
+            }
+
+            userData = {
+              uid: firebaseUser.uid,
+              name,
+              email: firebaseUser.email,
+              role,
+              studentId,
+              staffId,
+              tenantId,
+              institutionId: tenantId,
+              institutionName: instName,
+              status: "active",
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp()
+            };
+
+            await setDoc(userRef, userData, { merge: true });
+          }
+        }
+
+        // 4. Fallback to secure server-side bootstrap for unlinked accounts
+        if (!userData) {
+          try {
+            const idToken = await firebaseUser.getIdToken();
+            const res = await fetch("/api/auth-bootstrap", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                idToken,
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                roleHint,
+                identifier
+              })
+            });
+
+            if (res.ok) {
+              const resData = await res.json();
+              if (resData.user) {
+                userData = resData.user;
+              }
+            }
+          } catch (apiErr: any) {
+            console.error("[Gateway] Server bootstrap API error:", apiErr.message);
+          }
         }
       }
 
@@ -273,11 +367,16 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-muted/30">
-      <Link href="/" className="flex items-center gap-2 mb-8 group">
-        <div className="size-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-lg group-hover:scale-105 transition-transform">
-          <School className="size-6" />
+      <Link href="/" className="flex flex-col items-center gap-3 mb-8 group text-center">
+        <img
+          src="/logo-icon.png"
+          alt="Yebfa School Manager"
+          className="size-16 object-contain rounded-2xl shadow-xl group-hover:scale-105 transition-transform"
+        />
+        <div className="flex flex-col items-center">
+          <span className="text-2xl font-headline font-bold text-primary">Yebfa School Manager</span>
+          <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Strategic SaaS 2026</span>
         </div>
-        <span className="text-2xl font-headline font-bold text-primary">Yebfa School Manager</span>
       </Link>
       
       <Card className="w-full max-w-lg border-none shadow-2xl overflow-hidden rounded-3xl bg-white">

@@ -22,7 +22,7 @@ import {
   GraduationCap
 } from "lucide-react"
 import { generateLessonPlan, GenerateLessonPackOutput } from "@/ai/flows/generate-lesson-plan"
-import { useFirestore, useCollection, useUser, useDoc, useMemoFirebase } from "@/firebase"
+import { useFirestore, useCollection, useUser, useDoc, useMemoFirebase, useTenant } from "@/firebase"
 import { collection, query, where, doc } from "firebase/firestore"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "@/hooks/use-toast"
@@ -33,7 +33,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 export default function AiTeacherAssistantPage() {
   const db = useFirestore()
   const { user } = useUser()
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
+  const { institutionId, profile } = useTenant()
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<GenerateLessonPackOutput | null>(null)
   const [copied, setCopied] = useState(false)
@@ -46,12 +46,6 @@ export default function AiTeacherAssistantPage() {
     focusArea: ""
   })
 
-  useEffect(() => {
-    setInstitutionId(localStorage.getItem('selected_institution_id'))
-  }, [])
-
-  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
-  const { data: profile } = useDoc(userProfileRef)
   const isTeacher = profile?.role === 'teacher'
   const staffId = profile?.staffId
 

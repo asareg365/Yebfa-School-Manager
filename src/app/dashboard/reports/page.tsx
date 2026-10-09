@@ -28,7 +28,7 @@ import {
   ShieldCheck
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase"
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, useTenant } from "@/firebase"
 import { collection, query, where, doc, setDoc, serverTimestamp } from "firebase/firestore"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { calculateGrade, calculatePositions, calculateAttendanceSummary, DEFAULT_GRADING, determinePromotion } from "@/lib/academic-engine"
@@ -39,7 +39,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 export default function StudentReportsPage() {
   const db = useFirestore()
   const { user } = useUser()
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
+  const { institutionId, institution, profile } = useTenant()
   const [selectedGrade, setSelectedGrade] = useState("")
   const [selectedStudentId, setSelectedStudentId] = useState("")
   const [studentSearch, setStudentSearch] = useState("")
@@ -49,21 +49,6 @@ export default function StudentReportsPage() {
   const [teacherRemark, setTeacherRemark] = useState("")
   const [headRemark, setHeadRemark] = useState("")
 
-  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
-  const { data: profile } = useDoc(userProfileRef)
-
-  useEffect(() => {
-    if (profile) {
-      if (profile.role === 'super_admin') {
-        setInstitutionId(localStorage.getItem('selected_institution_id'))
-      } else {
-        setInstitutionId(profile.tenantId || null)
-      }
-    }
-  }, [profile])
-
-  const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
-  const { data: institution } = useDoc(instRef)
   const currentTerm = institution?.currentTerm || "Term 1"
 
   const classesQuery = useMemoFirebase(() => 

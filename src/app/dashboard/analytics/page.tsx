@@ -19,7 +19,7 @@ import {
   Pie,
   Cell
 } from "recharts"
-import { useUser, useFirestore, useCollection, useDoc } from "@/firebase"
+import { useUser, useFirestore, useCollection, useDoc, useTenant } from "@/firebase"
 import { collection, query, where, doc } from "firebase/firestore"
 import { 
   TrendingUp, 
@@ -44,17 +44,7 @@ import { toast } from "@/hooks/use-toast"
 export default function StrategicAnalyticsPage() {
   const db = useFirestore()
   const { user } = useUser()
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
-
-  useEffect(() => {
-    setInstitutionId(localStorage.getItem('selected_institution_id'))
-  }, [])
-
-  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
-  const { data: profile } = useDoc(userProfileRef)
-
-  const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
-  const { data: institution } = useDoc(instRef)
+  const { institutionId, institution, profile } = useTenant()
 
   const studentsQuery = useMemo(() => institutionId ? query(collection(db!, "students"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   const txnsQuery = useMemo(() => institutionId ? query(collection(db!, "transactions"), where("tenantId", "==", institutionId)) : null, [db, institutionId])

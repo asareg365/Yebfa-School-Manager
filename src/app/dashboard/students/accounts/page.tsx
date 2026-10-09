@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Wallet, Search, Plus, Loader2, User, Receipt, Banknote, Trash2, CheckCircle2, Filter, X, Users, Layers } from "lucide-react"
-import { useFirestore, useCollection, useUser, useDoc } from "@/firebase"
+import { useFirestore, useCollection, useUser, useDoc, useTenant } from "@/firebase"
 import { collection, query, where, addDoc, serverTimestamp, doc } from "firebase/firestore"
 import { useState, useMemo, useEffect } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -24,25 +24,12 @@ import {
 export default function PersonalFeeLedgerPage() {
   const db = useFirestore()
   const { user } = useUser()
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
+  const { institutionId, profile } = useTenant()
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
   const [isEntryOpen, setIsFeeEntryOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [studentSearch, setStudentSearch] = useState("")
   const [entryForm, setEntryForm] = useState({ type: "charge", item: "", amount: "" })
-
-  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
-  const { data: profile } = useDoc(userProfileRef)
-
-  useEffect(() => {
-    if (profile) {
-      if (profile.role === 'super_admin') {
-        setInstitutionId(localStorage.getItem('selected_institution_id'))
-      } else {
-        setInstitutionId(profile.tenantId || null)
-      }
-    }
-  }, [profile])
 
   const studentsQuery = useMemo(() => {
     if (!db || !institutionId) return null

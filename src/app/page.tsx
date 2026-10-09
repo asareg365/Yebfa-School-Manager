@@ -19,11 +19,16 @@ export default function LandingPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <header className="px-6 lg:px-12 h-20 flex items-center justify-between border-b border-border/40 sticky top-0 bg-background/80 backdrop-blur-md z-50">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="size-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-lg">
-            <School className="size-6" />
+        <Link href="/" className="flex items-center gap-3 group">
+          <img
+            src="/logo-icon.png"
+            alt="Yebfa School Manager"
+            className="size-11 object-contain rounded-xl shadow-md group-hover:scale-105 transition-transform"
+          />
+          <div className="flex flex-col">
+            <span className="text-xl md:text-2xl font-headline font-bold tracking-tight text-primary leading-tight">Yebfa School Manager</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Strategic SaaS 2026</span>
           </div>
-          <span className="text-2xl font-headline font-bold tracking-tight text-primary">Yebfa School Manager</span>
         </Link>
         <nav className="hidden md:flex items-center gap-8">
           <Link href="/about" className="text-sm font-medium hover:text-accent transition-colors">About</Link>
@@ -86,10 +91,12 @@ export default function LandingPage() {
 
       <footer className="py-12 border-t border-border/40 bg-muted/30">
         <div className="container px-6 mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
-          <div className="flex items-center gap-2">
-            <div className="size-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground shadow-sm">
-              <School className="size-5" />
-            </div>
+          <div className="flex items-center gap-3">
+            <img
+              src="/logo-icon.png"
+              alt="Yebfa School Manager"
+              className="size-9 object-contain rounded-lg shadow-sm"
+            />
             <span className="text-xl font-headline font-bold text-primary">Yebfa School Manager</span>
           </div>
           <p className="text-sm text-muted-foreground">© 2026 Yebfa School Manager. All rights reserved.</p>

@@ -20,7 +20,7 @@ import {
   MapPin,
   HeartHandshake
 } from "lucide-react"
-import { useFirestore, useCollection, useUser } from "@/firebase"
+import { useFirestore, useCollection, useUser, useTenant } from "@/firebase"
 import { collection, query, where, serverTimestamp, addDoc, doc, deleteDoc, updateDoc } from "firebase/firestore"
 import { useState, useMemo, useEffect } from "react"
 import { Badge } from "@/components/ui/badge"
@@ -33,7 +33,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 export default function ParentsRegistryPage() {
   const db = useFirestore()
   const { user } = useUser()
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
+  const { institutionId } = useTenant()
   const [searchQuery, setSearchQuery] = useState("")
   const [loading, setLoading] = useState(false)
   const [isAddOpen, setIsAddOpen] = useState(false)
@@ -50,10 +50,6 @@ export default function ParentsRegistryPage() {
     gpsAddress: "",
     relationship: "Father"
   })
-
-  useEffect(() => {
-    setInstitutionId(localStorage.getItem('selected_institution_id'))
-  }, [])
 
   const parentsQuery = useMemo(() => institutionId ? query(collection(db, "parents"), where("tenantId", "==", institutionId)) : null, [db, institutionId])
   const studentsQuery = useMemo(() => institutionId ? query(collection(db, "students"), where("tenantId", "==", institutionId)) : null, [db, institutionId])

@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { School, Shield, Building, Plus, Layers, Trash2, Save, Loader2, Upload, X, Wallet, CheckCircle2, Clock, AlertTriangle, KeyRound, Phone, Sparkles, IdCard } from "lucide-react"
 import { useState, useEffect, useRef, useMemo, Suspense } from "react"
-import { useUser, useFirestore, useDoc } from "@/firebase"
+import { useUser, useFirestore, useDoc, useTenant } from "@/firebase"
 import { doc, updateDoc } from "firebase/firestore"
 import { toast } from "@/hooks/use-toast"
 import { errorEmitter } from "@/firebase/error-emitter"
@@ -24,7 +24,8 @@ function SettingsContent() {
   const { user } = useUser()
   const searchParams = useSearchParams()
   const router = useRouter()
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
+  const { institutionId, institution, loading: instLoading } = useTenant()
+  const instRef = useMemo(() => (db && institutionId ? doc(db, "institutions", institutionId) : null), [db, institutionId])
   const [isSaving, setIsSaving] = useState(false)
   const [logoPreview, setLogoUrl] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -56,18 +57,6 @@ function SettingsContent() {
     idCardIssuedDate: "",
     idCardExpiryDate: ""
   })
-
-  useEffect(() => {
-    const storedId = localStorage.getItem('selected_institution_id')
-    setInstitutionId(storedId)
-  }, [])
-
-  const instRef = useMemo(() => {
-    if (!db || !institutionId) return null;
-    return doc(db, "institutions", institutionId);
-  }, [db, institutionId])
-  
-  const { data: institution, loading } = useDoc(instRef)
 
   useEffect(() => {
     if (institution) {
@@ -143,7 +132,7 @@ function SettingsContent() {
     }
   }
 
-  if (loading) return <div className="p-10 text-center animate-pulse font-headline font-bold text-primary">Synchronizing system...</div>
+  if (instLoading) return <div className="p-10 text-center animate-pulse font-headline font-bold text-primary">Synchronizing system...</div>
   if (!institutionId) return <div className="p-10 text-center font-bold text-destructive">No active institution context found</div>
 
   return (
@@ -174,7 +163,7 @@ function SettingsContent() {
                     {logoPreview ? (
                       <img src={logoPreview} className="w-full h-full object-contain p-2" alt="Logo" />
                     ) : (
-                      <School className="size-10 text-muted-foreground/20" />
+                      <img src="/logo-icon.png" className="w-full h-full object-contain p-3 opacity-50" alt="Default Logo" />
                     )}
                     {logoPreview && (
                       <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 size-6 opacity-0 group-hover:opacity-100 rounded-full" onClick={() => setLogoUrl(null)}>
@@ -299,7 +288,7 @@ function SettingsContent() {
                          </div>
                       </div>
                       <Button className="w-full bg-accent text-accent-foreground font-bold h-12 shadow-lg" asChild>
-                         <a href="mailto:asareg365@gmail.com?subject=Institution Upgrade Request">Request Plan Upgrade</a>
+                         <a href="mailto:info@yebfaconsult.org?subject=Institution Upgrade Request&cc=asareg365@gmail.com">Request Plan Upgrade</a>
                       </Button>
                    </CardContent>
                 </Card>

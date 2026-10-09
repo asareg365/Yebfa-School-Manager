@@ -52,23 +52,16 @@ export const PrintHeader: React.FC<PrintHeaderProps> = ({
       <div className="flex items-start justify-between gap-4">
         {/* School Logo */}
         <div className="shrink-0">
-          {institution?.logoUrl ? (
-            <div className="relative size-20 rounded-md overflow-hidden border border-slate-300">
-              <Image
-                src={institution.logoUrl}
-                alt={schoolName}
-                fill
-                sizes="80px"
-                className="object-contain"
-                referrerPolicy="no-referrer"
-              />
-            </div>
-          ) : (
-            <div className="size-20 rounded-md bg-slate-100 border border-slate-400 flex flex-col items-center justify-center text-slate-700">
-              <School className="size-9 mb-1" />
-              <span className="text-[8px] font-bold uppercase tracking-wider">Logo</span>
-            </div>
-          )}
+          <div className="relative size-20 rounded-md overflow-hidden border border-slate-300 bg-white">
+            <Image
+              src={institution?.logoUrl || "/logo-icon.png"}
+              alt={schoolName}
+              fill
+              sizes="80px"
+              className="object-contain p-1"
+              referrerPolicy="no-referrer"
+            />
+          </div>
         </div>
 
         {/* School Details */}

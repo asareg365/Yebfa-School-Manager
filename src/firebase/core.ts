@@ -9,7 +9,7 @@ import { firebaseConfig } from './config';
  */
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-const db = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId || '(default)');
+const db = getFirestore(app, '(default)');
 const auth = getAuth(app);
 
 export { app, db, auth };

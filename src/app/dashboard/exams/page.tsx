@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ClipboardList, Printer, Save, Loader2, Bot, Sparkles, FileText, Download, Wand2, CheckCircle2, ListChecks, Target, BrainCircuit, BarChart, X, AlertTriangle } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useUser, useFirestore, useCollection, useDoc } from "@/firebase"
+import { useUser, useFirestore, useCollection, useDoc, useTenant } from "@/firebase"
 import { collection, query, where, doc, setDoc, serverTimestamp, writeBatch } from "firebase/firestore"
 import { useState, useMemo, useEffect } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -18,7 +18,7 @@ import { generateExamQuestions, GenerateExamOutput } from "@/ai/flows/generate-e
 export default function ExaminationCenterPage() {
   const db = useFirestore()
   const { user } = useUser()
-  const [institutionId, setInstitutionId] = useState<string | null>(null)
+  const { institutionId, institution, profile } = useTenant()
   const [selectedGrade, setSelectedGrade] = useState("")
   const [selectedSubject, setSelectedSubject] = useState("")
   const [selectedTerm, setSelectedTerm] = useState("")
@@ -28,22 +28,6 @@ export default function ExaminationCenterPage() {
 
   const [scores, setScores] = useState<Record<string, { ca: string, exam: string }>>({})
 
-  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
-  const { data: profile } = useDoc(userProfileRef)
-
-  useEffect(() => {
-    if (profile) {
-      if (profile.role === 'super_admin') {
-        setInstitutionId(localStorage.getItem('selected_institution_id'))
-      } else {
-        setInstitutionId(profile.tenantId || null)
-      }
-    }
-  }, [profile])
-
-  const instRef = useMemo(() => institutionId ? doc(db, "institutions", institutionId) : null, [db, institutionId])
-  const { data: institution } = useDoc(instRef)
-  
   useEffect(() => {
     if (institution?.currentTerm && !selectedTerm) {
       setSelectedTerm(institution.currentTerm)

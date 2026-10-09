@@ -21,7 +21,7 @@ import {
   CheckCircle2
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useFirestore, useCollection, useUser, useDoc, useMemoFirebase } from "@/firebase"
+import { useFirestore, useCollection, useUser, useDoc, useMemoFirebase, useTenant } from "@/firebase"
 import { 
   collection, 
   query, 
@@ -45,22 +45,7 @@ export default function CommunicationCenterPage() {
   const [loading, setLoading] = useState(false)
   const [msgForm, setMsgForm] = useState({ title: "", content: "", target: "All", targetStudentId: "" })
   const [studentSearch, setStudentSearch] = useState("")
-  const [institutionId, setInstitutionId] = useState<string | null>(null);
-
-  // Resolve Profile for Permissions and Tenant Context
-  const userProfileRef = useMemo(() => (user ? doc(db, "users", user.uid) : null), [db, user])
-  const { data: profile, loading: profileLoading } = useDoc(userProfileRef)
-  
-  // Safe Context Resolution
-  useEffect(() => {
-    if (!profileLoading && profile) {
-      if (profile.role === 'super_admin') {
-        setInstitutionId(localStorage.getItem('selected_institution_id'));
-      } else {
-        setInstitutionId(profile.tenantId || null);
-      }
-    }
-  }, [profile, profileLoading]);
+  const { institutionId, profile, loading: tenantLoading } = useTenant()
 
   const isParent = profile?.role === 'parent'
   const isStudent = profile?.role === 'student'
@@ -188,7 +173,7 @@ export default function CommunicationCenterPage() {
       });
   }
 
-  if (profileLoading) return (
+  if (tenantLoading) return (
     <div className="p-24 text-center">
       <Loader2 className="size-10 animate-spin mx-auto text-primary" />
     </div>

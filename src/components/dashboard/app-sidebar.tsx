@@ -86,6 +86,11 @@ export function AppSidebar() {
 
   const handleLogout = async () => {
     if (auth) {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('selected_institution_id');
+        localStorage.removeItem('selected_institution_name');
+        localStorage.removeItem('selected_school_code');
+      }
       await signOut(auth)
       router.push("/login")
       toast({
@@ -234,9 +239,11 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-border/40">
       <SidebarHeader className="h-16 flex items-center px-6">
         <div className="flex items-center gap-3">
-          <div className="size-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground shadow-sm">
-            <School className="size-5" />
-          </div>
+          <img
+            src="/logo-icon.png"
+            alt="Yebfa Logo"
+            className="size-9 object-contain rounded-lg shadow-sm shrink-0"
+          />
           {state === "expanded" && (
             <div className="flex flex-col gap-0.5 leading-none">
               <span className="font-headline font-bold text-lg tracking-tight text-white">Yebfa <span className="text-accent">|</span> Manager</span>
